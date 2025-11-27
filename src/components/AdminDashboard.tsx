@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -22,6 +21,8 @@ import {
     FIELD_ESTADO_GESTION_LANZAMIENTOS,
     FIELD_NOMBRE_INSTITUCIONES,
     FIELD_TELEFONO_INSTITUCIONES,
+    FIELD_SOLICITUD_NOMBRE_ALUMNO,
+    FIELD_SOLICITUD_LEGAJO_ALUMNO
 } from '../constants';
 import { parseToUTCDate, formatDate, normalizeStringForComparison } from '../utils/formatters';
 import Loader from './Loader';
@@ -38,6 +39,35 @@ const RELAUNCH_STATUS_OPTIONS = [
     'Relanzamiento Confirmado', 
     'No se Relanza'
 ];
+
+// --- Helper Functions ---
+
+// Helper to clean Airtable array strings (e.g., '["rec..."]' -> 'rec...') or standard arrays
+const cleanValue = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    
+    // If it's an actual array
+    if (Array.isArray(val)) {
+        return cleanValue(val[0]);
+    }
+    
+    let str = String(val);
+    
+    // If it's a string that LOOKS like a JSON array ["..."], try to parse it
+    if (str.startsWith('["') && str.endsWith('"]')) {
+        try {
+            const parsed = JSON.parse(str);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return cleanValue(parsed[0]);
+            }
+        } catch (e) {
+            // fallback to regex if parse fails
+        }
+    }
+
+    // Remove brackets and quotes just in case
+    return str.replace(/[\[\]"]/g, '').trim();
+}
 
 // --- Helper Components ---
 
@@ -99,6 +129,8 @@ const AdminDashboard: React.FC = () => {
 
             // Create maps for quick lookup
             const studentsMap = new Map(estudiantesRes.map(s => [s.id, s.fields]));
+            // Add map by Legajo for robust fallback
+            const studentsByLegajoMap = new Map(estudiantesRes.map(s => [String(s.fields[FIELD_LEGAJO_ESTUDIANTES] || '').trim(), s.fields]));
             const institutionsMap = new Map(institucionesRes.map(i => [normalizeStringForComparison(i.fields[FIELD_NOMBRE_INSTITUCIONES]), i]));
 
             return {
@@ -106,7 +138,8 @@ const AdminDashboard: React.FC = () => {
                 instituciones: institutionsMap,
                 finalizaciones: finalizacionesRes,
                 solicitudes: solicitudesRes,
-                studentsMap
+                studentsMap,
+                studentsByLegajoMap
             };
         },
         refetchInterval: 60000 // Refresh every minute
@@ -221,18 +254,28 @@ const AdminDashboard: React.FC = () => {
             return !excludedStatuses.includes(status);
         }).map(s => {
             // Handle potential array for student link
-            const rawStudentLink = s.fields[FIELD_LEGAJO_PPS];
-            const studentId = Array.isArray(rawStudentLink) ? rawStudentLink[0] : rawStudentLink;
+            const rawLink = s.fields[FIELD_LEGAJO_PPS];
+            const studentId = cleanValue(rawLink);
             
             // Extract Institution Name (handle potential lookup array)
             const rawInst = s.fields[FIELD_EMPRESA_PPS_SOLICITUD];
-            const institucion = Array.isArray(rawInst) ? rawInst[0] : rawInst;
+            const institucion = cleanValue(rawInst);
 
-            const student = studentId ? data.studentsMap.get(String(studentId)) : null;
+            let student = studentId ? data.studentsMap.get(studentId) : null;
             
+            const manualName = cleanValue(s.fields[FIELD_SOLICITUD_NOMBRE_ALUMNO]);
+            const manualLegajo = cleanValue(s.fields[FIELD_SOLICITUD_LEGAJO_ALUMNO]);
+
+            // Fallback to lookup by legajo if ID link failed
+            if (!student && manualLegajo) {
+                student = data.studentsByLegajoMap.get(manualLegajo);
+            }
+
+            const studentName = student?.[FIELD_NOMBRE_ESTUDIANTES] || manualName || 'Desconocido';
+
             return {
                 id: s.id,
-                studentName: student?.[FIELD_NOMBRE_ESTUDIANTES] || s.fields['Nombre'] || 'Desconocido',
+                studentName: studentName,
                 institucion: institucion || 'Sin especificar',
                 estado: s.fields[FIELD_ESTADO_PPS] || 'Pendiente',
                 updated: s.fields[FIELD_ULTIMA_ACTUALIZACION_PPS] || s.createdTime,

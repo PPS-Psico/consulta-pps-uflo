@@ -59,7 +59,7 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
     
     const { lanzamientos = [], myEnrollments = [], allLanzamientos = [], institutionAddressMap = new Map() } = convocatoriasData || {};
 
-    const enrollmentMutation = useMutation<AirtableRecord<ConvocatoriaFields> | null, Error, { formData: any, selectedLanzamiento: LanzamientoPPS }>({
+    const enrollmentMutation = useMutation<AirtableRecord<ConvocatoriaFields> | null, Error, { formData: any, selectedLanzamiento: LanzamientoPPS }, { previousData: unknown }>({
         mutationFn: async ({ formData, selectedLanzamiento }) => {
             if (legajo === '99999') {
                 await new Promise(resolve => setTimeout(resolve, 1500));
@@ -122,22 +122,30 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
 
             return db.convocatorias.create(newRecordFields);
         },
-        onMutate: () => setIsSubmittingEnrollment(true),
-        onSuccess: (createdRecord, { selectedLanzamiento, formData }) => {
+        onMutate: async ({ formData, selectedLanzamiento }) => {
+            setIsSubmittingEnrollment(true);
+            
+            // Close modal immediately for instant feedback
             closeEnrollmentForm();
+            
+            // Show success message immediately
             const message = 'Tu postulación ha sido registrada. Te notificaremos cuando haya novedades.';
             showModal('¡Inscripción Exitosa!', message);
+
+            // Optimistic update of the UI
+            await queryClient.cancelQueries({ queryKey: ['convocatorias', legajo, studentAirtableId] });
+            const previousData = queryClient.getQueryData(['convocatorias', legajo, studentAirtableId]);
 
             queryClient.setQueryData(
                 ['convocatorias', legajo, studentAirtableId],
                 (oldData: any) => {
-                    if (!oldData || !createdRecord) return oldData;
+                    if (!oldData) return oldData;
                     
-                    // Optimistically add the new enrollment to the list
                     const legajoAsNumber = studentDetails?.[FIELD_LEGAJO_ESTUDIANTES] ? parseInt(String(studentDetails[FIELD_LEGAJO_ESTUDIANTES]), 10) : undefined;
                     
+                    // Create a temporary optimistic record
                     const newEnrollment: Convocatoria = {
-                        id: createdRecord.id,
+                        id: `temp-id-${Date.now()}`,
                         
                         [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: [selectedLanzamiento.id],
                         [FIELD_NOMBRE_PPS_CONVOCATORIAS]: selectedLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS],
@@ -167,20 +175,28 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
                         (newEnrollment as any)[FIELD_CERTIFICADO_CONVOCATORIAS] = [{ url: formData.certificadoLink }];
                     }
 
-
                     return {
                         ...oldData,
                         myEnrollments: [...oldData.myEnrollments, newEnrollment],
                     };
                 }
             );
-            
-            queryClient.invalidateQueries({ queryKey: ['convocatorias', legajo, studentAirtableId], exact: true });
+
+            return { previousData };
         },
-        onError: (error: any) => {
+        onSuccess: () => {
+            // Invalidate to get the real ID from the server eventually, but no rush
+             queryClient.invalidateQueries({ queryKey: ['convocatorias', legajo, studentAirtableId], exact: true });
+        },
+        onError: (error: any, _newTodo, context) => {
+            // Rollback on error
+            if (context?.previousData) {
+                queryClient.setQueryData(['convocatorias', legajo, studentAirtableId], context.previousData);
+            }
+            
             console.error('Error detallado:', error);
             const detailedMessage = error?.error?.message || (typeof error?.error === 'string' ? error.error : error.message) || 'Un error desconocido ocurrió.';
-            showModal('Error al Inscribir', `No se pudo registrar tu postulación:\n\n${detailedMessage}`);
+            showModal('Error al Inscribir', `No se pudo registrar tu postulación. Por favor intenta nuevamente:\n\n${detailedMessage}`);
         },
         onSettled: () => setIsSubmittingEnrollment(false),
     });
@@ -232,9 +248,12 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
                     return old.map((p: any) => p.id === task.practicaId ? { ...p, nota: 'Entregado (sin corregir)' } : p);
                 });
             }
+            
+            // Instant feedback
+            showModal('Confirmación Exitosa', 'Hemos recibido la confirmación de tu entrega. ¡Gracias!');
+            
             return { previousConvocatoriasData, previousPracticasData };
         },
-        onSuccess: () => showModal('Confirmación Exitosa', 'Hemos recibido la confirmación de tu entrega. ¡Gracias!'),
         onError: (err, task, context) => {
             showModal('Error', `No se pudo confirmar la entrega: ${err.message}`);
             if (context?.previousConvocatoriasData) {

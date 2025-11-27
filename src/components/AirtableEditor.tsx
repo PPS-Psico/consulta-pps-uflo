@@ -268,24 +268,43 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         },
     });
 
-    const mutationOptions = {
-        onSuccess: (message: string) => {
-            setToastInfo({ message, type: 'success' as const });
-            queryClient.invalidateQueries({ queryKey: ['airtableEditor', activeTable, isTestingMode] });
-            setEditingRecord(null);
-            setContextMenu(null);
-            setSelectedRowId(null);
-        },
-        onError: (e: Error) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' as const }),
-    };
+    const queryKey = ['airtableEditor', activeTable, isTestingMode];
 
     const updateMutation = useMutation({
         mutationFn: ({ recordId, fields }: { recordId: string, fields: any }) => {
              if (isTestingMode) return new Promise(resolve => setTimeout(() => resolve(null), 500));
             return db[activeTable].update(recordId, fields);
         },
-        ...mutationOptions,
-        onSuccess: () => mutationOptions.onSuccess('Registro actualizado con éxito.'),
+        onMutate: async ({ recordId, fields }) => {
+            await queryClient.cancelQueries({ queryKey });
+            const previousData = queryClient.getQueryData<AirtableRecord<any>[]>(queryKey);
+            
+            if (previousData) {
+                 const schemaMap = EDITABLE_TABLES[activeTable].schema;
+                 const airtableFields: any = {};
+                 
+                 // Map form fields (dev names) back to Airtable field names for display
+                 Object.keys(fields).forEach(key => {
+                     const airtableKey = schemaMap[key] || key;
+                     airtableFields[airtableKey] = fields[key];
+                 });
+
+                queryClient.setQueryData<AirtableRecord<any>[]>(queryKey, old => 
+                    old?.map(record => record.id === recordId ? { ...record, fields: { ...record.fields, ...airtableFields } } : record)
+                );
+            }
+            setEditingRecord(null); // Close immediately
+            return { previousData };
+        },
+        onSuccess: () => setToastInfo({ message: 'Registro actualizado.', type: 'success' }),
+        onError: (e, _, context) => {
+            if (context?.previousData) {
+                queryClient.setQueryData(queryKey, context.previousData);
+            }
+            setToastInfo({ message: `Error: ${e.message}`, type: 'error' });
+        },
+        // Avoid refetching immediately to keep the UI snappy, data is already updated optimistically.
+        // We can refetch in background if needed, but usually not necessary for edits.
     });
 
     const createMutation = useMutation({
@@ -293,8 +312,13 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             if (isTestingMode) return new Promise(resolve => setTimeout(() => resolve(null), 500));
             return db[activeTable].create(fields);
         },
-        ...mutationOptions,
-        onSuccess: () => mutationOptions.onSuccess('Registro creado con éxito.'),
+        onSuccess: () => {
+             setToastInfo({ message: 'Registro creado.', type: 'success' });
+             setEditingRecord(null);
+             // For create we do need to refetch to get the ID
+             queryClient.invalidateQueries({ queryKey }); 
+        },
+        onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
     });
 
     const deleteMutation = useMutation({
@@ -302,8 +326,27 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             if (isTestingMode) return new Promise(resolve => setTimeout(() => resolve(null), 500));
             return db[activeTable].delete(recordId);
         },
-        ...mutationOptions,
-        onSuccess: () => mutationOptions.onSuccess('Registro eliminado con éxito.'),
+        onMutate: async (recordId) => {
+            // Optimistic delete: Remove from list immediately
+            await queryClient.cancelQueries({ queryKey });
+            const previousData = queryClient.getQueryData<AirtableRecord<any>[]>(queryKey);
+            
+            queryClient.setQueryData<AirtableRecord<any>[]>(queryKey, old => 
+                old ? old.filter(record => record.id !== recordId) : []
+            );
+            
+            setContextMenu(null);
+            setSelectedRowId(null);
+            return { previousData };
+        },
+        onSuccess: () => setToastInfo({ message: 'Registro eliminado.', type: 'success' }),
+        onError: (e, _, context) => {
+            // Rollback
+            if (context?.previousData) {
+                queryClient.setQueryData(queryKey, context.previousData);
+            }
+            setToastInfo({ message: `Error: ${e.message}`, type: 'error' });
+        },
     });
 
     const duplicateMutation = useMutation({
@@ -327,8 +370,12 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             if (isTestingMode) return new Promise(resolve => setTimeout(() => resolve(null), 500));
             return db[activeTable].create(newFields);
         },
-        ...mutationOptions,
-        onSuccess: () => mutationOptions.onSuccess('Registro duplicado con éxito.'),
+        onSuccess: () => {
+            setToastInfo({ message: 'Registro duplicado.', type: 'success' });
+            setContextMenu(null);
+            queryClient.invalidateQueries({ queryKey });
+        },
+        onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
     });
 
 

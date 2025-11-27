@@ -69,10 +69,9 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                     const legajoCol = mapFieldToDb(tableName, legajoField);
                     
                     // Usamos ILIKE para búsqueda insensible a mayúsculas y parcial.
-                    // Casteamos legajo a texto explícitamente para evitar errores si es numérico en DB.
                     dbFilter = {
                         type: 'or',
-                        filters: `${nameCol}.ilike.%${term}%,${legajoCol}::text.ilike.%${term}%`
+                        filters: `${nameCol}.ilike.%${term}%,${legajoCol}.ilike.%${term}%`
                     };
                 }
             }

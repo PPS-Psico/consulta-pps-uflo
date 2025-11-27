@@ -330,7 +330,7 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
         }
     });
 
-    // 2. Mutation for Updates
+    // 2. Mutation for Updates (With Optimistic Updates)
     const updateMutation = useMutation({
         mutationFn: ({ recordId, fields }: { recordId: string, fields: any }) => {
              if (isTestingMode) {
@@ -338,12 +338,39 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
              }
              return db.solicitudes.update(recordId, fields);
         },
+        onMutate: async ({ recordId, fields }) => {
+            // Cancel outgoing refetches to avoid overwriting optimistic update
+            await queryClient.cancelQueries({ queryKey: ['adminSolicitudes', isTestingMode] });
+            
+            // Snapshot the previous value
+            const previousData = queryClient.getQueryData<AirtableRecord<SolicitudPPSFields>[]>(['adminSolicitudes', isTestingMode]);
+            
+            // Optimistically update to the new value
+            queryClient.setQueryData<AirtableRecord<SolicitudPPSFields>[]>(['adminSolicitudes', isTestingMode], old => {
+                if (!old) return [];
+                return old.map(record => {
+                    if (record.id === recordId) {
+                        return { ...record, fields: { ...record.fields, ...fields } };
+                    }
+                    return record;
+                });
+            });
+            
+            // Close modal immediately for instant feel
+            setSelectedRecord(null);
+
+            return { previousData };
+        },
         onSuccess: () => {
             setToastInfo({ message: 'Solicitud actualizada correctamente.', type: 'success' });
-            queryClient.invalidateQueries({ queryKey: ['adminSolicitudes'] });
-            setSelectedRecord(null);
+            // No need to invalidate immediately if optimistic update worked, but good practice for data consistency
+            // queryClient.invalidateQueries({ queryKey: ['adminSolicitudes'] }); 
         },
-        onError: (err: any) => {
+        onError: (err: any, _newTodo, context) => {
+            // Rollback on error
+            if (context?.previousData) {
+                queryClient.setQueryData(['adminSolicitudes', isTestingMode], context.previousData);
+            }
             setToastInfo({ message: `Error al actualizar: ${err.message}`, type: 'error' });
         }
     });

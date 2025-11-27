@@ -1,7 +1,7 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import AdminSearch from '../components/AdminSearch';
 import ConvocatoriaManager from '../components/ConvocatoriaManager';
-import CorreccionPanel from '../components/CorreccionPanel';
 import { useAuth, type AuthUser } from '../contexts/AuthContext';
 import StudentDashboard from './StudentDashboard';
 import Tabs from '../components/Tabs';
@@ -77,12 +77,6 @@ const DirectivoView: React.FC = () => {
                         </div>
                     </>
                 ),
-            },
-            {
-                id: 'correccion',
-                label: 'Corrección',
-                icon: 'rule',
-                content: <CorreccionPanel />,
             },
             ...(jefeOrientations.length > 0 ? [{
                 id: 'manager-jefe',

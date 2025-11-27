@@ -63,6 +63,12 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpd
   const [newPhone, setNewPhone] = useState('');
   const especialidadVisuals = getEspecialidadClasses(pps[FIELD_ORIENTACION_LANZAMIENTOS]); 
   
+  // Update local state if props change (e.g. after a refresh)
+  useEffect(() => {
+    setStatus(pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión');
+    setNotes(pps[FIELD_NOTAS_GESTION_LANZAMIENTOS] || '');
+  }, [pps]);
+
   const hasChanges = useMemo(() => {
     const originalStatus = pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión';
     const originalNotes = pps[FIELD_NOTAS_GESTION_LANZAMIENTOS] || '';
@@ -81,10 +87,13 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpd
       [FIELD_NOTAS_GESTION_LANZAMIENTOS]: notes,
     };
     
+    setIsJustSaved(true); // Show saved state immediately
     const success = await onSave(pps.id, updates);
+    
     if (success) {
-      setIsJustSaved(true);
       setTimeout(() => setIsJustSaved(false), 2000);
+    } else {
+        setIsJustSaved(false); // Revert if failed
     }
   };
 
@@ -385,18 +394,46 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
         fetchData();
     }, [fetchData]);
 
+    // MANUAL OPTIMISTIC UPDATE IMPLEMENTATION
     const handleSave = useCallback(async (id: string, updates: Partial<LanzamientoPPS>): Promise<boolean> => {
+        // 1. Set Updating State
         setUpdatingIds(prev => new Set(prev).add(id));
+
         if (isTestingMode) {
              await new Promise(r => setTimeout(r, 500));
+             setLanzamientos(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
              setUpdatingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
              return true;
         }
-        const { error: updateError } = await updateAirtableRecord(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, id, updates);
-        if (!updateError) fetchData();
-        setUpdatingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
-        return !updateError;
-    }, [fetchData, isTestingMode]);
+
+        // 2. Snapshot previous state (implicit in 'lanzamientos' via closure, but setState uses functional update so we are safe)
+        const previousLanzamientos = [...lanzamientos];
+
+        // 3. Optimistic Update: Update local state immediately
+        setLanzamientos(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+
+        try {
+            // 4. API Call
+            const { error: updateError } = await updateAirtableRecord(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, id, updates);
+            
+            if (updateError) {
+                // 5. Revert on Error
+                console.error("Update failed, reverting...", updateError);
+                setLanzamientos(previousLanzamientos);
+                setToastInfo({ message: 'Error al guardar los cambios.', type: 'error' });
+                return false;
+            }
+            
+            // Success - No need to refetch immediately if we trust our optimistic update, but refreshing ensures consistency
+            // fetchData(); // Optional: Uncomment if calculated fields from server are needed immediately
+            return true;
+        } catch (e) {
+             setLanzamientos(previousLanzamientos);
+             return false;
+        } finally {
+            setUpdatingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+        }
+    }, [lanzamientos, isTestingMode]);
 
     const handleUpdateInstitutionPhone = useCallback(async (institutionId: string, phone: string): Promise<boolean> => {
       if (isTestingMode) {

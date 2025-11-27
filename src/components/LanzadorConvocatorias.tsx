@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import type { InstitucionFields, LanzamientoPPSFields, AirtableRecord, LanzamientoPPS } from '../types';
@@ -71,6 +71,7 @@ const initialState: FormData = {
 
 interface LanzadorConvocatoriasProps {
   isTestingMode?: boolean;
+  forcedTab?: 'new' | 'history';
 }
 
 const InputWrapper: React.FC<{ label: string; icon: string; children: React.ReactNode }> = ({ label, icon, children }) => (
@@ -101,8 +102,10 @@ const LAUNCH_TABLE_CONFIG = {
     ]
 };
 
-const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTestingMode = false }) => {
-    const [activeTab, setActiveTab] = useState('new');
+const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTestingMode = false, forcedTab }) => {
+    const [internalTab, setInternalTab] = useState('new');
+    const activeTab = forcedTab || internalTab;
+
     const [formData, setFormData] = useState<FormData>(initialState);
     const [schedules, setSchedules] = useState<string[]>(['']); // Lista de horarios
     const [instiSearch, setInstiSearch] = useState('');
@@ -294,23 +297,25 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
     return (
         <Card 
-            title="Gestor de Convocatorias" 
-            icon="rocket_launch" 
-            description="Configura, publica y administra los lanzamientos de PPS."
+            title={activeTab === 'new' ? "Nuevo Lanzamiento" : "Historial de Lanzamientos"} 
+            icon={activeTab === 'new' ? "rocket_launch" : "history"}
+            description={activeTab === 'new' ? "Configura y publica una nueva convocatoria." : "Visualiza y administra convocatorias anteriores."}
             className="border-blue-200 dark:border-blue-800/30"
         >
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             
-            <div className="mt-4">
-                <SubTabs 
-                    tabs={[
-                        { id: 'new', label: 'Nuevo Lanzamiento', icon: 'add_circle' },
-                        { id: 'history', label: 'Historial de Lanzamientos', icon: 'history' }
-                    ]}
-                    activeTabId={activeTab}
-                    onTabChange={setActiveTab}
-                />
-            </div>
+            {!forcedTab && (
+                <div className="mt-4">
+                    <SubTabs 
+                        tabs={[
+                            { id: 'new', label: 'Nuevo Lanzamiento', icon: 'add_circle' },
+                            { id: 'history', label: 'Historial', icon: 'history' }
+                        ]}
+                        activeTabId={activeTab}
+                        onTabChange={setInternalTab}
+                    />
+                </div>
+            )}
 
             {activeTab === 'new' && (
                 <form onSubmit={handleSubmit} className="mt-6 space-y-8 animate-fade-in">

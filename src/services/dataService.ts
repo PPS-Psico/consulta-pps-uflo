@@ -446,8 +446,8 @@ export const processInformeTasks = (myEnrollments: Convocatoria[], practicas: Pr
 
 /**
  * Toggles a student's selection status for a specific launch.
- * - If selecting: Updates Convocatoria to 'Seleccionado' AND Creates a new 'En curso' Practice record.
- * - If unselecting: Updates Convocatoria to 'Inscripto' AND Deletes the associated Practice record.
+ * - If selecting: Updates Convocatoria to 'Seleccionado'. Database trigger automatically creates the Practice.
+ * - If unselecting: Updates Convocatoria to 'Inscripto'. Database trigger automatically deletes the Practice.
  */
 export const toggleStudentSelection = async (
     convocatoriaId: string,
@@ -458,37 +458,10 @@ export const toggleStudentSelection = async (
     const newStatus = isSelecting ? 'Seleccionado' : 'Inscripto';
 
     try {
-        // 1. Update Convocatoria Status
+        // 1. Update Convocatoria Status. 
+        // The Database Trigger 'handle_seleccion_alumno' automatically creates/deletes the practice record.
         await db.convocatorias.update(convocatoriaId, { estadoInscripcion: newStatus });
-
-        if (isSelecting) {
-            // 2a. Create Practice Record
-            const newPractice = {
-                estudianteLink: [studentId],
-                lanzamientoVinculado: [lanzamiento.id],
-                estado: 'En curso',
-                fechaInicio: lanzamiento[FIELD_FECHA_INICIO_LANZAMIENTOS],
-                fechaFin: lanzamiento[FIELD_FECHA_FIN_LANZAMIENTOS],
-                especialidad: lanzamiento[FIELD_ORIENTACION_LANZAMIENTOS],
-                horasRealizadas: lanzamiento[FIELD_HORAS_ACREDITADAS_LANZAMIENTOS],
-                nombreInstitucion: [lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS]!], // Backup text
-                nota: 'Sin calificar'
-            };
-            await db.practicas.create(newPractice);
-
-        } else {
-            // 2b. Delete Practice Record
-            // Find the practice linked to this student and launch
-            const practices = await db.practicas.getAll({
-                filterByFormula: `AND({${FIELD_ESTUDIANTE_LINK_PRACTICAS}} = '${studentId}', {${FIELD_LANZAMIENTO_VINCULADO_PRACTICAS}} = '${lanzamiento.id}')`
-            });
-            
-            if (practices.length > 0) {
-                // Assuming one practice per launch per student
-                await db.practicas.delete(practices[0].id);
-            }
-        }
-
+        
         return { success: true };
     } catch (error: any) {
         console.error("Error updating selection:", error);
