@@ -1,8 +1,5 @@
 
-
-
 import { supabase } from '../lib/supabaseClient';
-// FIX: Import 'mapFieldToDb' to resolve 'Cannot find name' errors.
 import { mapFieldToDb, mapFieldsToDb, mapDbRowToFields } from '../lib/schemaMapping';
 import type { AirtableRecord, AirtableErrorResponse } from '../types';
 import { z } from 'zod';
@@ -32,11 +29,11 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
     try {
         let allRows: any[] = [];
         let from = 0;
-        const PAGE_SIZE = 200; // Reduced from 1000 to prevent timeouts
+        const PAGE_SIZE = 200; 
         let hasMore = true;
 
         // --- SMART FILTERING OPTIMIZATION ---
-        // Intentamos traducir fórmulas de Airtable a filtros nativos de Supabase para evitar descargar toda la tabla.
+        // Traducimos fórmulas de Airtable a filtros nativos de Supabase para usar índices.
         let dbFilter: { column: string, value: any, operator: 'eq' } | { type: 'or', filters: string } | null = null;
 
         if (filterByFormula) {
@@ -46,7 +43,8 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
             // Patrón 2: Búsqueda por ID nativo -> RECORD_ID() = '...'
             const idMatch = filterByFormula.match(/^RECORD_ID\(\)\s*=\s*['"]([^'"]+)['"]$/i);
 
-            // NEW PATTERN for Student Search (Matches what AdminSearch.tsx produces)
+            // Patrón 3: Búsqueda de Estudiantes (Generado por AdminSearch.tsx)
+            // Formula: OR(SEARCH("term", LOWER({Nombre})), SEARCH("term", {Legajo} & ''))
             const studentSearchMatch = (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) 
                 ? filterByFormula.match(/OR\(\s*SEARCH\("([^"]+)",\s*LOWER\(\{(.+?)\}\)\),\s*SEARCH\("([^"]+)",\s*\{(.+?)\}\s*&\s*''\)\s*\)/i)
                 : null;
@@ -62,21 +60,19 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
             } else if (idMatch) {
                 dbFilter = { column: 'id', value: idMatch[1], operator: 'eq' };
             } else if (studentSearchMatch) {
-                const searchTerm1 = studentSearchMatch[1];
+                const term = studentSearchMatch[1]; // El término de búsqueda
                 const nameField = studentSearchMatch[2];
-                // searchTerm2 might be same as 1
                 const legajoField = studentSearchMatch[4];
                 
                 if (nameField === FIELD_NOMBRE_ESTUDIANTES && legajoField === FIELD_LEGAJO_ESTUDIANTES) {
                     const nameCol = mapFieldToDb(tableName, nameField);
                     const legajoCol = mapFieldToDb(tableName, legajoField);
                     
-                    // For exact Legajo match or partial name match. 
-                    // Using .ilike.%term% for both is safer for user input.
-                    // Casting legajo to text is essential because it might be numeric in DB.
+                    // Usamos ILIKE para búsqueda insensible a mayúsculas y parcial.
+                    // Casteamos legajo a texto explícitamente para evitar errores si es numérico en DB.
                     dbFilter = {
                         type: 'or',
-                        filters: `${nameCol}.ilike.%${searchTerm1}%,${legajoCol}::text.ilike.%${searchTerm1}%`
+                        filters: `${nameCol}.ilike.%${term}%,${legajoCol}::text.ilike.%${term}%`
                     };
                 }
             }
@@ -102,18 +98,16 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                     }
 
                     // Manejo básico de ordenamiento
-                    // Es CRÍTICO tener un orden consistente para que la paginación funcione correctamente.
                     if (sort && sort.length > 0) {
                         sort.forEach(s => {
                             const dbField = mapFieldToDb(tableName, s.field);
                             query = query.order(dbField, { ascending: s.direction === 'asc' });
                         });
                     } else {
-                        // Ordenamiento por defecto estable si no se provee uno
                         query = query.order('id', { ascending: true });
                     }
 
-                    // Si estamos filtrando por ID exacto, no necesitamos rangos ni paginación masiva
+                    // Si es búsqueda por ID, optimizamos para traer uno solo
                     if (dbFilter && 'column' in dbFilter && dbFilter.column === 'id') {
                          const { data, error } = await query.maybeSingle();
                          if (error) throw error;
@@ -143,46 +137,40 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                 } catch (err: any) {
                     lastError = err;
                     attempt++;
-                    console.warn(`Attempt ${attempt} failed for ${tableName} (range ${from}): ${err.message}`);
+                    console.warn(`Attempt ${attempt} failed for ${tableName}: ${err.message}`);
                     if (attempt < MAX_RETRIES) {
-                        await sleep(RETRY_DELAY_MS * attempt); // Exponential backoff
+                        await sleep(RETRY_DELAY_MS * attempt);
                     }
                 }
             }
 
             if (!success) {
-                console.error(`Supabase Error fetching ${tableName} after ${MAX_RETRIES} attempts:`, JSON.stringify(lastError));
+                console.error(`Supabase Error fetching ${tableName}:`, lastError);
                 return { records: [], error: { error: { type: 'SUPABASE_ERROR', message: lastError?.message || 'Network error' } } };
             }
         }
 
         let transformedRecords: AirtableRecord<TFields>[] = transformToAirtableFormat<TFields>(tableName, allRows);
 
-        // Filtrado CLIENT-SIDE (Fallback y lógica compleja)
+        // Filtrado CLIENT-SIDE (Fallback para lógicas complejas no cubiertas por DB filter)
         if (filterByFormula && !dbFilter) {
             const lowerFormula = filterByFormula.toLowerCase();
             
-            // Intento de extraer términos de búsqueda de fórmulas tipo SEARCH("termino", ...)
             const searchMatch = filterByFormula.match(/SEARCH\(\s*['"](.+?)['"]/i);
             const searchTerm = searchMatch ? searchMatch[1].toLowerCase() : null;
             
-            // Intento de extraer ID para RECORD_ID() = '...' (Caso complejo dentro de un OR)
             const idMatch = filterByFormula.match(/RECORD_ID\(\)\s*=\s*['"]([^'"]+)['"]/i);
             const targetId = idMatch ? idMatch[1] : null;
 
             transformedRecords = transformedRecords.filter(record => {
                 const flatFields = record.fields as Record<string, any>;
                 
-                // 1. Filtro por ID exacto
                 if (targetId) {
                     if (record.id === targetId) return true;
-                    // Si es una búsqueda SOLO por ID y no coincide, excluir.
                     if (!lowerFormula.includes('or(')) return false; 
                 }
 
-                // 2. Filtro de Búsqueda General (SEARCH)
                 if (searchTerm) {
-                    // IMPROVED FALLBACK FOR STUDENT SEARCH
                     if (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) {
                         const studentName = String(flatFields[FIELD_NOMBRE_ESTUDIANTES] || '').toLowerCase();
                         const studentLegajo = String(flatFields[FIELD_LEGAJO_ESTUDIANTES] || '').toLowerCase();
@@ -190,7 +178,6 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                             return true;
                         }
                     } else {
-                        // Original generic logic for other tables
                         const values = Object.values(flatFields).join(' ').toLowerCase();
                         if (values.includes(searchTerm)) return true;
                     }
@@ -198,19 +185,15 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                     if (!lowerFormula.includes('or(')) return false;
                 }
                 
-                // 3. Filtro específico para estado 'oculto' (común en lanzamientos)
                 if (lowerFormula.includes('oculto') && lowerFormula.includes('!=')) {
                      const estado = String(flatFields['Estado de Convocatoria'] || '').toLowerCase();
                      if (estado === 'oculto') return false;
                 }
                 
-                // 4. Fallback for strict equality {Field} = 'Value' in client if DB filter missed it
-                // This handles cases where maybe regex was slightly off or field name mismatch in first pass
                 const simpleEqMatch = filterByFormula.match(/^\{\s*(.+?)\s*\}\s*=\s*['"](.+?)['"]$/);
                 if (simpleEqMatch) {
                     const key = simpleEqMatch[1].trim();
                     const val = simpleEqMatch[2];
-                    // Note: this comparison is string-based and simplistic
                     if (String(flatFields[key]) !== val) return false;
                 }
                 
@@ -221,8 +204,8 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
         // Validación Zod
         const validationResult = zodSchema.safeParse(transformedRecords);
         if (!validationResult.success) {
-            // Logueamos warning pero devolvemos los datos transformados para que la UI no rompa totalmente.
             console.warn(`Schema validation warning for ${tableName}:`, validationResult.error.issues);
+            // Devolvemos los datos aunque falle la validación estricta para no romper la UI por datos legacy
             return { records: transformedRecords as any, error: null };
         }
 
@@ -256,7 +239,6 @@ export const createRecord = async <TFields>(
     try {
         const dbFields = mapFieldsToDb(tableName, fields as Record<string, any>);
         
-        // Convertir arrays a valores simples para FKs
         for (const key in dbFields) {
              if (Array.isArray(dbFields[key]) && dbFields[key].length > 0 && (key.endsWith('_id') || key === 'convocatoria_afectada')) {
                  dbFields[key] = dbFields[key][0];

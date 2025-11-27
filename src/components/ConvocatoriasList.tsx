@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useMutation } from '@tanstack/react-query';
 import type { Convocatoria, LanzamientoPPS, EstudianteFields } from '../types';
@@ -75,7 +76,10 @@ const ConvocatoriasList: React.FC<ConvocatoriasListProps> = ({
             const enrollment = enrollmentMap.get(lanzamiento.id);
             const enrollmentStatus = enrollment ? enrollment[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] : null;
 
-            const isCompleted = completedLanzamientoIds.has(lanzamiento.id);
+            // Check ID match OR Name match (for different launches of same institution)
+            const ppsName = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
+            const groupName = ppsName.split(' - ')[0].trim();
+            const isCompleted = completedLanzamientoIds.has(lanzamiento.id) || completedLanzamientoIds.has(normalizeStringForComparison(groupName));
             
             const lanzamientoDireccion = lanzamiento[FIELD_DIRECCION_LANZAMIENTOS];
             const institutionName = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS];
