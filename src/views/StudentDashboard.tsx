@@ -8,7 +8,6 @@ import Tabs from '../components/Tabs';
 import Card from '../components/Card';
 import WelcomeBanner from '../components/WelcomeBanner';
 import ConvocatoriasList from '../components/ConvocatoriasList';
-import InformesList from '../components/InformesList';
 import WhatsAppExportButton from '../components/WhatsAppExportButton';
 import { useAuth } from '../contexts/AuthContext';
 import type { AuthUser } from '../contexts/AuthContext';
@@ -67,7 +66,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
     updateInternalNotes,
     updateNota,
     enrollStudent,
-    confirmInforme,
     refetchAll,
     criterios,
     enrollmentMap,
@@ -117,7 +115,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       onOpenFinalization={handleOpenFinalization}
   />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, setCurrentActiveTab, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
-  const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
   const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} />, [solicitudes]);
   const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
   const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
@@ -125,13 +122,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   const studentDataTabs = useMemo(() => {
     const tabs: { id: TabId; label: string; icon: string; content: React.ReactNode; badge?: number }[] = [
       { id: 'inicio', label: 'Inicio', icon: 'home', content: homeContent },
-      { id: 'informes', label: `Informes`, icon: 'assignment_turned_in', content: informesContent, badge: informeTasks.length > 0 ? informeTasks.length : undefined },
       { id: 'solicitudes', label: `Mis Solicitudes`, icon: 'list_alt', content: solicitudesContent, badge: solicitudes.length > 0 ? solicitudes.length : undefined },
       { id: 'practicas', label: `Mis Prácticas`, icon: 'work_history', content: practicasContent, badge: practicas.length > 0 ? practicas.length : undefined }
     ];
 
     if (showExportButton) {
-      return tabs.filter(tab => tab.id === 'informes' || tab.id === 'solicitudes' || tab.id === 'practicas');
+      return tabs.filter(tab => tab.id === 'solicitudes' || tab.id === 'practicas');
     }
     
     tabs.push({
@@ -144,8 +140,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
     return tabs;
 
   }, [
-      informeTasks.length, solicitudes.length, practicas.length, showExportButton,
-      homeContent, informesContent, solicitudesContent, practicasContent, profileContent
+      solicitudes.length, practicas.length, showExportButton,
+      homeContent, solicitudesContent, practicasContent, profileContent
   ]);
   
   useEffect(() => {
@@ -235,12 +231,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                   <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
                   {homeContent}
               </>
-          )}
-
-          {currentActiveTab === 'informes' && (
-              <Card icon="assignment_turned_in" title="Entrega de Informes Finales" description="Sube tu informe final al campus y luego confirma la entrega aquí.">
-                  {informesContent}
-              </Card>
           )}
 
           {currentActiveTab === 'solicitudes' && (

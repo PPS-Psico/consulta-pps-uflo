@@ -1,9 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import SubTabs from '../../components/SubTabs';
 import ConvocatoriaManager from '../../components/ConvocatoriaManager';
 import ConvocatoriaStatusManager from '../../components/ConvocatoriaStatusManager';
-import { autoCloseExpiredPractices } from '../../services/dataService';
 
 interface GestionViewProps {
   isTestingMode?: boolean;
@@ -16,17 +15,6 @@ const GestionView: React.FC<GestionViewProps> = ({ isTestingMode = false }) => {
     { id: 'manager', label: 'Gestionar Prácticas', icon: 'dynamic_feed' },
     { id: 'status-manager', label: 'Control de Estados', icon: 'toggle_on' },
   ];
-
-  // Trigger auto-closing of expired practices when the admin enters the management view.
-  useEffect(() => {
-      if (!isTestingMode) {
-          autoCloseExpiredPractices().then(count => {
-              if (count > 0) {
-                  console.log(`Mantenimiento: Se finalizaron ${count} prácticas vencidas automáticamente.`);
-              }
-          });
-      }
-  }, [isTestingMode]);
 
   return (
     <>

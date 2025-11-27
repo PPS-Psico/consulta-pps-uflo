@@ -224,24 +224,29 @@ const HomeView: React.FC<HomeViewProps> = ({
     }, [allPracticeEvents, nextPracticeForTodayOrTomorrow]);
 
 
-    const pendingInformes = useMemo(() => {
+    const reportReminders = useMemo(() => {
         const now = new Date();
-        const fifteenDaysFromNow = new Date();
-        fifteenDaysFromNow.setDate(now.getDate() + 15);
+        const eightDaysFromNow = new Date();
+        eightDaysFromNow.setDate(now.getDate() + 8);
 
+        // Filtramos tareas de informe que no hayan sido subidas
+        // Y que la fecha límite (30 días después de finalizar) esté próxima (menos de 8 días)
         return informeTasks.filter(task => {
             if (task.informeSubido) return false;
             const finalizacionDate = parseToUTCDate(task.fechaFinalizacion);
             if (!finalizacionDate) return false;
+            
             const deadline = new Date(finalizacionDate);
-            deadline.setDate(deadline.getDate() + 30);
-            return deadline <= fifteenDaysFromNow;
+            deadline.setDate(deadline.getDate() + 30); // 30 días de plazo
+            
+            // Mostrar si el plazo vence en los próximos 8 días o ya venció
+            return deadline <= eightDaysFromNow;
         });
     }, [informeTasks]);
     
     const canFinalize = criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion;
 
-    if (lanzamientos.length === 0 && allPracticeEvents.length === 0 && pendingInformes.length === 0 && !canFinalize) {
+    if (lanzamientos.length === 0 && allPracticeEvents.length === 0 && reportReminders.length === 0 && !canFinalize) {
         return <EmptyState icon="home" title="Todo Tranquilo" message="No tienes actividades pendientes ni hay convocatorias abiertas en este momento."/>;
     }
 
@@ -292,25 +297,32 @@ const HomeView: React.FC<HomeViewProps> = ({
 
                 {/* COL 3: Alerts & Notifications */}
                 <div className="space-y-6">
-                    {pendingInformes.length > 0 && (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-5 shadow-sm">
+                    {reportReminders.length > 0 && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-5 shadow-sm animate-pulse-glow-success">
                             <div className="flex items-center gap-2 mb-4 text-amber-800 dark:text-amber-200">
-                                <span className="material-icons">warning_amber</span>
-                                <h3 className="font-bold">Informes Pendientes</h3>
+                                <span className="material-icons">priority_high</span>
+                                <h3 className="font-bold">Recordatorio de Informe</h3>
                             </div>
                             <div className="space-y-3">
-                                {pendingInformes.map(task => (
-                                     <a key={task.convocatoriaId} href={task.informeLink} target="_blank" rel="noopener noreferrer" className="block p-3 rounded-xl bg-white dark:bg-slate-800 border border-amber-200/60 dark:border-amber-800/60 hover:shadow-md transition-all group">
-                                        <p className="font-bold text-slate-800 dark:text-slate-100 text-sm group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">{task.ppsName}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                            Vence: <span className="font-semibold text-amber-600 dark:text-amber-400">{formatDate(new Date(parseToUTCDate(task.fechaFinalizacion)!.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString())}</span>
+                                {reportReminders.map(task => {
+                                    const deadline = new Date(parseToUTCDate(task.fechaFinalizacion)!.getTime() + 30 * 24 * 60 * 60 * 1000);
+                                    const daysLeft = Math.ceil((deadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                    
+                                    return (
+                                     <div key={task.convocatoriaId} className="block p-3 rounded-xl bg-white dark:bg-slate-800 border border-amber-200/60 dark:border-amber-800/60">
+                                        <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{task.ppsName}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-2">
+                                            Fecha límite: <span className="font-semibold">{formatDate(deadline.toISOString())}</span>
                                         </p>
-                                    </a>
-                                ))}
+                                        <p className={`text-xs font-bold ${daysLeft <= 3 ? 'text-red-600' : 'text-amber-600'}`}>
+                                            {daysLeft <= 0 ? '¡Plazo Vencido!' : `Quedan ${daysLeft} días para entregar`}
+                                        </p>
+                                    </div>
+                                )})}
                             </div>
-                             <button onClick={() => onNavigate('informes')} className="w-full mt-4 text-center text-xs font-bold text-amber-700 dark:text-amber-300 hover:underline">
-                                Ver todos los informes
-                            </button>
+                            <p className="text-xs text-amber-800/70 dark:text-amber-200/70 mt-4 italic">
+                                Recuerda enviar tu informe a través del campus virtual.
+                            </p>
                         </div>
                     )}
                 </div>

@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAuth, type AuthUser } from '../contexts/AuthContext';
 import type { AirtableRecord, EstudianteFields } from '../types';
 import StudentDashboard from './StudentDashboard';
@@ -8,12 +8,13 @@ import Tabs from '../components/Tabs';
 import Loader from '../components/Loader';
 import { StudentPanelProvider } from '../contexts/StudentPanelContext';
 import AdminDashboard from '../components/AdminDashboard';
+import { autoCloseExpiredPractices } from '../services/dataService';
 
 // Lazy load views to improve initial load time
 const MetricsView = React.lazy(() => import('./admin/MetricsView'));
 const GestionView = React.lazy(() => import('./admin/GestionView'));
-const CorreccionView = React.lazy(() => import('./admin/CorreccionView'));
 const HerramientasView = React.lazy(() => import('./admin/HerramientasView'));
+const LanzadorView = React.lazy(() => import('./admin/LanzadorView'));
 const SolicitudesManager = React.lazy(() => import('../components/SolicitudesManager'));
 
 
@@ -31,6 +32,17 @@ const AdminView: React.FC<AdminViewProps> = ({ isTestingMode = false }) => {
     const { authenticatedUser } = useAuth();
     const [studentTabs, setStudentTabs] = useState<StudentTabInfo[]>([]);
     const [activeTabId, setActiveTabId] = useState('dashboard');
+
+    // Automatización: Cerrar prácticas vencidas al iniciar sesión como admin
+    useEffect(() => {
+        if (!isTestingMode) {
+            autoCloseExpiredPractices().then(count => {
+                if (count > 0) {
+                    console.log(`[Auto-Mantenimiento]: Se finalizaron ${count} prácticas vencidas automáticamente.`);
+                }
+            });
+        }
+    }, [isTestingMode]);
 
     const openStudentPanel = useCallback((student: AirtableRecord<EstudianteFields>) => {
         const legajo = student.fields.Legajo;
@@ -61,10 +73,9 @@ const AdminView: React.FC<AdminViewProps> = ({ isTestingMode = false }) => {
     const allTabs = useMemo(() => {
         const mainTabs = [
             { id: 'dashboard', label: 'Inicio', icon: 'dashboard', content: <AdminDashboard /> },
-            { id: 'metrics', label: 'Métricas', icon: 'analytics', content: <MetricsView onStudentSelect={(student) => openStudentPanel({ id: '', createdTime: '', fields: { Legajo: student.legajo, Nombre: student.nombre }})} isTestingMode={isTestingMode} /> },
+            { id: 'lanzador', label: 'Lanzador', icon: 'rocket_launch', content: <LanzadorView isTestingMode={isTestingMode} /> },
             { id: 'gestion', label: 'Gestión', icon: 'tune', content: <GestionView isTestingMode={isTestingMode} /> },
             { id: 'solicitudes', label: 'Solicitudes', icon: 'list_alt', content: <SolicitudesManager isTestingMode={isTestingMode} /> },
-            { id: 'correccion', label: 'Corrección', icon: 'rule', content: <CorreccionView isTestingMode={isTestingMode} /> },
             { id: 'herramientas', label: 'Herramientas', icon: 'construction', content: <HerramientasView onStudentSelect={openStudentPanel} isTestingMode={isTestingMode} /> },
         ];
 

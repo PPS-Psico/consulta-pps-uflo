@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import emailjs from '@emailjs/browser';
@@ -236,7 +237,7 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
         const saved = localStorage.getItem(STORAGE_KEY_AUTOMATION);
         return saved !== null ? saved === 'true' : true;
     });
-    // Estados para credenciales EmailJS
+    // Estados para credenciales EmailJS (Iniciales)
     const [serviceId, setServiceId] = useState(() => localStorage.getItem(STORAGE_KEY_SERVICE_ID) || '');
     const [templateId, setTemplateId] = useState(() => localStorage.getItem(STORAGE_KEY_TEMPLATE_ID) || '');
     const [publicKey, setPublicKey] = useState(() => localStorage.getItem(STORAGE_KEY_PUBLIC_KEY) || '');
@@ -265,9 +266,11 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
         }
     });
 
+    const candidatesQueryKey = ['candidatesForLaunch', selectedLanzamiento?.id];
+
     // 2. Fetch Candidates for Selected Launch
     const { data: candidates = [], isLoading: isLoadingCandidates, refetch: refetchCandidates } = useQuery({
-        queryKey: ['candidatesForLaunch', selectedLanzamiento?.id],
+        queryKey: candidatesQueryKey,
         queryFn: async () => {
             if (!selectedLanzamiento) return [];
             
@@ -373,16 +376,25 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
 
     // --- AUTOMATIC EMAIL SENDING ---
     const sendAutomaticEmail = async (student: EnrichedStudent) => {
-        if (!isEmailAutomationEnabled) {
+        // Read FRESH from localStorage to ensure we have the latest config
+        // even if it was updated in another tab or component
+        const isEnabled = localStorage.getItem(STORAGE_KEY_AUTOMATION) === 'true';
+        
+        if (!isEnabled) {
              return { success: true }; // Not an error, just skipped
         }
+
+        const freshServiceId = localStorage.getItem(STORAGE_KEY_SERVICE_ID);
+        const freshTemplateId = localStorage.getItem(STORAGE_KEY_TEMPLATE_ID);
+        const freshPublicKey = localStorage.getItem(STORAGE_KEY_PUBLIC_KEY);
+        const freshSubject = localStorage.getItem(STORAGE_KEY_SUBJECT) || emailSubject;
+        const freshBody = localStorage.getItem(STORAGE_KEY_BODY) || emailBody;
 
         if (!student.correo) {
             return { success: false, reason: 'no_email' };
         }
         
-        // Check specifically for placeholders or empty strings
-        if (!serviceId || !templateId || !publicKey || serviceId.includes('placeholder') || publicKey.includes('placeholder')) {
+        if (!freshServiceId || !freshTemplateId || !freshPublicKey) {
              console.warn("EmailJS no configurado correctamente.");
              return { success: false, reason: 'missing_config' };
         }
@@ -391,8 +403,8 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
             const ppsName = selectedLanzamiento?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Práctica Profesional';
             
             // Substitutions
-            let finalSubject = emailSubject.replace(/{{ppsName}}/g, ppsName);
-            let finalBody = emailBody
+            let finalSubject = freshSubject.replace(/{{ppsName}}/g, ppsName);
+            let finalBody = freshBody
                 .replace(/{{studentName}}/g, student.nombre)
                 .replace(/{{ppsName}}/g, ppsName)
                 .replace(/{{schedule}}/g, student.horarioSeleccionado || 'A confirmar');
@@ -405,10 +417,10 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
             };
 
             await emailjs.send(
-                serviceId.trim(),
-                templateId.trim(),
+                freshServiceId.trim(),
+                freshTemplateId.trim(),
                 templateParams,
-                publicKey.trim()
+                freshPublicKey.trim()
             );
             return { success: true };
         } catch (error: any) {
@@ -437,36 +449,52 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
                 selectedLanzamiento
             );
 
-            // 2. If successfully SELECTED (turned ON), try to send email
+            // 2. If successfully SELECTED (turned ON), try to send email.
+            // ALLOWING in TestingMode now for verification.
             let emailResult: { success: boolean; reason?: string; message?: string } = { success: false };
-            if (result.success && !isCurrentlySelected && !isTestingMode) {
+            if (result.success && !isCurrentlySelected) { 
                emailResult = await sendAutomaticEmail(student);
             }
 
             return { ...result, emailResult, student };
         },
+        onMutate: async (student) => {
+             // Optimistic Update: Toggle status immediately in UI
+             await queryClient.cancelQueries({ queryKey: candidatesQueryKey });
+             const previousData = queryClient.getQueryData<EnrichedStudent[]>(candidatesQueryKey);
+             
+             const isCurrentlySelected = normalizeStringForComparison(student.status) === 'seleccionado';
+             const newStatus = isCurrentlySelected ? 'Inscripto' : 'Seleccionado';
+
+             queryClient.setQueryData<EnrichedStudent[]>(candidatesQueryKey, old => 
+                 old?.map(s => s.enrollmentId === student.enrollmentId ? { ...s, status: newStatus } : s)
+             );
+             
+             return { previousData };
+        },
         onSuccess: (data) => {
              if (data?.success) {
+                 // Email logic notifications (without refetching, unless error)
                  if (data.emailResult?.success) {
-                    setToastInfo({ message: 'Estado actualizado y correo enviado automáticamente.', type: 'success' });
+                     // Silent success for email to avoid spamming toasts on quick clicks
                  } else if (data.emailResult?.reason === 'missing_config') {
-                     setToastInfo({ message: 'Estado actualizado. Correo NO enviado: Configura EmailJS en la pestaña de Configuración.', type: 'error' });
+                     setToastInfo({ message: 'Estado actualizado. Correo NO enviado: Faltan credenciales en Automatizaciones.', type: 'error' });
                  } else if (data.emailResult?.reason === 'api_error') {
                      setToastInfo({ message: `Estado actualizado. Error enviando correo: ${data.emailResult.message}`, type: 'error' });
                  } else if (data.emailResult?.reason === 'no_email') {
-                     setToastInfo({ message: 'Estado actualizado. No se envió correo (sin dirección).', type: 'success' });
-                 } else {
-                     setToastInfo({ message: 'Estado actualizado.', type: 'success' });
+                     setToastInfo({ message: `Estado actualizado. Correo no enviado: Alumno sin email.`, type: 'error' });
                  }
-                 refetchCandidates();
              } else {
                  setToastInfo({ message: `Error en base de datos: ${data?.error}`, type: 'error' });
+                 // If DB error, revert via refetch
                  refetchCandidates(); 
              }
         },
-        onError: (err) => {
+        onError: (err, _newTodo, context) => {
              setToastInfo({ message: `Error de conexión: ${err.message}`, type: 'error' });
-             refetchCandidates();
+             if (context?.previousData) {
+                 queryClient.setQueryData(candidatesQueryKey, context.previousData);
+             }
         },
         onSettled: () => setUpdatingId(null)
     });
