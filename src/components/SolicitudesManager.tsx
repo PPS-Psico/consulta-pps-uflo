@@ -33,13 +33,29 @@ import { formatDate, getStatusVisuals } from '../utils/formatters';
 
 // Helper function to clean Airtable array strings (e.g., '["rec..."]' -> 'rec...')
 const cleanValue = (val: any): string => {
-    if (!val) return '';
-    // If it's an array, take the first element
+    if (val === null || val === undefined) return '';
+    
+    // If it's an actual array
     if (Array.isArray(val)) {
         return cleanValue(val[0]);
     }
-    // Convert to string and strip brackets and quotes
-    return String(val).replace(/[\[\]"]/g, '').trim();
+    
+    let str = String(val);
+    
+    // If it's a string that LOOKS like a JSON array ["..."], try to parse it
+    if (str.startsWith('["') && str.endsWith('"]')) {
+        try {
+            const parsed = JSON.parse(str);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return cleanValue(parsed[0]);
+            }
+        } catch (e) {
+            // fallback to regex if parse fails
+        }
+    }
+
+    // Remove brackets and quotes just in case
+    return str.replace(/[\[\]"]/g, '').trim();
 }
 
 // Helper Component for Data Display
@@ -149,7 +165,7 @@ const SolicitudDetailModal: React.FC<{
                                     Contactos y Tutoría
                                 </h3>
                                 <div className="grid grid-cols-2 gap-4">
-                                    {/* Email Institucional: fullWidth to avoid overlap */}
+                                    {/* Email Institucional: fullWidth to avoid overlap with phone */}
                                     <InfoField label="Email Institucional" value={record.fields[FIELD_SOLICITUD_EMAIL_INSTITUCION]} fullWidth />
                                     <InfoField label="Teléfono Institucional" value={record.fields[FIELD_SOLICITUD_TELEFONO_INSTITUCION]} />
                                     <InfoField label="¿Cuenta con Tutor?" value={record.fields[FIELD_SOLICITUD_TIENE_TUTOR]} />
@@ -277,7 +293,7 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
             ]);
 
             const studentsMap = new Map(estudiantesRes.map(s => [s.id, s.fields]));
-            // Fallback map using Legajo string
+            // Fallback map using Legajo string for manual matching
             const studentsByLegajoMap = new Map(estudiantesRes.map(s => [String(s.fields[FIELD_LEGAJO_ESTUDIANTES] || '').trim(), s.fields]));
 
             return solicitudesRes.map(req => {
