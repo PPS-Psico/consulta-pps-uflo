@@ -1,3 +1,4 @@
+
 import {
     AIRTABLE_TABLE_NAME_ESTUDIANTES,
     AIRTABLE_TABLE_NAME_PRACTICAS,
@@ -59,7 +60,7 @@ export const DB_FIELD_MAPPING: Record<string, Record<string, string>> = {
     [AIRTABLE_TABLE_NAME_CONVOCATORIAS]: {
         "Lanzamiento Vinculado": "lanzamiento_id",
         "Estudiante Inscripto": "estudiante_id",
-        "Estado": "estado",
+        "Estado": "estado_inscripcion",
         "¿Terminó de cursar?": "termino_cursar",
         "Cursando Materias Electivas": "cursando_electivas",
         "Finales que adeuda": "finales_adeuda",

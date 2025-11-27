@@ -1,3 +1,4 @@
+
 import type { Convocatoria, LanzamientoPPS, Practica, InformeTask } from '../types';
 import { normalizeStringForComparison, parseToUTCDate } from './formatters';
 import {
@@ -163,15 +164,31 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
         enrollmentMap.set(ppsId, bestEnrollment);
     });
 
-    // Step 3: Identify completed practices
+    // Step 3: Identify completed practices (IDs and Normalized Names)
     const completedLanzamientoIds = new Set<string>();
-    const finalizadaStatuses = ['finalizada', 'pps realizada', 'convenio realizado'];
+    const finalizadaStatuses = ['finalizada', 'pps realizada', 'convenio realizado', 'aprobada'];
+    
     practicas.forEach(practica => {
-        const pps = findLanzamientoForPractica(practica, allLanzamientos);
-        if (pps) {
-            const estadoPractica = normalizeStringForComparison(practica[FIELD_ESTADO_PRACTICA]);
-            if (finalizadaStatuses.includes(estadoPractica)) {
+        const estadoPractica = normalizeStringForComparison(practica[FIELD_ESTADO_PRACTICA]);
+        
+        if (finalizadaStatuses.includes(estadoPractica)) {
+            // Track ID if linked
+            const pps = findLanzamientoForPractica(practica, allLanzamientos);
+            if (pps) {
                 completedLanzamientoIds.add(pps.id);
+                // Also track name from Launch to catch repeat institutions
+                const ppsName = pps[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+                if (ppsName) {
+                     const groupName = ppsName.split(' - ')[0].trim();
+                     completedLanzamientoIds.add(normalizeStringForComparison(groupName));
+                }
+            }
+
+            // Also track name directly from Practice record (fallback)
+            const pNameRaw = getLookupName(practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
+            if (pNameRaw) {
+                const groupName = pNameRaw.split(' - ')[0].trim();
+                completedLanzamientoIds.add(normalizeStringForComparison(groupName));
             }
         }
     });

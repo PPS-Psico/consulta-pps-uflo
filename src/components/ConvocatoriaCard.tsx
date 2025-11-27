@@ -1,3 +1,4 @@
+
 import React, { useMemo, useCallback } from 'react';
 import type { LanzamientoPPS } from '../types';
 import {
@@ -204,8 +205,8 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
         <span className="material-icons !text-lg">history</span>
         <span>Ya Cursada</span>
       </button>
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate-800 dark:bg-slate-900 text-white dark:text-slate-200 text-xs rounded-md opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none" role="tooltip">
-        Ya has completado esta práctica anteriormente.
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate-800 dark:bg-slate-900 text-white dark:text-slate-200 text-xs rounded-md opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10" role="tooltip">
+        Ya realizaste una práctica en esta institución.
         <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-800 dark:border-t-slate-900"></div>
       </div>
     </div>
@@ -247,7 +248,7 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
   );
 
   const ActionButton: React.FC = () => {
-      // 1. Practice already completed by student. Highest priority.
+      // 1. Practice already completed by student (same institution check). Highest priority.
       if (isCompleted) {
           return <CompletedButton />;
       }

@@ -4,6 +4,10 @@ export const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "";
 export const SUPABASE_ANON_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";
 
 
+// --- Airtable Configuration (REMOVED) ---
+// La aplicación ha migrado completamente a Supabase. 
+// Las claves de Airtable solo son necesarias en los scripts de migración (scripts/migrate.js).
+
 
 // Table Names (Mapped to Supabase SQL Tables)
 export const AIRTABLE_TABLE_NAME_PPS = 'solicitudes_pps';

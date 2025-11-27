@@ -14,8 +14,6 @@ import Card from './Card';
 import { ALL_ORIENTACIONES } from '../types';
 import { FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_FECHA_INICIO_PRACTICAS } from '../constants';
 
-// ... (Existing FieldConfig, TableConfig, EDITABLE_TABLES interfaces and objects remain same)
-
 interface FieldConfig {
     key: string;
     label: string;
@@ -78,7 +76,6 @@ const EDITABLE_TABLES = {
 
 type TableKey = keyof typeof EDITABLE_TABLES;
 
-// ... (ContextMenu component remains same)
 interface ContextMenuProps {
     x: number;
     y: number;
@@ -127,7 +124,6 @@ interface AirtableEditorProps {
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50];
 
-// ... (SortableHeader and PaginationControls remain same)
 const SortableHeader: React.FC<{
   label: string;
   sortKey: string;
@@ -204,7 +200,6 @@ const getLookupName = (fieldValue: any): string | null => {
 };
 
 const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }) => {
-    // ... (Existing state setup)
     const [activeTable, setActiveTable] = useState<TableKey>('estudiantes');
     const [editingRecord, setEditingRecord] = useState<AirtableRecord<any> | { isCreating: true } | null>(null);
     const [toastInfo, setToastInfo] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
@@ -215,6 +210,8 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: '', direction: 'asc' });
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+    
     const queryClient = useQueryClient();
 
     const { data: launchesList = [] } = useQuery({
@@ -271,13 +268,13 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         },
     });
 
-    // ... (Mutation definitions same as before)
     const mutationOptions = {
         onSuccess: (message: string) => {
             setToastInfo({ message, type: 'success' as const });
             queryClient.invalidateQueries({ queryKey: ['airtableEditor', activeTable, isTestingMode] });
             setEditingRecord(null);
             setContextMenu(null);
+            setSelectedRowId(null);
         },
         onError: (e: Error) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' as const }),
     };
@@ -342,7 +339,6 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         if (!data) return [];
         
         const filtered = data.filter(record => {
-            // 1. Search Filter (Generic)
             if (activeTable !== 'practicas') {
                 const normalizedSearch = normalizeStringForComparison(searchTerm);
                 if (normalizedSearch) {
@@ -359,16 +355,13 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             }
     
             if (activeTable === 'practicas') {
-                // 2. Launch Filter (Specific) with STRICT Fallback logic
                 if (lanzamientoFilter) {
-                    // A. Check ID Match (New standard)
                     const rawValue = record.fields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
                     const linkedLaunchIds = Array.isArray(rawValue) ? rawValue.map(String) : (rawValue ? [String(rawValue)] : []);
                     const isDirectMatch = linkedLaunchIds.includes(String(lanzamientoFilter));
                     
                     if (isDirectMatch) return true;
 
-                    // B. Fallback: Strict Name AND Date Match
                     const selectedLaunch = launchesList.find(l => l.id === lanzamientoFilter);
                     if (selectedLaunch) {
                          const practiceInstRaw = record.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
@@ -378,28 +371,22 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                          if (practiceInstName && practiceDate) {
                              const normPractice = normalizeStringForComparison(practiceInstName);
                              const normLaunch = normalizeStringForComparison(selectedLaunch.name);
-                             
-                             // Only match if names overlap AND dates are identical
-                             // This prevents "Hospital Central - 2023" matching "Hospital Central - 2024"
                              if ((normLaunch.includes(normPractice) || normPractice.includes(normLaunch)) && practiceDate === selectedLaunch.date) {
                                  return true;
                              }
                          }
                     }
-                    
                     return false;
                 }
 
-                // 3. Student Filter
                 if (studentFilter) {
                    const studName = record.fields['__studentName'] || '';
                    if (!studName.toLowerCase().includes(studentFilter.toLowerCase())) return false;
                 }
             }
-    
             return true;
         });
-        // ... (Sort Logic same as before)
+        
         if (sortConfig.key) {
             const sortFieldKey = sortConfig.key;
             const airtableSortField = (activeTableConfig.schema as any)[sortFieldKey] || sortFieldKey;
@@ -423,7 +410,6 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         return filtered;
     }, [data, searchTerm, lanzamientoFilter, studentFilter, sortConfig, activeTable, activeTableConfig, launchesList]);
 
-    // ... (Rest of component render: Pagination, Table UI, Modals)
     const totalPages = Math.ceil(processedData.length / itemsPerPage);
     const paginatedData = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
@@ -435,7 +421,24 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         setLanzamientoFilter(''); 
         setStudentFilter('');
         setContextMenu(null);
+        setSelectedRowId(null);
     }, [activeTable]);
+    
+    // Keyboard support for deletion
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRowId) {
+                // Check if we are focused on an input/textarea (don't delete if editing text)
+                const activeTag = document.activeElement?.tagName;
+                if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && activeTag !== 'SELECT') {
+                    handleDelete(selectedRowId);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedRowId]);
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -447,6 +450,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
     
     const handleRowContextMenu = (e: React.MouseEvent, record: AirtableRecord<any>) => {
         e.preventDefault();
+        setSelectedRowId(record.id);
         setContextMenu({ x: e.clientX, y: e.clientY, record });
     };
 
@@ -550,10 +554,21 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                         )}
                     </div>
                     
-                    <button onClick={() => setEditingRecord({ isCreating: true })} className="w-full md:w-auto bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shrink-0">
-                        <span className="material-icons !text-lg">add_circle</span>
-                        Nuevo Registro
-                    </button>
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <button 
+                            onClick={() => selectedRowId && handleDelete(selectedRowId)} 
+                            disabled={!selectedRowId}
+                            className={`w-full md:w-auto bg-white border border-rose-300 text-rose-600 font-bold py-2.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all shrink-0 ${!selectedRowId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-50 shadow-sm'}`}
+                        >
+                            <span className="material-icons !text-lg">delete</span>
+                            Eliminar
+                        </button>
+
+                        <button onClick={() => setEditingRecord({ isCreating: true })} className="w-full md:w-auto bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shrink-0">
+                            <span className="material-icons !text-lg">add_circle</span>
+                            Nuevo Registro
+                        </button>
+                    </div>
                 </div>
                 
                 {isLoading && <div className="py-10"><Loader /></div>}
@@ -568,30 +583,37 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                                         {activeTableConfig.displayFields.map(key => {
                                             const fieldConfig = activeTableConfig.fieldConfig.find(f => f.key === key);
                                             const label = fieldConfig ? fieldConfig.label : (key.startsWith('__') ? key.substring(2).replace(/([A-Z])/g, ' $1') : key);
-                                            // Add wider class for large text columns
                                             const className = key === '__lanzamientoName' || key === 'nombre' ? "min-w-[250px]" : "";
                                             return <SortableHeader key={key} label={label} sortKey={key} sortConfig={sortConfig} requestSort={requestSort} className={className} />;
                                         })}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                    {paginatedData.length > 0 ? paginatedData.map((record, idx) => (
-                                        <tr 
-                                            key={record.id} 
-                                            onDoubleClick={() => setEditingRecord(record)}
-                                            onContextMenu={(e) => handleRowContextMenu(e, record)}
-                                            className={`hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors cursor-pointer ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/30 dark:bg-slate-800/50'}`}
-                                        >
-                                            {activeTableConfig.displayFields.map(key => {
-                                                const fieldConfig = activeTableConfig.fieldConfig.find(f => f.key === key) || { key };
-                                                return (
-                                                    <td key={key} className="px-6 py-3 text-slate-700 dark:text-slate-300 align-middle">
-                                                        {renderCellValue(record, fieldConfig)}
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                    )) : (
+                                    {paginatedData.length > 0 ? paginatedData.map((record, idx) => {
+                                        const isSelected = selectedRowId === record.id;
+                                        return (
+                                            <tr 
+                                                key={record.id} 
+                                                onClick={() => setSelectedRowId(isSelected ? null : record.id)}
+                                                onDoubleClick={() => setEditingRecord(record)}
+                                                onContextMenu={(e) => handleRowContextMenu(e, record)}
+                                                className={`transition-colors cursor-pointer ${
+                                                    isSelected 
+                                                        ? 'bg-blue-100 dark:bg-blue-900/40 ring-1 ring-inset ring-blue-300 dark:ring-blue-700' 
+                                                        : idx % 2 === 0 ? 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50' : 'bg-slate-50/30 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/70'
+                                                }`}
+                                            >
+                                                {activeTableConfig.displayFields.map(key => {
+                                                    const fieldConfig = activeTableConfig.fieldConfig.find(f => f.key === key) || { key };
+                                                    return (
+                                                        <td key={key} className="px-6 py-3 text-slate-700 dark:text-slate-300 align-middle">
+                                                            {renderCellValue(record, fieldConfig)}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        );
+                                    }) : (
                                         <tr>
                                             <td colSpan={activeTableConfig.displayFields.length}>
                                                 <div className="py-12"><EmptyState icon="search_off" title="Sin Resultados" message="No hay registros que coincidan con tu búsqueda." /></div>
