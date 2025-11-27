@@ -431,19 +431,20 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
     
     // --- NEW FUNCTION: Link Orphan Practices ---
     const handleLinkOrphans = async () => {
-        if (!window.confirm('Esta acción buscará prácticas sin vínculo técnico y las conectará al lanzamiento correcto (por Nombre y Fecha). ¿Continuar?')) {
+        if (!window.confirm('Esta acción buscará prácticas sin vínculo técnico y las conectará al lanzamiento correcto (por Nombre y Fecha). Abrir la consola (F12) para ver detalles.')) {
             return;
         }
         
         setIsLinking(true);
-        // Force UI update before heavy processing
-        setToastInfo({ message: 'Buscando prácticas huérfanas...', type: 'success' });
+        setToastInfo({ message: 'Procesando...', type: 'success' });
+        
+        // Allow UI to render toast
         await new Promise(r => setTimeout(r, 100));
 
-        console.log("Iniciando vinculación de huérfanos...");
+        console.group("--- Vinculación de Huérfanos ---");
         
         try {
-            // 1. Get all practices without a link
+            // 1. Get all practices
             const { records: allPractices, error } = await fetchAllAirtableData<PracticaFields>(
                 AIRTABLE_TABLE_NAME_PRACTICAS,
                 practicaArraySchema,
@@ -454,80 +455,102 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
                 ]
             );
 
-            if (error) throw new Error("Error al obtener prácticas.");
+            if (error) throw new Error("Error al obtener prácticas: " + error);
 
             const orphans = allPractices.filter(p => {
                 const links = p.fields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
                 return !links || (Array.isArray(links) && links.length === 0);
             });
 
-            console.log(`Encontradas ${orphans.length} prácticas huérfanas.`);
+            console.log(`Total Prácticas: ${allPractices.length}`);
+            console.log(`Huérfanas: ${orphans.length}`);
 
             if (orphans.length === 0) {
-                setToastInfo({ message: 'No se encontraron prácticas huérfanas.', type: 'success' });
+                setToastInfo({ message: 'No hay prácticas huérfanas.', type: 'success' });
                 setIsLinking(false);
+                console.groupEnd();
                 return;
             }
 
-            // 2. Map launches for quick lookup
-            // We need a key that combines Normalized Name + Date
-            const launchMap = new Map<string, string>(); // Key -> Launch ID
-            
-            // Helper to normalize date to YYYY-MM-DD (stripping time)
-            const getDateKey = (dateStr: any) => String(dateStr || '').split('T')[0];
-            const getNameKey = (nameStr: any) => normalizeStringForComparison(String(nameStr));
+            // 2. Build Launch Map
+            // Helper: Normalize Date (YYYY-MM-DD)
+            const normalizeDate = (dateStr: any) => {
+                if (!dateStr) return '';
+                // Handle ISO strings or simple date strings
+                return String(dateStr).split('T')[0].trim();
+            };
 
+            const launchMap = new Map<string, string>();
+            
             lanzamientos.forEach(l => {
-                const name = getNameKey(l[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
-                const date = getDateKey(l[FIELD_FECHA_INICIO_LANZAMIENTOS]); 
-                if (name && date) {
-                    launchMap.set(`${name}|${date}`, l.id);
+                const nameRaw = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+                const dateRaw = l[FIELD_FECHA_INICIO_LANZAMIENTOS];
+                
+                const nameKey = normalizeStringForComparison(nameRaw);
+                const dateKey = normalizeDate(dateRaw);
+                
+                if (nameKey && dateKey) {
+                    // Create a composite key
+                    const key = `${nameKey}::${dateKey}`;
+                    launchMap.set(key, l.id);
+                    // console.log(`Lanzamiento Indexado: ${key}`);
                 }
             });
+            
+            console.log(`Lanzamientos indexados: ${launchMap.size}`);
 
             const updates: { id: string; fields: Partial<PracticaFields> }[] = [];
-            let matchCount = 0;
-
+            
             orphans.forEach(p => {
-                const rawName = p.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-                const name = Array.isArray(rawName) ? rawName[0] : rawName;
-                const date = p.fields[FIELD_FECHA_INICIO_PRACTICAS];
-                
-                if (name && date) {
-                    const key = `${getNameKey(name)}|${getDateKey(date)}`;
+                const nameRaw = p.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
+                // Handle lookup array vs string
+                const nameStr = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
+                const dateRaw = p.fields[FIELD_FECHA_INICIO_PRACTICAS];
+
+                const nameKey = normalizeStringForComparison(nameStr);
+                const dateKey = normalizeDate(dateRaw);
+
+                if (nameKey && dateKey) {
+                    const key = `${nameKey}::${dateKey}`;
                     const launchId = launchMap.get(key);
-                    
+
                     if (launchId) {
+                        console.log(`MATCH: Práctica "${nameStr}" (${dateKey}) -> Lanzamiento ID ${launchId}`);
                         updates.push({
                             id: p.id,
                             fields: { [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: [launchId] }
                         });
-                        matchCount++;
                     } else {
-                        // Debug log for failures
-                        // console.log(`No match for: ${name} on ${date} (Key: ${key})`);
+                        console.warn(`NO MATCH: Práctica "${nameStr}" (${dateKey}) - Key: ${key}`);
+                        // Optional: Try loose matching on date (e.g. same month?)
+                        // For now, strict date matching (ignoring time) is best to avoid false positives.
                     }
+                } else {
+                    console.log(`SKIPPED: Práctica ${p.id} sin nombre o fecha suficientes.`);
                 }
             });
 
-            console.log(`Encontradas ${matchCount} coincidencias.`);
+            console.log(`Se encontraron ${updates.length} coincidencias para vincular.`);
 
-            if (updates.length === 0) {
-                setToastInfo({ message: 'No se encontraron coincidencias automáticas.', type: 'error' });
-            } else {
+            if (updates.length > 0) {
                 // Batch update
                 const BATCH_SIZE = 10;
                 for (let i = 0; i < updates.length; i += BATCH_SIZE) {
                     const batch = updates.slice(i, i + BATCH_SIZE);
                     await updateAirtableRecords(AIRTABLE_TABLE_NAME_PRACTICAS, batch);
+                    console.log(`Lote ${i / BATCH_SIZE + 1} actualizado.`);
                 }
-                setToastInfo({ message: `Se vincularon exitosamente ${updates.length} prácticas.`, type: 'success' });
+                setToastInfo({ message: `Vinculación completada: ${updates.length} prácticas.`, type: 'success' });
+                fetchData(); // Refresh UI
+            } else {
+                setToastInfo({ message: 'No se encontraron coincidencias automáticas.', type: 'error' });
             }
 
         } catch (e: any) {
             console.error(e);
             setToastInfo({ message: `Error: ${e.message}`, type: 'error' });
         } finally {
+            console.groupEnd();
             setIsLinking(false);
         }
     };
