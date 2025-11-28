@@ -116,6 +116,10 @@ const EmailAutomationManager: React.FC = () => {
     const [publicKey, setPublicKey] = useState('');
     const [isConfigExpanded, setIsConfigExpanded] = useState(true); // Nuevo estado para colapsar
 
+    // Testing state
+    const [testEmail, setTestEmail] = useState('');
+    const [isSendingTest, setIsSendingTest] = useState(false);
+
     // Contador de Emails
     const [emailCount, setEmailCount] = useState(0);
     const [isEditingCount, setIsEditingCount] = useState(false);
@@ -190,6 +194,44 @@ const EmailAutomationManager: React.FC = () => {
         
         setToastInfo({ message: 'Credenciales guardadas correctamente.', type: 'success' });
         setIsConfigExpanded(false); // Colapsar automáticamente al guardar
+    };
+
+    const handleSendTest = async () => {
+        if (!testEmail) {
+            setToastInfo({ message: 'Ingresa un correo para la prueba.', type: 'error' });
+            return;
+        }
+        if (!serviceId || !templateId || !publicKey) {
+            setToastInfo({ message: 'Guarda las credenciales primero.', type: 'error' });
+            return;
+        }
+
+        setIsSendingTest(true);
+        try {
+            // Usamos la plantilla de "Selección" como ejemplo para la prueba
+            const templateParams = {
+                to_email: testEmail,
+                to_name: "Usuario de Prueba",
+                from_name: "Departamento PPS - UFLO",
+                reply_to: "blas.rivera@uflouniversidad.edu.ar",
+                subject: "Prueba de Conexión EmailJS - Mi Panel",
+                message: "Este es un correo de prueba para verificar que la integración funciona correctamente. \n\nSi lees esto, ¡la configuración es exitosa!",
+            };
+
+            await emailjs.send(serviceId, templateId, templateParams, publicKey);
+            incrementEmailCount();
+            setToastInfo({ message: 'Correo de prueba enviado con éxito. Revisa tu bandeja (y Spam).', type: 'success' });
+        } catch (error: any) {
+            console.error("Error sending test:", error);
+            let errorMsg = "Error desconocido";
+            if (error.text) errorMsg = error.text;
+            else if (error.message) errorMsg = error.message;
+            else if (typeof error === 'object') errorMsg = JSON.stringify(error);
+            
+            setToastInfo({ message: `Fallo el envío: ${errorMsg}`, type: 'error' });
+        } finally {
+            setIsSendingTest(false);
+        }
     };
 
     const handleEditClick = (scenario: AutomationScenario) => {
@@ -279,7 +321,19 @@ const EmailAutomationManager: React.FC = () => {
                                     <Input value={publicKey} onChange={e => setPublicKey(e.target.value)} placeholder="user_xxx" type="password" className="text-sm" />
                                 </div>
                             </div>
-                            <div className="mt-4 flex justify-end gap-3">
+                            
+                            {/* Test Area */}
+                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-end gap-3">
+                                <div className="flex-grow w-full">
+                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Probar Configuración (Enviar correo de prueba)</label>
+                                     <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="tu_correo@ejemplo.com" className="text-sm" />
+                                </div>
+                                <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
+                                    {isSendingTest ? 'Enviando...' : 'Probar'}
+                                </Button>
+                            </div>
+
+                            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700 pt-4">
                                 {serviceId && (
                                     <Button variant="secondary" size="sm" onClick={() => setIsConfigExpanded(false)}>Cancelar</Button>
                                 )}

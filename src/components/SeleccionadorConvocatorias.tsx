@@ -405,13 +405,18 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
             // Substitutions
             let finalSubject = freshSubject.replace(/{{ppsName}}/g, ppsName);
             let finalBody = freshBody
-                .replace(/{{studentName}}/g, student.nombre)
-                .replace(/{{ppsName}}/g, ppsName)
-                .replace(/{{schedule}}/g, student.horarioSeleccionado || 'A confirmar');
+                .replace(/{{nombre_alumno}}/g, student.nombre) // Compatible with new format
+                .replace(/{{studentName}}/g, student.nombre) // Legacy support
+                .replace(/{{nombre_pps}}/g, ppsName) // Compatible with new format
+                .replace(/{{ppsName}}/g, ppsName) // Legacy support
+                .replace(/{{horario}}/g, student.horarioSeleccionado || 'A confirmar') // Compatible with new format
+                .replace(/{{schedule}}/g, student.horarioSeleccionado || 'A confirmar'); // Legacy support
 
             const templateParams = {
                 to_name: student.nombre,
                 to_email: student.correo,
+                from_name: "Departamento PPS - UFLO",
+                reply_to: "blas.rivera@uflouniversidad.edu.ar",
                 subject: finalSubject,
                 message: finalBody, 
             };
@@ -430,7 +435,7 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
             if (typeof error === 'string') errorText = error;
             else if (error.text) errorText = error.text;
             else if (error.message) errorText = error.message;
-            else errorText = JSON.stringify(error);
+            else if (typeof error === 'object') errorText = JSON.stringify(error);
 
             return { success: false, reason: 'api_error', message: errorText };
         }
