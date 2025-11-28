@@ -1,8 +1,10 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchStudentData } from '../services/dataService';
 import { db } from '../lib/db';
 import type { Orientacion } from '../types';
 import { useModal } from '../contexts/ModalContext';
+import { FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_NOTAS_INTERNAS_ESTUDIANTES } from '../constants';
 
 export const useStudentData = (legajo: string) => {
     const queryClient = useQueryClient();
@@ -24,7 +26,7 @@ export const useStudentData = (legajo: string) => {
     const updateOrientation = useMutation({
         mutationFn: (orientacion: Orientacion | "") => {
             if (!studentAirtableId) throw new Error("Student ID not available.");
-            return db.estudiantes.update(studentAirtableId, { orientacionElegida: orientacion || null });
+            return db.estudiantes.update(studentAirtableId, { [FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]: orientacion || null });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['student', legajo] });
@@ -35,7 +37,7 @@ export const useStudentData = (legajo: string) => {
     const updateInternalNotes = useMutation({
         mutationFn: (notes: string) => {
             if (!studentAirtableId) throw new Error("Student ID not available.");
-            return db.estudiantes.update(studentAirtableId, { notasInternas: notes || null });
+            return db.estudiantes.update(studentAirtableId, { [FIELD_NOTAS_INTERNAS_ESTUDIANTES]: notes || null });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['student', legajo] });

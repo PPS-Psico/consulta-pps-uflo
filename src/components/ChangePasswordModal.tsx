@@ -1,7 +1,9 @@
 
+
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES } from '../constants';
 import Toast from './Toast';
 
 interface ChangePasswordModalProps {
@@ -34,14 +36,13 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
         setIsLoading(true);
         try {
             // 1. Update Auth Password
-            // Cast to any to support v2 method even if types are outdated
             const { error: updateError } = await (supabase.auth as any).updateUser({ password: newPassword });
             if (updateError) throw updateError;
 
             // 2. Update Database Flag
             const { error: dbError } = await supabase
                 .from('estudiantes')
-                .update({ must_change_password: false })
+                .update({ [FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES]: false })
                 .eq('id', authenticatedUser?.id);
 
             if (dbError) throw dbError;

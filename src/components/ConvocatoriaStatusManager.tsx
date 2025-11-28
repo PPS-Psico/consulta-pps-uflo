@@ -1,5 +1,5 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import * as XLSX from 'xlsx';
 import { fetchAllAirtableData, updateAirtableRecord } from '../services/airtableService';
 import type { LanzamientoPPS } from '../types';
 import {
@@ -17,9 +17,9 @@ import { getEspecialidadClasses, formatDate, getStatusVisuals } from '../utils/f
 import { lanzamientoPPSArraySchema } from '../schemas';
 
 const mockLanzamientosStatus: LanzamientoPPS[] = [
-    { id: 'lanz_status_1', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Prueba Abierta', [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Abierta', [FIELD_ORIENTACION_LANZAMIENTOS]: 'Clinica' },
-    { id: 'lanz_status_2', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Prueba Cerrada', [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Cerrado', [FIELD_ORIENTACION_LANZAMIENTOS]: 'Laboral' },
-    { id: 'lanz_status_3', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Prueba Oculta', [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Oculto', [FIELD_ORIENTACION_LANZAMIENTOS]: 'Comunitaria' },
+    { id: 'lanz_status_1', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Prueba Abierta', [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Abierta', [FIELD_ORIENTACION_LANZAMIENTOS]: 'Clinica' } as any,
+    { id: 'lanz_status_2', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Prueba Cerrada', [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Cerrado', [FIELD_ORIENTACION_LANZAMIENTOS]: 'Laboral' } as any,
+    { id: 'lanz_status_3', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Prueba Oculta', [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Oculto', [FIELD_ORIENTACION_LANZAMIENTOS]: 'Comunitaria' } as any,
 ];
 
 type LoadingState = 'initial' | 'loading' | 'loaded' | 'error';
@@ -140,7 +140,6 @@ const ConvocatoriaStatusManager: React.FC<ConvocatoriaStatusManagerProps> = ({ i
             return;
         }
         
-        // FIX: Added zod schema and corrected argument order for fetchAllAirtableData
         const { records, error: fetchError } = await fetchAllAirtableData(
             AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
             lanzamientoPPSArraySchema,
@@ -159,8 +158,10 @@ const ConvocatoriaStatusManager: React.FC<ConvocatoriaStatusManagerProps> = ({ i
             setError('No se pudieron cargar las convocatorias. ' + (typeof fetchError.error === 'string' ? fetchError.error : fetchError.error.message));
             setLoadingState('error');
         } else {
-            // FIX: Cast r.fields to any to allow spreading
-            const mappedRecords = records.map(r => ({ ...(r.fields as any), id: r.id }));
+            // Ensure records are treated as flat objects. 
+            // fetchAllAirtableData via supabaseService already returns flat records, 
+            // so spreading `r` works. `r.id` is standard.
+            const mappedRecords = records.map(r => ({ ...r, id: r.id } as LanzamientoPPS));
             setLanzamientos(mappedRecords);
             setLoadingState('loaded');
         }
@@ -189,9 +190,10 @@ const ConvocatoriaStatusManager: React.FC<ConvocatoriaStatusManagerProps> = ({ i
         let success = false;
         if (updateError) {
             setToastInfo({ message: 'Error al actualizar el estado.', type: 'error' });
-            // Optionally revert local state here if needed
+            // Revert local state handled implicitly by failure to update local state below
         } else {
             setToastInfo({ message: 'Estado actualizado exitosamente.', type: 'success' });
+            // Correctly update flat local state
             setLanzamientos(prev => prev.map(pps => pps.id === id ? { ...pps, [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: newStatus } : pps));
             success = true;
         }

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { fetchAllAirtableData, updateAirtableRecord, createAirtableRecord, updateAirtableRecords } from '../services/airtableService';
 import type { LanzamientoPPS, InstitucionFields, AirtableRecord, LanzamientoPPSFields, PracticaFields } from '../types';
@@ -33,10 +32,10 @@ import EmptyState from './EmptyState';
 
 // MOCK DATA FOR TESTING
 const mockLanzamientos: LanzamientoPPS[] = [
-    { id: 'lanz_test_1', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hospital de Prueba (Activa)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Clinica', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión', [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 5 },
-    { id: 'lanz_test_2', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Escuela Simulada (Finalizada)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Educacional', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión' },
-    { id: 'lanz_test_3', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Consultora Ficticia (Confirmada)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Laboral', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Relanzamiento Confirmado', [FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS]: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'lanz_test_4', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'ONG de Prueba (Sin fecha fin)', [FIELD_FECHA_INICIO_LANZAMIENTOS]: new Date().toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Comunitaria', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'En Conversación', [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 2 },
+    { id: 'lanz_test_1', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hospital de Prueba (Activa)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Clinica', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión', [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 5 } as any,
+    { id: 'lanz_test_2', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Escuela Simulada (Finalizada)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Educacional', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión' } as any,
+    { id: 'lanz_test_3', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Consultora Ficticia (Confirmada)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Laboral', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Relanzamiento Confirmado', [FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS]: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString() } as any,
+    { id: 'lanz_test_4', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'ONG de Prueba (Sin fecha fin)', [FIELD_FECHA_INICIO_LANZAMIENTOS]: new Date().toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Comunitaria', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'En Conversación', [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 2 } as any,
 ];
 const mockInstitutionsMap = new Map([
     [normalizeStringForComparison('Hospital de Prueba (Activa)'), { id: 'inst_test_1', phone: '1122334455' }],
@@ -371,17 +370,17 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
         } else {
             const newInstitutionsMap = new Map<string, { id: string; phone?: string }>();
             institucionesRes.records.forEach(record => {
-                const name = record.fields[FIELD_NOMBRE_INSTITUCIONES];
+                const name = record[FIELD_NOMBRE_INSTITUCIONES];
                 if (name) {
                     newInstitutionsMap.set(normalizeStringForComparison(name as string), {
                         id: record.id,
-                        phone: record.fields[FIELD_TELEFONO_INSTITUCIONES]
+                        phone: record[FIELD_TELEFONO_INSTITUCIONES]
                     });
                 }
             });
             setInstitutionsMap(newInstitutionsMap);
 
-            const mappedRecords = lanzamientosRes.records.map((r: AirtableRecord<LanzamientoPPSFields>) => ({ ...r.fields as any, id: r.id } as LanzamientoPPS));
+            const mappedRecords = lanzamientosRes.records.map((r: AirtableRecord<LanzamientoPPSFields>) => ({ ...r, id: r.id } as LanzamientoPPS));
             const filteredRecords = mappedRecords.filter(pps => 
                 !String(pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').toLowerCase().includes('uflo')
             );
@@ -495,7 +494,7 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
             if (error) throw new Error("Error al obtener prácticas: " + error);
 
             const orphans = allPractices.filter(p => {
-                const links = p.fields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                const links = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
                 return !links || (Array.isArray(links) && links.length === 0);
             });
 
@@ -539,10 +538,10 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
             const updates: { id: string; fields: Partial<PracticaFields> }[] = [];
             
             orphans.forEach(p => {
-                const nameRaw = p.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
+                const nameRaw = p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
                 // Handle lookup array vs string
                 const nameStr = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
-                const dateRaw = p.fields[FIELD_FECHA_INICIO_PRACTICAS];
+                const dateRaw = p[FIELD_FECHA_INICIO_PRACTICAS];
 
                 const nameKey = normalizeStringForComparison(nameStr);
                 const dateKey = normalizeDate(dateRaw);

@@ -2,19 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabaseClient';
 import { formatDate, normalizeStringForComparison, simpleNameSplit } from '../utils/formatters';
-import type { Convocatoria, ConvocatoriaFields } from '../types';
+import type { Convocatoria } from '../types';
 import {
     FIELD_NOMBRE_PPS_CONVOCATORIAS,
     FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
     FIELD_FECHA_INICIO_CONVOCATORIAS,
     FIELD_FECHA_FIN_CONVOCATORIAS,
-    FIELD_DIRECCION_CONVOCATORIAS,
     FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
-    FIELD_ORIENTACION_CONVOCATORIAS,
     FIELD_LEGAJO_ESTUDIANTES,
     FIELD_NOMBRE_ESTUDIANTES,
     FIELD_DNI_ESTUDIANTES,
-    FIELD_HORARIO_FORMULA_CONVOCATORIAS,
     FIELD_CORREO_ESTUDIANTES,
     FIELD_TELEFONO_ESTUDIANTES,
     FIELD_NOMBRE_SEPARADO_ESTUDIANTES,
@@ -26,6 +23,9 @@ import {
     FIELD_FECHA_FIN_LANZAMIENTOS,
     FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
     FIELD_ORIENTACION_LANZAMIENTOS,
+    FIELD_DIRECCION_CONVOCATORIAS,
+    FIELD_HORARIO_FORMULA_CONVOCATORIAS,
+    FIELD_ORIENTACION_CONVOCATORIAS,
 } from '../constants';
 import Loader from './Loader';
 import EmptyState from './EmptyState';
@@ -36,6 +36,7 @@ import Card from './Card';
 interface SeguroGeneratorProps {
     showModal: (title: string, message: string) => void;
     isTestingMode?: boolean;
+    preSelectedLanzamientoId?: string | null;
 }
 
 interface StudentForReview {
@@ -77,7 +78,7 @@ function formatPhoneNumber(phone?: string): string {
   return phone.replace(/^\+54\s?9?\s?/, '').trim();
 }
 
-const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingMode = false }) => {
+const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingMode = false, preSelectedLanzamientoId }) => {
     const [step, setStep] = useState<'selection' | 'review'>('selection');
     
     const [convocatorias, setConvocatorias] = useState<Convocatoria[]>([]);
@@ -98,19 +99,18 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
              setConvocatorias([{
                 id: 'mock_conv_1',
                 createdTime: '',
-                fields: {
-                    [FIELD_NOMBRE_PPS_CONVOCATORIAS]: 'Hospital Mock',
-                    [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'Seleccionado',
-                    [FIELD_FECHA_INICIO_CONVOCATORIAS]: '2024-01-01',
-                    [FIELD_FECHA_FIN_CONVOCATORIAS]: '2024-06-01',
-                    [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: ['student_1', 'student_2']
-                }
+                [FIELD_NOMBRE_PPS_CONVOCATORIAS]: 'Hospital Mock',
+                [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'Seleccionado',
+                [FIELD_FECHA_INICIO_CONVOCATORIAS]: '2024-01-01',
+                [FIELD_FECHA_FIN_CONVOCATORIAS]: '2024-06-01',
+                [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: ['student_1', 'student_2']
             } as any]);
             setIsLoading(false);
             return;
         }
         
         try {
+            // Traemos los grupos que tienen seleccionados
             const records = await db.convocatorias.getAll({
                 filterByFormula: `{${FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS}} = 'Seleccionado'`,
                 sort: [{ field: FIELD_FECHA_INICIO_CONVOCATORIAS, direction: 'desc' }]
@@ -119,24 +119,28 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
             const groupedConvocatorias = new Map<string, Convocatoria>();
 
             records.forEach(record => {
-                const fields = record.fields;
-                const name = getTextField(fields[FIELD_NOMBRE_PPS_CONVOCATORIAS]);
-                const date = getTextField(fields[FIELD_FECHA_INICIO_CONVOCATORIAS]);
-                const key = `${name}||${date}`; 
+                const lanzIdRaw = record[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+                const lanzId = Array.isArray(lanzIdRaw) ? lanzIdRaw[0] : lanzIdRaw;
+                
+                const name = getTextField(record[FIELD_NOMBRE_PPS_CONVOCATORIAS]);
+                const date = getTextField(record[FIELD_FECHA_INICIO_CONVOCATORIAS]);
+                
+                // Usamos el ID de lanzamiento como clave primaria si existe, sino fallback
+                const key = lanzId || `${name}||${date}`; 
                 
                 if (!groupedConvocatorias.has(key)) {
                     groupedConvocatorias.set(key, { 
-                        ...fields, 
-                        id: key, 
+                        ...record, 
+                        id: key, // Usamos la key como ID del grupo para la UI
                         [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: [],
-                        [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: [] 
+                        [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: lanzId ? [lanzId] : [] 
                     } as any);
                 }
 
                 const group = groupedConvocatorias.get(key)!;
-                const studentId = Array.isArray(fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]) 
-                    ? fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS][0] 
-                    : fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+                const studentId = Array.isArray(record[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]) 
+                    ? record[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS][0] 
+                    : record[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
                 
                 if (studentId) {
                      const currentStudents = group[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] as string[] || [];
@@ -145,23 +149,11 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
                          group[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] = currentStudents;
                      }
                 }
-                
-                const lanzId = Array.isArray(fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS])
-                    ? fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS][0]
-                    : fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
-                
-                if (lanzId) {
-                     const currentLanz = group[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] as string[] || [];
-                     if (!currentLanz.includes(lanzId)) {
-                         currentLanz.push(lanzId);
-                         group[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] = currentLanz;
-                     }
-                }
             });
 
             const finalConvocatorias = Array.from(groupedConvocatorias.values())
                 .sort((a, b) => new Date(b[FIELD_FECHA_INICIO_CONVOCATORIAS] || '').getTime() - new Date(a[FIELD_FECHA_INICIO_CONVOCATORIAS] || '').getTime())
-                .slice(0, 15); 
+                .slice(0, 20); 
 
             setConvocatorias(finalConvocatorias);
 
@@ -174,11 +166,22 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
     }, [isTestingMode, showModal]);
 
     useEffect(() => {
-        handleFetchConvocatorias();
-    }, [handleFetchConvocatorias]);
+        handleFetchConvocatorias().then(() => {
+            // Si venimos de cerrar una mesa, pre-seleccionar y avanzar
+            if (preSelectedLanzamientoId) {
+                // Buscar en los grupos cargados si alguno corresponde al ID
+                // Nota: En nuestra lógica de arriba, usamos lanzID como key
+                setSelectedConvocatorias(new Set([preSelectedLanzamientoId]));
+                // Pequeño delay para asegurar que el estado se asiente antes de procesar
+                setTimeout(() => handleProceedToReview(new Set([preSelectedLanzamientoId])), 500);
+            }
+        });
+    }, [handleFetchConvocatorias, preSelectedLanzamientoId]);
 
     // --- PASO 2: Procesar Datos ---
-    const handleProceedToReview = async () => {
+    const handleProceedToReview = async (overrideSelection?: Set<string>) => {
+        const selectionToUse = overrideSelection || selectedConvocatorias;
+        
         setIsLoading(true);
         setLoadingMessage('Procesando estudiantes...');
 
@@ -191,7 +194,10 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
              return;
         }
 
-        const selectedGroups = convocatorias.filter(c => selectedConvocatorias.has(c.id));
+        // Filter convocatorias based on selection ID
+        // Note: our "id" in state might be the launchID or a composite key
+        const selectedGroups = convocatorias.filter(c => selectionToUse.has(c.id));
+        
         const studentIds = new Set<string>();
         const lanzamientoIds = new Set<string>();
 
@@ -201,39 +207,48 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
         });
 
         if (studentIds.size === 0) {
-            showModal('Sin Estudiantes', 'No hay estudiantes en las convocatorias seleccionadas.');
+            // Si se llamó automáticamente pero no se encontraron estudiantes (raro pero posible si falló carga), no avanzar
+            if (!overrideSelection) showModal('Sin Estudiantes', 'No hay estudiantes en las convocatorias seleccionadas.');
             setIsLoading(false);
             return;
         }
 
         try {
+            // Replaced complex filters with post-fetch filtering for robustness given API changes
+            // Or we can construct simpler filters. Let's try ID list.
+            // Note: fetchAllAirtableData expects a filter string compatible with PostgREST or Supabase query builder if adjusted.
+            // Since `fetchAllAirtableData` in `supabaseService.ts` handles simple equality or specific formula emulation,
+            // and `studentIds` can be large, best to fetch all and filter in memory OR implement `in()` filter in `supabaseService`.
+            // For now, assuming `fetchAllAirtableData` can handle simple filters or we fetch needed subsets.
+            // Actually, `supabaseService` as implemented currently only supports basic equality or specific complex formulas.
+            // Let's fetch all and filter in memory for reliability in this step, as datasets are relatively small (active students/launches).
+            
             const [estudiantesRes, lanzamientosRes, convocatoriasRes] = await Promise.all([
-                db.estudiantes.getAll({
-                     filterByFormula: `OR(${Array.from(studentIds).map(id => `RECORD_ID()='${id}'`).join(',')})`
-                }),
-                db.lanzamientos.getAll({
-                     filterByFormula: `OR(${Array.from(lanzamientoIds).map(id => `RECORD_ID()='${id}'`).join(',')})`
-                }),
-                db.convocatorias.getAll({
-                     filterByFormula: `AND(OR(${Array.from(studentIds).map(id => `{${FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS}}='${id}'`).join(',')}), {${FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS}}='Seleccionado')`
-                })
+                db.estudiantes.getAll(),
+                db.lanzamientos.getAll(),
+                db.convocatorias.getAll()
             ]);
 
-            const studentMap = new Map(estudiantesRes.map(r => [r.id, r.fields]));
-            const lanzamientoMap = new Map(lanzamientosRes.map(r => [r.id, r.fields]));
+            const studentMap = new Map(estudiantesRes.map(r => [r.id, r]));
+            const lanzamientoMap = new Map(lanzamientosRes.map(r => [r.id, r]));
             
-            const convMap = new Map<string, ConvocatoriaFields>();
+            // Map studentID-launchID to specific fields like 'Horario'
+            const convMap = new Map<string, any>();
             convocatoriasRes.forEach(c => {
-                 const sId = Array.isArray(c.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]) ? c.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS][0] : c.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-                 const lId = Array.isArray(c.fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]) ? c.fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS][0] : c.fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
-                 if(sId && lId) convMap.set(`${sId}-${lId}`, c.fields);
+                 const sIdRaw = c[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+                 const sId = Array.isArray(sIdRaw) ? sIdRaw[0] : sIdRaw;
+                 
+                 const lIdRaw = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+                 const lId = Array.isArray(lIdRaw) ? lIdRaw[0] : lIdRaw;
+                 
+                 if(sId && lId) convMap.set(`${sId}-${lId}`, c);
             });
 
             const compiledList: StudentForReview[] = [];
 
             for (const group of selectedGroups) {
                 const groupLanzamientoId = (group[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] as string[])?.[0];
-                const ppsData = lanzamientoMap.get(groupLanzamientoId);
+                const ppsData = groupLanzamientoId ? lanzamientoMap.get(groupLanzamientoId) : undefined;
                 const groupStudents = group[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] as string[] || [];
 
                 for (const sId of groupStudents) {
@@ -363,24 +378,14 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
             setIsLoading(true);
             setLoadingMessage('Descargando plantilla...');
             
-            console.log('Intentando descargar: Seguro (2).xlsx del bucket documentos_seguros');
-
-            // Descargar desde el bucket "documentos_seguros"
-            // ACTUALIZACIÓN: El nombre del archivo en el bucket es "Seguro (2).xlsx"
             const { data, error } = await supabase
                 .storage
                 .from('documentos_seguros')
                 .download('Seguro (2).xlsx');
 
-            if (error) {
-                throw error;
-            }
-            
-            if (!data) {
-                 throw new Error('El archivo descargado está vacío.');
-            }
+            if (error) throw error;
+            if (!data) throw new Error('El archivo descargado está vacío.');
 
-            // 2. Crear descarga con nombre dinámico
             const blob = data;
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -398,23 +403,10 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
         } catch (e: any) {
             console.error('Error detallado descarga:', e);
             let errorMessage = 'Error desconocido al descargar la plantilla.';
+            if (e.message) errorMessage = e.message;
+            else if (e.error_description) errorMessage = e.error_description;
+            else if (e.error) errorMessage = typeof e.error === 'string' ? e.error : JSON.stringify(e.error);
             
-            // Manejo robusto del mensaje de error para evitar "{}"
-            if (e) {
-                if (e.message) errorMessage = e.message;
-                else if (e.error_description) errorMessage = e.error_description;
-                else if (e.error) errorMessage = typeof e.error === 'string' ? e.error : JSON.stringify(e.error);
-                else {
-                     const json = JSON.stringify(e);
-                     // Si es el objeto vacío, es un error de Supabase no estándar o red
-                     if (json === '{}') {
-                        errorMessage = 'El archivo "Seguro (2).xlsx" no fue encontrado en el bucket "documentos_seguros" o no tienes permisos para acceder a él.';
-                     } else {
-                         errorMessage = `Error técnico: ${json}`;
-                     }
-                }
-            }
-
             showModal('Error de Descarga', `No se pudo descargar la plantilla.\n\nDetalle: ${errorMessage}`);
         } finally {
             setIsLoading(false);
@@ -422,18 +414,16 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
         }
     };
 
-    // --- Copiar al Portapapeles (Columnas Específicas Seguro) ---
+    // --- Copiar al Portapapeles ---
     const handleCopyToClipboard = (students: StudentForReview[]) => {
-        // Orden de columnas requerido por el usuario:
-        // APELLIDO | NOMBRE | DNI | LEGAJO | CARGO | LUGAR | DURACION
         const rows = students.map(s => [
             s.apellido,
             s.nombre,
             s.dni,
             s.legajo,
-            s.cargo,          // 'Estudiante'
-            s.lugarCompleto,  // 'Institucion - Direccion'
-            s.duracionCompleta // 'Periodo... Horario...'
+            s.cargo,
+            s.lugarCompleto,
+            s.duracionCompleta
         ].join('\t'));
 
         const text = rows.join('\n');
@@ -444,6 +434,16 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
             console.error('Failed to copy', err);
             setToastInfo({ message: 'Error al copiar los datos.', type: 'error' });
         });
+    };
+
+    // --- Enviar a Administración (Step 3) ---
+    const handleSendToAdmin = (institutionName: string) => {
+        const subject = `Reporte de Seguro - ${institutionName}`;
+        const body = `Hola Sergio,\n\nTe adjunto el seguro de la PPS.\n\nSaludos.`;
+        const mailto = `mailto:mesadeayuda.patagonia@uflouniversidad.edu.ar?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        
+        window.open(mailto, '_blank');
+        setToastInfo({ message: 'Ventana de correo abierta. Adjunta el Excel generado.', type: 'success' });
     };
 
     const toggleSelection = (id: string) => {
@@ -504,7 +504,7 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
             
             <div className="flex justify-end mt-4">
                  <button 
-                    onClick={handleProceedToReview} 
+                    onClick={() => handleProceedToReview()} 
                     disabled={selectedConvocatorias.size === 0 || isLoading}
                     className="bg-blue-600 text-white font-bold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center gap-2"
                 >
@@ -527,7 +527,7 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
                  <div className="flex justify-between items-start">
                     <div>
                         <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Paso 2: Generar Documentación</h3>
-                        <p className="text-slate-600 dark:text-slate-400">1. Descarga la plantilla. 2. Copia los datos. 3. Pégalos en el Excel.</p>
+                        <p className="text-slate-600 dark:text-slate-400">1. Descarga plantilla. 2. Copia datos. 3. Envía a Administración.</p>
                     </div>
                     <button onClick={() => setStep('selection')} className="text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1">
                         <span className="material-icons !text-base">arrow_back</span> Volver
@@ -544,14 +544,21 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
                                     className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
                                  >
                                      <span className="material-icons !text-lg">download</span>
-                                     1. Descargar Plantilla Seguro
+                                     1. Descargar Plantilla
                                  </button>
                                  <button 
                                     onClick={() => handleCopyToClipboard(students)}
                                     className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
                                  >
                                      <span className="material-icons !text-lg">content_copy</span>
-                                     2. Copiar Datos para Seguro
+                                     2. Copiar Datos
+                                 </button>
+                                 <button 
+                                    onClick={() => handleSendToAdmin(institucion)}
+                                    className="bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
+                                 >
+                                     <span className="material-icons !text-lg">send</span>
+                                     3. Enviar a Sergio
                                  </button>
                              </div>
                              
@@ -576,10 +583,10 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
                 <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
                     <button 
                         onClick={handleGenerateSelectionExcel}
-                        className="bg-green-600 text-white font-bold py-2.5 px-6 rounded-lg shadow-md hover:bg-green-700 flex items-center gap-2"
+                        className="bg-slate-600 text-white font-bold py-2.5 px-6 rounded-lg shadow-md hover:bg-slate-700 flex items-center gap-2"
                     >
-                        <span className="material-icons !text-base">download</span>
-                        Descargar Listado para Institución
+                        <span className="material-icons !text-base">table_view</span>
+                        Descargar Listado General
                     </button>
                 </div>
             </div>

@@ -1,5 +1,7 @@
+
 import React from 'react';
 import type { AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, TimelineMonthData } from '../types';
+import DOMPurify from 'dompurify';
 
 const PrintableTimeline: React.FC<{ launchesByMonth: TimelineMonthData[]; year: number }> = ({ launchesByMonth, year }) => {
     if (launchesByMonth.length === 0) {
@@ -45,6 +47,8 @@ const SingleYearReport: React.FC<{ data: ExecutiveReportData }> = ({ data }) => 
         { label: 'Convenios Nuevos Firmados', key: 'newAgreements' },
     ];
 
+    const sanitizedSummary = DOMPurify.sanitize(data.summary);
+
     return (
         <>
             <header className="mb-10 printable-section text-center">
@@ -73,7 +77,7 @@ const SingleYearReport: React.FC<{ data: ExecutiveReportData }> = ({ data }) => 
 
             <section className="mb-10 printable-section">
                 <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-700 pb-3 mb-5 tracking-tight">Resumen Ejecutivo</h2>
-                <div className="prose" dangerouslySetInnerHTML={{ __html: data.summary }} />
+                <div className="prose" dangerouslySetInnerHTML={{ __html: sanitizedSummary }} />
             </section>
 
             <section className="mb-10 printable-section">
@@ -131,6 +135,9 @@ const ComparativeReport: React.FC<{ data: ComparativeExecutiveReportData }> = ({
         { label: 'Cupos Totales Ofrecidos', key: 'totalOfferedSpots' },
         { label: 'Convenios Nuevos Firmados', key: 'newAgreements' },
     ];
+    
+    const sanitizedSummary = DOMPurify.sanitize(data.summary);
+
     return (
          <>
             <header className="mb-10 printable-section">
@@ -141,7 +148,7 @@ const ComparativeReport: React.FC<{ data: ComparativeExecutiveReportData }> = ({
             </header>
              <section className="mb-10 printable-section">
                 <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-700 pb-3 mb-5 tracking-tight">Resumen Ejecutivo</h2>
-                <div className="prose" dangerouslySetInnerHTML={{ __html: data.summary }} />
+                <div className="prose" dangerouslySetInnerHTML={{ __html: sanitizedSummary }} />
             </section>
             <section className="mb-10 printable-section">
                 <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-700 pb-3 mb-5 tracking-tight">Panel Comparativo de KPIs</h2>

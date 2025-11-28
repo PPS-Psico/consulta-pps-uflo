@@ -1,29 +1,18 @@
 
 import { supabase } from '../lib/supabaseClient';
-import { mapFieldToDb, mapFieldsToDb, mapDbRowToFields } from '../lib/schemaMapping';
 import type { AirtableRecord, AirtableErrorResponse } from '../types';
 import { z } from 'zod';
 import { FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, AIRTABLE_TABLE_NAME_ESTUDIANTES } from '../constants';
 
-// Helper para convertir respuesta de Supabase al formato que espera la UI (tipo Airtable)
-const transformToAirtableFormat = <T>(tableName: string, data: any[]): AirtableRecord<T>[] => {
-    return data.map(row => ({
-        id: row.id,
-        createdTime: row.created_at || new Date().toISOString(),
-        fields: mapDbRowToFields(tableName, row) as T
-    }));
-};
-
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
-
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const fetchAllData = async <TFields extends Record<string, any>>(
     tableName: string,
     zodSchema: z.ZodSchema<AirtableRecord<TFields>[]>,
-    fields?: string[], // Ignorado en Supabase (select *), se filtra en mapping
-    filterByFormula?: string, // Airtable formula string emulation
+    fields?: string[], // Now used for selecting specific columns in SQL
+    filterByFormula?: string, // Adjusted for SQL-like filtering or custom logic
     sort?: { field: string; direction: 'asc' | 'desc' }[]
 ): Promise<{ records: AirtableRecord<TFields>[], error: AirtableErrorResponse | null }> => {
     try {
@@ -32,51 +21,8 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
         const PAGE_SIZE = 200; 
         let hasMore = true;
 
-        // --- SMART FILTERING OPTIMIZATION ---
-        // Traducimos fórmulas de Airtable a filtros nativos de Supabase para usar índices.
-        let dbFilter: { column: string, value: any, operator: 'eq' } | { type: 'or', filters: string } | null = null;
-
-        if (filterByFormula) {
-            // Patrón 1: Igualdad simple -> {Campo} = 'Valor'
-            const equalityMatch = filterByFormula.match(/^\{\s*(.+?)\s*\}\s*=\s*['"](.+?)['"]$/);
-            
-            // Patrón 2: Búsqueda por ID nativo -> RECORD_ID() = '...'
-            const idMatch = filterByFormula.match(/^RECORD_ID\(\)\s*=\s*['"]([^'"]+)['"]$/i);
-
-            // Patrón 3: Búsqueda de Estudiantes (Generado por AdminSearch.tsx)
-            // Formula: OR(SEARCH("term", LOWER({Nombre})), SEARCH("term", {Legajo} & ''))
-            const studentSearchMatch = (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) 
-                ? filterByFormula.match(/OR\(\s*SEARCH\("([^"]+)",\s*LOWER\(\{(.+?)\}\)\),\s*SEARCH\("([^"]+)",\s*\{(.+?)\}\s*&\s*''\)\s*\)/i)
-                : null;
-            
-            if (equalityMatch) {
-                const appFieldName = equalityMatch[1].trim();
-                const value = equalityMatch[2];
-                const dbColumn = mapFieldToDb(tableName, appFieldName);
-                
-                if (dbColumn) {
-                    dbFilter = { column: dbColumn, value: value, operator: 'eq' };
-                }
-            } else if (idMatch) {
-                dbFilter = { column: 'id', value: idMatch[1], operator: 'eq' };
-            } else if (studentSearchMatch) {
-                const term = studentSearchMatch[1]; // El término de búsqueda
-                const nameField = studentSearchMatch[2];
-                const legajoField = studentSearchMatch[4];
-                
-                if (nameField === FIELD_NOMBRE_ESTUDIANTES && legajoField === FIELD_LEGAJO_ESTUDIANTES) {
-                    const nameCol = mapFieldToDb(tableName, nameField);
-                    const legajoCol = mapFieldToDb(tableName, legajoField);
-                    
-                    // Usamos ILIKE para búsqueda insensible a mayúsculas y parcial.
-                    dbFilter = {
-                        type: 'or',
-                        filters: `${nameCol}.ilike.%${term}%,${legajoCol}.ilike.%${term}%`
-                    };
-                }
-            }
-        }
-        // -------------------------------------
+        // --- QUERY BUILDER ---
+        const selectQuery = fields && fields.length > 0 ? `id, created_at, ${fields.join(', ')}` : '*';
 
         while (hasMore) {
             let attempt = 0;
@@ -85,44 +31,49 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
 
             while (attempt < MAX_RETRIES && !success) {
                 try {
-                    let query = supabase.from(tableName).select('*');
+                    let query = supabase.from(tableName).select(selectQuery);
 
-                    // Aplicar filtro nativo si se detectó
-                    if (dbFilter) {
-                        if ('operator' in dbFilter && dbFilter.operator === 'eq') {
-                            query = query.eq(dbFilter.column, dbFilter.value);
-                        } else if ('type' in dbFilter && dbFilter.type === 'or') {
-                            query = query.or(dbFilter.filters);
+                    // --- FILTERING LOGIC ---
+                    // We still support some basic "formula" emulation for compatibility
+                    if (filterByFormula) {
+                         // 1. Simple Equality: {Field} = 'Value'
+                        const equalityMatch = filterByFormula.match(/^\{\s*(.+?)\s*\}\s*=\s*['"](.+?)['"]$/);
+                        // 2. ID Search: RECORD_ID() = '...'
+                        const idMatch = filterByFormula.match(/^RECORD_ID\(\)\s*=\s*['"]([^'"]+)['"]$/i);
+                        
+                        // 3. Student Search (AdminSearch.tsx)
+                        const studentSearchMatch = (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) 
+                            ? filterByFormula.match(/OR\(\s*SEARCH\("([^"]+)",\s*LOWER\(\{(.+?)\}\)\),\s*SEARCH\("([^"]+)",\s*\{(.+?)\}\s*&\s*''\)\s*\)/i)
+                            : null;
+
+                        if (equalityMatch) {
+                            query = query.eq(equalityMatch[1], equalityMatch[2]);
+                        } else if (idMatch) {
+                            query = query.eq('id', idMatch[1]);
+                        } else if (studentSearchMatch) {
+                             const term = studentSearchMatch[1];
+                             // Assuming FIELDS are already mapped to constants in AdminSearch
+                             // We rely on the constants.ts file having the correct DB column names
+                             query = query.or(`${FIELD_NOMBRE_ESTUDIANTES}.ilike.%${term}%,${FIELD_LEGAJO_ESTUDIANTES}.ilike.%${term}%`);
                         }
                     }
 
-                    // Manejo básico de ordenamiento
+                    // --- SORTING ---
                     if (sort && sort.length > 0) {
                         sort.forEach(s => {
-                            const dbField = mapFieldToDb(tableName, s.field);
-                            query = query.order(dbField, { ascending: s.direction === 'asc' });
+                            query = query.order(s.field, { ascending: s.direction === 'asc' });
                         });
                     } else {
                         query = query.order('id', { ascending: true });
                     }
 
-                    // Si es búsqueda por ID, optimizamos para traer uno solo
-                    if (dbFilter && 'column' in dbFilter && dbFilter.column === 'id') {
-                         const { data, error } = await query.maybeSingle();
-                         if (error) throw error;
-                         if (data) allRows = [data];
-                         hasMore = false;
-                         success = true;
-                         break;
-                    }
-
+                    // Pagination
                     const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
 
                     if (error) throw error;
 
                     if (data) {
                         allRows = [...allRows, ...data];
-                        
                         if (data.length < PAGE_SIZE) {
                             hasMore = false;
                         } else {
@@ -137,9 +88,7 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                     lastError = err;
                     attempt++;
                     console.warn(`Attempt ${attempt} failed for ${tableName}: ${err.message}`);
-                    if (attempt < MAX_RETRIES) {
-                        await sleep(RETRY_DELAY_MS * attempt);
-                    }
+                    if (attempt < MAX_RETRIES) await sleep(RETRY_DELAY_MS * attempt);
                 }
             }
 
@@ -149,63 +98,20 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
             }
         }
 
-        let transformedRecords: AirtableRecord<TFields>[] = transformToAirtableFormat<TFields>(tableName, allRows);
+        // --- MAPPING ---
+        // No transformation needed! The data is already flat.
+        // We add 'createdTime' alias for compatibility with existing code that might use it.
+        const records = allRows.map(row => ({
+            ...row,
+            createdTime: row.created_at // Alias
+        }));
 
-        // Filtrado CLIENT-SIDE (Fallback para lógicas complejas no cubiertas por DB filter)
-        if (filterByFormula && !dbFilter) {
-            const lowerFormula = filterByFormula.toLowerCase();
-            
-            const searchMatch = filterByFormula.match(/SEARCH\(\s*['"](.+?)['"]/i);
-            const searchTerm = searchMatch ? searchMatch[1].toLowerCase() : null;
-            
-            const idMatch = filterByFormula.match(/RECORD_ID\(\)\s*=\s*['"]([^'"]+)['"]/i);
-            const targetId = idMatch ? idMatch[1] : null;
-
-            transformedRecords = transformedRecords.filter(record => {
-                const flatFields = record.fields as Record<string, any>;
-                
-                if (targetId) {
-                    if (record.id === targetId) return true;
-                    if (!lowerFormula.includes('or(')) return false; 
-                }
-
-                if (searchTerm) {
-                    if (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) {
-                        const studentName = String(flatFields[FIELD_NOMBRE_ESTUDIANTES] || '').toLowerCase();
-                        const studentLegajo = String(flatFields[FIELD_LEGAJO_ESTUDIANTES] || '').toLowerCase();
-                        if (studentName.includes(searchTerm) || studentLegajo.includes(searchTerm)) {
-                            return true;
-                        }
-                    } else {
-                        const values = Object.values(flatFields).join(' ').toLowerCase();
-                        if (values.includes(searchTerm)) return true;
-                    }
-
-                    if (!lowerFormula.includes('or(')) return false;
-                }
-                
-                if (lowerFormula.includes('oculto') && lowerFormula.includes('!=')) {
-                     const estado = String(flatFields['Estado de Convocatoria'] || '').toLowerCase();
-                     if (estado === 'oculto') return false;
-                }
-                
-                const simpleEqMatch = filterByFormula.match(/^\{\s*(.+?)\s*\}\s*=\s*['"](.+?)['"]$/);
-                if (simpleEqMatch) {
-                    const key = simpleEqMatch[1].trim();
-                    const val = simpleEqMatch[2];
-                    if (String(flatFields[key]) !== val) return false;
-                }
-                
-                return true;
-            });
-        }
-
-        // Validación Zod
-        const validationResult = zodSchema.safeParse(transformedRecords);
+        // --- VALIDATION (Optional but good) ---
+        const validationResult = zodSchema.safeParse(records);
         if (!validationResult.success) {
             console.warn(`Schema validation warning for ${tableName}:`, validationResult.error.issues);
-            // Devolvemos los datos aunque falle la validación estricta para no romper la UI por datos legacy
-            return { records: transformedRecords as any, error: null };
+            // Return unvalidated to avoid breaking UI on minor mismatches during refactor
+             return { records: records as AirtableRecord<TFields>[], error: null };
         }
 
         return { records: validationResult.data as AirtableRecord<TFields>[], error: null };
@@ -224,6 +130,7 @@ export const fetchData = async <TFields extends Record<string, any>>(
     maxRecords?: number,
     sort?: { field: string; direction: 'asc' | 'desc' }[]
 ): Promise<{ records: AirtableRecord<TFields>[], error: AirtableErrorResponse | null }> => {
+    // Reusing fetchAllData but we could optimize for limit if needed
     const result = await fetchAllData<TFields>(tableName, zodSchema, fields, filterByFormula, sort);
     if (maxRecords && result.records) {
         result.records = result.records.slice(0, maxRecords);
@@ -236,17 +143,9 @@ export const createRecord = async <TFields>(
     fields: TFields
 ): Promise<{ record: AirtableRecord<TFields> | null, error: AirtableErrorResponse | null }> => {
     try {
-        const dbFields = mapFieldsToDb(tableName, fields as Record<string, any>);
-        
-        for (const key in dbFields) {
-             if (Array.isArray(dbFields[key]) && dbFields[key].length > 0 && (key.endsWith('_id') || key === 'convocatoria_afectada')) {
-                 dbFields[key] = dbFields[key][0];
-             }
-        }
-
         const { data, error } = await supabase
             .from(tableName)
-            .insert(dbFields)
+            .insert(fields as any)
             .select()
             .single();
 
@@ -255,9 +154,8 @@ export const createRecord = async <TFields>(
             return { record: null, error: { error: { type: 'CREATE_ERROR', message: error.message } } };
         }
 
-        const transformed = transformToAirtableFormat<TFields>(tableName, [data]);
-        return { record: transformed[0], error: null };
-
+        const record = { ...data, createdTime: data.created_at };
+        return { record, error: null };
     } catch (e: any) {
         return { record: null, error: { error: { type: 'UNKNOWN_ERROR', message: e.message } } };
     }
@@ -269,17 +167,9 @@ export const updateRecord = async <TFields>(
     fields: Partial<TFields>
 ): Promise<{ record: AirtableRecord<TFields> | null, error: AirtableErrorResponse | null }> => {
     try {
-        const dbFields = mapFieldsToDb(tableName, fields as Record<string, any>);
-        
-        for (const key in dbFields) {
-             if (Array.isArray(dbFields[key]) && dbFields[key].length > 0 && (key.endsWith('_id') || key === 'convocatoria_afectada')) {
-                 dbFields[key] = dbFields[key][0];
-             }
-        }
-
         const { data, error } = await supabase
             .from(tableName)
-            .update(dbFields)
+            .update(fields as any)
             .eq('id', recordId)
             .select()
             .single();
@@ -289,8 +179,8 @@ export const updateRecord = async <TFields>(
             return { record: null, error: { error: { type: 'UPDATE_ERROR', message: error.message } } };
         }
 
-        const transformed = transformToAirtableFormat<TFields>(tableName, [data]);
-        return { record: transformed[0], error: null };
+        const record = { ...data, createdTime: data.created_at };
+        return { record, error: null };
     } catch (e: any) {
         return { record: null, error: { error: { type: 'UNKNOWN_ERROR', message: e.message } } };
     }
@@ -301,6 +191,8 @@ export const updateRecords = async <TFields>(
     records: { id: string; fields: Partial<TFields> }[]
 ): Promise<{ records: AirtableRecord<TFields>[] | null, error: AirtableErrorResponse | null }> => {
     try {
+        // Supabase doesn't have a bulk update for different values per row easily accessible via JS client
+        // We iterate. Optimization: could use an RPC function if performance becomes an issue.
         const promises = records.map(rec => updateRecord<TFields>(tableName, rec.id, rec.fields));
         const results = await Promise.all(promises);
         

@@ -37,7 +37,7 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
                 initialData[field.key] = field.type === 'checkbox' ? false : field.type === 'number' ? 0 : '';
             } else {
                 const airtableKey = tableConfig.schema[field.key] || field.key;
-                initialData[field.key] = record?.fields[airtableKey];
+                initialData[field.key] = record ? record[airtableKey] : '';
             }
         });
         setFormData(initialData);

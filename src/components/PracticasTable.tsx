@@ -35,7 +35,6 @@ const notaColors: Record<string, string> = {
   'Sin calificar': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
 };
 
-// Simplified color map for select elements background
 const selectNotaColors: Record<string, string> = {
   '10': 'bg-success-100 text-success-900 dark:bg-success-900/50 dark:text-success-200',
   '9': 'bg-success-100 text-success-900 dark:bg-success-900/50 dark:text-success-200',
@@ -66,15 +65,11 @@ const SortableHeader: React.FC<{
   const icon = isActive ? (sortConfig.direction === 'ascending' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more';
 
   return (
-    <th
-      scope="col"
-      className={`p-0 ${className}`}
-    >
+    <th scope="col" className={`p-0 ${className}`}>
       <button
         type="button"
         onClick={() => requestSort(sortKey)}
         className="w-full h-full p-4 flex items-center gap-2 cursor-pointer select-none group transition-colors hover:bg-gray-200/50 dark:hover:bg-gray-700/50"
-        aria-label={`Ordenar por ${label} en orden ${isActive && sortConfig.direction === 'ascending' ? 'descendiente' : 'ascendiente'}`}
       >
         <div className={`flex items-center gap-2 w-full ${className.includes('text-left') ? 'justify-start' : 'justify-center'}`}>
             <span className="font-bold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider">{label}</span>
@@ -92,8 +87,7 @@ const NotaEditor: React.FC<{
   justUpdatedPracticaId: string | null;
 }> = ({ practica, handleNotaChange, savingNotaId, justUpdatedPracticaId }) => {
     const nota = practica[FIELD_NOTA_PRACTICAS] || 'Sin calificar';
-    const institucionRaw = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-    const institucion = Array.isArray(institucionRaw) ? institucionRaw.join(', ') : (institucionRaw || 'Institución no asignada');
+    const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'Institución no asignada';
     const isEditable = nota === 'Sin calificar' || nota === 'Entregado (sin corregir)';
     const notaClass = `inline-block px-3 py-1 rounded-full text-xs font-semibold transition-transform hover:scale-105 shadow-sm ${notaColors[nota] || notaColors['Sin calificar']}`;
     
@@ -148,15 +142,16 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
     if (sortConfig.key !== null) {
       processableItems.sort((a, b) => {
         let aValue: string | number, bValue: string | number;
-        const safeGetTime = (dateStr?: string) => {
+        const safeGetTime = (dateStr?: string | null) => {
           if (!dateStr) return 0;
           const date = new Date(dateStr);
           return isNaN(date.getTime()) ? 0 : date.getTime();
         };
+        
         switch (sortConfig.key) {
           case 'institucion':
-            aValue = normalizeStringForComparison(Array.isArray(a[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) ? a[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]?.[0] : a[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
-            bValue = normalizeStringForComparison(Array.isArray(b[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) ? b[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]?.[0] : b[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
+            aValue = normalizeStringForComparison(a[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
+            bValue = normalizeStringForComparison(b[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
             break;
           case 'especialidad':
             aValue = normalizeStringForComparison(a[FIELD_ESPECIALIDAD_PRACTICAS]);
@@ -208,7 +203,6 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
       {/* Desktop Table View */}
       <div className="overflow-x-auto hidden md:block">
         <table className="w-full min-w-[800px] text-sm">
-          <caption className="sr-only">Historial de Prácticas Profesionales Supervisadas</caption>
           <thead className="bg-gray-100/70 dark:bg-gray-800/70">
             <tr className="border-b-2 border-gray-200 dark:border-gray-700">
               <SortableHeader label="Institución" sortKey="institucion" sortConfig={sortConfig} requestSort={requestSort} className="text-left w-2/5" />
@@ -221,11 +215,9 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
           </thead>
           <tbody>
             {sortedPracticas.map((practica) => {
-              const institucionRaw = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-              const institucion = Array.isArray(institucionRaw) ? institucionRaw.join(', ') : (institucionRaw || 'N/A');
-              const statusRaw = practica[FIELD_ESTADO_PRACTICA];
-              const status = Array.isArray(statusRaw) ? statusRaw?.[0] : statusRaw;
-              const statusVisuals = getStatusVisuals(status);
+              const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'N/A';
+              const status = practica[FIELD_ESTADO_PRACTICA];
+              const statusVisuals = getStatusVisuals(status || '');
 
               return (
                 <tr 
@@ -236,7 +228,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
                 >
                   <td className="p-4 align-middle text-gray-900 dark:text-gray-100 font-semibold break-words text-left">{institucion}</td>
                   <td className="p-4 align-middle text-center">
-                    <span className={`${getEspecialidadClasses(practica[FIELD_ESPECIALIDAD_PRACTICAS]).tag} shadow-sm`}>
+                    <span className={`${getEspecialidadClasses(practica[FIELD_ESPECIALIDAD_PRACTICAS] || '').tag} shadow-sm`}>
                       {practica[FIELD_ESPECIALIDAD_PRACTICAS] || 'N/A'}
                     </span>
                   </td>
@@ -267,11 +259,9 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
       {/* Mobile Compact List View */}
       <div className="md:hidden space-y-4">
         {sortedPracticas.map(practica => {
-          const institucionRaw = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-          const institucion = Array.isArray(institucionRaw) ? institucionRaw.join(', ') : (institucionRaw || 'N/A');
-          const statusRaw = practica[FIELD_ESTADO_PRACTICA];
-          const status = Array.isArray(statusRaw) ? statusRaw?.[0] : statusRaw;
-          const statusVisuals = getStatusVisuals(status);
+          const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'N/A';
+          const status = practica[FIELD_ESTADO_PRACTICA];
+          const statusVisuals = getStatusVisuals(status || '');
 
           return (
             <div key={practica.id} className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg shadow-gray-200/40 dark:shadow-black/20 p-4 border border-gray-200/60 dark:border-gray-700/80 transition-colors duration-300 ${justUpdatedPracticaId === practica.id ? 'animate-flash-success' : ''}`}>
@@ -291,7 +281,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
               </div>
               {/* Bottom Row: Details and Grade */}
               <div className="flex items-center flex-wrap gap-x-4 gap-y-3 mt-4 pt-4 border-t border-gray-200/60 dark:border-gray-700/60">
-                <span className={`${getEspecialidadClasses(practica[FIELD_ESPECIALIDAD_PRACTICAS]).tag} shadow-sm`}>
+                <span className={`${getEspecialidadClasses(practica[FIELD_ESPECIALIDAD_PRACTICAS] || '').tag} shadow-sm`}>
                   {practica[FIELD_ESPECIALIDAD_PRACTICAS] || 'N/A'}
                 </span>
                 <span className={`${statusVisuals.labelClass} gap-1.5 shadow-sm`}>

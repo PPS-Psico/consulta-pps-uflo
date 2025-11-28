@@ -8,6 +8,7 @@ import type { AirtableRecord, EstudianteFields } from '../../types';
 import AirtableEditor from '../../components/AirtableEditor';
 import Loader from '../../components/Loader';
 import EmailAutomationManager from '../../components/EmailAutomationManager';
+import NuevosConvenios from '../../components/NuevosConvenios'; // Imported
 
 const ExecutiveReportGenerator = lazy(() => import('../../components/ExecutiveReportGenerator'));
 const ActiveInstitutionsReport = lazy(() => import('../../components/ActiveInstitutionsReport'));
@@ -23,6 +24,7 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
 
   const tabs = [
     { id: 'editor-db', label: 'Editor DB', icon: 'storage' },
+    { id: 'convenios', label: 'Convenios Nuevos', icon: 'handshake' },
     { id: 'penalizaciones', label: 'Penalizaciones', icon: 'gavel' },
     { id: 'automation', label: 'Automatizaciones', icon: 'auto_fix_high' },
     { id: 'search', label: 'Buscar Alumno', icon: 'person_search' },
@@ -37,6 +39,8 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
           
           {activeTabId === 'editor-db' && <AirtableEditor isTestingMode={isTestingMode} />}
           
+          {activeTabId === 'convenios' && <NuevosConvenios isTestingMode={isTestingMode} />}
+
           {activeTabId === 'penalizaciones' && <PenalizationManager isTestingMode={isTestingMode} />}
 
           {activeTabId === 'automation' && <EmailAutomationManager />}

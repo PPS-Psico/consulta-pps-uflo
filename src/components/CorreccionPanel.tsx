@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../lib/db';
-import type { InformeCorreccionPPS, InformeCorreccionStudent, ConvocatoriaFields, PracticaFields, EstudianteFields, LanzamientoPPSFields, FlatCorreccionStudent, AirtableRecord } from '../types';
+import type { InformeCorreccionPPS, InformeCorreccionStudent, PracticaFields, EstudianteFields, LanzamientoPPSFields, FlatCorreccionStudent, AirtableRecord } from '../types';
 import {
-  // FIX: Corrected typo in constant name
   FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
   FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
   FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
@@ -17,24 +15,20 @@ import {
   FIELD_INFORME_LANZAMIENTOS,
   FIELD_FECHA_FIN_LANZAMIENTOS,
   FIELD_LEGAJO_ESTUDIANTES,
-  FIELD_ESPECIALIDAD_PRACTICAS,
-  FIELD_NOMBRE_PPS_CONVOCATORIAS,
-  FIELD_FECHA_INICIO_CONVOCATORIAS,
   FIELD_FECHA_INICIO_LANZAMIENTOS,
   FIELD_FECHA_INICIO_PRACTICAS,
   FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
   FIELD_ESTUDIANTE_LINK_PRACTICAS,
-  FIELD_FECHA_FIN_CONVOCATORIAS,
-  FIELD_FECHA_FIN_PRACTICAS,
-  FIELD_HORAS_ACREDITADAS_LANZAMIENTOS,
   FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS,
+  FIELD_ESPECIALIDAD_PRACTICAS,
+  FIELD_FECHA_FIN_PRACTICAS,
 } from '../constants';
 import Loader from './Loader';
 import EmptyState from './EmptyState';
 import Toast from './Toast';
 import InformeCorreccionCard from './InformeCorreccionCard';
 import CorreccionRapidaView from './CorreccionRapidaView';
-import { normalizeStringForComparison, formatDate, parseToUTCDate } from '../utils/formatters';
+import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import ErrorState from './ErrorState';
 
@@ -53,7 +47,7 @@ interface CorreccionPanelProps {
 }
 
 const CorreccionPanel: React.FC<CorreccionPanelProps> = ({ isTestingMode = false }) => {
-  const { isJefeMode, authenticatedUser } = useAuth();
+  const { isJefeMode } = useAuth();
   const [loadingState, setLoadingState] = useState<LoadingState>('initial');
   const [error, setError] = useState<string | null>(null);
   const [allPpsGroups, setAllPpsGroups] = useState<Map<string, InformeCorreccionPPS>>(new Map());
@@ -84,59 +78,59 @@ const CorreccionPanel: React.FC<CorreccionPanelProps> = ({ isTestingMode = false
         db.estudiantes.getAll()
       ]);
 
-      const estudiantesMapById = new Map(estudiantesRes.map(r => [r.id, r.fields]));
+      const estudiantesMapById = new Map(estudiantesRes.map(r => [r.id, r]));
       const legajoToStudentIdMap = new Map<string, string>();
       estudiantesRes.forEach(r => {
-        if (r.fields[FIELD_LEGAJO_ESTUDIANTES]) {
-          legajoToStudentIdMap.set(String(r.fields[FIELD_LEGAJO_ESTUDIANTES]), r.id);
+        if (r[FIELD_LEGAJO_ESTUDIANTES]) {
+          legajoToStudentIdMap.set(String(r[FIELD_LEGAJO_ESTUDIANTES]), r.id);
         }
       });
       
-      const allPracticas = practicasRes.map(r => ({ ...r, id: r.id, fields: r.fields as PracticaFields }));
-      const allLanzamientos = lanzamientosRes;
-      
       const practicasMap = new Map<string, AirtableRecord<PracticaFields>>();
 
-      for (const practicaRecord of allPracticas) {
-          const studentId = (practicaRecord.fields[FIELD_ESTUDIANTE_LINK_PRACTICAS] as string[] | undefined)?.[0];
-          const lanzamientoId = (practicaRecord.fields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string[] | undefined)?.[0];
+      // First pass: Link practices by explicit IDs
+      for (const p of practicasRes) {
+          const studentId = (p[FIELD_ESTUDIANTE_LINK_PRACTICAS] as any)?.[0] || p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+          const lanzamientoId = (p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as any)?.[0] || p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
           
           if (studentId && lanzamientoId) {
               const key = `${studentId}-${lanzamientoId}`;
               const existing = practicasMap.get(key);
-              if (!existing || (practicaRecord.fields[FIELD_NOTA_PRACTICAS] && !existing.fields[FIELD_NOTA_PRACTICAS])) {
-                  practicasMap.set(key, practicaRecord);
+              if (!existing || (p[FIELD_NOTA_PRACTICAS] && !existing[FIELD_NOTA_PRACTICAS])) {
+                  practicasMap.set(key, p);
               }
           }
       }
       
-      for (const practicaRecord of allPracticas) {
-          const linkedStudentId = (practicaRecord.fields[FIELD_ESTUDIANTE_LINK_PRACTICAS] as string[] | undefined)?.[0];
-          const linkedLanzamientoId = (practicaRecord.fields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string[] | undefined)?.[0];
+      // Second pass: Link orphan practices by name matching
+      for (const p of practicasRes) {
+          const linkedStudentId = (p[FIELD_ESTUDIANTE_LINK_PRACTICAS] as any)?.[0] || p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+          const linkedLanzamientoId = (p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as any)?.[0] || p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
           if (linkedStudentId && linkedLanzamientoId && practicasMap.has(`${linkedStudentId}-${linkedLanzamientoId}`)) {
               continue; 
           }
 
-          const legajoArray = practicaRecord.fields[FIELD_NOMBRE_BUSQUEDA_PRACTICAS] as (string | number)[] | undefined;
-          const legajo = legajoArray ? String(legajoArray[0]) : null;
+          const legajoArray = p[FIELD_NOMBRE_BUSQUEDA_PRACTICAS] as (string | number)[] | undefined;
+          const legajo = Array.isArray(legajoArray) ? String(legajoArray[0]) : String(legajoArray);
           if (!legajo) continue;
           
           const studentId = legajoToStudentIdMap.get(legajo);
           if (!studentId) continue;
 
-          const instName = practicaRecord.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] as string | undefined;
+          const instNameRaw = p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
+          const instName = Array.isArray(instNameRaw) ? instNameRaw[0] : instNameRaw;
           if (!instName) continue;
 
-          const practicaStartDate = parseToUTCDate(practicaRecord.fields[FIELD_FECHA_INICIO_PRACTICAS]);
+          const practicaStartDate = parseToUTCDate(p[FIELD_FECHA_INICIO_PRACTICAS]);
           if (!practicaStartDate) continue;
 
           const normalizedInstName = normalizeStringForComparison(instName);
 
-          const matchingLanzamiento = allLanzamientos.find(l => {
-              const lanzamientoName = l.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+          const matchingLanzamiento = lanzamientosRes.find(l => {
+              const lanzamientoName = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
               if (!lanzamientoName || normalizeStringForComparison(lanzamientoName) !== normalizedInstName) return false;
 
-              const lanzamientoStartDate = parseToUTCDate(l.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+              const lanzamientoStartDate = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
               if (!lanzamientoStartDate) return false;
               
               const timeDiff = Math.abs(practicaStartDate.getTime() - lanzamientoStartDate.getTime());
@@ -146,32 +140,34 @@ const CorreccionPanel: React.FC<CorreccionPanelProps> = ({ isTestingMode = false
           if (matchingLanzamiento) {
               const key = `${studentId}-${matchingLanzamiento.id}`;
               if (!practicasMap.has(key)) {
-                  practicasMap.set(key, practicaRecord);
+                  practicasMap.set(key, p);
               }
           }
       }
 
       const ppsGroups = new Map<string, InformeCorreccionPPS>();
       convocatoriasRes.forEach(conv => {
-        const estado = conv.fields[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS];
+        const estado = conv[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS];
         if (typeof estado !== 'string' || normalizeStringForComparison(estado) !== 'seleccionado') return;
 
-        const lanzamientoId = (conv.fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] as string[] | undefined)?.[0];
+        const rawLanzId = conv[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+        const lanzamientoId = Array.isArray(rawLanzId) ? rawLanzId[0] : rawLanzId;
         if (!lanzamientoId) return;
 
         if (!ppsGroups.has(lanzamientoId)) {
-            const lanzamiento = allLanzamientos.find(l => l.id === lanzamientoId);
+            const lanzamiento = lanzamientosRes.find(l => l.id === lanzamientoId);
             ppsGroups.set(lanzamientoId, {
                 lanzamientoId,
-                ppsName: lanzamiento?.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS] || null,
-                orientacion: lanzamiento?.fields[FIELD_ORIENTACION_LANZAMIENTOS] || null,
-                informeLink: lanzamiento?.fields[FIELD_INFORME_LANZAMIENTOS] || null,
-                fechaFinalizacion: lanzamiento?.fields[FIELD_FECHA_FIN_LANZAMIENTOS] || null,
+                ppsName: lanzamiento?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || null,
+                orientacion: lanzamiento?.[FIELD_ORIENTACION_LANZAMIENTOS] || null,
+                informeLink: lanzamiento?.[FIELD_INFORME_LANZAMIENTOS] || null,
+                fechaFinalizacion: lanzamiento?.[FIELD_FECHA_FIN_LANZAMIENTOS] || null,
                 students: [],
             });
         }
         
-        const studentId = (conv.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] as string[] | undefined)?.[0];
+        const rawStudentId = conv[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+        const studentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
         if (!studentId) return;
         
         const studentDetails = estudiantesMapById.get(studentId);
@@ -184,12 +180,12 @@ const CorreccionPanel: React.FC<CorreccionPanelProps> = ({ isTestingMode = false
             studentName: studentDetails[FIELD_NOMBRE_ESTUDIANTES] || 'Nombre no encontrado',
             convocatoriaId: conv.id,
             practicaId: practicaRecord?.id || null,
-            informeSubido: conv.fields[FIELD_INFORME_SUBIDO_CONVOCATORIAS] || false,
-            nota: practicaRecord?.fields[FIELD_NOTA_PRACTICAS] || 'Sin calificar',
+            informeSubido: conv[FIELD_INFORME_SUBIDO_CONVOCATORIAS] || false,
+            nota: practicaRecord?.[FIELD_NOTA_PRACTICAS] || 'Sin calificar',
             lanzamientoId,
             orientacion: ppsGroups.get(lanzamientoId)!.orientacion,
             fechaFinalizacionPPS: ppsGroups.get(lanzamientoId)!.fechaFinalizacion,
-            fechaEntregaInforme: conv.fields[FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS],
+            fechaEntregaInforme: conv[FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS],
         });
       });
 
@@ -222,24 +218,24 @@ const CorreccionPanel: React.FC<CorreccionPanelProps> = ({ isTestingMode = false
                 throw new Error("No se pudo encontrar el grupo de PPS para crear el registro de la práctica.");
             }
             const newPractica = await db.practicas.create({
-                estudianteLink: [student.studentId],
-                lanzamientoVinculado: [student.lanzamientoId],
-                especialidad: student.orientacion,
-                fechaInicio: student.fechaInicio || ppsGroup.fechaFinalizacion,
-                fechaFin: student.fechaFinalizacionPPS,
-                nota: newNota
-            });
+                [FIELD_ESTUDIANTE_LINK_PRACTICAS]: [student.studentId],
+                [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: [student.lanzamientoId],
+                [FIELD_ESPECIALIDAD_PRACTICAS]: student.orientacion,
+                [FIELD_FECHA_INICIO_PRACTICAS]: student.fechaInicio || ppsGroup.fechaFinalizacion,
+                [FIELD_FECHA_FIN_PRACTICAS]: student.fechaFinalizacionPPS,
+                [FIELD_NOTA_PRACTICAS]: newNota
+            } as any);
             if (newPractica) {
                 practicaId = newPractica.id;
             } else {
                 throw new Error("No se pudo crear el registro de la práctica.");
             }
         } else {
-            await db.practicas.update(practicaId, { nota: newNota });
+            await db.practicas.update(practicaId, { [FIELD_NOTA_PRACTICAS]: newNota });
         }
         
         if (newNota === 'No Entregado') {
-            await db.convocatorias.update(student.convocatoriaId, { informeSubido: false });
+            await db.convocatorias.update(student.convocatoriaId, { [FIELD_INFORME_SUBIDO_CONVOCATORIAS]: false });
         }
         
         // Optimistic update

@@ -1,3 +1,6 @@
+
+
+
 import { useQuery } from '@tanstack/react-query';
 import {
     AIRTABLE_TABLE_NAME_ESTUDIANTES,
@@ -18,6 +21,8 @@ import {
     FIELD_FECHA_FIN_PRACTICAS,
     FIELD_HORAS_PRACTICAS,
     FIELD_ESPECIALIDAD_PRACTICAS,
+    FIELD_FECHA_FINALIZACION_ESTUDIANTES,
+    FIELD_FINALIZARON_ESTUDIANTES,
 } from '../constants';
 import { fetchAllAirtableData } from '../services/airtableService';
 import { parseToUTCDate, formatDate, normalizeStringForComparison } from '../utils/formatters';
@@ -36,18 +41,19 @@ const processLaunchesForYear = (
     allLanzamientos: AirtableRecord<LanzamientoPPSFields>[]
 ): { totalCuposForYear: number; totalLaunchesForYear: number; launchesByMonth: TimelineMonthData[] } => {
     const launchesForYear = allLanzamientos.filter(launch => {
-        const date = parseToUTCDate(launch.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+        // Ensure property access is direct since we use flat objects
+        const date = parseToUTCDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS]);
         return date && date.getUTCFullYear() === year;
     });
 
-    const totalCuposForYear = launchesForYear.reduce((sum, launch) => sum + (launch.fields[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0), 0);
+    const totalCuposForYear = launchesForYear.reduce((sum, launch) => sum + (launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0), 0);
 
     const totalLaunchesForYearSet = new Set<string>();
     launchesForYear.forEach(launch => {
-        const ppsName = launch.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+        const ppsName = launch[FIELD_NOMBRE_PPS_LANZAMIENTOS];
         if (ppsName) {
             const groupName = getGroupName(ppsName);
-            const date = parseToUTCDate(launch.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+            const date = parseToUTCDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS]);
             if (date) {
                 const monthIndex = date.getUTCMonth();
                 totalLaunchesForYearSet.add(`${groupName}::${monthIndex}`);
@@ -62,17 +68,17 @@ const processLaunchesForYear = (
     } } = {};
 
     launchesForYear.forEach(launch => {
-        const date = parseToUTCDate(launch.fields[FIELD_FECHA_INICIO_LANZAMIENTOS])!;
+        const date = parseToUTCDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS])!;
         const monthIndex = date.getUTCMonth();
         
         if (!monthlyData[monthIndex]) {
             monthlyData[monthIndex] = { cuposTotal: 0, institutions: new Map() };
         }
         
-        const cupos = launch.fields[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0;
+        const cupos = launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0;
         monthlyData[monthIndex].cuposTotal += cupos;
         
-        const ppsName = launch.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+        const ppsName = launch[FIELD_NOMBRE_PPS_LANZAMIENTOS];
         if (ppsName) {
             const groupName = getGroupName(ppsName);
             const institutionData = monthlyData[monthIndex].institutions.get(groupName) || { cupos: 0, variants: [] };
@@ -103,7 +109,7 @@ const processLaunchesForYear = (
 
 const fetchAllDataForReport = async () => {
     const [estudiantesRes, practicasRes, lanzamientosRes, institucionesRes] = await Promise.all([
-        fetchAllAirtableData<EstudianteFields>(AIRTABLE_TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, 'Finalizaron', 'Creada', 'Fecha de Finalización']),
+        fetchAllAirtableData<EstudianteFields>(AIRTABLE_TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES, FIELD_FECHA_FINALIZACION_ESTUDIANTES]),
         fetchAllAirtableData<PracticaFields>(AIRTABLE_TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_FECHA_FIN_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_ESPECIALIDAD_PRACTICAS]),
         fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ORIENTACION_LANZAMIENTOS]),
         fetchAllAirtableData<InstitucionFields>(AIRTABLE_TABLE_NAME_INSTITUCIONES, institucionArraySchema, [FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_NOMBRE_INSTITUCIONES])
@@ -153,51 +159,71 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             // FILTROS
             const activeStudentRecords = estudiantes.filter(student => {
                 // Un estudiante está activo si NO ha finalizado.
-                const haFinalizado = student.fields['Finalizaron'];
-                // Corregimos la lógica: cualquier estudiante con "Finalizaron" marcado como true, está inactivo.
+                const haFinalizado = student[FIELD_FINALIZARON_ESTUDIANTES];
+                const creationDate = parseToUTCDate(student.createdTime);
+                const finalizationDate = parseToUTCDate(student[FIELD_FECHA_FINALIZACION_ESTUDIANTES]);
+
+                const yearStartDate = new Date(Date.UTC(targetYear, 0, 1));
+                const yearEndDate = new Date(Date.UTC(targetYear + 1, 0, 1));
+                yearEndDate.setUTCDate(yearEndDate.getUTCDate() - 1);
+
+                // Filter by creation date (must be created before end of target year)
+                if (!creationDate || creationDate > yearEndDate) {
+                    return false;
+                }
+
+                // If finalized, check if finalization happened AFTER target year start
+                if (haFinalizado && finalizationDate && finalizationDate < yearStartDate) {
+                     return false;
+                }
+
                 return !haFinalizado;
             });
             
             // METRICAS
             const alumnosActivos = {
                 value: activeStudentRecords.length,
-                list: activeStudentRecords.map(s => ({ legajo: s.fields[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s.fields[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }))
+                list: activeStudentRecords.map(s => ({ legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }))
             };
 
             const studentPractices = new Map<string, AirtableRecord<PracticaFields>[]>();
             practicas.forEach(p => {
-                ((p.fields as any)[FIELD_ESTUDIANTE_LINK_PRACTICAS] || []).forEach((studentId: string) => {
+                const links = (p[FIELD_ESTUDIANTE_LINK_PRACTICAS] as any) || [];
+                const ids = Array.isArray(links) ? links : [links];
+                ids.forEach((studentId: string) => {
                     if (!studentPractices.has(studentId)) studentPractices.set(studentId, []);
                     studentPractices.get(studentId)!.push(p);
                 });
             });
 
-            const alumnosSinNingunaPPSList = activeStudentRecords.filter(s => !studentPractices.has(s.id)).map(s => ({ legajo: s.fields[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s.fields[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }));
+            const alumnosSinNingunaPPSList = activeStudentRecords.filter(s => !studentPractices.has(s.id)).map(s => ({ legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }));
             const alumnosSinNingunaPPS = {
                 value: alumnosSinNingunaPPSList.length,
                 list: alumnosSinNingunaPPSList
             };
 
             const practicasDelAno = practicas.filter(p => {
-                const startDate = parseToUTCDate(p.fields[FIELD_FECHA_INICIO_PRACTICAS]);
+                const startDate = parseToUTCDate(p[FIELD_FECHA_INICIO_PRACTICAS]);
                 return startDate && startDate.getUTCFullYear() === targetYear;
             });
             
             const studentIdsConPpsEsteAno = new Set<string>();
             practicasDelAno.forEach(p => {
-                ((p.fields as any)[FIELD_ESTUDIANTE_LINK_PRACTICAS] || []).forEach((studentId: string) => {
+                 const links = (p[FIELD_ESTUDIANTE_LINK_PRACTICAS] as any) || [];
+                 const ids = Array.isArray(links) ? links : [links];
+                 ids.forEach((studentId: string) => {
                     studentIdsConPpsEsteAno.add(studentId);
                 });
             });
 
-            const estudiantesMap = new Map(estudiantes.map(e => [e.id, e.fields]));
+            const estudiantesMap = new Map(estudiantes.map(e => [e.id, e]));
             const alumnosConPpsEsteAnoList = Array.from(studentIdsConPpsEsteAno).map(id => {
                 const student = estudiantesMap.get(id);
                 return {
                     legajo: student?.[FIELD_LEGAJO_ESTUDIANTES] || 'N/A',
                     nombre: student?.[FIELD_NOMBRE_ESTUDIANTES] || 'N/A'
                 };
-            }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+            }).filter(s => s.nombre !== 'N/A').sort((a, b) => a.nombre.localeCompare(b.nombre));
 
             const alumnosConPpsEsteAno = {
                 value: alumnosConPpsEsteAnoList.length,
@@ -216,9 +242,10 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             };
 
             const alumnosFinalizadosList = estudiantes.filter(s => {
-                const finalizationDate = parseToUTCDate(s.fields['Fecha de Finalización']);
-                return s.fields['Finalizaron'] && finalizationDate && finalizationDate.getUTCFullYear() === targetYear;
-            }).map(s => ({ legajo: s.fields[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s.fields[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }));
+                const finalizationDate = parseToUTCDate(s[FIELD_FECHA_FINALIZACION_ESTUDIANTES]);
+                return s[FIELD_FINALIZARON_ESTUDIANTES] && finalizationDate && finalizationDate.getUTCFullYear() === targetYear;
+            }).map(s => ({ legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }));
+            
             const alumnosFinalizados = {
                 value: alumnosFinalizadosList.length,
                 list: alumnosFinalizadosList
@@ -228,17 +255,17 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             activeStudentRecords.forEach(s => {
                 const practices = studentPractices.get(s.id) || [];
                 const activePractice = practices.find(p => {
-                    const endDate = parseToUTCDate(p.fields[FIELD_FECHA_FIN_PRACTICAS]);
+                    const endDate = parseToUTCDate(p[FIELD_FECHA_FIN_PRACTICAS]);
                     return endDate && endDate >= today;
                 });
                 if (activePractice) {
-                    const institucionRaw = activePractice.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
+                    const institucionRaw = activePractice[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
                     const institucion = Array.isArray(institucionRaw) ? institucionRaw[0] : institucionRaw;
                     alumnosEnPPSList.push({ 
-                        legajo: s.fields[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', 
-                        nombre: s.fields[FIELD_NOMBRE_ESTUDIANTES] || 'N/A',
+                        legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', 
+                        nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A',
                         institucion: institucion as string || 'N/A',
-                        fechaFin: formatDate(activePractice.fields[FIELD_FECHA_FIN_PRACTICAS]),
+                        fechaFin: formatDate(activePractice[FIELD_FECHA_FIN_PRACTICAS]),
                         ppsId: activePractice.id,
                     });
                 }
@@ -250,16 +277,16 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
 
             activeStudentRecords.forEach(s => {
                 const practices = studentPractices.get(s.id) || [];
-                const totalHoras = practices.reduce((sum, p) => sum + (p.fields[FIELD_HORAS_PRACTICAS] || 0), 0);
-                const orientaciones = [...new Set(practices.map(p => p.fields[FIELD_ESPECIALIDAD_PRACTICAS]).filter(Boolean))];
-                const hasActivePractice = alumnosEnPPS.list.some(p => p.legajo === s.fields[FIELD_LEGAJO_ESTUDIANTES]);
+                const totalHoras = practices.reduce((sum, p) => sum + (p[FIELD_HORAS_PRACTICAS] || 0), 0);
+                const orientaciones = [...new Set(practices.map(p => p[FIELD_ESPECIALIDAD_PRACTICAS]).filter(Boolean))];
+                const hasActivePractice = alumnosEnPPS.list.some(p => p.legajo === s[FIELD_LEGAJO_ESTUDIANTES]);
 
                 const cumpleHoras = totalHoras >= 250;
                 const cumpleRotacion = orientaciones.length >= 3;
 
                 const studentInfo = {
-                    legajo: s.fields[FIELD_LEGAJO_ESTUDIANTES] || 'N/A',
-                    nombre: s.fields[FIELD_NOMBRE_ESTUDIANTES] || 'N/A',
+                    legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A',
+                    nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A',
                     totalHoras,
                     orientaciones: orientaciones.join(', '),
                 };
@@ -298,35 +325,34 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
 
             const cuposTotalesConRelevamiento = {
                 value: lanzamientos.filter(l => {
-                    const startDate = parseToUTCDate(l.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
-                    const name = l.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
+                    const startDate = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+                    const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
                     return startDate && startDate.getUTCFullYear() === targetYear && !normalizeStringForComparison(name).includes('relevamiento');
-                }).reduce((sum, l) => sum + (l.fields[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0), 0),
+                }).reduce((sum, l) => sum + (l[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0), 0),
                 list: []
             };
 
             const nuevosConveniosList = instituciones.filter(i => {
-                if (!i.fields[FIELD_CONVENIO_NUEVO_INSTITUCIONES]) return false;
-                const institutionName = i.fields[FIELD_NOMBRE_INSTITUCIONES];
+                if (!i[FIELD_CONVENIO_NUEVO_INSTITUCIONES]) return false;
+                const institutionName = i[FIELD_NOMBRE_INSTITUCIONES];
                 if (!institutionName) return false;
                 const normalizedInstName = normalizeStringForComparison(institutionName);
                 return lanzamientos.some(l => {
-                    const launchDate = parseToUTCDate(l.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+                    const launchDate = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
                     return launchDate && launchDate.getUTCFullYear() === targetYear && 
-                           normalizeStringForComparison(l.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').startsWith(normalizedInstName);
+                           normalizeStringForComparison(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').startsWith(normalizedInstName);
                 });
             }).map(i => {
-                const institutionName = i.fields[FIELD_NOMBRE_INSTITUCIONES] || 'N/A';
+                const institutionName = i[FIELD_NOMBRE_INSTITUCIONES] || 'N/A';
                 const normalizedInstName = normalizeStringForComparison(institutionName);
                 const cupos = lanzamientos
                     .filter(l => {
-                        const launchDate = parseToUTCDate(l.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+                        const launchDate = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
                         return launchDate && launchDate.getUTCFullYear() === targetYear && 
-                               normalizeStringForComparison(l.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').startsWith(normalizedInstName);
+                               normalizeStringForComparison(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').startsWith(normalizedInstName);
                     })
-                    .reduce((sum, l) => sum + (l.fields[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0), 0);
+                    .reduce((sum, l) => sum + (l[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0), 0);
                 
-                // FIX: Added 'legajo' property to satisfy the StudentInfo type for modal display.
                 return { nombre: institutionName, cupos, legajo: '' };
             });
             const nuevosConvenios = {
@@ -335,15 +361,15 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             };
             
             const launchesThisYear = lanzamientos.filter(l => {
-                const date = parseToUTCDate(l.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+                const date = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
                 return date && date.getUTCFullYear() === targetYear;
             });
             const institutionsData = new Map<string, { cupos: number, orientaciones: Set<string> }>();
             launchesThisYear.forEach(launch => {
-                const groupName = getGroupName(launch.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
+                const groupName = getGroupName(launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
                 const data = institutionsData.get(groupName) || { cupos: 0, orientaciones: new Set() };
-                data.cupos += launch.fields[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0;
-                const orientacion = launch.fields[FIELD_ORIENTACION_LANZAMIENTOS];
+                data.cupos += launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0;
+                const orientacion = launch[FIELD_ORIENTACION_LANZAMIENTOS];
                 if (orientacion) {
                     data.orientaciones.add(orientacion);
                 }

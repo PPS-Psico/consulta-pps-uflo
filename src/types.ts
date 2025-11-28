@@ -24,17 +24,17 @@ import {
     FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS
 } from './constants';
 
-// --- Airtable Base Types ---
-export interface AirtableRecord<T> {
+// --- Base Record Type ---
+// Now represents a flat database row, not Airtable structure
+export interface DBRecord {
   id: string;
-  createdTime: string;
-  fields: T;
+  created_at?: string;
+  // We keep createdTime for compatibility in some components during refactor
+  createdTime?: string;
 }
 
-export interface AirtableResponse<T> {
-  records: AirtableRecord<T>[];
-  offset?: string;
-}
+// Alias for compatibility, but now points to a flat structure
+export type AirtableRecord<T> = T & DBRecord;
 
 export interface AirtableError {
   type: string;
@@ -87,14 +87,14 @@ export type FinalizacionPPSFields = z.infer<typeof finalizacionPPSFieldsSchema>;
 export type PenalizacionFields = z.infer<typeof penalizacionFieldsSchema>;
 export type AuthUserFields = z.infer<typeof authUserFieldsSchema>;
 
-export type Penalizacion = PenalizacionFields;
-export type FinalizacionPPS = FinalizacionPPSFields & { id: string, createdTime: string };
+export type Penalizacion = PenalizacionFields & DBRecord;
+export type FinalizacionPPS = FinalizacionPPSFields & DBRecord;
 
-// Types with ID
-export type Practica = PracticaFields & { id: string };
-export type SolicitudPPS = SolicitudPPSFields & { id: string };
-export type LanzamientoPPS = LanzamientoPPSFields & { id: string };
-export type Convocatoria = ConvocatoriaFields & { id: string };
+// Types with ID (Flat)
+export type Practica = PracticaFields & DBRecord;
+export type SolicitudPPS = SolicitudPPSFields & DBRecord;
+export type LanzamientoPPS = LanzamientoPPSFields & DBRecord;
+export type Convocatoria = ConvocatoriaFields & DBRecord;
 
 // --- Component-specific & complex types ---
 
@@ -111,6 +111,29 @@ export interface InformeTask {
 
 export type SelectedStudent = { nombre: string; legajo: string };
 export type GroupedSeleccionados = { [key: string]: SelectedStudent[] };
+
+export interface EnrichedStudent {
+    enrollmentId: string;
+    studentId: string;
+    nombre: string;
+    legajo: string;
+    correo: string;
+    status: string;
+    
+    // Datos Académicos
+    terminoCursar: boolean;
+    cursandoElectivas: boolean;
+    finalesAdeuda: string;
+    notasEstudiante: string;
+    
+    // Datos Calculados
+    totalHoras: number;
+    penalizacionAcumulada: number;
+    puntajeTotal: number;
+    
+    // Gestión
+    horarioSeleccionado: string;
+}
 
 export interface InformeCorreccionStudent {
   studentId: string;
