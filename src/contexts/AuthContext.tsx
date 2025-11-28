@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES] || false
                 });
             } else {
-                 console.error("Error fetching user profile:", error?.message);
+                 console.error("AUTH ERROR: Sesión activa pero perfil no encontrado.", { uid: session.user.id, error });
                  // If we have a session but no profile link, something is wrong with the data linkage
                  await (supabase.auth as any).signOut();
             }
@@ -87,8 +87,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES] || false
                 });
             } else {
+                console.error("AUTH CHANGE ERROR: Perfil no vinculado.", { uid: session.user.id, error });
                 setAuthenticatedUser(null);
-                 await (supabase.auth as any).signOut();
+                // Force signout to avoid infinite loading loops if data is corrupted
+                await (supabase.auth as any).signOut();
             }
         } else {
             setAuthenticatedUser(null);

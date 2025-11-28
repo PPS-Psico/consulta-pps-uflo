@@ -6,12 +6,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // --- CONFIGURACIÓN ---
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "PEGAR_AQUI_TU_SUPABASE_URL";
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "PEGAR_AQUI_TU_SUPABASE_SERVICE_ROLE_KEY"; 
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
 
 // --- INICIALIZACIÓN ---
-if (SUPABASE_URL.includes("PEGAR_AQUI") || SERVICE_ROLE_KEY.includes("PEGAR_AQUI")) {
-    console.error("❌ ERROR: Debes configurar las credenciales en el script o usar variables de entorno (.env).");
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY || SUPABASE_URL.includes("PEGAR_AQUI") || SERVICE_ROLE_KEY.includes("PEGAR_AQUI")) {
+    console.error("❌ ERROR: Faltan credenciales en .env (VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY).");
     process.exit(1);
 }
 
@@ -25,10 +25,10 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 async function getAllAuthUsers() {
     let allUsers = [];
     let page = 1;
-    const perPage = 1000; // Max usually
+    const perPage = 1000;
     let hasMore = true;
 
-    console.log("🔍 Obteniendo usuarios existentes de Auth...");
+    console.log("🔍 [1/4] Obteniendo usuarios existentes de Auth...");
     
     while (hasMore) {
         const { data: { users }, error } = await supabase.auth.admin.listUsers({
@@ -48,21 +48,22 @@ async function getAllAuthUsers() {
             page++;
         }
     }
-    console.log(`   -> Encontrados ${allUsers.length} usuarios en Auth.`);
+    console.log(`   -> ${allUsers.length} usuarios encontrados en Auth.`);
     return allUsers;
 }
 
 async function createUsers() {
-    console.log("🚀 Iniciando reparación y creación de usuarios...");
+    console.log("🚀 Iniciando proceso de reparación de usuarios...");
 
     // 1. Obtener mapa de usuarios Auth existentes (Email -> ID)
     const existingAuthUsers = await getAllAuthUsers();
     const authMap = new Map(existingAuthUsers.map(u => [u.email.toLowerCase(), u.id]));
 
     // 2. Obtener todos los estudiantes de la tabla pública
+    console.log("🔍 [2/4] Leyendo tabla 'estudiantes'...");
     const { data: students, error: fetchError } = await supabase
         .from('estudiantes')
-        .select('id, legajo, dni, correo, nombre')
+        .select('id, legajo, dni, correo, nombre, user_id')
         .not('correo', 'is', null);
 
     if (fetchError) {
@@ -70,57 +71,73 @@ async function createUsers() {
         return;
     }
 
-    console.log(`📦 Procesando ${students.length} registros de estudiantes...`);
+    console.log(`   -> ${students.length} estudiantes encontrados.`);
+    console.log("⚙️  [3/4] Procesando vinculaciones y contraseñas...");
 
     let createdCount = 0;
+    let updatedCount = 0;
     let linkedCount = 0;
     let errorCount = 0;
 
     // 3. Iterar y procesar
-    for (const student of students) {
+    for (let i = 0; i < students.length; i++) {
+        const student = students[i];
+        
+        // Barra de progreso simple
+        if (i % 10 === 0) process.stdout.write(".");
+
         const email = student.correo.trim().toLowerCase();
         const password = String(student.dni).trim(); 
         
-        if (!email || !password) {
-            console.warn(`⚠️ Saltando estudiante ${student.legajo}: Falta email o DNI.`);
+        if (!email || password.length < 6) {
+            // DNI menor a 6 caracteres o sin mail
             continue;
         }
 
         let userId = authMap.get(email);
 
         if (userId) {
-            // CASO A: El usuario ya existe en Auth -> REPARAR VÍNCULO Y FORZAR CONTRASEÑA
-            
-            // 1. Forzar actualización de contraseña al DNI
-            const { error: authUpdateError } = await supabase.auth.admin.updateUserById(
+            // === CASO A: El usuario YA EXISTE en Auth ===
+            // Acciones: 
+            // 1. Forzar cambio de contraseña al DNI actual (por si era vieja).
+            // 2. Asegurar que student.user_id sea igual a userId.
+
+            // Paso 1: Actualizar contraseña
+            const { error: updateAuthError } = await supabase.auth.admin.updateUserById(
                 userId,
-                { password: password }
+                { password: password, email_confirm: true }
             );
 
-            if (authUpdateError) {
-                 console.error(`\n❌ Error actualizando contraseña para ${student.legajo}:`, authUpdateError.message);
-                 // No incrementamos errorCount aquí para intentar al menos vincular la DB
+            if (updateAuthError) {
+                console.error(`\n❌ Error pass ${student.legajo}: ${updateAuthError.message}`);
+                errorCount++;
+            } else {
+                updatedCount++;
             }
 
-            // 2. Actualizar registro en la base de datos pública
-            const { error: updateError } = await supabase
-                .from('estudiantes')
-                .update({ 
-                    user_id: userId,
-                    must_change_password: true 
-                })
-                .eq('id', student.id);
+            // Paso 2: Verificar y Reparar Vínculo en DB Pública
+            // Si el user_id en la DB no coincide o está vacío, lo actualizamos.
+            if (student.user_id !== userId) {
+                const { error: linkError } = await supabase
+                    .from('estudiantes')
+                    .update({ 
+                        user_id: userId,
+                        must_change_password: true 
+                    })
+                    .eq('id', student.id);
 
-            if (updateError) {
-                 console.error(`\n❌ Error vinculando ${student.legajo}:`, updateError.message);
-                 errorCount++;
-            } else {
-                process.stdout.write("."); // Linked/Repaired
-                linkedCount++;
+                if (linkError) {
+                    console.error(`\n❌ Error vinculando ${student.legajo}: ${linkError.message}`);
+                    errorCount++;
+                } else {
+                    linkedCount++;
+                }
             }
             
         } else {
-            // CASO B: El usuario NO existe -> CREAR
+            // === CASO B: El usuario NO EXISTE en Auth ===
+            // Acciones: Crear usuario y vincular.
+            
             try {
                 const { data: authData, error: authError } = await supabase.auth.admin.createUser({
                     email: email,
@@ -133,7 +150,7 @@ async function createUsers() {
                 });
 
                 if (authError) {
-                    console.error(`\n❌ Error creando usuario ${student.legajo} (${email}):`, authError.message);
+                    console.error(`\n❌ Error creando auth ${student.legajo}: ${authError.message}`);
                     errorCount++;
                     continue;
                 }
@@ -142,16 +159,20 @@ async function createUsers() {
                     userId = authData.user.id;
                     
                     // Vincular en DB
-                    await supabase
+                    const { error: linkError } = await supabase
                         .from('estudiantes')
                         .update({ 
-                            must_change_password: true,
-                            user_id: userId 
+                            user_id: userId,
+                            must_change_password: true
                         })
                         .eq('id', student.id);
-
-                    process.stdout.write("+"); // Created
-                    createdCount++;
+                    
+                    if (linkError) {
+                         console.error(`\n❌ Error vinculando nuevo ${student.legajo}: ${linkError.message}`);
+                    } else {
+                        createdCount++;
+                        linkedCount++;
+                    }
                 }
             } catch (e) {
                 console.error(`\n❌ Excepción con ${student.legajo}:`, e.message);
@@ -160,11 +181,12 @@ async function createUsers() {
         }
     }
 
-    console.log("\n\n=== RESUMEN ===");
-    console.log(`✨ Usuarios Creados: ${createdCount}`);
-    console.log(`🔗 Usuarios Vinculados/Actualizados: ${linkedCount}`);
+    console.log("\n\n=== [4/4] RESUMEN FINAL ===");
+    console.log(`✨ Usuarios Nuevos Creados: ${createdCount}`);
+    console.log(`🔑 Contraseñas Actualizadas: ${updatedCount}`);
+    console.log(`🔗 Vínculos (user_id) Reparados/Creados: ${linkedCount}`);
     console.log(`❌ Errores: ${errorCount}`);
-    console.log("==================");
+    console.log("======================");
 }
 
 createUsers();
