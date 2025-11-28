@@ -1,19 +1,13 @@
 
 // --- Supabase Configuration ---
-export const SUPABASE_URL = "https://qxnxtnhtbpsgzprqtrjl.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4bnh0bmh0YnBzZ3pwcnF0cmpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NjIzNDEsImV4cCI6MjA3OTAzODM0MX0.Lwj2kZPjYaM6M7VbUX48hSnCh3N2YB6iMJtdhFP9brU";
-
-
-// --- Airtable Configuration (REMOVED) ---
-// La aplicación ha migrado completamente a Supabase. 
-// Las claves de Airtable solo son necesarias en los scripts de migración (scripts/migrate.js).
-
+export const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "";
+export const SUPABASE_ANON_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";
 
 // Table Names (Mapped to Supabase SQL Tables)
 export const AIRTABLE_TABLE_NAME_PPS = 'solicitudes_pps';
 export const AIRTABLE_TABLE_NAME_PRACTICAS = 'practicas';
 export const AIRTABLE_TABLE_NAME_ESTUDIANTES = 'estudiantes';
-export const AIRTABLE_TABLE_NAME_AUTH_USERS = 'auth_users'; // Not present in SQL provided, but kept for reference
+export const AIRTABLE_TABLE_NAME_AUTH_USERS = 'auth_users';
 export const AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS = 'lanzamientos_pps';
 export const AIRTABLE_TABLE_NAME_CONVOCATORIAS = 'convocatorias';
 export const AIRTABLE_TABLE_NAME_INSTITUCIONES = 'instituciones';
@@ -22,138 +16,162 @@ export const AIRTABLE_TABLE_NAME_PENALIZACIONES = 'penalizaciones';
 
 
 // --- Fields for 'Estudiantes' table ---
-export const FIELD_LEGAJO_ESTUDIANTES = 'Legajo';
-export const FIELD_NOMBRE_ESTUDIANTES = 'Nombre';
-export const FIELD_NOMBRE_SEPARADO_ESTUDIANTES = 'Nombre (Separado)';
-export const FIELD_APELLIDO_SEPARADO_ESTUDIANTES = 'Apellido (Separado)';
-export const FIELD_GENERO_ESTUDIANTES = 'Género';
-export const FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES = 'Orientación Elegida';
-export const FIELD_DNI_ESTUDIANTES = 'DNI';
-export const FIELD_FECHA_NACIMIENTO_ESTUDIANTES = 'Fecha de Nacimiento';
-export const FIELD_CORREO_ESTUDIANTES = 'Correo';
-export const FIELD_TELEFONO_ESTUDIANTES = 'Teléfono';
-export const FIELD_NOTAS_INTERNAS_ESTUDIANTES = 'Notas Internas';
-export const FIELD_FECHA_FINALIZACION_ESTUDIANTES = 'Fecha de Finalización';
+export const FIELD_LEGAJO_ESTUDIANTES = 'legajo';
+export const FIELD_NOMBRE_ESTUDIANTES = 'nombre';
+export const FIELD_NOMBRE_SEPARADO_ESTUDIANTES = 'nombre_separado';
+export const FIELD_APELLIDO_SEPARADO_ESTUDIANTES = 'apellido_separado';
+export const FIELD_GENERO_ESTUDIANTES = 'genero';
+export const FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES = 'orientacion_elegida';
+export const FIELD_DNI_ESTUDIANTES = 'dni';
+export const FIELD_FECHA_NACIMIENTO_ESTUDIANTES = 'fecha_nacimiento';
+export const FIELD_CORREO_ESTUDIANTES = 'correo';
+export const FIELD_TELEFONO_ESTUDIANTES = 'telefono';
+export const FIELD_NOTAS_INTERNAS_ESTUDIANTES = 'notas_internas';
+export const FIELD_FECHA_FINALIZACION_ESTUDIANTES = 'fecha_finalizacion';
+export const FIELD_FINALIZARON_ESTUDIANTES = 'finalizaron';
+export const FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES = 'must_change_password';
+export const FIELD_USER_ID_ESTUDIANTES = 'user_id';
 
 
 // --- Fields for 'Prácticas' table ---
-export const FIELD_NOMBRE_BUSQUEDA_PRACTICAS = 'Legajo Busqueda'; // Lookup from Estudiantes (should contain the Legajo value as text)
-export const FIELD_ESTUDIANTE_LINK_PRACTICAS = 'Estudiante Inscripto'; // Link to Estudiantes table record
-export const FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS = 'Nombre (de Institución)'; // Lookup from Institucion
-export const FIELD_HORAS_PRACTICAS = 'Horas Realizadas';
-export const FIELD_FECHA_INICIO_PRACTICAS = 'Fecha de Inicio';
-export const FIELD_FECHA_FIN_PRACTICAS = 'Fecha de Finalización';
-export const FIELD_ESTADO_PRACTICA = 'Estado';
-export const FIELD_ESPECIALIDAD_PRACTICAS = 'Especialidad';
-export const FIELD_NOTA_PRACTICAS = 'Nota';
-export const FIELD_LANZAMIENTO_VINCULADO_PRACTICAS = 'Lanzamiento Vinculado';
-export const FIELD_INSTITUCION_LINK_PRACTICAS = 'Institución';
+export const FIELD_NOMBRE_BUSQUEDA_PRACTICAS = 'legajo_busqueda'; // Legacy/Aux
+export const FIELD_ESTUDIANTE_LINK_PRACTICAS = 'estudiante_id'; // FK
+export const FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS = 'nombre_institucion'; 
+export const FIELD_HORAS_PRACTICAS = 'horas_realizadas';
+export const FIELD_FECHA_INICIO_PRACTICAS = 'fecha_inicio';
+export const FIELD_FECHA_FIN_PRACTICAS = 'fecha_finalizacion';
+export const FIELD_ESTADO_PRACTICA = 'estado';
+export const FIELD_ESPECIALIDAD_PRACTICAS = 'especialidad';
+export const FIELD_NOTA_PRACTICAS = 'nota';
+export const FIELD_LANZAMIENTO_VINCULADO_PRACTICAS = 'lanzamiento_id'; // FK
+export const FIELD_INSTITUCION_LINK_PRACTICAS = 'institucion_id'; // FK (if exists)
 
 
 // --- Fields for 'Solicitud de PPS' table ---
 // Basic Fields
-export const FIELD_EMPRESA_PPS_SOLICITUD = 'Nombre de la Institución'; // Company Name
-export const FIELD_ESTADO_PPS = 'Estado de seguimiento';
-export const FIELD_ULTIMA_ACTUALIZACION_PPS = 'Actualización';
-export const FIELD_NOTAS_PPS = 'Notas';
+export const FIELD_EMPRESA_PPS_SOLICITUD = 'nombre_institucion';
+export const FIELD_ESTADO_PPS = 'estado_seguimiento';
+export const FIELD_ULTIMA_ACTUALIZACION_PPS = 'actualizacion';
+export const FIELD_NOTAS_PPS = 'notas';
 // Student Info in Request
-export const FIELD_LEGAJO_PPS = 'Legajo Link'; // Link to Estudiantes record (Internal usage)
-export const FIELD_SOLICITUD_LEGAJO_ALUMNO = 'Legajo'; // Text field from form
-export const FIELD_SOLICITUD_NOMBRE_ALUMNO = 'Nombre';
-export const FIELD_SOLICITUD_EMAIL_ALUMNO = 'Email';
-export const FIELD_SOLICITUD_ORIENTACION_SUGERIDA = 'Orientación Sugerida';
+export const FIELD_LEGAJO_PPS = 'estudiante_id'; // FK
+export const FIELD_SOLICITUD_LEGAJO_ALUMNO = 'legajo';
+export const FIELD_SOLICITUD_NOMBRE_ALUMNO = 'nombre';
+export const FIELD_SOLICITUD_EMAIL_ALUMNO = 'email';
+export const FIELD_SOLICITUD_ORIENTACION_SUGERIDA = 'orientacion_sugerida';
 // Institution Details
-export const FIELD_SOLICITUD_LOCALIDAD = 'Localidad';
-export const FIELD_SOLICITUD_DIRECCION = 'Dirección completa';
-export const FIELD_SOLICITUD_EMAIL_INSTITUCION = 'Correo electrónico de contacto de la institución';
-export const FIELD_SOLICITUD_TELEFONO_INSTITUCION = 'Teléfono de contacto de la institución';
-export const FIELD_SOLICITUD_REFERENTE = 'Nombre del referente de la institución';
-export const FIELD_SOLICITUD_TIENE_CONVENIO = '¿La institución tiene convenio firmado con UFLO?';
-export const FIELD_SOLICITUD_TIENE_TUTOR = '¿La institución cuenta con un psicólogo/a que pueda actuar como tutor/a de la práctica?';
-export const FIELD_SOLICITUD_CONTACTO_TUTOR = 'Contacto del tutor (Teléfono o Email)';
-export const FIELD_SOLICITUD_TIPO_PRACTICA = 'Práctica para uno o más estudiantes';
-export const FIELD_SOLICITUD_DESCRIPCION = 'Breve descripción de la institución y de sus actividades principales';
+export const FIELD_SOLICITUD_LOCALIDAD = 'localidad';
+export const FIELD_SOLICITUD_DIRECCION = 'direccion_completa';
+export const FIELD_SOLICITUD_EMAIL_INSTITUCION = 'email_institucion';
+export const FIELD_SOLICITUD_TELEFONO_INSTITUCION = 'telefono_institucion';
+export const FIELD_SOLICITUD_REFERENTE = 'referente_institucion';
+export const FIELD_SOLICITUD_TIENE_CONVENIO = 'convenio_uflo';
+export const FIELD_SOLICITUD_TIENE_TUTOR = 'tutor_disponible';
+export const FIELD_SOLICITUD_CONTACTO_TUTOR = 'contacto_tutor';
+export const FIELD_SOLICITUD_TIPO_PRACTICA = 'tipo_practica';
+export const FIELD_SOLICITUD_DESCRIPCION = 'descripcion_institucion';
 
 
-// --- Fields for 'AuthUsers' table ---
-export const FIELD_LEGAJO_AUTH = 'Legajo';
-export const FIELD_NOMBRE_AUTH = 'Nombre';
-export const FIELD_PASSWORD_HASH_AUTH = 'PasswordHash';
-export const FIELD_SALT_AUTH = 'Salt';
-export const FIELD_ROLE_AUTH = 'Role';
-export const FIELD_ORIENTACIONES_AUTH = 'Orientaciones';
+// --- Fields for 'AuthUsers' table (Legacy/Aux) ---
+export const FIELD_LEGAJO_AUTH = 'legajo';
+export const FIELD_NOMBRE_AUTH = 'nombre';
+export const FIELD_PASSWORD_HASH_AUTH = 'password_hash';
+export const FIELD_SALT_AUTH = 'salt';
+export const FIELD_ROLE_AUTH = 'role';
+export const FIELD_ORIENTACIONES_AUTH = 'orientaciones';
 
 // --- Fields for 'Lanzamientos de PPS' table ---
-export const FIELD_NOMBRE_PPS_LANZAMIENTOS = 'Nombre PPS';
-export const FIELD_FECHA_INICIO_LANZAMIENTOS = 'Fecha Inicio';
-export const FIELD_FECHA_FIN_LANZAMIENTOS = 'Fecha Finalización';
-export const FIELD_DIRECCION_LANZAMIENTOS = 'Dirección';
-export const FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS = 'Horario Seleccionado';
-export const FIELD_ORIENTACION_LANZAMIENTOS = 'Orientación';
-export const FIELD_HORAS_ACREDITADAS_LANZAMIENTOS = 'Horas Acreditadas';
-export const FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS = 'Cupos disponibles';
-export const FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS = 'Estado de Convocatoria';
-export const FIELD_DURACION_INSCRIPCION_DIAS_LANZAMIENTOS = 'Plazo Inscripción (días)';
-export const FIELD_PLANTILLA_SEGURO_LANZAMIENTOS = 'Plantilla Seguro';
-export const FIELD_INFORME_LANZAMIENTOS = 'Informe';
-export const FIELD_ESTADO_GESTION_LANZAMIENTOS = 'Estado de Gestión';
-export const FIELD_NOTAS_GESTION_LANZAMIENTOS = 'Notas de Gestión';
-export const FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS = 'Fecha de Relanzamiento';
-export const FIELD_TELEFONO_INSTITUCION_LANZAMIENTOS = 'Teléfono (from Instituciones)';
-export const FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS = 'Permite Certificado';
-export const FIELD_AIRTABLE_ID = 'Airtable ID';
+export const FIELD_NOMBRE_PPS_LANZAMIENTOS = 'nombre_pps';
+export const FIELD_FECHA_INICIO_LANZAMIENTOS = 'fecha_inicio';
+export const FIELD_FECHA_FIN_LANZAMIENTOS = 'fecha_finalizacion';
+export const FIELD_DIRECCION_LANZAMIENTOS = 'direccion';
+export const FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS = 'horario_seleccionado';
+export const FIELD_ORIENTACION_LANZAMIENTOS = 'orientacion';
+export const FIELD_HORAS_ACREDITADAS_LANZAMIENTOS = 'horas_acreditadas';
+export const FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS = 'cupos_disponibles';
+export const FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS = 'estado_convocatoria';
+export const FIELD_DURACION_INSCRIPCION_DIAS_LANZAMIENTOS = 'plazo_inscripcion_dias';
+export const FIELD_PLANTILLA_SEGURO_LANZAMIENTOS = 'plantilla_seguro_url';
+export const FIELD_INFORME_LANZAMIENTOS = 'informe';
+export const FIELD_ESTADO_GESTION_LANZAMIENTOS = 'estado_gestion';
+export const FIELD_NOTAS_GESTION_LANZAMIENTOS = 'notas_gestion';
+export const FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS = 'fecha_relanzamiento';
+export const FIELD_TELEFONO_INSTITUCION_LANZAMIENTOS = 'telefono'; // joined from inst
+export const FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS = 'permite_certificado';
+export const FIELD_AIRTABLE_ID = 'airtable_id';
 
 
 // --- Fields for 'Instituciones' table ---
-export const FIELD_NOMBRE_INSTITUCIONES = 'Nombre';
-export const FIELD_TELEFONO_INSTITUCIONES = 'Teléfono';
-export const FIELD_DIRECCION_INSTITUCIONES = 'Dirección';
-export const FIELD_CONVENIO_NUEVO_INSTITUCIONES = 'Convenio Nuevo';
-export const FIELD_TUTOR_INSTITUCIONES = 'Tutor';
+export const FIELD_NOMBRE_INSTITUCIONES = 'nombre';
+export const FIELD_TELEFONO_INSTITUCIONES = 'telefono';
+export const FIELD_DIRECCION_INSTITUCIONES = 'direccion';
+export const FIELD_CONVENIO_NUEVO_INSTITUCIONES = 'convenio_nuevo';
+export const FIELD_TUTOR_INSTITUCIONES = 'tutor';
 
 
 // --- Fields for 'Convocatorias' table ---
-export const FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS = 'Lanzamiento Vinculado';
-export const FIELD_NOMBRE_PPS_CONVOCATORIAS = 'Nombre PPS'; // Lookup from Lanzamientos
-export const FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS = 'Estudiante Inscripto';
-export const FIELD_FECHA_INICIO_CONVOCATORIAS = 'Fecha Inicio';
-export const FIELD_FECHA_FIN_CONVOCATORIAS = 'Fecha Finalización';
-export const FIELD_DIRECCION_CONVOCATORIAS = 'Dirección';
-export const FIELD_HORARIO_FORMULA_CONVOCATORIAS = 'Horario';
-export const FIELD_HORAS_ACREDITADAS_CONVOCATORIAS = 'Horas Acreditadas';
-export const FIELD_CUPOS_DISPONIBLES_CONVOCATORIAS = 'Cupos disponibles';
-export const FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS = 'Estado'; // e.g., 'Inscripto', 'Seleccionado'
-export const FIELD_ORIENTACION_CONVOCATORIAS = 'Orientación';
-export const FIELD_TERMINO_CURSAR_CONVOCATORIAS = '¿Terminó de cursar?';
-export const FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS = 'Cursando Materias Electivas';
-export const FIELD_FINALES_ADEUDA_CONVOCATORIAS = 'Finales que adeuda';
-export const FIELD_OTRA_SITUACION_CONVOCATORIAS = 'Otra situación académica';
-export const FIELD_LEGAJO_CONVOCATORIAS = 'Legajo'; // Lookup
-export const FIELD_DNI_CONVOCATORIAS = 'DNI'; // Lookup
-export const FIELD_CORREO_CONVOCATORIAS = 'Correo'; // Lookup
-export const FIELD_FECHA_NACIMIENTO_CONVOCATORIAS = 'Fecha de Nacimiento'; // Lookup
-export const FIELD_TELEFONO_CONVOCATORIAS = 'Teléfono'; // Lookup
-export const FIELD_INFORME_SUBIDO_CONVOCATORIAS = 'Informe Subido';
-export const FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS = 'Fecha_Entrega_Informe';
-export const FIELD_CERTIFICADO_CONVOCATORIAS = 'Certificado';
+export const FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS = 'lanzamiento_id'; // FK
+export const FIELD_NOMBRE_PPS_CONVOCATORIAS = 'nombre_pps'; // Snapshot
+export const FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS = 'estudiante_id'; // FK
+export const FIELD_FECHA_INICIO_CONVOCATORIAS = 'fecha_inicio'; // Snapshot
+export const FIELD_FECHA_FIN_CONVOCATORIAS = 'fecha_finalizacion'; // Snapshot
+export const FIELD_DIRECCION_CONVOCATORIAS = 'direccion'; // Snapshot
+export const FIELD_HORARIO_FORMULA_CONVOCATORIAS = 'horario_seleccionado';
+export const FIELD_HORAS_ACREDITADAS_CONVOCATORIAS = 'horas_acreditadas'; // Snapshot
+export const FIELD_CUPOS_DISPONIBLES_CONVOCATORIAS = 'cupos_disponibles'; // Not usually snapshotted but here for ref
+export const FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS = 'estado_inscripcion';
+export const FIELD_ORIENTACION_CONVOCATORIAS = 'orientacion'; // Snapshot
+export const FIELD_TERMINO_CURSAR_CONVOCATORIAS = 'termino_cursar';
+export const FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS = 'cursando_electivas';
+export const FIELD_FINALES_ADEUDA_CONVOCATORIAS = 'finales_adeuda';
+export const FIELD_OTRA_SITUACION_CONVOCATORIAS = 'otra_situacion_academica';
+export const FIELD_LEGAJO_CONVOCATORIAS = 'legajo'; // Snapshot
+export const FIELD_DNI_CONVOCATORIAS = 'dni'; // Snapshot
+export const FIELD_CORREO_CONVOCATORIAS = 'correo'; // Snapshot
+export const FIELD_FECHA_NACIMIENTO_CONVOCATORIAS = 'fecha_nacimiento'; // Snapshot
+export const FIELD_TELEFONO_CONVOCATORIAS = 'telefono'; // Snapshot
+export const FIELD_INFORME_SUBIDO_CONVOCATORIAS = 'informe_subido';
+export const FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS = 'fecha_entrega_informe';
+export const FIELD_CERTIFICADO_CONVOCATORIAS = 'certificado_url';
 
 // --- Fields for 'Finalizacion PPS' table ---
-export const FIELD_ESTUDIANTE_FINALIZACION = 'Nombre'; // Link to Estudiantes
-export const FIELD_FECHA_SOLICITUD_FINALIZACION = 'Created Time';
-export const FIELD_ESTADO_FINALIZACION = 'Estado';
-export const FIELD_INFORME_FINAL_FINALIZACION = 'Informes';
-export const FIELD_PLANILLA_HORAS_FINALIZACION = 'Excel de Seguimiento';
-export const FIELD_PLANILLA_ASISTENCIA_FINALIZACION = 'Planillas de asistencias ';
-export const FIELD_SUGERENCIAS_MEJORAS_FINALIZACION = 'Sugerencia de mejoras para las PPS';
+export const FIELD_ESTUDIANTE_FINALIZACION = 'estudiante_id'; // FK
+export const FIELD_FECHA_SOLICITUD_FINALIZACION = 'fecha_solicitud';
+export const FIELD_ESTADO_FINALIZACION = 'estado';
+export const FIELD_INFORME_FINAL_FINALIZACION = 'informe_final_url';
+export const FIELD_PLANILLA_HORAS_FINALIZACION = 'planilla_horas_url';
+export const FIELD_PLANILLA_ASISTENCIA_FINALIZACION = 'planilla_asistencia_url';
+export const FIELD_SUGERENCIAS_MEJORAS_FINALIZACION = 'sugerencias_mejoras';
 
 
 // --- Fields for 'Historial de Penalizaciones' table ---
-export const FIELD_PENALIZACION_ESTUDIANTE_LINK = 'Estudiante';
-export const FIELD_PENALIZACION_TIPO = 'Tipo de Incumplimiento';
-export const FIELD_PENALIZACION_NOTAS = 'Notas';
-export const FIELD_PENALIZACION_FECHA = 'Fecha del Incidente';
-export const FIELD_PENALIZACION_PUNTAJE = 'Puntaje Penalización';
-export const FIELD_PENALIZACION_CONVOCATORIA_LINK = 'Convocatoria Afectada';
+export const FIELD_PENALIZACION_ESTUDIANTE_LINK = 'estudiante_id'; // FK
+export const FIELD_PENALIZACION_TIPO = 'tipo_incumplimiento';
+export const FIELD_PENALIZACION_NOTAS = 'notas';
+export const FIELD_PENALIZACION_FECHA = 'fecha_incidente';
+export const FIELD_PENALIZACION_PUNTAJE = 'puntaje_penalizacion';
+export const FIELD_PENALIZACION_CONVOCATORIA_LINK = 'convocatoria_afectada'; // FK (lanzamiento_id)
+
+// --- Email Automation Keys ---
+export const KEY_SELECTION_SUBJECT = 'pps_email_subject';
+export const KEY_SELECTION_BODY = 'pps_email_body';
+export const KEY_SELECTION_ACTIVE = 'pps_email_automation';
+
+export const KEY_REQUEST_SUBJECT = 'pps_email_req_subject';
+export const KEY_REQUEST_BODY = 'pps_email_req_body';
+export const KEY_REQUEST_ACTIVE = 'pps_email_req_active';
+
+export const KEY_SAC_SUBJECT = 'pps_email_sac_subject';
+export const KEY_SAC_BODY = 'pps_email_sac_body';
+export const KEY_SAC_ACTIVE = 'pps_email_sac_active';
+
+export const KEY_SERVICE_ID = 'pps_email_service_id';
+export const KEY_TEMPLATE_ID = 'pps_email_template_id';
+export const KEY_PUBLIC_KEY = 'pps_email_public_key';
+
+export const KEY_EMAIL_COUNT = 'pps_email_monthly_count';
+export const KEY_EMAIL_MONTH = 'pps_email_current_month_key';
+export const MONTHLY_LIMIT = 200;
 
 // --- Academic criteria constants ---
 export const HORAS_OBJETIVO_TOTAL = 250;

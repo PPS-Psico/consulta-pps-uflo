@@ -1,110 +1,116 @@
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useAuth, type AuthUser } from '../contexts/AuthContext';
-import type { AirtableRecord, EstudianteFields } from '../types';
-import StudentDashboard from './StudentDashboard';
+import React, { useState } from 'react';
+import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import WelcomeBannerAdmin from '../components/WelcomeBannerAdmin';
-import Tabs from '../components/Tabs';
 import Loader from '../components/Loader';
-import { StudentPanelProvider } from '../contexts/StudentPanelContext';
+
+// Components for Testing Mode
 import AdminDashboard from '../components/AdminDashboard';
-import { autoCloseExpiredPractices } from '../services/dataService';
-
-// Lazy load views to improve initial load time
-const MetricsView = React.lazy(() => import('./admin/MetricsView'));
-const GestionView = React.lazy(() => import('./admin/GestionView'));
-const HerramientasView = React.lazy(() => import('./admin/HerramientasView'));
-const LanzadorView = React.lazy(() => import('./admin/LanzadorView'));
-const SolicitudesManager = React.lazy(() => import('../components/SolicitudesManager'));
-
-
-interface StudentTabInfo {
-    id: string; // legajo
-    legajo: string;
-    nombre: string;
-}
+import LanzadorView from './admin/LanzadorView';
+import GestionView from './admin/GestionView';
+import SolicitudesManager from '../components/SolicitudesManager';
+import HerramientasView from './admin/HerramientasView';
+import MetricsView from './admin/MetricsView'; // Imported
 
 interface AdminViewProps {
-  isTestingMode?: boolean;
+    isTestingMode?: boolean;
 }
 
 const AdminView: React.FC<AdminViewProps> = ({ isTestingMode = false }) => {
     const { authenticatedUser } = useAuth();
-    const [studentTabs, setStudentTabs] = useState<StudentTabInfo[]>([]);
-    const [activeTabId, setActiveTabId] = useState('dashboard');
+    const navigate = useNavigate();
+    const location = useLocation();
+    const params = useParams();
+    
+    // State for local tabs in testing mode
+    const [localTab, setLocalTab] = useState('dashboard');
 
-    // Automatización: Cerrar prácticas vencidas al iniciar sesión como admin
-    useEffect(() => {
+    const tabs = [
+        { id: 'dashboard', label: 'Inicio', icon: 'dashboard', path: '/admin/dashboard' },
+        { id: 'metrics', label: 'Métricas', icon: 'analytics', path: '/admin/metrics' },
+        { id: 'lanzador', label: 'Lanzador', icon: 'rocket_launch', path: '/admin/lanzador' },
+        { id: 'gestion', label: 'Gestión', icon: 'tune', path: '/admin/gestion' },
+        { id: 'solicitudes', label: 'Solicitudes', icon: 'list_alt', path: '/admin/solicitudes' },
+        { id: 'herramientas', label: 'Herramientas', icon: 'construction', path: '/admin/herramientas' },
+    ];
+
+    const isActive = (tabId: string, path: string) => {
+        if (isTestingMode) return localTab === tabId;
+        return location.pathname.startsWith(path);
+    }
+
+    const handleTabClick = (tabId: string, path: string) => {
+        if (isTestingMode) {
+            setLocalTab(tabId);
+        } else {
+            navigate(path);
+        }
+    }
+
+    const renderContent = () => {
         if (!isTestingMode) {
-            autoCloseExpiredPractices().then(count => {
-                if (count > 0) {
-                    console.log(`[Auto-Mantenimiento]: Se finalizaron ${count} prácticas vencidas automáticamente.`);
-                }
-            });
-        }
-    }, [isTestingMode]);
-
-    const openStudentPanel = useCallback((student: AirtableRecord<EstudianteFields>) => {
-        const legajo = student.fields.Legajo;
-        const nombre = student.fields.Nombre;
-
-        if (!legajo || !nombre) {
-            alert('El registro del estudiante no tiene legajo o nombre.');
-            return;
+            return (
+                <React.Suspense fallback={<div className="flex justify-center p-8"><Loader /></div>}>
+                    <Outlet />
+                </React.Suspense>
+            );
         }
 
-        if (studentTabs.some(s => s.legajo === legajo)) {
-            setActiveTabId(legajo);
-            return;
+        switch (localTab) {
+            case 'dashboard': return <AdminDashboard isTestingMode={true} />;
+            case 'metrics': return <MetricsView onStudentSelect={() => {}} isTestingMode={true} />;
+            case 'lanzador': return <LanzadorView isTestingMode={true} />;
+            case 'gestion': return <GestionView isTestingMode={true} />;
+            case 'solicitudes': return <SolicitudesManager isTestingMode={true} />;
+            case 'herramientas': return <HerramientasView onStudentSelect={() => {}} isTestingMode={true} />;
+            default: return <AdminDashboard isTestingMode={true} />;
         }
-
-        const newStudentTab: StudentTabInfo = { id: legajo, legajo, nombre };
-        setStudentTabs(prev => [...prev, newStudentTab]);
-        setActiveTabId(legajo);
-    }, [studentTabs]);
-
-    const handleCloseTab = useCallback((tabId: string) => {
-        setStudentTabs(prev => prev.filter(s => s.id !== tabId));
-        if (activeTabId === tabId) {
-            setActiveTabId('dashboard');
-        }
-    }, [activeTabId]);
-
-    const allTabs = useMemo(() => {
-        const mainTabs = [
-            { id: 'dashboard', label: 'Inicio', icon: 'dashboard', content: <AdminDashboard /> },
-            { id: 'lanzador', label: 'Lanzador', icon: 'rocket_launch', content: <LanzadorView isTestingMode={isTestingMode} /> },
-            { id: 'gestion', label: 'Gestión', icon: 'tune', content: <GestionView isTestingMode={isTestingMode} /> },
-            { id: 'solicitudes', label: 'Solicitudes', icon: 'list_alt', content: <SolicitudesManager isTestingMode={isTestingMode} /> },
-            { id: 'herramientas', label: 'Herramientas', icon: 'construction', content: <HerramientasView onStudentSelect={openStudentPanel} isTestingMode={isTestingMode} /> },
-        ];
-
-        const dynamicStudentTabs = studentTabs.map(student => ({
-            id: student.id,
-            label: student.nombre,
-            icon: 'school',
-            content: (
-                <StudentPanelProvider legajo={isTestingMode ? '99999' : student.legajo}>
-                    <StudentDashboard key={student.legajo} user={{...student, legajo: isTestingMode ? '99999' : student.legajo} as AuthUser} showExportButton />
-                </StudentPanelProvider>
-            ),
-            isClosable: true,
-        }));
-
-        return [...mainTabs, ...dynamicStudentTabs];
-    }, [studentTabs, openStudentPanel, isTestingMode]);
+    }
 
     return (
         <div className="space-y-6">
             <WelcomeBannerAdmin name={authenticatedUser?.nombre || 'Administrador'} />
-            <React.Suspense fallback={<div className="flex justify-center p-8"><Loader /></div>}>
-                <Tabs
-                    tabs={allTabs}
-                    activeTabId={activeTabId}
-                    onTabChange={setActiveTabId}
-                    onTabClose={handleCloseTab}
-                />
-            </React.Suspense>
+            
+            <div className="border-b border-slate-200 dark:border-slate-700">
+                <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
+                    {tabs.map(tab => {
+                        const active = isActive(tab.id, tab.path);
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => handleTabClick(tab.id, tab.path)}
+                                className={`
+                                    whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
+                                    ${active 
+                                        ? 'border-blue-500 text-blue-600 dark:text-blue-400' 
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'}
+                                `}
+                            >
+                                <span className="material-icons !text-lg">{tab.icon}</span>
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                    {/* Dynamic Tab for Student Profile (Only in normal mode) */}
+                    {!isTestingMode && location.pathname.includes('/estudiantes/') && (
+                         <button
+                            className="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 border-blue-500 text-blue-600 dark:text-blue-400"
+                         >
+                            <span className="material-icons !text-lg">school</span>
+                            Alumno {params.legajo}
+                            <span 
+                                className="material-icons !text-sm ml-2 text-slate-400 hover:text-red-500" 
+                                onClick={(e) => { e.stopPropagation(); navigate('/admin/herramientas'); }}
+                            >close</span>
+                         </button>
+                    )}
+                </nav>
+            </div>
+
+            <div className="pt-6">
+                {renderContent()}
+            </div>
         </div>
     );
 };

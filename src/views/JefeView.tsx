@@ -11,6 +11,7 @@ import SubTabs from '../components/SubTabs';
 import type { AirtableRecord, EstudianteFields } from '../types';
 import WelcomeBannerAdmin from '../components/WelcomeBannerAdmin';
 import { StudentPanelProvider } from '../contexts/StudentPanelContext';
+import { FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES } from '../constants';
 
 interface StudentTabInfo {
     id: string; // legajo
@@ -28,26 +29,29 @@ const JefeView: React.FC = () => {
     const [activeMetricsTabId, setActiveMetricsTabId] = useState('dashboard');
 
     const openStudentPanel = useCallback((student: AirtableRecord<EstudianteFields>) => {
-        const legajo = student.fields.Legajo;
-        const nombre = student.fields.Nombre;
+        if (!student) return;
+        
+        // Ensure safe access to properties in case we received a partial object or map
+        const legajo = student[FIELD_LEGAJO_ESTUDIANTES];
+        const nombre = student[FIELD_NOMBRE_ESTUDIANTES];
 
         if (!legajo || !nombre) {
-            alert('El registro del estudiante no tiene legajo o nombre.');
+            alert('El registro del estudiante no tiene legajo o nombre completo.');
             return;
         }
         
-        if (studentTabs.some(s => s.legajo === legajo)) {
-            setActiveTabId(legajo);
+        if (studentTabs.some(s => s.legajo === String(legajo))) {
+            setActiveTabId(String(legajo));
             return;
         }
         
         const newStudentTab: StudentTabInfo = {
-            id: legajo,
-            legajo: legajo,
-            nombre: nombre,
+            id: String(legajo),
+            legajo: String(legajo),
+            nombre: String(nombre),
         };
         setStudentTabs(prev => [...prev, newStudentTab]);
-        setActiveTabId(legajo);
+        setActiveTabId(String(legajo));
     }, [studentTabs]);
     
     const handleCloseTab = useCallback((tabId: string) => {
@@ -72,7 +76,7 @@ const JefeView: React.FC = () => {
                     <>
                         <SubTabs tabs={metricsSubTabs} activeTabId={activeMetricsTabId} onTabChange={setActiveMetricsTabId} />
                         <div className="mt-6">
-                            {activeMetricsTabId === 'dashboard' && <MetricsDashboard />}
+                            {activeMetricsTabId === 'dashboard' && <MetricsDashboard onStudentSelect={(student) => openStudentPanel({ id: 'metrics-selection', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: student.legajo, [FIELD_NOMBRE_ESTUDIANTES]: student.nombre } as unknown as AirtableRecord<EstudianteFields>)} />}
                             {activeMetricsTabId === 'timeline' && <TimelineView />}
                         </div>
                     </>

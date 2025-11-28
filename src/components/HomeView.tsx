@@ -14,8 +14,12 @@ import {
 } from '../constants';
 import { parseToUTCDate, getEspecialidadClasses, normalizeStringForComparison, formatDate, isValidLocation } from '../utils/formatters';
 import Card from './Card';
-import ConvocatoriasList from './ConvocatoriasList';
+import ConvocatoriaCard from './ConvocatoriaCard';
 import EmptyState from './EmptyState';
+import { useModal } from '../contexts/ModalContext';
+import { fetchSeleccionados } from '../services/dataService';
+import { useMutation } from '@tanstack/react-query';
+import { useAuth } from '../contexts/AuthContext';
 
 interface HomeViewProps {
   myEnrollments: Convocatoria[];
@@ -100,9 +104,8 @@ const UpcomingPracticeItem: React.FC<{ event: CalendarEvent; date: Date }> = ({ 
     );
 };
 
-// New Component: Finalization Hero Card
 const FinalizationReadyCard: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 p-6 shadow-xl shadow-emerald-500/20 text-white animate-fade-in-up cursor-default">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 p-6 shadow-xl shadow-emerald-500/20 text-white animate-fade-in-up cursor-default mb-6">
         <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/20 blur-2xl"></div>
         <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
         
@@ -143,7 +146,34 @@ const HomeView: React.FC<HomeViewProps> = ({
     criterios,
     onOpenFinalization
 }) => {
-    
+    const { openSeleccionadosModal, showModal } = useModal();
+    const { authenticatedUser } = useAuth();
+    const isTesting = authenticatedUser?.legajo === '99999';
+
+    const seleccionadosMutation = useMutation({
+        mutationFn: (lanzamiento: LanzamientoPPS) => {
+            if (isTesting && lanzamiento.id === 'lanz_mock_2') {
+                 return Promise.resolve({
+                    'Turno Mañana': [
+                        { nombre: 'Ana Rodriguez (Ejemplo)', legajo: '99901' },
+                        { nombre: 'Carlos Gomez (Ejemplo)', legajo: '99902' },
+                    ],
+                    'Turno Tarde': [
+                        { nombre: 'Lucia Fernandez (Ejemplo)', legajo: '99903' },
+                    ],
+                });
+            }
+            return fetchSeleccionados(lanzamiento);
+        },
+        onSuccess: (data, lanzamiento) => {
+            const title = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Convocatoria';
+            openSeleccionadosModal(data, title);
+        },
+        onError: (error) => {
+            showModal('Error', error.message);
+        },
+    });
+
     const allPracticeEvents = useMemo(() => {
         const events: { date: Date, event: CalendarEvent }[] = [];
         const dayMap: { [key: string]: number } = { lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6, domingo: 0 };
@@ -209,10 +239,8 @@ const HomeView: React.FC<HomeViewProps> = ({
     const upcomingEvents = useMemo(() => {
         const today = new Date();
         today.setUTCHours(0,0,0,0);
-        // Filter events starting after today or tomorrow if displayed in main card
         const startFilterDate = new Date(today);
         if (nextPracticeForTodayOrTomorrow) {
-             // If we show today/tomorrow card, upcoming list starts after that date
              const nextPracticeDate = new Date(nextPracticeForTodayOrTomorrow.date);
              nextPracticeDate.setUTCHours(0,0,0,0);
              startFilterDate.setTime(nextPracticeDate.getTime() + 24*60*60*1000); 
@@ -229,17 +257,14 @@ const HomeView: React.FC<HomeViewProps> = ({
         const eightDaysFromNow = new Date();
         eightDaysFromNow.setDate(now.getDate() + 8);
 
-        // Filtramos tareas de informe que no hayan sido subidas
-        // Y que la fecha límite (30 días después de finalizar) esté próxima (menos de 8 días)
         return informeTasks.filter(task => {
             if (task.informeSubido) return false;
             const finalizacionDate = parseToUTCDate(task.fechaFinalizacion);
             if (!finalizacionDate) return false;
             
             const deadline = new Date(finalizacionDate);
-            deadline.setDate(deadline.getDate() + 30); // 30 días de plazo
+            deadline.setDate(deadline.getDate() + 30);
             
-            // Mostrar si el plazo vence en los próximos 8 días o ya venció
             return deadline <= eightDaysFromNow;
         });
     }, [informeTasks]);
@@ -340,14 +365,35 @@ const HomeView: React.FC<HomeViewProps> = ({
                             <p className="text-slate-600 dark:text-slate-400 text-sm">Nuevas oportunidades disponibles para postularte.</p>
                         </div>
                     </div>
-                    <ConvocatoriasList
-                        lanzamientos={lanzamientos}
-                        student={student}
-                        onInscribir={onInscribir}
-                        institutionAddressMap={institutionAddressMap}
-                        enrollmentMap={enrollmentMap}
-                        completedLanzamientoIds={completedLanzamientoIds}
-                    />
+                    <div className="space-y-5">
+                    {lanzamientos.map((lanzamiento) => {
+                        const enrollment = enrollmentMap.get(lanzamiento.id);
+                        const enrollmentStatus = enrollment ? enrollment[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] : null;
+
+                        const ppsName = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
+                        const groupName = ppsName.split(' - ')[0].trim();
+                        const isCompleted = completedLanzamientoIds.has(lanzamiento.id) || completedLanzamientoIds.has(normalizeStringForComparison(groupName));
+                        
+                        const lanzamientoDireccion = lanzamiento[FIELD_DIRECCION_LANZAMIENTOS];
+                        const institutionName = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+                        const fallbackDireccion = institutionName ? institutionAddressMap.get(normalizeStringForComparison(institutionName)) : undefined;
+                        const finalDireccion = lanzamientoDireccion || fallbackDireccion;
+                        
+                        return (
+                        <ConvocatoriaCard 
+                            key={lanzamiento.id} 
+                            lanzamiento={lanzamiento}
+                            enrollmentStatus={enrollmentStatus}
+                            onInscribir={onInscribir}
+                            onVerSeleccionados={(l) => seleccionadosMutation.mutate(l)}
+                            isVerSeleccionadosLoading={seleccionadosMutation.isPending && seleccionadosMutation.variables?.id === lanzamiento.id}
+                            isCompleted={isCompleted}
+                            userGender={student?.genero}
+                            direccion={finalDireccion}
+                        />
+                        );
+                    })}
+                    </div>
                 </div>
             )}
         </div>

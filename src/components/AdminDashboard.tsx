@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -107,7 +108,11 @@ const ActionButton: React.FC<{ icon: string; label: string; onClick: () => void;
 
 // --- Dashboard Component ---
 
-const AdminDashboard: React.FC = () => {
+interface AdminDashboardProps {
+    isTestingMode?: boolean;
+}
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }) => {
     const queryClient = useQueryClient();
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     
@@ -117,8 +122,22 @@ const AdminDashboard: React.FC = () => {
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ['adminDashboardOverview'],
+        queryKey: ['adminDashboardOverview', isTestingMode],
         queryFn: async () => {
+            if (isTestingMode) {
+                // Mock data for testing view
+                return {
+                    lanzamientos: [
+                        { id: '1', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date().toISOString(), [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hospital Mock - Clinica' },
+                    ],
+                    instituciones: new Map([['hospital mock', { id: 'inst1', [FIELD_TELEFONO_INSTITUCIONES]: '123456789' }]]),
+                    finalizaciones: [{ id: 'fin1', [FIELD_ESTADO_FINALIZACION]: 'Pendiente', [FIELD_ESTUDIANTE_FINALIZACION]: ['s1'], createdTime: new Date().toISOString() }],
+                    solicitudes: [{ id: 'sol1', [FIELD_ESTADO_PPS]: 'Pendiente', [FIELD_SOLICITUD_NOMBRE_ALUMNO]: 'Estudiante Test', [FIELD_EMPRESA_PPS_SOLICITUD]: 'Empresa X', createdTime: new Date().toISOString() }],
+                    studentsMap: new Map([['s1', { [FIELD_NOMBRE_ESTUDIANTES]: 'Estudiante Test' }]]),
+                    studentsByLegajoMap: new Map(),
+                } as any;
+            }
+
             const [lanzamientosRes, institucionesRes, finalizacionesRes, solicitudesRes, estudiantesRes] = await Promise.all([
                 db.lanzamientos.getAll(),
                 db.instituciones.getAll(),
@@ -128,10 +147,10 @@ const AdminDashboard: React.FC = () => {
             ]);
 
             // Create maps for quick lookup
-            const studentsMap = new Map(estudiantesRes.map(s => [s.id, s.fields]));
+            const studentsMap = new Map(estudiantesRes.map(s => [s.id, s]));
             // Add map by Legajo for robust fallback
-            const studentsByLegajoMap = new Map(estudiantesRes.map(s => [String(s.fields[FIELD_LEGAJO_ESTUDIANTES] || '').trim(), s.fields]));
-            const institutionsMap = new Map(institucionesRes.map(i => [normalizeStringForComparison(i.fields[FIELD_NOMBRE_INSTITUCIONES]), i]));
+            const studentsByLegajoMap = new Map(estudiantesRes.map(s => [String(s[FIELD_LEGAJO_ESTUDIANTES] || '').trim(), s]));
+            const institutionsMap = new Map(institucionesRes.map(i => [normalizeStringForComparison(i[FIELD_NOMBRE_INSTITUCIONES]), i]));
 
             return {
                 lanzamientos: lanzamientosRes,
@@ -148,7 +167,8 @@ const AdminDashboard: React.FC = () => {
     // Mutation to update phone number
     const updatePhoneMutation = useMutation({
         mutationFn: async ({ id, phone }: { id: string; phone: string }) => {
-            return db.instituciones.update(id, { telefono: phone });
+            if (isTestingMode) return;
+            return db.instituciones.update(id, { [FIELD_TELEFONO_INSTITUCIONES]: phone });
         },
         onSuccess: () => {
             setToastInfo({ message: 'Teléfono actualizado correctamente.', type: 'success' });
@@ -164,10 +184,12 @@ const AdminDashboard: React.FC = () => {
     const updateLaunchStatusMutation = useMutation({
         mutationFn: async ({ id, status }: { id: string; status: string }) => {
             setUpdatingStatusId(id);
-            return db.lanzamientos.update(id, { estadoGestion: status });
+            if (isTestingMode) return;
+            return db.lanzamientos.update(id, { [FIELD_ESTADO_GESTION_LANZAMIENTOS]: status });
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
+            if (isTestingMode) setToastInfo({ message: 'Estado actualizado (Mock).', type: 'success' });
+            else queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
             setUpdatingStatusId(null);
         },
         onError: () => {
@@ -179,11 +201,12 @@ const AdminDashboard: React.FC = () => {
     // Mutation to archive request (direct from dashboard)
     const archiveRequestMutation = useMutation({
         mutationFn: async (id: string) => {
+            if (isTestingMode) return;
             return db.solicitudes.update(id, { [FIELD_ESTADO_PPS]: 'Archivado' });
         },
         onSuccess: () => {
              setToastInfo({ message: 'Solicitud archivada.', type: 'success' });
-             queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
+             if (!isTestingMode) queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
         },
         onError: () => {
              setToastInfo({ message: 'Error al archivar.', type: 'error' });
@@ -200,25 +223,25 @@ const AdminDashboard: React.FC = () => {
         ninetyDaysAgo.setDate(now.getDate() - 90);
 
         // 1. Instituciones con Lanzamientos por Finalizar (para Relanzamiento)
-        const endingLaunches = data.lanzamientos.filter(l => {
-            const endDateStr = l.fields[FIELD_FECHA_FIN_LANZAMIENTOS];
+        const endingLaunches = data.lanzamientos.filter((l: any) => {
+            const endDateStr = l[FIELD_FECHA_FIN_LANZAMIENTOS];
             if (!endDateStr) return false;
 
             const endDate = parseToUTCDate(endDateStr);
             if (!endDate) return false;
             
-            const statusGestion = l.fields[FIELD_ESTADO_GESTION_LANZAMIENTOS] || '';
+            const statusGestion = l[FIELD_ESTADO_GESTION_LANZAMIENTOS] || '';
             // Exclude if already archived or confirmed for relaunch (unless checking specifically)
             if (['Archivado', 'No se Relanza'].includes(statusGestion)) return false;
 
             // Include if end date is within next 60 days OR if it ended in the last 90 days (needs follow up)
             return (endDate <= sixtyDaysFromNow && endDate >= ninetyDaysAgo);
-        }).map(l => {
-            const endDateStr = l.fields[FIELD_FECHA_FIN_LANZAMIENTOS];
+        }).map((l: any) => {
+            const endDateStr = l[FIELD_FECHA_FIN_LANZAMIENTOS];
             const endDate = parseToUTCDate(endDateStr);
             const daysLeft = endDate ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
             
-            const ppsName = l.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
+            const ppsName = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
             const groupName = ppsName.split(' - ')[0].trim();
             const institution = data.instituciones.get(normalizeStringForComparison(groupName));
 
@@ -227,44 +250,44 @@ const AdminDashboard: React.FC = () => {
                 ppsName: ppsName,
                 institutionName: groupName,
                 institutionId: institution?.id,
-                phone: institution?.fields[FIELD_TELEFONO_INSTITUCIONES],
+                phone: institution?.[FIELD_TELEFONO_INSTITUCIONES],
                 fechaFin: endDateStr,
                 daysLeft,
-                gestionStatus: l.fields[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión',
+                gestionStatus: l[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión',
             };
-        }).sort((a, b) => a.daysLeft - b.daysLeft); // Most urgent first (negative days means overdue)
+        }).sort((a: any, b: any) => a.daysLeft - b.daysLeft); // Most urgent first (negative days means overdue)
 
         // 2. Pending Finalizations (Document Review)
-        const pendingFinalizations = data.finalizaciones.filter(f => {
-            return f.fields[FIELD_ESTADO_FINALIZACION] === 'Pendiente';
-        }).map(f => {
-            const studentId = (f.fields[FIELD_ESTUDIANTE_FINALIZACION] as any)?.[0] || f.fields[FIELD_ESTUDIANTE_FINALIZACION];
+        const pendingFinalizations = data.finalizaciones.filter((f: any) => {
+            return f[FIELD_ESTADO_FINALIZACION] === 'Pendiente';
+        }).map((f: any) => {
+            const studentId = (f[FIELD_ESTUDIANTE_FINALIZACION] as any)?.[0] || f[FIELD_ESTUDIANTE_FINALIZACION];
             const student = studentId ? data.studentsMap.get(studentId) : null;
             return {
                 id: f.id,
                 studentName: student?.[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido',
-                fechaSolicitud: f.fields[FIELD_FECHA_SOLICITUD_FINALIZACION] || f.createdTime,
+                fechaSolicitud: f[FIELD_FECHA_SOLICITUD_FINALIZACION] || f.createdTime,
             };
         });
 
         // 3. Pending Requests (Solicitudes)
-        const pendingRequests = data.solicitudes.filter(s => {
-            const status = normalizeStringForComparison(s.fields[FIELD_ESTADO_PPS]);
+        const pendingRequests = data.solicitudes.filter((s: any) => {
+            const status = normalizeStringForComparison(s[FIELD_ESTADO_PPS]);
             const excludedStatuses = ['finalizada', 'cancelada', 'rechazada', 'pps realizada', 'realizada', 'solicitud invalida', 'no se pudo concretar', 'archivado'];
             return !excludedStatuses.includes(status);
-        }).map(s => {
+        }).map((s: any) => {
             // Handle potential array for student link
-            const rawLink = s.fields[FIELD_LEGAJO_PPS];
+            const rawLink = s[FIELD_LEGAJO_PPS];
             const studentId = cleanValue(rawLink);
             
             // Extract Institution Name (handle potential lookup array)
-            const rawInst = s.fields[FIELD_EMPRESA_PPS_SOLICITUD];
+            const rawInst = s[FIELD_EMPRESA_PPS_SOLICITUD];
             const institucion = cleanValue(rawInst);
 
             let student = studentId ? data.studentsMap.get(studentId) : null;
             
-            const manualName = cleanValue(s.fields[FIELD_SOLICITUD_NOMBRE_ALUMNO]);
-            const manualLegajo = cleanValue(s.fields[FIELD_SOLICITUD_LEGAJO_ALUMNO]);
+            const manualName = cleanValue(s[FIELD_SOLICITUD_NOMBRE_ALUMNO]);
+            const manualLegajo = cleanValue(s[FIELD_SOLICITUD_LEGAJO_ALUMNO]);
 
             // Fallback to lookup by legajo if ID link failed
             if (!student && manualLegajo) {
@@ -277,10 +300,10 @@ const AdminDashboard: React.FC = () => {
                 id: s.id,
                 studentName: studentName,
                 institucion: institucion || 'Sin especificar',
-                estado: s.fields[FIELD_ESTADO_PPS] || 'Pendiente',
-                updated: s.fields[FIELD_ULTIMA_ACTUALIZACION_PPS] || s.createdTime,
+                estado: s[FIELD_ESTADO_PPS] || 'Pendiente',
+                updated: s[FIELD_ULTIMA_ACTUALIZACION_PPS] || s.createdTime,
             };
-        }).sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+        }).sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
 
         return { endingLaunches, pendingFinalizations, pendingRequests };
     }, [data]);
@@ -467,7 +490,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {metrics.pendingFinalizations.map(f => (
+                        {metrics.pendingFinalizations.map((f: any) => (
                             <div key={f.id} className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex justify-between items-center group hover:border-emerald-300 transition-all">
                                 <div>
                                     <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{f.studentName}</h4>
@@ -491,7 +514,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {metrics.pendingRequests.map(req => (
+                        {metrics.pendingRequests.map((req: any) => (
                             <div key={req.id} className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div>
                                     <div className="flex items-center gap-3 mb-1">

@@ -58,13 +58,13 @@ const ActiveInstitutionsReport: React.FC<{ isTestingMode?: boolean }> = ({ isTes
         const aost2024Cutoff = new Date('2024-08-01T00:00:00.000Z');
         
         const launchesThisYearRaw = data.lanzamientos.filter(l => {
-            const date = parseToUTCDate(l.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+            const date = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
             return date && date.getUTCFullYear() === currentYear;
         });
 
         const excludedInstitutions = ['relevamiento profesional', 'jornada universitaria en salud mental'];
         const launchesThisYear = launchesThisYearRaw.filter(launch => {
-            const ppsName = launch.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+            const ppsName = launch[FIELD_NOMBRE_PPS_LANZAMIENTOS];
             if (!ppsName) return true; // Keep launches without a name for now
             const normalizedPpsName = normalizeStringForComparison(ppsName);
             return !excludedInstitutions.some(excluded => normalizedPpsName.includes(excluded));
@@ -73,7 +73,7 @@ const ActiveInstitutionsReport: React.FC<{ isTestingMode?: boolean }> = ({ isTes
         const reportMap = new Map<string, ReportData>();
 
         launchesThisYear.forEach(launch => {
-            const ppsName = launch.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+            const ppsName = launch[FIELD_NOMBRE_PPS_LANZAMIENTOS];
             if (!ppsName) return;
 
             const groupName = getGroupName(ppsName);
@@ -91,9 +91,9 @@ const ActiveInstitutionsReport: React.FC<{ isTestingMode?: boolean }> = ({ isTes
 
             const entry = reportMap.get(groupName)!;
             entry.lanzamientosCount++;
-            entry.cuposTotal += launch.fields[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0;
+            entry.cuposTotal += launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0;
             
-            const orientacion = launch.fields[FIELD_ORIENTACION_LANZAMIENTOS];
+            const orientacion = launch[FIELD_ORIENTACION_LANZAMIENTOS];
             if (orientacion && !entry.orientaciones.includes(orientacion)) {
                 entry.orientaciones = entry.orientaciones ? `${entry.orientaciones}, ${orientacion}` : orientacion;
             }
@@ -107,14 +107,14 @@ const ActiveInstitutionsReport: React.FC<{ isTestingMode?: boolean }> = ({ isTes
             // Search through all institution records to find any variation that matches the base name.
             // Aggregate tutor and 'new agreement' status.
             for (const inst of data.instituciones) {
-                const instName = inst.fields[FIELD_NOMBRE_INSTITUCIONES];
+                const instName = inst[FIELD_NOMBRE_INSTITUCIONES];
                 if (instName && normalizeStringForComparison(instName).startsWith(normalizedBaseName)) {
                     // Grab the first tutor found.
-                    if (!foundTutor && inst.fields[FIELD_TUTOR_INSTITUCIONES]) {
-                        foundTutor = inst.fields[FIELD_TUTOR_INSTITUCIONES];
+                    if (!foundTutor && inst[FIELD_TUTOR_INSTITUCIONES]) {
+                        foundTutor = inst[FIELD_TUTOR_INSTITUCIONES];
                     }
                     // If any variation is marked as new, the whole group is considered.
-                    if (inst.fields[FIELD_CONVENIO_NUEVO_INSTITUCIONES]) {
+                    if (inst[FIELD_CONVENIO_NUEVO_INSTITUCIONES]) {
                         isMarkedAsNew = true;
                     }
                 }
@@ -125,8 +125,8 @@ const ActiveInstitutionsReport: React.FC<{ isTestingMode?: boolean }> = ({ isTes
             // Check if it's a new agreement based on the aggregated flag.
             if (isMarkedAsNew) {
                 const firstLaunchThisYear = launchesThisYear
-                    .filter(l => normalizeStringForComparison(getGroupName(l.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS])) === normalizedBaseName)
-                    .map(l => parseToUTCDate(l.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]))
+                    .filter(l => normalizeStringForComparison(getGroupName(l[FIELD_NOMBRE_PPS_LANZAMIENTOS])) === normalizedBaseName)
+                    .map(l => parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]))
                     .filter((d): d is Date => d !== null)
                     .sort((a,b) => a.getTime() - b.getTime())[0];
                 
@@ -267,58 +267,61 @@ const ActiveInstitutionsReport: React.FC<{ isTestingMode?: boolean }> = ({ isTes
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
-                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Reporte de Instituciones Activas ({new Date().getFullYear()})</h2>
-                     <div className="mt-2 space-y-1 text-xs text-slate-500 dark:text-slate-400">
-                        <p><span className="font-semibold text-slate-600 dark:text-slate-300">Nota:</span> Todas las instituciones listadas cuentan con Convenio Marco y Específico vigente.</p>
-                     </div>
+                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Reporte de Instituciones Activas</h2>
+                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Instituciones con actividad durante {new Date().getFullYear()}.</p>
                 </div>
-                 <button
+                <button 
                     onClick={handleDownload}
-                    className="w-full sm:w-auto bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors shadow-md hover:bg-emerald-700 disabled:bg-slate-400 flex items-center justify-center gap-2"
+                    className="inline-flex items-center gap-2 bg-emerald-600 text-white font-bold text-sm py-2 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95"
                 >
                     <span className="material-icons !text-base">download</span>
-                    <span>Descargar Reporte (.xlsx)</span>
+                    Descargar Excel
                 </button>
             </div>
-            
-             {reportData.length > 0 ? (
-                <div className="overflow-x-auto border border-slate-200/80 dark:border-slate-700 rounded-lg">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-50/70 dark:bg-slate-900/50">
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 uppercase">
                             <tr>
-                                <th className="p-3 text-left font-semibold text-slate-500 dark:text-slate-400">Institución</th>
-                                <th className="p-3 text-center font-semibold text-slate-500 dark:text-slate-400">Convenio Nuevo (desde Ago 2024)</th>
-                                <th className="p-3 text-left font-semibold text-slate-500 dark:text-slate-400">Orientación(es)</th>
-                                <th className="p-3 text-left font-semibold text-slate-500 dark:text-slate-400">Tutor Institucional</th>
-                                <th className="p-3 text-center font-semibold text-slate-500 dark:text-slate-400">Lanzamientos</th>
-                                <th className="p-3 text-center font-semibold text-slate-500 dark:text-slate-400">Cupos Totales</th>
+                                <th className="px-6 py-3 font-bold">Institución</th>
+                                <th className="px-6 py-3 font-bold text-center">Convenio Nuevo</th>
+                                <th className="px-6 py-3 font-bold">Orientación(es)</th>
+                                <th className="px-6 py-3 font-bold">Tutor</th>
+                                <th className="px-6 py-3 font-bold text-center">Lanzamientos</th>
+                                <th className="px-6 py-3 font-bold text-center">Cupos</th>
                             </tr>
                         </thead>
-                         <tbody className="divide-y divide-slate-200/60 dark:divide-slate-700">
-                             {reportData.map(row => (
-                                <tr key={row.institucion} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td className="p-3 font-semibold text-slate-800 dark:text-slate-100">
-                                        {row.institucion}
-                                    </td>
-                                    <td className="p-3 text-center font-bold">
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                            {reportData.map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                    <td className="px-6 py-3 font-medium text-slate-900 dark:text-white">{row.institucion}</td>
+                                    <td className="px-6 py-3 text-center">
                                         {row.convenioNuevo === 'Sí' ? (
-                                            <span className="text-emerald-700 dark:text-emerald-300">Sí</span>
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
+                                                Sí
+                                            </span>
                                         ) : (
-                                            <span className="text-slate-400 dark:text-slate-500">No</span>
+                                            <span className="text-slate-400">-</span>
                                         )}
                                     </td>
-                                    <td className="p-3 text-slate-600 dark:text-slate-300">{row.orientaciones}</td>
-                                    <td className="p-3 text-slate-600 dark:text-slate-300">{row.tutor}</td>
-                                    <td className="p-3 text-center font-bold text-slate-800 dark:text-slate-100">{row.lanzamientosCount}</td>
-                                    <td className="p-3 text-center font-bold text-slate-800 dark:text-slate-100">{row.cuposTotal}</td>
+                                    <td className="px-6 py-3 text-slate-600 dark:text-slate-300">{row.orientaciones}</td>
+                                    <td className="px-6 py-3 text-slate-600 dark:text-slate-300">{row.tutor}</td>
+                                    <td className="px-6 py-3 text-center font-bold text-slate-700 dark:text-slate-300">{row.lanzamientosCount}</td>
+                                    <td className="px-6 py-3 text-center font-bold text-slate-700 dark:text-slate-300">{row.cuposTotal}</td>
                                 </tr>
-                             ))}
-                         </tbody>
+                            ))}
+                            {reportData.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                                        No se encontraron datos para mostrar.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
                     </table>
                 </div>
-            ) : (
-                <EmptyState icon="apartment" title="Sin Datos" message="No se encontraron instituciones activas para el año actual." />
-            )}
+            </div>
         </div>
     );
 };

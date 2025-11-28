@@ -1,8 +1,9 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchPracticas } from '../services/dataService';
 import { db } from '../lib/db';
-import type { AirtableRecord } from '../types';
 import { useModal } from '../contexts/ModalContext';
+import { FIELD_NOTA_PRACTICAS, FIELD_INFORME_SUBIDO_CONVOCATORIAS } from '../constants';
 
 export const useStudentPracticas = (legajo: string) => {
     const queryClient = useQueryClient();
@@ -18,17 +19,13 @@ export const useStudentPracticas = (legajo: string) => {
         queryFn: () => fetchPracticas(legajo),
     });
 
-    const updateNota = useMutation<
-        (AirtableRecord<any> | null)[],
-        Error,
-        { practicaId: string; nota: string; convocatoriaId?: string }
-    >({
-        mutationFn: ({ practicaId, nota, convocatoriaId }) => {
+    const updateNota = useMutation({
+        mutationFn: ({ practicaId, nota, convocatoriaId }: { practicaId: string; nota: string; convocatoriaId?: string }) => {
             const valueToSend = nota === 'Sin calificar' ? null : nota;
-            const promises = [db.practicas.update(practicaId, { nota: valueToSend })];
+            const promises = [db.practicas.update(practicaId, { [FIELD_NOTA_PRACTICAS]: valueToSend })];
             
             if (nota === 'No Entregado' && convocatoriaId) {
-                promises.push(db.convocatorias.update(convocatoriaId, { informeSubido: false }));
+                promises.push(db.convocatorias.update(convocatoriaId, { [FIELD_INFORME_SUBIDO_CONVOCATORIAS]: false }));
             }
             return Promise.all(promises);
         },

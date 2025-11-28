@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -12,7 +11,31 @@ import RecordEditModal from './RecordEditModal';
 import { formatDate, normalizeStringForComparison, getEspecialidadClasses, parseToUTCDate } from '../utils/formatters';
 import Card from './Card';
 import { ALL_ORIENTACIONES } from '../types';
-import { FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_FECHA_INICIO_PRACTICAS } from '../constants';
+import { 
+    FIELD_NOMBRE_ESTUDIANTES, 
+    FIELD_LEGAJO_ESTUDIANTES, 
+    FIELD_NOMBRE_PPS_LANZAMIENTOS, 
+    FIELD_ESTUDIANTE_LINK_PRACTICAS, 
+    FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, 
+    FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, 
+    FIELD_FECHA_INICIO_LANZAMIENTOS, 
+    FIELD_FECHA_INICIO_PRACTICAS,
+    FIELD_DNI_ESTUDIANTES,
+    FIELD_CORREO_ESTUDIANTES,
+    FIELD_TELEFONO_ESTUDIANTES,
+    FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES,
+    FIELD_NOTAS_INTERNAS_ESTUDIANTES,
+    FIELD_FECHA_FIN_PRACTICAS,
+    FIELD_HORAS_PRACTICAS,
+    FIELD_ESTADO_PRACTICA,
+    FIELD_ESPECIALIDAD_PRACTICAS,
+    FIELD_NOTA_PRACTICAS,
+    FIELD_NOMBRE_INSTITUCIONES,
+    FIELD_TELEFONO_INSTITUCIONES,
+    FIELD_DIRECCION_INSTITUCIONES,
+    FIELD_CONVENIO_NUEVO_INSTITUCIONES,
+    FIELD_TUTOR_INSTITUCIONES
+} from '../constants';
 
 interface FieldConfig {
     key: string;
@@ -23,53 +46,54 @@ interface FieldConfig {
 
 interface TableConfig {
     label: string;
-    schema: any;
+    schema: any; // Used by RecordEditModal to map keys if necessary
     fieldConfig: FieldConfig[];
+    displayFields: string[];
 }
 
-const EDITABLE_TABLES = {
+const EDITABLE_TABLES: Record<string, TableConfig & { icon: string }> = {
     estudiantes: { 
         label: 'Estudiantes', 
         icon: 'school', 
         schema: schema.estudiantes,
-        displayFields: ['nombre', 'legajo', 'dni', 'orientacionElegida'],
+        displayFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_DNI_ESTUDIANTES, FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES],
         fieldConfig: [
-            { key: 'nombre', label: 'Nombre Completo', type: 'text' as const },
-            { key: 'legajo', label: 'Legajo', type: 'text' as const },
-            { key: 'dni', label: 'DNI', type: 'number' as const },
-            { key: 'correo', label: 'Correo', type: 'email' as const },
-            { key: 'telefono', label: 'Teléfono', type: 'tel' as const },
-            { key: 'orientacionElegida', label: 'Orientación Elegida', type: 'select' as const, options: ['', 'Clinica', 'Educacional', 'Laboral', 'Comunitaria'] },
-            { key: 'notasInternas', label: 'Notas Internas', type: 'textarea' as const },
+            { key: FIELD_NOMBRE_ESTUDIANTES, label: 'Nombre Completo', type: 'text' },
+            { key: FIELD_LEGAJO_ESTUDIANTES, label: 'Legajo', type: 'text' },
+            { key: FIELD_DNI_ESTUDIANTES, label: 'DNI', type: 'number' },
+            { key: FIELD_CORREO_ESTUDIANTES, label: 'Correo', type: 'email' },
+            { key: FIELD_TELEFONO_ESTUDIANTES, label: 'Teléfono', type: 'tel' },
+            { key: FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, label: 'Orientación Elegida', type: 'select', options: ['', 'Clinica', 'Educacional', 'Laboral', 'Comunitaria'] },
+            { key: FIELD_NOTAS_INTERNAS_ESTUDIANTES, label: 'Notas Internas', type: 'textarea' },
         ]
     },
     practicas: {
         label: 'Prácticas',
         icon: 'work_history',
         schema: schema.practicas,
-        displayFields: ['__studentName', '__lanzamientoName', 'especialidad', 'fechaInicio', 'estado'],
+        displayFields: ['__studentName', '__lanzamientoName', FIELD_ESPECIALIDAD_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_ESTADO_PRACTICA],
         fieldConfig: [
-            { key: 'estudianteLink', label: 'ID Estudiante (Record ID)', type: 'text' as const },
-            { key: 'lanzamientoVinculado', label: 'ID Lanzamiento (Record ID)', type: 'text' as const },
-            { key: 'fechaInicio', label: 'Fecha Inicio', type: 'date' as const },
-            { key: 'fechaFin', label: 'Fecha Fin', type: 'date' as const },
-            { key: 'horasRealizadas', label: 'Horas', type: 'number' as const },
-            { key: 'estado', label: 'Estado', type: 'select' as const, options: ['En curso', 'Finalizada', 'Convenio Realizado', 'No se pudo concretar'] },
-            { key: 'especialidad', label: 'Especialidad', type: 'select' as const, options: ALL_ORIENTACIONES },
-            { key: 'nota', label: 'Nota', type: 'select' as const, options: ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'] },
+            { key: FIELD_ESTUDIANTE_LINK_PRACTICAS, label: 'ID Estudiante (UUID)', type: 'text' },
+            { key: FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, label: 'ID Lanzamiento (UUID)', type: 'text' },
+            { key: FIELD_FECHA_INICIO_PRACTICAS, label: 'Fecha Inicio', type: 'date' },
+            { key: FIELD_FECHA_FIN_PRACTICAS, label: 'Fecha Fin', type: 'date' },
+            { key: FIELD_HORAS_PRACTICAS, label: 'Horas', type: 'number' },
+            { key: FIELD_ESTADO_PRACTICA, label: 'Estado', type: 'select', options: ['En curso', 'Finalizada', 'Convenio Realizado', 'No se pudo concretar'] },
+            { key: FIELD_ESPECIALIDAD_PRACTICAS, label: 'Especialidad', type: 'select', options: ALL_ORIENTACIONES },
+            { key: FIELD_NOTA_PRACTICAS, label: 'Nota', type: 'select', options: ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'] },
         ]
     },
     instituciones: { 
         label: 'Instituciones', 
         icon: 'apartment', 
         schema: schema.instituciones,
-        displayFields: ['nombre', 'telefono', 'convenioNuevo'],
+        displayFields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_TELEFONO_INSTITUCIONES, FIELD_CONVENIO_NUEVO_INSTITUCIONES],
         fieldConfig: [
-            { key: 'nombre', label: 'Nombre', type: 'text' as const },
-            { key: 'telefono', label: 'Teléfono', type: 'tel' as const },
-            { key: 'direccion', label: 'Dirección', type: 'text' as const },
-            { key: 'convenioNuevo', label: 'Convenio Nuevo', type: 'checkbox' as const },
-            { key: 'tutor', label: 'Tutor', type: 'text' as const },
+            { key: FIELD_NOMBRE_INSTITUCIONES, label: 'Nombre', type: 'text' },
+            { key: FIELD_TELEFONO_INSTITUCIONES, label: 'Teléfono', type: 'tel' },
+            { key: FIELD_DIRECCION_INSTITUCIONES, label: 'Dirección', type: 'text' },
+            { key: FIELD_CONVENIO_NUEVO_INSTITUCIONES, label: 'Convenio Nuevo', type: 'checkbox' },
+            { key: FIELD_TUTOR_INSTITUCIONES, label: 'Tutor', type: 'text' },
         ]
     },
 };
@@ -224,8 +248,8 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             });
             return records.map(r => ({
                 id: r.id,
-                name: r.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS],
-                date: r.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]
+                name: r[FIELD_NOMBRE_PPS_LANZAMIENTOS],
+                date: r[FIELD_FECHA_INICIO_LANZAMIENTOS]
             }));
         },
         enabled: activeTable === 'practicas' && !isTestingMode
@@ -243,23 +267,22 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                     db.lanzamientos.getAll({ fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS] })
                 ]);
     
-                const estudiantesMap = new Map(estudiantesRes.map(r => [r.id, r.fields]));
-                const lanzamientosMap = new Map(lanzamientosRes.map(r => [r.id, r.fields]));
+                const estudiantesMap = new Map(estudiantesRes.map(r => [r.id, r]));
+                const lanzamientosMap = new Map(lanzamientosRes.map(r => [r.id, r]));
     
                 return practicasRes.map(p => {
-                    const studentId = (p.fields[FIELD_ESTUDIANTE_LINK_PRACTICAS] || [])[0];
-                    const lanzamientoId = (p.fields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] || [])[0];
+                    const studentId = (p[FIELD_ESTUDIANTE_LINK_PRACTICAS] as any)?.[0] || p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                    const lanzamientoId = (p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as any)?.[0] || p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                    
                     const studentName = estudiantesMap.get(studentId)?.[FIELD_NOMBRE_ESTUDIANTES] || 'N/A';
                     const studentLegajo = estudiantesMap.get(studentId)?.[FIELD_LEGAJO_ESTUDIANTES] || '';
-                    const lanzamientoName = lanzamientosMap.get(lanzamientoId)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || getLookupName(p.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A';
+                    const lanzamientoName = lanzamientosMap.get(lanzamientoId)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || getLookupName(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A';
     
                     return {
                         ...p,
-                        fields: {
-                            ...p.fields,
-                            __studentName: `${studentName} (${studentLegajo})`,
-                            __lanzamientoName: lanzamientoName
-                        }
+                        // Flatten computed fields for display
+                        __studentName: `${studentName} (${studentLegajo})`,
+                        __lanzamientoName: lanzamientoName
                     };
                 });
             }
@@ -280,17 +303,8 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             const previousData = queryClient.getQueryData<AirtableRecord<any>[]>(queryKey);
             
             if (previousData) {
-                 const schemaMap = EDITABLE_TABLES[activeTable].schema;
-                 const airtableFields: any = {};
-                 
-                 // Map form fields (dev names) back to Airtable field names for display
-                 Object.keys(fields).forEach(key => {
-                     const airtableKey = schemaMap[key] || key;
-                     airtableFields[airtableKey] = fields[key];
-                 });
-
                 queryClient.setQueryData<AirtableRecord<any>[]>(queryKey, old => 
-                    old?.map(record => record.id === recordId ? { ...record, fields: { ...record.fields, ...airtableFields } } : record)
+                    old?.map(record => record.id === recordId ? { ...record, ...fields } : record)
                 );
             }
             setEditingRecord(null); // Close immediately
@@ -303,8 +317,6 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             }
             setToastInfo({ message: `Error: ${e.message}`, type: 'error' });
         },
-        // Avoid refetching immediately to keep the UI snappy, data is already updated optimistically.
-        // We can refetch in background if needed, but usually not necessary for edits.
     });
 
     const createMutation = useMutation({
@@ -315,7 +327,6 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         onSuccess: () => {
              setToastInfo({ message: 'Registro creado.', type: 'success' });
              setEditingRecord(null);
-             // For create we do need to refetch to get the ID
              queryClient.invalidateQueries({ queryKey }); 
         },
         onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
@@ -327,7 +338,6 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             return db[activeTable].delete(recordId);
         },
         onMutate: async (recordId) => {
-            // Optimistic delete: Remove from list immediately
             await queryClient.cancelQueries({ queryKey });
             const previousData = queryClient.getQueryData<AirtableRecord<any>[]>(queryKey);
             
@@ -341,7 +351,6 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         },
         onSuccess: () => setToastInfo({ message: 'Registro eliminado.', type: 'success' }),
         onError: (e, _, context) => {
-            // Rollback
             if (context?.previousData) {
                 queryClient.setQueryData(queryKey, context.previousData);
             }
@@ -351,21 +360,17 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
 
     const duplicateMutation = useMutation({
         mutationFn: (record: AirtableRecord<any>) => {
-            const { id, createdTime, ...originalFields } = record.fields;
-            const newFields: { [key: string]: any } = {};
-            const schema = EDITABLE_TABLES[activeTable].schema as any;
+            const { id, createdTime, created_at, ...originalFields } = record;
+            const newFields: { [key: string]: any } = { ...originalFields };
 
-            for (const airtableKey in originalFields) {
-                const devKey = Object.keys(schema).find(key => schema[key] === airtableKey);
-                if (devKey) {
-                    newFields[devKey] = originalFields[airtableKey];
-                }
-            }
-
+            // Append (Copia) to primary field
             const primaryFieldKey = EDITABLE_TABLES[activeTable].displayFields[0];
             if (newFields[primaryFieldKey]) {
                  newFields[primaryFieldKey] = `${newFields[primaryFieldKey]} (Copia)`;
             }
+            // Remove computed fields
+             delete newFields['__studentName'];
+             delete newFields['__lanzamientoName'];
 
             if (isTestingMode) return new Promise(resolve => setTimeout(() => resolve(null), 500));
             return db[activeTable].create(newFields);
@@ -390,11 +395,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                 const normalizedSearch = normalizeStringForComparison(searchTerm);
                 if (normalizedSearch) {
                     const searchMatch = activeTableConfig.displayFields.some(key => {
-                        const airtableKey = (activeTableConfig.schema as any)[key] || key;
-                        let value = record.fields[airtableKey];
-                        if (key.startsWith('__')) {
-                            value = record.fields[key];
-                        }
+                        let value = record[key];
                         return normalizeStringForComparison(String(value || '')).includes(normalizedSearch);
                     });
                     if (!searchMatch) return false;
@@ -403,7 +404,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
     
             if (activeTable === 'practicas') {
                 if (lanzamientoFilter) {
-                    const rawValue = record.fields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                    const rawValue = record[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
                     const linkedLaunchIds = Array.isArray(rawValue) ? rawValue.map(String) : (rawValue ? [String(rawValue)] : []);
                     const isDirectMatch = linkedLaunchIds.includes(String(lanzamientoFilter));
                     
@@ -411,9 +412,9 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
 
                     const selectedLaunch = launchesList.find(l => l.id === lanzamientoFilter);
                     if (selectedLaunch) {
-                         const practiceInstRaw = record.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
+                         const practiceInstRaw = record[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
                          const practiceInstName = getLookupName(practiceInstRaw);
-                         const practiceDate = record.fields[FIELD_FECHA_INICIO_PRACTICAS];
+                         const practiceDate = record[FIELD_FECHA_INICIO_PRACTICAS];
                          
                          if (practiceInstName && practiceDate) {
                              const normPractice = normalizeStringForComparison(practiceInstName);
@@ -427,7 +428,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                 }
 
                 if (studentFilter) {
-                   const studName = record.fields['__studentName'] || '';
+                   const studName = record['__studentName'] || '';
                    if (!studName.toLowerCase().includes(studentFilter.toLowerCase())) return false;
                 }
             }
@@ -436,17 +437,11 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         
         if (sortConfig.key) {
             const sortFieldKey = sortConfig.key;
-            const airtableSortField = (activeTableConfig.schema as any)[sortFieldKey] || sortFieldKey;
             
             filtered.sort((a, b) => {
-                let valA = a.fields[airtableSortField];
-                let valB = b.fields[airtableSortField];
+                let valA = a[sortFieldKey];
+                let valB = b[sortFieldKey];
 
-                if (sortFieldKey.startsWith('__')) {
-                    valA = a.fields[sortFieldKey];
-                    valB = b.fields[sortFieldKey];
-                }
-                
                 if (valA === null || valA === undefined) return 1;
                 if (valB === null || valB === undefined) return -1;
                 
@@ -475,7 +470,6 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRowId) {
-                // Check if we are focused on an input/textarea (don't delete if editing text)
                 const activeTag = document.activeElement?.tagName;
                 if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && activeTag !== 'SELECT') {
                     handleDelete(selectedRowId);
@@ -508,12 +502,8 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
     };
 
     const renderCellValue = (record: AirtableRecord<any>, fieldConfig: any) => {
-        const airtableKey = (activeTableConfig.schema as any)[fieldConfig.key] || fieldConfig.key;
-        let value = record.fields[airtableKey];
-        if (fieldConfig.key.startsWith('__')) {
-            value = record.fields[fieldConfig.key];
-            return <span className="truncate block max-w-[350px]" title={String(value || '')}>{String(value || '')}</span>;
-        }
+        const key = fieldConfig.key;
+        let value = record[key];
 
         if (fieldConfig.type === 'checkbox') {
             return value ? (
@@ -527,7 +517,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             return <span className="font-mono text-xs whitespace-nowrap">{formatDate(value)}</span>;
         }
         
-        if (fieldConfig.key === 'orientacion' || fieldConfig.key === 'orientacionElegida' || fieldConfig.key === 'especialidad') {
+        if (key === FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES || key === FIELD_ESPECIALIDAD_PRACTICAS) {
             if (!value) return <span className="text-slate-400">-</span>;
             const visuals = getEspecialidadClasses(String(value));
             return <span className={`${visuals.tag} whitespace-nowrap shadow-none border-0`}>{String(value)}</span>;
@@ -563,7 +553,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-wrap">
                         
-                        {/* Generic Search - Only for tables other than Practicas */}
+                        {/* Generic Search */}
                         {activeTable !== 'practicas' && (
                             <div className="relative w-full md:w-72 group">
                                 <input type="search" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-10 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" />
@@ -630,7 +620,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                                         {activeTableConfig.displayFields.map(key => {
                                             const fieldConfig = activeTableConfig.fieldConfig.find(f => f.key === key);
                                             const label = fieldConfig ? fieldConfig.label : (key.startsWith('__') ? key.substring(2).replace(/([A-Z])/g, ' $1') : key);
-                                            const className = key === '__lanzamientoName' || key === 'nombre' ? "min-w-[250px]" : "";
+                                            const className = key === '__lanzamientoName' || key === FIELD_NOMBRE_ESTUDIANTES ? "min-w-[250px]" : "";
                                             return <SortableHeader key={key} label={label} sortKey={key} sortConfig={sortConfig} requestSort={requestSort} className={className} />;
                                         })}
                                     </tr>
@@ -677,9 +667,16 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             </div>
 
             {editingRecord && (
-                <RecordEditModal isOpen={!!editingRecord} onClose={() => setEditingRecord(null)} record={'isCreating' in editingRecord ? null : editingRecord} tableConfig={activeTableConfig} onSave={(recordId, fields) => {
-                    if (recordId) { updateMutation.mutate({ recordId, fields }); } else { createMutation.mutate(fields); }
-                }} isSaving={updateMutation.isPending || createMutation.isPending} />
+                <RecordEditModal 
+                    isOpen={!!editingRecord} 
+                    onClose={() => setEditingRecord(null)} 
+                    record={'isCreating' in editingRecord ? null : editingRecord} 
+                    tableConfig={activeTableConfig} 
+                    onSave={(recordId, fields) => {
+                        if (recordId) { updateMutation.mutate({ recordId, fields }); } else { createMutation.mutate(fields); }
+                    }} 
+                    isSaving={updateMutation.isPending || createMutation.isPending} 
+                />
             )}
         </Card>
     );

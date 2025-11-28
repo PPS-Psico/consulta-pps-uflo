@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import CriteriosPanel from '../components/CriteriosPanel';
 import PracticasTable from '../components/PracticasTable';
@@ -7,7 +6,6 @@ import EmptyState from '../components/EmptyState';
 import Tabs from '../components/Tabs';
 import Card from '../components/Card';
 import WelcomeBanner from '../components/WelcomeBanner';
-import ConvocatoriasList from '../components/ConvocatoriasList';
 import InformesList from '../components/InformesList';
 import WhatsAppExportButton from '../components/WhatsAppExportButton';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,19 +17,29 @@ import ProfileView from '../components/ProfileView';
 import HomeView from '../components/HomeView';
 import PrintableReport from '../components/PrintableReport';
 import { useStudentPanel } from '../contexts/StudentPanelContext';
-import FinalizacionForm from './FinalizacionForm';
+import FinalizacionForm from '../components/FinalizacionForm';
+import { FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES } from '../constants';
+import { useNavigate } from 'react-router-dom';
+
+// Export individual views for Router
+export { default as StudentPracticas } from '../components/PracticasTable';
+export { default as StudentSolicitudes } from '../components/SolicitudesList';
 
 interface StudentDashboardProps {
-  user: AuthUser;
+  user?: AuthUser; // Made optional to support usage via Router without explicit props
   activeTab?: TabId;
   onTabChange?: (tabId: TabId) => void;
   showExportButton?: boolean;
 }
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, onTabChange, showExportButton = false }) => {
-  const { isSuperUserMode } = useAuth();
+  const { isSuperUserMode, authenticatedUser } = useAuth();
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   const [isFinalizationModalOpen, setIsFinalizationModalOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Determine the user to display: passed prop has priority (for admin view), otherwise current auth user
+  const currentUser = user || authenticatedUser;
 
   const {
     studentDetails,
@@ -59,8 +67,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   const currentActiveTab = activeTab ?? internalActiveTab;
   const setCurrentActiveTab = onTabChange ?? setInternalActiveTab;
   
-  const selectedOrientacion = (studentDetails?.['Orientación Elegida'] || "") as Orientacion | "";
-  const studentNameForPanel = studentDetails?.['Nombre'] || user.nombre;
+  const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
+  
+  // Safe access to name, fallback to 'Estudiante' if everything is missing (though auth protects this)
+  const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || currentUser?.nombre || 'Estudiante';
 
   // --- MUTATION HANDLERS ---
   const handleOrientacionChange = useCallback((orientacion: Orientacion | "") => {
@@ -86,7 +96,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       allLanzamientos={allLanzamientos} 
       informeTasks={informeTasks} 
       lanzamientos={lanzamientos} 
-      onNavigate={setCurrentActiveTab}
+      onNavigate={(id) => navigate(`/student/${id === 'inicio' ? '' : id}`)}
       student={studentDetails}
       onInscribir={enrollStudent.mutate}
       institutionAddressMap={institutionAddressMap}
@@ -94,7 +104,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       completedLanzamientoIds={completedLanzamientoIds}
       criterios={criterios}
       onOpenFinalization={handleOpenFinalization}
-  />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, setCurrentActiveTab, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
+  />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, navigate, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
   const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
   const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} />, [solicitudes]);
@@ -168,7 +178,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                 >
                     <span className="material-icons">close</span>
                 </button>
-                <FinalizacionForm studentAirtableId={user.id || null} />
+                <FinalizacionForm studentAirtableId={currentUser?.id || null} />
             </div>
             </div>
         )}
@@ -187,7 +197,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
               >
                   <span className="material-icons">close</span>
               </button>
-              <FinalizacionForm studentAirtableId={user.id || null} />
+              <FinalizacionForm studentAirtableId={currentUser?.id || null} />
           </div>
         </div>
       )}

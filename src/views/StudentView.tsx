@@ -1,43 +1,145 @@
-import React, { useState } from 'react';
+
+import React, { useState, useCallback } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
-import type { TabId } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import StudentDashboard from './StudentDashboard'; // Import the new reusable component
 import AppModals from '../components/AppModals';
-import MobileBottomNav from '../components/MobileBottomNav'; // Import the new nav
-import { StudentPanelProvider } from '../contexts/StudentPanelContext';
+import MobileBottomNav from '../components/MobileBottomNav';
+import { useAuth } from '../contexts/AuthContext';
+import { StudentPanelProvider, useStudentPanel } from '../contexts/StudentPanelContext';
+import type { TabId, Orientacion } from '../types';
+import Tabs from '../components/Tabs';
+import Card from '../components/Card';
+import WelcomeBanner from '../components/WelcomeBanner';
+import CriteriosPanel from '../components/CriteriosPanel';
+import WhatsAppExportButton from '../components/WhatsAppExportButton';
+import { FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES } from '../constants';
+import FinalizacionForm from '../components/FinalizacionForm';
 
-const StudentView: React.FC = () => {
+// Inner component to consume Context
+const StudentLayout: React.FC = () => {
     const { authenticatedUser } = useAuth();
-    // The active tab state is lifted to this parent component
-    // so it can be shared between Dashboard (which sets it) and the mobile nav.
-    const [activeTab, setActiveTab] = useState<TabId>('inicio');
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+    const [isFinalizationModalOpen, setIsFinalizationModalOpen] = useState(false);
 
-    if (!authenticatedUser) {
-        return null; // Or a loading/error state if the user somehow gets here without being authenticated
-    }
+    const {
+        studentDetails,
+        criterios,
+        updateOrientation,
+        isLoading,
+        practicas
+    } = useStudentPanel();
 
-    // Define tabs here to pass to the mobile nav
+    // Determine active tab from URL
+    let activeTab = 'inicio';
+    if (location.pathname.includes('/practicas')) activeTab = 'practicas';
+    else if (location.pathname.includes('/solicitudes')) activeTab = 'solicitudes';
+    else if (location.pathname.includes('/perfil')) activeTab = 'profile';
+
+    const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
+    const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || authenticatedUser?.nombre || 'Estudiante';
+
+    const handleOrientacionChange = useCallback((orientacion: Orientacion | "") => {
+        updateOrientation.mutate(orientacion, {
+          onSuccess: () => {
+            setShowSaveConfirmation(true);
+            setTimeout(() => setShowSaveConfirmation(false), 2000);
+          }
+        });
+    }, [updateOrientation]);
+
+    const handleOpenFinalization = useCallback(() => {
+        setIsFinalizationModalOpen(true);
+    }, []);
+
     const mobileNavTabs = [
-      { id: 'inicio' as TabId, label: 'Inicio', icon: 'home' },
-      { id: 'practicas' as TabId, label: 'Prácticas', icon: 'work_history' },
-      { id: 'profile' as TabId, label: 'Perfil', icon: 'person' },
+      { id: 'inicio' as TabId, label: 'Inicio', icon: 'home', path: '/student' },
+      { id: 'practicas' as TabId, label: 'Prácticas', icon: 'work_history', path: '/student/practicas' },
+      { id: 'solicitudes' as TabId, label: 'Solicitudes', icon: 'list_alt', path: '/student/solicitudes' },
+    ];
+
+    const desktopTabs = [
+        { id: 'inicio', label: 'Inicio', icon: 'home', content: null, path: '/student' },
+        { id: 'solicitudes', label: 'Mis Solicitudes', icon: 'list_alt', content: null, path: '/student/solicitudes' },
+        { id: 'practicas', label: 'Mis Prácticas', icon: 'work_history', content: null, path: '/student/practicas' },
+        { id: 'profile', label: 'Mi Perfil', icon: 'person', content: null, path: '/student/perfil' }
     ];
 
     return (
-        <StudentPanelProvider legajo={authenticatedUser.legajo}>
-            <StudentDashboard 
-                user={authenticatedUser}
-                activeTab={activeTab} 
-                onTabChange={setActiveTab} 
-            />
-            <Footer activeTab={activeTab} />
+        <div className="pb-24 md:pb-0 min-h-screen flex flex-col">
+            {isFinalizationModalOpen && (
+                <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
+                        <button 
+                            onClick={() => setIsFinalizationModalOpen(false)}
+                            className="absolute top-4 right-4 z-10 p-2 bg-white/80 dark:bg-slate-700/80 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-50 dark:text-slate-300 transition-colors shadow-sm backdrop-blur-sm"
+                        >
+                            <span className="material-icons">close</span>
+                        </button>
+                        <FinalizacionForm studentAirtableId={authenticatedUser?.id || null} />
+                    </div>
+                </div>
+            )}
+
+            <div className="flex-grow space-y-8">
+                {/* 1. Welcome Banner */}
+                <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+                
+                {/* 2. Criterios Panel */}
+                <CriteriosPanel 
+                    criterios={criterios} 
+                    selectedOrientacion={selectedOrientacion} 
+                    handleOrientacionChange={handleOrientacionChange} 
+                    showSaveConfirmation={showSaveConfirmation} 
+                    onRequestFinalization={handleOpenFinalization} 
+                />
+
+                {/* 3. Tabs (Navigation) */}
+                <div className="hidden md:block">
+                    <Card className="py-0 px-0">
+                        <Tabs 
+                            tabs={desktopTabs} 
+                            activeTabId={activeTab} 
+                            onTabChange={(id) => {
+                                const tab = desktopTabs.find(t => t.id === id);
+                                if(tab) navigate(tab.path);
+                            }}
+                        />
+                    </Card>
+                </div>
+                
+                {/* 4. Content (Outlet) */}
+                <Outlet />
+            </div>
+
+            <Footer activeTab={activeTab as TabId} />
             <AppModals />
+            <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+            <button
+                onClick={() => window.print()}
+                className="fixed bottom-6 right-24 z-50 w-14 h-14 bg-slate-700 text-white rounded-full shadow-lg flex items-center justify-center
+                            transition-all duration-300 ease-in-out transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-400 print-hidden"
+                aria-label="Imprimir reporte"
+            >
+                <span className="material-icons !text-2xl">print</span>
+            </button>
+
             <MobileBottomNav 
                 tabs={mobileNavTabs}
-                activeTabId={activeTab}
-                onTabChange={setActiveTab}
+                activeTabId={activeTab as TabId} 
             />
+        </div>
+    );
+};
+
+const StudentView: React.FC = () => {
+    const { authenticatedUser } = useAuth();
+    if (!authenticatedUser) return null;
+
+    return (
+        <StudentPanelProvider legajo={authenticatedUser.legajo}>
+            <StudentLayout />
         </StudentPanelProvider>
     );
 };

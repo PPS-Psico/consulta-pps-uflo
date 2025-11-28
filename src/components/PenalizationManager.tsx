@@ -14,11 +14,9 @@ import {
   FIELD_PENALIZACION_NOTAS,
   FIELD_PENALIZACION_PUNTAJE,
   AIRTABLE_TABLE_NAME_CONVOCATORIAS,
-  FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
   FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
   FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
   AIRTABLE_TABLE_NAME_PRACTICAS,
-  FIELD_ESTUDIANTE_LINK_PRACTICAS,
   FIELD_ESTADO_PRACTICA,
   FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
   AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
@@ -74,20 +72,47 @@ const AddPenaltyModal: React.FC<{
         queryKey: ['relevantPPSForModal', student.id, isTestingMode],
         queryFn: async () => {
             if (isTestingMode) return [];
-            const convocatoriasFormula = `AND(SEARCH('${student.legajo}', {${FIELD_LEGAJO_CONVOCATORIAS}} & ''), OR(LOWER({${FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS}}) = 'seleccionado', LOWER({${FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS}}) = 'inscripto'))`;
-            const practicasFormula = `AND(SEARCH('${student.legajo}',{${FIELD_NOMBRE_BUSQUEDA_PRACTICAS}}&''), LOWER({${FIELD_ESTADO_PRACTICA}}) = 'en curso')`;
-            const [convocatoriasRes, practicasRes] = await Promise.all([
-                fetchAllAirtableData<ConvocatoriaFields>(AIRTABLE_TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS], convocatoriasFormula),
-                fetchAllAirtableData<PracticaFields>(AIRTABLE_TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS], practicasFormula)
+            
+            // Replaced complex filters with fetching all relevant data and filtering in JS for now
+            // Or rewrite logic to use Supabase filters. For simplicity, we'll rely on filtering after fetch in this refactor
+            // given complex Airtable formula logic.
+            
+            const [convocatoriasRes, practicasRes, lanzamientosRes] = await Promise.all([
+                fetchAllAirtableData<ConvocatoriaFields>(AIRTABLE_TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS, FIELD_LEGAJO_CONVOCATORIAS, FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]),
+                fetchAllAirtableData<PracticaFields>(AIRTABLE_TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_NOMBRE_BUSQUEDA_PRACTICAS, FIELD_ESTADO_PRACTICA]),
+                fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS])
             ]);
+
             const lanzamientoIds = new Set<string>();
-            convocatoriasRes.records.forEach(c => (c.fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] || []).forEach(id => lanzamientoIds.add(id)));
-            practicasRes.records.forEach(p => (p.fields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] || []).forEach(id => lanzamientoIds.add(id)));
+            
+            // Filter Convocatorias
+            convocatoriasRes.records.forEach(c => {
+                 const legajoMatch = String(c[FIELD_LEGAJO_CONVOCATORIAS] || '').includes(student.legajo);
+                 const status = (c[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] as string)?.toLowerCase();
+                 if (legajoMatch && (status === 'seleccionado' || status === 'inscripto')) {
+                     const ids = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+                     (Array.isArray(ids) ? ids : [ids]).filter(Boolean).forEach(id => lanzamientoIds.add(id as string));
+                 }
+            });
+            
+            // Filter Practicas
+            practicasRes.records.forEach(p => {
+                 const legajoMatch = String(p[FIELD_NOMBRE_BUSQUEDA_PRACTICAS] || '').includes(student.legajo);
+                 const status = (p[FIELD_ESTADO_PRACTICA] as string)?.toLowerCase();
+                 if (legajoMatch && status === 'en curso') {
+                     const ids = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                     (Array.isArray(ids) ? ids : [ids]).filter(Boolean).forEach(id => lanzamientoIds.add(id as string));
+                 }
+            });
+            
             if (lanzamientoIds.size === 0) return [];
-            const lanzamientosFormula = `OR(${Array.from(lanzamientoIds).map(id => `RECORD_ID()='${id}'`).join(',')})`;
-// FIX: Expected 2-5 arguments, but got 6.
-            const { records: lanzamientosRes } = await fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS], lanzamientosFormula);
-            return lanzamientosRes.map(r => ({ id: r.id, name: `${r.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS]} (${formatDate(r.fields[FIELD_FECHA_INICIO_LANZAMIENTOS])})` }));
+            
+            return lanzamientosRes.records
+                .filter(l => lanzamientoIds.has(l.id))
+                .map(r => ({ 
+                    id: r.id, 
+                    name: `${r[FIELD_NOMBRE_PPS_LANZAMIENTOS]} (${formatDate(r[FIELD_FECHA_INICIO_LANZAMIENTOS])})` 
+                }));
         },
         enabled: isOpen,
     });
@@ -107,34 +132,35 @@ const AddPenaltyModal: React.FC<{
             const triggerTypes = ['Baja Anticipada', 'Baja sobre la Fecha / Ausencia en Inicio', 'Abandono durante la PPS'];
             if (selectedPpsId && triggerTypes.includes(penaltyType)) {
                 const ppsId = selectedPpsId;
-    
-                const studentConvocatoriasFormula = `SEARCH('${student.legajo}', {${FIELD_LEGAJO_CONVOCATORIAS}} & '')`;
-                const studentPracticasFormula = `SEARCH('${student.legajo}', {${FIELD_NOMBRE_BUSQUEDA_PRACTICAS}} & '')`;
-                const lanzamientoFormula = `RECORD_ID() = '${ppsId}'`;
-
+                
                 const [convocatoriasRes, practicasRes, lanzamientosRes] = await Promise.all([
-                    fetchAllAirtableData<ConvocatoriaFields>(AIRTABLE_TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS], studentConvocatoriasFormula),
-                    fetchAllAirtableData<PracticaFields>(AIRTABLE_TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS], studentPracticasFormula),
-                    fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS], lanzamientoFormula)
+                    fetchAllAirtableData<ConvocatoriaFields>(AIRTABLE_TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema),
+                    fetchAllAirtableData<PracticaFields>(AIRTABLE_TABLE_NAME_PRACTICAS, practicaArraySchema),
+                    fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema)
                 ]);
                 
-                if (convocatoriasRes.error) throw new Error('Error fetching student enrollments.');
-                if (practicasRes.error) throw new Error('Error fetching student practices.');
-                if (lanzamientosRes.error || lanzamientosRes.records.length === 0) throw new Error('Error fetching the penalized PPS details.');
-
-                const targetLanzamiento = lanzamientosRes.records[0];
-                const ppsName = targetLanzamiento.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-                const ppsStartDate = targetLanzamiento.fields[FIELD_FECHA_INICIO_LANZAMIENTOS];
+                // Filter in memory
+                const targetLanzamiento = lanzamientosRes.records.find(l => l.id === ppsId);
+                if (!targetLanzamiento) throw new Error('Lanzamiento not found');
                 
-                const targetConv = convocatoriasRes.records.find(c => (c.fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] || []).includes(ppsId));
+                const ppsName = targetLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+                const ppsStartDate = targetLanzamiento[FIELD_FECHA_INICIO_LANZAMIENTOS];
+                
+                const targetConv = convocatoriasRes.records.find(c => {
+                    const legajoMatch = String(c[FIELD_LEGAJO_CONVOCATORIAS] || '').includes(student.legajo);
+                    const ids = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+                    const linked = (Array.isArray(ids) ? ids : [ids]).includes(ppsId);
+                    return legajoMatch && linked;
+                });
                 
                 const targetPractica = practicasRes.records.find(p => {
-                    const practicaNameRaw = p.fields[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
+                    const legajoMatch = String(p[FIELD_NOMBRE_BUSQUEDA_PRACTICAS] || '').includes(student.legajo);
+                    const practicaNameRaw = p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
                     const practicaName = Array.isArray(practicaNameRaw) ? practicaNameRaw[0] : practicaNameRaw;
-                    const practicaStartDate = p.fields[FIELD_FECHA_INICIO_PRACTICAS];
+                    const practicaStartDate = p[FIELD_FECHA_INICIO_PRACTICAS];
                     const isNameMatch = normalizeStringForComparison(practicaName) === normalizeStringForComparison(ppsName);
                     const isDateMatch = practicaStartDate === ppsStartDate;
-                    return isNameMatch && isDateMatch;
+                    return legajoMatch && isNameMatch && isDateMatch;
                 });
                 
                 const sideEffectPromises = [];
@@ -142,20 +168,14 @@ const AddPenaltyModal: React.FC<{
                     sideEffectPromises.push(
                         updateAirtableRecord(AIRTABLE_TABLE_NAME_CONVOCATORIAS, targetConv.id, { [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'No Seleccionado' })
                     );
-                } else {
-                     console.log('No se encontró convocatoria para actualizar estado a No Seleccionado.');
                 }
     
                 if (targetPractica) {
                     sideEffectPromises.push(deleteAirtableRecord(AIRTABLE_TABLE_NAME_PRACTICAS, targetPractica.id));
-                } else {
-                     console.log('No se encontró práctica para eliminar.');
                 }
                 
                 if (sideEffectPromises.length > 0) {
                     await Promise.all(sideEffectPromises);
-                } else {
-                    console.log('No se encontraron registros asociados para modificar.');
                 }
             }
         },
@@ -352,21 +372,22 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
 
             const studentsMap = new Map<string, { legajo: string, nombre: string }>();
             studentsRes.records.forEach(r => {
-                if(r.fields[FIELD_LEGAJO_ESTUDIANTES] && r.fields[FIELD_NOMBRE_ESTUDIANTES]) {
-                    studentsMap.set(r.id, { legajo: r.fields[FIELD_LEGAJO_ESTUDIANTES], nombre: r.fields[FIELD_NOMBRE_ESTUDIANTES] });
+                if(r[FIELD_LEGAJO_ESTUDIANTES] && r[FIELD_NOMBRE_ESTUDIANTES]) {
+                    studentsMap.set(r.id, { legajo: String(r[FIELD_LEGAJO_ESTUDIANTES]), nombre: String(r[FIELD_NOMBRE_ESTUDIANTES]) });
                 }
             });
             
             const lanzamientosMap = new Map<string, string>();
             lanzamientosRes.records.forEach(r => {
-                if(r.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS]) {
-                    lanzamientosMap.set(r.id, r.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
+                if(r[FIELD_NOMBRE_PPS_LANZAMIENTOS]) {
+                    lanzamientosMap.set(r.id, String(r[FIELD_NOMBRE_PPS_LANZAMIENTOS]));
                 }
             });
             
             const penaltiesByStudent = new Map<string, PenalizedStudent>();
             penaltiesRes.records.forEach(p => {
-                const studentId = (p.fields[FIELD_PENALIZACION_ESTUDIANTE_LINK] || [])[0];
+                const rawStudentLink = p[FIELD_PENALIZACION_ESTUDIANTE_LINK];
+                const studentId = (Array.isArray(rawStudentLink) ? rawStudentLink[0] : rawStudentLink);
                 const studentInfo = studentId ? studentsMap.get(studentId) : null;
                 if (!studentInfo) return;
 
@@ -380,14 +401,15 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
                     });
                 }
                 const studentData = penaltiesByStudent.get(studentId)!;
-                const ppsId = (p.fields[FIELD_PENALIZACION_CONVOCATORIA_LINK] || [])[0];
+                const rawPpsLink = p[FIELD_PENALIZACION_CONVOCATORIA_LINK];
+                const ppsId = (Array.isArray(rawPpsLink) ? rawPpsLink[0] : rawPpsLink);
+                
                 const penaltyToAdd = {
-                    ...p.fields, 
-                    id: p.id, 
+                    ...p,
                     ppsName: ppsId ? lanzamientosMap.get(ppsId) : undefined 
                 };
                 studentData.penalties.push(penaltyToAdd);
-                studentData.totalScore += p.fields[FIELD_PENALIZACION_PUNTAJE] || 0;
+                studentData.totalScore += p[FIELD_PENALIZACION_PUNTAJE] || 0;
             });
             return Array.from(penaltiesByStudent.values()).sort((a,b) => b.totalScore - a.totalScore);
         }
@@ -421,14 +443,14 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
     };
     
     const handleStudentSelect = useCallback((student: AirtableRecord<EstudianteFields>) => {
-        if (!student.fields.Legajo || !student.fields.Nombre) {
+        if (!student[FIELD_LEGAJO_ESTUDIANTES] || !student[FIELD_NOMBRE_ESTUDIANTES]) {
             setToastInfo({ message: 'El registro del estudiante está incompleto.', type: 'error' });
             return;
         }
         setSelectedStudent({
             id: student.id,
-            legajo: student.fields.Legajo,
-            nombre: student.fields.Nombre
+            legajo: String(student[FIELD_LEGAJO_ESTUDIANTES]),
+            nombre: String(student[FIELD_NOMBRE_ESTUDIANTES])
         });
         setIsModalOpen(true);
     }, []);

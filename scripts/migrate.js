@@ -43,7 +43,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   }
 });
 
-const idMap = new Map();
+// Mapas para relaciones y Snapshots (Hydration)
+const idMap = new Map(); // Airtable ID -> Supabase UUID
+const cacheEstudiantes = new Map(); // Airtable ID -> Datos Estudiante
+const cacheLanzamientos = new Map(); // Airtable ID -> Datos Lanzamiento
 
 // --- Funciones Auxiliares ---
 
@@ -150,7 +153,7 @@ async function pushToSupabase(tableName, records, mapperFn) {
             if (tableName === 'finalizacion_pps') {
                 mapped = await mapFinalizacionAsync(rec, existingRecordsMap);
             } else {
-                mapped = mapperFn(rec.fields);
+                mapped = mapperFn(rec.fields, rec.id); // Pasamos ID para cacheo
             }
             
             mapped.airtable_id = rec.id;
@@ -193,45 +196,90 @@ const cleanArray = (val) => (Array.isArray(val) ? val[0] : val) || null;
 const cleanDate = (val) => val || null;
 const cleanNum = (val) => (val ? Number(val) : null);
 
-const mapEstudiante = (f) => ({
-    legajo: f['Legajo'], nombre: f['Nombre'], genero: f['Género'],
-    orientacion_elegida: f['Orientación Elegida'], dni: cleanNum(f['DNI']),
-    fecha_nacimiento: cleanDate(f['Fecha de Nacimiento']), correo: f['Correo'],
-    telefono: f['Teléfono'], notas_internas: f['Notas Internas'],
-    fecha_finalizacion: cleanDate(f['Fecha de Finalización']), finalizaron: !!f['Finalizaron']
-});
+const mapEstudiante = (f, airtableId) => {
+    const data = {
+        legajo: f['Legajo'], nombre: f['Nombre'], genero: f['Género'],
+        orientacion_elegida: f['Orientación Elegida'], dni: cleanNum(f['DNI']),
+        fecha_nacimiento: cleanDate(f['Fecha de Nacimiento']), correo: f['Correo'],
+        telefono: f['Teléfono'], notas_internas: f['Notas Internas'],
+        fecha_finalizacion: cleanDate(f['Fecha de Finalización']), finalizaron: !!f['Finalizaron']
+    };
+    // Guardar en caché para Hydration de Convocatorias
+    cacheEstudiantes.set(airtableId, data);
+    return data;
+};
 
 const mapInstitucion = (f) => ({
     nombre: f['Nombre'], direccion: f['Dirección'], telefono: f['Teléfono'],
     convenio_nuevo: !!f['Convenio Nuevo'], tutor: f['Tutor']
 });
 
-const mapLanzamiento = (f) => ({
-    nombre_pps: f['Nombre PPS'], fecha_inicio: cleanDate(f['Fecha Inicio']),
-    fecha_finalizacion: cleanDate(f['Fecha Finalización']), direccion: f['Dirección'],
-    horario_seleccionado: f['Horario Seleccionado'], orientacion: f['Orientación'],
-    horas_acreditadas: cleanNum(f['Horas Acreditadas']), cupos_disponibles: cleanNum(f['Cupos disponibles']),
-    estado_convocatoria: f['Estado de Convocatoria'], informe: f['Informe'],
-    estado_gestion: f['Estado de Gestión'], notas_gestion: f['Notas de Gestión'],
-    fecha_relanzamiento: cleanDate(f['Fecha de Relanzamiento']), permite_certificado: !!f['Permite Certificado'],
-});
+const mapLanzamiento = (f, airtableId) => {
+    const data = {
+        nombre_pps: f['Nombre PPS'], fecha_inicio: cleanDate(f['Fecha Inicio']),
+        fecha_finalizacion: cleanDate(f['Fecha Finalización']), direccion: f['Dirección'],
+        horario_seleccionado: f['Horario Seleccionado'], orientacion: f['Orientación'],
+        horas_acreditadas: cleanNum(f['Horas Acreditadas']), cupos_disponibles: cleanNum(f['Cupos disponibles']),
+        estado_convocatoria: f['Estado de Convocatoria'], informe: f['Informe'],
+        estado_gestion: f['Estado de Gestión'], notas_gestion: f['Notas de Gestión'],
+        fecha_relanzamiento: cleanDate(f['Fecha de Relanzamiento']), permite_certificado: !!f['Permite Certificado'],
+    };
+    // Guardar en caché para Hydration de Convocatorias
+    cacheLanzamientos.set(airtableId, data);
+    return data;
+};
 
-const mapConvocatoria = (f) => ({
-    lanzamiento_id: idMap.get(cleanArray(f['Lanzamiento Vinculado'])),
-    estudiante_id: idMap.get(cleanArray(f['Estudiante Inscripto'])),
-    estado: f['Estado'], termino_cursar: f['¿Terminó de cursar?'],
-    cursando_electivas: f['Cursando Materias Electivas'], finales_adeuda: f['Finales que adeuda'],
-    otra_situacion_academica: f['Otra situación académica'], informe_subido: !!f['Informe Subido'],
-    fecha_entrega_informe: cleanDate(f['Fecha_Entrega_Informe']), horario_seleccionado: f['Horario'],
-});
+const mapConvocatoria = (f) => {
+    const lanzAirtableId = cleanArray(f['Lanzamiento Vinculado']);
+    const estAirtableId = cleanArray(f['Estudiante Inscripto']);
+    
+    // HYDRATION: Recuperar datos planos desde la caché en memoria
+    const lanzamientoData = cacheLanzamientos.get(lanzAirtableId) || {};
+    const estudianteData = cacheEstudiantes.get(estAirtableId) || {};
+
+    return {
+        lanzamiento_id: idMap.get(lanzAirtableId),
+        estudiante_id: idMap.get(estAirtableId),
+        
+        estado_inscripcion: f['Estado'],
+        termino_cursar: f['¿Terminó de cursar?'],
+        cursando_electivas: f['Cursando Materias Electivas'], 
+        finales_adeuda: f['Finales que adeuda'],
+        otra_situacion_academica: f['Otra situación académica'], 
+        informe_subido: !!f['Informe Subido'],
+        fecha_entrega_informe: cleanDate(f['Fecha_Entrega_Informe']), 
+        horario_seleccionado: f['Horario'],
+        certificado_url: f['Certificado'] ? JSON.stringify(f['Certificado']) : null,
+
+        // --- SNAPSHOT FIELDS (Datos copiados para optimización de lectura) ---
+        nombre_pps: lanzamientoData.nombre_pps || null,
+        fecha_inicio: lanzamientoData.fecha_inicio || null,
+        fecha_finalizacion: lanzamientoData.fecha_finalizacion || null,
+        direccion: lanzamientoData.direccion || null,
+        orientacion: lanzamientoData.orientacion || null,
+        horas_acreditadas: lanzamientoData.horas_acreditadas || null,
+        cupos_disponibles: lanzamientoData.cupos_disponibles || null,
+
+        legajo: estudianteData.legajo || null,
+        dni: estudianteData.dni || null,
+        correo: estudianteData.correo || null,
+        fecha_nacimiento: estudianteData.fecha_nacimiento || null,
+        telefono: estudianteData.telefono || null,
+        // -------------------------------------------------------------------
+    };
+};
 
 const mapPractica = (f) => ({
     estudiante_id: idMap.get(cleanArray(f['Estudiante Inscripto'])),
     lanzamiento_id: idMap.get(cleanArray(f['Lanzamiento Vinculado'])),
-    nombre_institucion: cleanArray(f['Nombre (de Institución)']),
-    horas_realizadas: cleanNum(f['Horas Realizadas']), fecha_inicio: cleanDate(f['Fecha de Inicio']),
-    fecha_finalizacion: cleanDate(f['Fecha de Finalización']), estado: f['Estado'],
-    especialidad: f['Especialidad'], nota: f['Nota']
+    // Intentamos usar el nombre del lanzamiento si existe, sino el texto crudo de la práctica
+    nombre_institucion: cleanArray(f['Nombre (de Institución)']), 
+    horas_realizadas: cleanNum(f['Horas Realizadas']), 
+    fecha_inicio: cleanDate(f['Fecha de Inicio']),
+    fecha_finalizacion: cleanDate(f['Fecha de Finalización']), 
+    estado: f['Estado'],
+    especialidad: f['Especialidad'], 
+    nota: f['Nota']
 });
 
 const mapSolicitud = (f) => ({
@@ -280,7 +328,8 @@ const mapFinalizacionAsync = async (rec, existingMap) => {
         estudiante_id: idMap.get(cleanArray(f['Nombre'])),
         fecha_solicitud: f['Created Time'] || rec.createdTime,
         estado: (Array.isArray(f['Cargado']) && f['Cargado'].includes('Si')) ? 'Cargado' : 'Pendiente',
-        informe_final_url: informeFiles, planilla_horas_url: horasFiles,
+        informe_final_url: informeFiles, 
+        planilla_horas_url: horasFiles,
         planilla_asistencia_url: asistenciaFiles,
         sugerencias_mejoras: f['Sugerencia de mejoras para las PPS']
     };
@@ -289,7 +338,7 @@ const mapFinalizacionAsync = async (rec, existingMap) => {
 // --- Ejecución Principal ---
 
 async function main() {
-    console.log("=== INICIANDO MIGRACIÓN A SUPABASE ===");
+    console.log("=== INICIANDO MIGRACIÓN A SUPABASE CON HYDRATION ===");
     let hasFailed = false;
     try {
         const order = [

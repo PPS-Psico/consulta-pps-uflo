@@ -10,9 +10,9 @@ import { estudianteArraySchema } from '../schemas';
 import Input from './Input';
 
 const MOCK_STUDENTS_FOR_SEARCH: AirtableRecord<EstudianteFields>[] = [
-    { id: 'recTest1', createdTime: '', fields: { 'Legajo': 'T0001', 'Nombre': 'Tester Alfa' } },
-    { id: 'recTest2', createdTime: '', fields: { 'Legajo': 'T0002', 'Nombre': 'Beta Tester' } },
-    { id: 'recTest3', createdTime: '', fields: { 'Legajo': 'T0003', 'Nombre': 'Gama Tester' } },
+    { id: 'recTest1', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0001', [FIELD_NOMBRE_ESTUDIANTES]: 'Tester Alfa' } as any,
+    { id: 'recTest2', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0002', [FIELD_NOMBRE_ESTUDIANTES]: 'Beta Tester' } as any,
+    { id: 'recTest3', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0003', [FIELD_NOMBRE_ESTUDIANTES]: 'Gama Tester' } as any,
 ];
 
 interface AdminSearchProps {
@@ -44,8 +44,8 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
         setTimeout(() => {
             const lowerTerm = term.toLowerCase();
             const filtered = MOCK_STUDENTS_FOR_SEARCH.filter(s => 
-                s.fields.Nombre?.toLowerCase().includes(lowerTerm) || 
-                s.fields.Legajo?.toLowerCase().includes(lowerTerm)
+                (s[FIELD_NOMBRE_ESTUDIANTES] as string)?.toLowerCase().includes(lowerTerm) || 
+                (s[FIELD_LEGAJO_ESTUDIANTES] as string)?.toLowerCase().includes(lowerTerm)
             );
             setResults(filtered);
             setIsLoading(false);
@@ -58,7 +58,7 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
         SEARCH("${cleanedTerm}", LOWER({${FIELD_NOMBRE_ESTUDIANTES}})),
         SEARCH("${cleanedTerm}", {${FIELD_LEGAJO_ESTUDIANTES}} & '')
     )`;
-    // FIX: Added zod schema as second argument to fetchAirtableData
+    
     const { records, error } = await fetchAirtableData<EstudianteFields>(
         AIRTABLE_TABLE_NAME_ESTUDIANTES,
         estudianteArraySchema,
@@ -143,8 +143,8 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
                                     onClick={() => handleSelect(student)}
                                     className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/50 transition-colors flex justify-between items-center"
                                 >
-                                    <span className="font-medium text-slate-800 dark:text-slate-100">{student.fields[FIELD_NOMBRE_ESTUDIANTES]}</span>
-                                    <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full">{student.fields[FIELD_LEGAJO_ESTUDIANTES]}</span>
+                                    <span className="font-medium text-slate-800 dark:text-slate-100">{student[FIELD_NOMBRE_ESTUDIANTES]}</span>
+                                    <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full">{student[FIELD_LEGAJO_ESTUDIANTES]}</span>
                                 </button>
                             </li>
                         ))}

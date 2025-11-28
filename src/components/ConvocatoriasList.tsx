@@ -7,6 +7,7 @@ import {
     FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
     FIELD_NOMBRE_PPS_LANZAMIENTOS,
     FIELD_DIRECCION_LANZAMIENTOS,
+    FIELD_GENERO_ESTUDIANTES
 } from '../constants';
 import EmptyState from './EmptyState';
 import { useModal } from '../contexts/ModalContext';
@@ -95,7 +96,7 @@ const ConvocatoriasList: React.FC<ConvocatoriasListProps> = ({
                   onVerSeleccionados={(l) => seleccionadosMutation.mutate(l)}
                   isVerSeleccionadosLoading={seleccionadosMutation.isPending && seleccionadosMutation.variables?.id === lanzamiento.id}
                   isCompleted={isCompleted}
-                  userGender={student?.['Género']}
+                  userGender={student?.[FIELD_GENERO_ESTUDIANTES]}
                   direccion={finalDireccion}
               />
             );

@@ -29,20 +29,18 @@ import RecordEditModal from './RecordEditModal';
 import { schema } from '../lib/airtableSchema';
 
 const mockInstitutions = [
-  { id: 'recInstMock1', fields: { 'Nombre': 'Hospital de Juguete' } },
-  { id: 'recInstMock2', fields: { 'Nombre': 'Escuela de Pruebas' } },
-  { id: 'recInstMock3', fields: { 'Nombre': 'Empresa Ficticia S.A.' } },
+  { id: 'recInstMock1', [FIELD_NOMBRE_INSTITUCIONES]: 'Hospital de Juguete' },
+  { id: 'recInstMock2', [FIELD_NOMBRE_INSTITUCIONES]: 'Escuela de Pruebas' },
+  { id: 'recInstMock3', [FIELD_NOMBRE_INSTITUCIONES]: 'Empresa Ficticia S.A.' },
 ];
 
 const mockLastLanzamiento = {
   id: 'recLanzMock1',
-  fields: {
-    [FIELD_ORIENTACION_LANZAMIENTOS]: 'Clinica',
-    [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: 120,
-    [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 5,
-    [FIELD_INFORME_LANZAMIENTOS]: 'http://example.com/informe-mock',
-    [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: 'Lunes 9 a 13hs; Miércoles 14 a 18hs',
-  }
+  [FIELD_ORIENTACION_LANZAMIENTOS]: 'Clinica',
+  [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: 120,
+  [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 5,
+  [FIELD_INFORME_LANZAMIENTOS]: 'http://example.com/informe-mock',
+  [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: 'Lunes 9 a 13hs; Miércoles 14 a 18hs',
 };
 
 type FormData = {
@@ -90,15 +88,15 @@ const LAUNCH_TABLE_CONFIG = {
     label: 'Lanzamientos',
     schema: schema.lanzamientos,
     fieldConfig: [
-        { key: 'nombrePPS', label: 'Nombre PPS', type: 'text' as const },
-        { key: 'fechaInicio', label: 'Fecha Inicio', type: 'date' as const },
-        { key: 'fechaFin', label: 'Fecha Finalización', type: 'date' as const },
-        { key: 'orientacion', label: 'Orientación', type: 'select' as const, options: ['Clinica', 'Educacional', 'Laboral', 'Comunitaria'] },
-        { key: 'horasAcreditadas', label: 'Horas Acreditadas', type: 'number' as const },
-        { key: 'cuposDisponibles', label: 'Cupos', type: 'number' as const },
-        { key: 'estadoConvocatoria', label: 'Estado Convocatoria', type: 'select' as const, options: ['Abierta', 'Cerrado', 'Oculto'] },
-        { key: 'estadoGestion', label: 'Estado Gestión', type: 'select' as const, options: ['Pendiente de Gestión', 'En Conversación', 'Relanzamiento Confirmado', 'No se Relanza', 'Archivado'] },
-        { key: 'notasGestion', label: 'Notas de Gestión', type: 'textarea' as const },
+        { key: FIELD_NOMBRE_PPS_LANZAMIENTOS, label: 'Nombre PPS', type: 'text' as const },
+        { key: FIELD_FECHA_INICIO_LANZAMIENTOS, label: 'Fecha Inicio', type: 'date' as const },
+        { key: FIELD_FECHA_FIN_LANZAMIENTOS, label: 'Fecha Finalización', type: 'date' as const },
+        { key: FIELD_ORIENTACION_LANZAMIENTOS, label: 'Orientación', type: 'select' as const, options: ['Clinica', 'Educacional', 'Laboral', 'Comunitaria'] },
+        { key: FIELD_HORAS_ACREDITADAS_LANZAMIENTOS, label: 'Horas Acreditadas', type: 'number' as const },
+        { key: FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS, label: 'Cupos', type: 'number' as const },
+        { key: FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS, label: 'Estado Convocatoria', type: 'select' as const, options: ['Abierta', 'Cerrado', 'Oculto'] },
+        { key: FIELD_ESTADO_GESTION_LANZAMIENTOS, label: 'Estado Gestión', type: 'select' as const, options: ['Pendiente de Gestión', 'En Conversación', 'Relanzamiento Confirmado', 'No se Relanza', 'Archivado'] },
+        { key: FIELD_NOTAS_GESTION_LANZAMIENTOS, label: 'Notas de Gestión', type: 'textarea' as const },
     ]
 };
 
@@ -121,7 +119,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         queryKey: ['allInstitutionsForLauncher', isTestingMode],
         queryFn: () => {
             if (isTestingMode) {
-                return Promise.resolve(mockInstitutions as AirtableRecord<InstitucionFields>[]);
+                return Promise.resolve(mockInstitutions as unknown as AirtableRecord<InstitucionFields>[]);
             }
             return db.instituciones.getAll({ fields: [FIELD_NOMBRE_INSTITUCIONES] });
         },
@@ -133,13 +131,14 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             if (!selectedInstitution) return null;
             if (isTestingMode) {
                 if (mockInstitutions.some(i => i.id === selectedInstitution.id)) {
-                    return mockLastLanzamiento as AirtableRecord<LanzamientoPPSFields>;
+                    return mockLastLanzamiento as unknown as AirtableRecord<LanzamientoPPSFields>;
                 }
                 return null;
             }
+            // For DB query, using the constant for column name
             const records = await db.lanzamientos.get({
-                filterByFormula: `{${FIELD_NOMBRE_PPS_LANZAMIENTOS}} = "${selectedInstitution.fields[FIELD_NOMBRE_INSTITUCIONES]?.replace(/"/g, '\\"')}"`,
-                sort: [{ field: 'Fecha Inicio', direction: 'desc' }],
+                filterByFormula: `{${FIELD_NOMBRE_PPS_LANZAMIENTOS}} = "${selectedInstitution[FIELD_NOMBRE_INSTITUCIONES]?.replace(/"/g, '\\"')}"`,
+                sort: [{ field: 'fecha_inicio', direction: 'desc' }], // Use DB column name for sort
                 maxRecords: 1,
             });
             return records[0] || null;
@@ -172,7 +171,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             setSelectedInstitution(null);
             if (!isTestingMode) {
                 queryClient.invalidateQueries({ queryKey: ['allLanzamientos'] });
-                refetchHistory();
+                queryClient.invalidateQueries({ queryKey: ['launchHistory'] });
             }
         },
         onError: (error: any) => {
@@ -182,11 +181,11 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
     
     const updateStatusMutation = useMutation({
         mutationFn: ({ id, status }: { id: string, status: string }) => {
-             return db.lanzamientos.update(id, { estadoConvocatoria: status });
+             return db.lanzamientos.update(id, { [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: status });
         },
         onSuccess: (_, variables) => {
              setToastInfo({ message: `Estado actualizado a "${variables.status}".`, type: 'success' });
-             refetchHistory();
+             queryClient.invalidateQueries({ queryKey: ['launchHistory'] });
         },
         onError: (error: any) => {
              setToastInfo({ message: `Error al actualizar estado: ${error.message}`, type: 'error' });
@@ -200,7 +199,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         onSuccess: () => {
             setToastInfo({ message: 'Lanzamiento actualizado.', type: 'success' });
             setEditingLaunch(null);
-            refetchHistory();
+            queryClient.invalidateQueries({ queryKey: ['launchHistory'] });
         },
         onError: (error: any) => {
             setToastInfo({ message: `Error al guardar cambios: ${error.message}`, type: 'error' });
@@ -211,14 +210,14 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         if (!instiSearch) return [];
         const normalizedSearch = normalizeStringForComparison(instiSearch);
         return institutions
-            .filter(inst => normalizeStringForComparison(inst.fields[FIELD_NOMBRE_INSTITUCIONES]).includes(normalizedSearch))
+            .filter(inst => normalizeStringForComparison(inst[FIELD_NOMBRE_INSTITUCIONES]).includes(normalizedSearch))
             .slice(0, 7);
     }, [instiSearch, institutions]);
 
     const handleSelectInstitution = (inst: AirtableRecord<InstitucionFields>) => {
         setSelectedInstitution(inst);
-        setInstiSearch(inst.fields[FIELD_NOMBRE_INSTITUCIONES] || '');
-        setFormData(prev => ({ ...prev, nombrePPS: inst.fields[FIELD_NOMBRE_INSTITUCIONES] || '' }));
+        setInstiSearch(inst[FIELD_NOMBRE_INSTITUCIONES] || '');
+        setFormData(prev => ({ ...prev, nombrePPS: inst[FIELD_NOMBRE_INSTITUCIONES] || '' }));
         setIsDropdownOpen(false);
     };
 
@@ -247,7 +246,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         if (!lastLanzamiento) return;
         
         // Cargar horarios anteriores (separados por punto y coma)
-        const prevSchedulesString = lastLanzamiento.fields[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS];
+        const prevSchedulesString = lastLanzamiento[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS];
         let prevSchedulesList = [''];
         if (prevSchedulesString) {
             prevSchedulesList = prevSchedulesString.split(';').map(s => s.trim()).filter(Boolean);
@@ -256,10 +255,10 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
         setFormData(prev => ({
             ...prev,
-            orientacion: lastLanzamiento.fields[FIELD_ORIENTACION_LANZAMIENTOS],
-            horasAcreditadas: lastLanzamiento.fields[FIELD_HORAS_ACREDITADAS_LANZAMIENTOS],
-            cuposDisponibles: lastLanzamiento.fields[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS],
-            informe: lastLanzamiento.fields[FIELD_INFORME_LANZAMIENTOS],
+            orientacion: lastLanzamiento[FIELD_ORIENTACION_LANZAMIENTOS],
+            horasAcreditadas: lastLanzamiento[FIELD_HORAS_ACREDITADAS_LANZAMIENTOS],
+            cuposDisponibles: lastLanzamiento[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS],
+            informe: lastLanzamiento[FIELD_INFORME_LANZAMIENTOS],
         }));
         
         setSchedules(prevSchedulesList);
@@ -277,8 +276,16 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         const horarioFinal = schedules.map(s => s.trim()).filter(Boolean).join('; ');
 
         const finalPayload = {
-            ...formData,
-            horarioSeleccionado: horarioFinal
+            // Map formData keys to DB columns using constants
+            [FIELD_NOMBRE_PPS_LANZAMIENTOS]: formData.nombrePPS,
+            [FIELD_FECHA_INICIO_LANZAMIENTOS]: formData.fechaInicio,
+            [FIELD_FECHA_FIN_LANZAMIENTOS]: formData.fechaFin,
+            [FIELD_ORIENTACION_LANZAMIENTOS]: formData.orientacion,
+            [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: formData.horasAcreditadas,
+            [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: formData.cuposDisponibles,
+            [FIELD_INFORME_LANZAMIENTOS]: formData.informe,
+            [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: horarioFinal,
+            [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: formData.estadoConvocatoria
         };
 
         createLaunchMutation.mutate(finalPayload);
@@ -369,7 +376,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                                 className="px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors flex items-center gap-3"
                                             >
                                                 <span className="material-icons text-slate-400 !text-lg">business</span>
-                                                <span className="text-slate-700 dark:text-slate-200">{inst.fields[FIELD_NOMBRE_INSTITUCIONES]}</span>
+                                                <span className="text-slate-700 dark:text-slate-200">{inst[FIELD_NOMBRE_INSTITUCIONES]}</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -504,28 +511,29 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                     </thead>
                                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                         {launchHistory.map((launch: AirtableRecord<LanzamientoPPSFields>) => {
-                                            const status = String(launch.fields[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] || 'Cerrado');
+                                            // Direct property access for flat objects
+                                            const status = String(launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] || 'Cerrado');
                                             const normalizedStatus = normalizeStringForComparison(status);
                                             const isAbierta = normalizedStatus === 'abierta' || normalizedStatus === 'abierto';
                                             const isOculto = normalizedStatus === 'oculto';
                                             
-                                            const visuals = getEspecialidadClasses(launch.fields[FIELD_ORIENTACION_LANZAMIENTOS] || 'N/A');
+                                            const visuals = getEspecialidadClasses(launch[FIELD_ORIENTACION_LANZAMIENTOS] || 'N/A');
                                             
                                             return (
                                                 <tr key={launch.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                                                     <td className="px-6 py-3 font-semibold text-slate-700 dark:text-slate-200">
-                                                        {launch.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
+                                                        {launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
                                                     </td>
                                                     <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">
-                                                        {formatDate(launch.fields[FIELD_FECHA_INICIO_LANZAMIENTOS])}
+                                                        {formatDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS])}
                                                     </td>
                                                     <td className="px-6 py-3 text-center">
                                                         <span className={`${visuals.tag} whitespace-nowrap border-0`}>
-                                                            {launch.fields[FIELD_ORIENTACION_LANZAMIENTOS]}
+                                                            {launch[FIELD_ORIENTACION_LANZAMIENTOS]}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-3 text-center font-bold text-slate-700 dark:text-slate-300">
-                                                        {launch.fields[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]}
+                                                        {launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]}
                                                     </td>
                                                     <td className="px-6 py-3 text-center">
                                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

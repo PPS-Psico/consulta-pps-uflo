@@ -1,6 +1,5 @@
 
 import { z } from 'zod';
-// import * as airtable from '../services/airtableService'; // Deprecated
 import * as supabaseService from '../services/supabaseService';
 import { schema } from './airtableSchema';
 import { 
@@ -15,41 +14,14 @@ import type {
 } from '../types';
 import { supabase } from './supabaseClient';
 
-// A generic mapped type to extract developer-friendly field keys from a schema object
-type DevFields<S> = {
-  [K in keyof S as K extends '_tableName' ? never : K]?: any;
-};
-
-// Generic function to translate developer-friendly keys to App/Airtable field names
-// Note: The supabaseService will then assume these keys match the DB columns OR use schemaMapping.ts to translate them further.
-function translateFieldsToApp<TSchema extends object>(fields: Partial<DevFields<TSchema>>, tableSchema: TSchema): { [key: string]: any } {
-    const appFields: { [key: string]: any } = {};
-    const { _tableName, ...fieldMap } = tableSchema as any;
-
-    for (const key in fields) {
-        if (Object.prototype.hasOwnProperty.call(fields, key)) {
-            const appKey = fieldMap[key];
-            if (appKey) {
-                appFields[appKey] = (fields as any)[key];
-            } else {
-                // console.warn(`[DB] Key "${key}" not found in schema for table "${_tableName}". Passing it through directly.`);
-                appFields[key] = (fields as any)[key];
-            }
-        }
-    }
-    return appFields;
-}
-
-
-// A factory function to create a typed interface for a Table (now connected to Supabase)
+// Helper to access the table name from the schema object
 function createTableInterface<TSchema extends { _tableName: string }, TRecordFields extends object>(
     tableSchema: TSchema,
     zodArraySchema: z.ZodSchema<AirtableRecord<TRecordFields>[]>
 ) {
     const { _tableName } = tableSchema;
 
-    const service = {
-        // READ operations
+    return {
         getAll: async (options?: { filterByFormula?: string; sort?: any[]; fields?: string[] }) => {
             const { records, error } = await supabaseService.fetchAllData<TRecordFields>(
                 _tableName, 
@@ -60,7 +32,6 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             );
             if (error) {
                 console.error(`Error fetching from ${_tableName}:`, error);
-                // Return empty array to avoid crashing UI during migration/empty state
                 return []; 
             }
             return records;
@@ -82,26 +53,22 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             return records;
         },
 
-        // WRITE operations
-        create: async (fields: DevFields<TSchema>) => {
-            // Translate dev keys (e.g. 'nombre') to App keys (e.g. 'Nombre')
-            const appFields = translateFieldsToApp(fields, tableSchema);
-            const { record: createdRecord, error } = await supabaseService.createRecord<TRecordFields>(_tableName, appFields as TRecordFields);
+        create: async (fields: TRecordFields) => {
+            const { record, error } = await supabaseService.createRecord<TRecordFields>(_tableName, fields);
             if (error) throw error;
-            return createdRecord;
+            return record;
         },
 
-        update: async (recordId: string, fields: Partial<DevFields<TSchema>>) => {
-            const appFields = translateFieldsToApp(fields, tableSchema);
-            const { record: updatedRecord, error } = await supabaseService.updateRecord<TRecordFields>(_tableName, recordId, appFields as Partial<TRecordFields>);
+        update: async (recordId: string, fields: Partial<TRecordFields>) => {
+            const { record, error } = await supabaseService.updateRecord<TRecordFields>(_tableName, recordId, fields);
             if (error) throw error;
-            return updatedRecord;
+            return record;
         },
 
-        updateMany: async (records: { id: string; fields: Partial<DevFields<TSchema>> }[]) => {
+        updateMany: async (records: { id: string; fields: Partial<TRecordFields> }[]) => {
             const { records: updatedRecords, error } = await supabaseService.updateRecords<TRecordFields>(
                 _tableName,
-                records.map(r => ({ id: r.id, fields: translateFieldsToApp(r.fields, tableSchema) as Partial<TRecordFields> }))
+                records
             );
             if (error) throw error;
             return updatedRecords;
@@ -113,31 +80,30 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             return success;
         },
     };
-    return service;
 }
 
-// --- NUEVA FUNCIÓN PARA LOGIN ---
-// Busca el email de un estudiante usando su legajo.
-// Esto permite que el usuario ingrese "Legajo" en el login, pero Supabase autentique por "Email".
 export const getStudentLoginInfo = async (legajo: string): Promise<{ email: string } | null> => {
     try {
-        // Busca en la tabla pública de estudiantes
-        const { data, error } = await supabase
-            .from('estudiantes')
-            .select('correo')
-            .eq('legajo', legajo)
-            .maybeSingle(); // Use maybeSingle to avoid error on 0 rows
+        // SECURITY CRITICAL: Use RPC to bypass RLS securely for this specific lookup.
+        // Direct table query would fail for unauthenticated users if RLS is enabled.
+        const { data: email, error } = await supabase.rpc('get_student_email_by_legajo', { 
+            legajo_input: legajo 
+        });
             
-        if (error || !data) return null;
-        return { email: data.correo };
+        if (error) {
+            console.error("Error RPC get_student_email:", error);
+            return null;
+        }
+        
+        if (!email) return null;
+        
+        return { email };
     } catch (error) {
         console.error("Error fetching student login info:", error);
         return null;
     }
 };
 
-
-// Export the db object with fully typed table interfaces
 export const db = {
     estudiantes: createTableInterface<typeof schema.estudiantes, EstudianteFields>(schema.estudiantes, estudianteArraySchema),
     practicas: createTableInterface<typeof schema.practicas, PracticaFields>(schema.practicas, practicaArraySchema),

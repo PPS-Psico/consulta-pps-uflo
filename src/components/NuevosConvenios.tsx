@@ -37,8 +37,8 @@ const NuevosConvenios: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
         queryFn: async () => {
             if (isTestingMode) {
                 return {
-                    instituciones: [{ id: 'inst_test_1', createdTime: '', fields: { [FIELD_NOMBRE_INSTITUCIONES]: 'Inst Test Nueva', [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true } }, { id: 'inst_test_2', createdTime: '', fields: { [FIELD_NOMBRE_INSTITUCIONES]: 'Inst Test Potencial' } }],
-                    lanzamientos: [{ id: 'lanz_test_1', createdTime: '', fields: { [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Inst Test Nueva - Sede A', [FIELD_FECHA_INICIO_LANZAMIENTOS]: `${new Date().getFullYear()}-03-01` } }, { id: 'lanz_test_2', createdTime: '', fields: { [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Inst Test Potencial - Taller B', [FIELD_FECHA_INICIO_LANZAMIENTOS]: `${new Date().getFullYear()}-04-01` } }]
+                    instituciones: [{ id: 'inst_test_1', createdTime: '', [FIELD_NOMBRE_INSTITUCIONES]: 'Inst Test Nueva', [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true } as any, { id: 'inst_test_2', createdTime: '', [FIELD_NOMBRE_INSTITUCIONES]: 'Inst Test Potencial' } as any],
+                    lanzamientos: [{ id: 'lanz_test_1', createdTime: '', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Inst Test Nueva - Sede A', [FIELD_FECHA_INICIO_LANZAMIENTOS]: `${new Date().getFullYear()}-03-01` } as any, { id: 'lanz_test_2', createdTime: '', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Inst Test Potencial - Taller B', [FIELD_FECHA_INICIO_LANZAMIENTOS]: `${new Date().getFullYear()}-04-01` } as any]
                 };
             }
             const [institucionesRes, lanzamientosRes] = await Promise.all([
@@ -55,7 +55,7 @@ const NuevosConvenios: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                 console.log("TEST MODE: Confirming agreement for", institutionId);
                 return new Promise(resolve => setTimeout(resolve, 500));
             }
-            return db.instituciones.update(institutionId, { convenioNuevo: true });
+            return db.instituciones.update(institutionId, { [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true });
         },
         onSuccess: () => {
             setToastInfo({ message: 'Convenio confirmado con éxito.', type: 'success' });
@@ -74,23 +74,23 @@ const NuevosConvenios: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
 
         const institutionsMap = new Map<string, { id: string, isNew: boolean }>();
         data.instituciones.forEach(inst => {
-            const name = inst.fields[FIELD_NOMBRE_INSTITUCIONES];
+            const name = inst[FIELD_NOMBRE_INSTITUCIONES];
             if (name) {
                 institutionsMap.set(normalizeStringForComparison(name), {
                     id: inst.id,
-                    isNew: !!inst.fields[FIELD_CONVENIO_NUEVO_INSTITUCIONES]
+                    isNew: !!inst[FIELD_CONVENIO_NUEVO_INSTITUCIONES]
                 });
             }
         });
         
         const launchesThisYear = data.lanzamientos
             .filter(l => {
-                const date = parseToUTCDate(l.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+                const date = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
                 return date && date.getUTCFullYear() === currentYear;
             })
             .sort((a, b) => {
-                const dateA = parseToUTCDate(a.fields[FIELD_FECHA_INICIO_LANZAMIENTOS])?.getTime() || 0;
-                const dateB = parseToUTCDate(b.fields[FIELD_FECHA_INICIO_LANZAMIENTOS])?.getTime() || 0;
+                const dateA = parseToUTCDate(a[FIELD_FECHA_INICIO_LANZAMIENTOS])?.getTime() || 0;
+                const dateB = parseToUTCDate(b[FIELD_FECHA_INICIO_LANZAMIENTOS])?.getTime() || 0;
                 return dateA - dateB;
             });
 
@@ -98,7 +98,7 @@ const NuevosConvenios: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
         const potentialsMap = new Map<string, PotentialAgreement>();
 
         launchesThisYear.forEach(launch => {
-            const ppsName = launch.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+            const ppsName = launch[FIELD_NOMBRE_PPS_LANZAMIENTOS];
             if (!ppsName) return;
 
             const groupName = getGroupName(ppsName);
@@ -108,7 +108,7 @@ const NuevosConvenios: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
             if (institutionInfo) {
                 if (institutionInfo.isNew) {
                     if (!confirmedMap.has(groupName)) {
-                        const launchDate = parseToUTCDate(launch.fields[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+                        const launchDate = parseToUTCDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS]);
                         if (launchDate) {
                             confirmedMap.set(groupName, launchDate);
                         }
@@ -124,7 +124,7 @@ const NuevosConvenios: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                     potentialsMap.get(institutionInfo.id)!.launches.push({
                         id: launch.id,
                         name: ppsName,
-                        date: launch.fields[FIELD_FECHA_INICIO_LANZAMIENTOS] || 'N/A'
+                        date: launch[FIELD_FECHA_INICIO_LANZAMIENTOS] || 'N/A'
                     });
                 }
             }

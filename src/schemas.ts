@@ -1,8 +1,5 @@
 
 
-
-
-
 import { z } from 'zod';
 import {
     FIELD_LEGAJO_ESTUDIANTES,
@@ -17,6 +14,8 @@ import {
     FIELD_NOMBRE_SEPARADO_ESTUDIANTES,
     FIELD_APELLIDO_SEPARADO_ESTUDIANTES,
     FIELD_FECHA_FINALIZACION_ESTUDIANTES,
+    FIELD_FINALIZARON_ESTUDIANTES,
+    FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES,
 
     FIELD_NOMBRE_BUSQUEDA_PRACTICAS,
     FIELD_ESTUDIANTE_LINK_PRACTICAS,
@@ -30,7 +29,7 @@ import {
     FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
     FIELD_INSTITUCION_LINK_PRACTICAS,
 
-    FIELD_SOLICITUD_LEGAJO_ALUMNO, // Renamed/Mapped
+    FIELD_SOLICITUD_LEGAJO_ALUMNO,
     FIELD_SOLICITUD_NOMBRE_ALUMNO,
     FIELD_EMPRESA_PPS_SOLICITUD,
     FIELD_ESTADO_PPS,
@@ -48,6 +47,7 @@ import {
     FIELD_SOLICITUD_CONTACTO_TUTOR,
     FIELD_SOLICITUD_TIPO_PRACTICA,
     FIELD_SOLICITUD_DESCRIPCION,
+    FIELD_LEGAJO_PPS,
 
     FIELD_NOMBRE_PPS_LANZAMIENTOS,
     FIELD_FECHA_INICIO_LANZAMIENTOS,
@@ -121,14 +121,15 @@ import {
     FIELD_ORIENTACIONES_AUTH,
 
 } from './constants';
+import type { AirtableRecord } from './types';
 
 export const ALL_ORIENTACIONES = ['Clinica', 'Educacional', 'Laboral', 'Comunitaria'] as const;
 
 export const estudianteFieldsSchema = z.object({
   [FIELD_LEGAJO_ESTUDIANTES]: z.coerce.string().optional(),
   [FIELD_NOMBRE_ESTUDIANTES]: z.string().optional(),
-  [FIELD_NOMBRE_SEPARADO_ESTUDIANTES]: z.union([z.array(z.string()), z.string()]).optional().nullable(),
-  [FIELD_APELLIDO_SEPARADO_ESTUDIANTES]: z.union([z.array(z.string()), z.string()]).optional().nullable(),
+  [FIELD_NOMBRE_SEPARADO_ESTUDIANTES]: z.string().optional().nullable(),
+  [FIELD_APELLIDO_SEPARADO_ESTUDIANTES]: z.string().optional().nullable(),
   [FIELD_GENERO_ESTUDIANTES]: z.enum(['Varon', 'Mujer', 'Otro']).optional().nullable(),
   [FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]: z.string().optional().nullable(),
   [FIELD_DNI_ESTUDIANTES]: z.number().optional().nullable(),
@@ -137,26 +138,27 @@ export const estudianteFieldsSchema = z.object({
   [FIELD_TELEFONO_ESTUDIANTES]: z.string().optional().nullable(),
   [FIELD_NOTAS_INTERNAS_ESTUDIANTES]: z.string().optional().nullable(),
   [FIELD_FECHA_FINALIZACION_ESTUDIANTES]: z.string().optional().nullable(),
-  'Finalizaron': z.boolean().optional().nullable(),
-  'Creada': z.string().optional().nullable(),
+  [FIELD_FINALIZARON_ESTUDIANTES]: z.boolean().optional().nullable(),
+  [FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES]: z.boolean().optional().nullable(),
+  'created_at': z.string().optional(),
 }).passthrough();
 
 export const practicaFieldsSchema = z.object({
-  [FIELD_NOMBRE_BUSQUEDA_PRACTICAS]: z.array(z.union([z.string(), z.number()])).optional(),
-  [FIELD_ESTUDIANTE_LINK_PRACTICAS]: z.array(z.string()).optional(),
-  [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+  [FIELD_NOMBRE_BUSQUEDA_PRACTICAS]: z.union([z.string(), z.number()]).optional(),
+  [FIELD_ESTUDIANTE_LINK_PRACTICAS]: z.string().optional(), // Single ID in DB
+  [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: z.string().optional().nullable(),
   [FIELD_HORAS_PRACTICAS]: z.number().optional().nullable(),
   [FIELD_FECHA_INICIO_PRACTICAS]: z.string().optional().nullable(),
   [FIELD_FECHA_FIN_PRACTICAS]: z.string().optional().nullable(),
   [FIELD_ESTADO_PRACTICA]: z.string().optional().nullable(),
   [FIELD_ESPECIALIDAD_PRACTICAS]: z.string().optional().nullable(),
   [FIELD_NOTA_PRACTICAS]: z.string().optional().nullable(),
-  [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: z.array(z.string()).optional(),
-  [FIELD_INSTITUCION_LINK_PRACTICAS]: z.array(z.string()).optional(),
+  [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: z.string().optional(), // Single ID in DB
+  [FIELD_INSTITUCION_LINK_PRACTICAS]: z.string().optional(), // Single ID in DB
 }).passthrough();
 
 export const solicitudPPSFieldsSchema = z.object({
-    [FIELD_SOLICITUD_LEGAJO_ALUMNO]: z.union([z.array(z.string()), z.array(z.number()), z.string(), z.number()]).optional().nullable(),
+    [FIELD_SOLICITUD_LEGAJO_ALUMNO]: z.union([z.string(), z.number()]).optional().nullable(),
     [FIELD_SOLICITUD_NOMBRE_ALUMNO]: z.string().optional().nullable(),
     [FIELD_EMPRESA_PPS_SOLICITUD]: z.string().optional().nullable(),
     [FIELD_ESTADO_PPS]: z.string().optional().nullable(),
@@ -174,6 +176,7 @@ export const solicitudPPSFieldsSchema = z.object({
     [FIELD_SOLICITUD_CONTACTO_TUTOR]: z.string().optional().nullable(),
     [FIELD_SOLICITUD_TIPO_PRACTICA]: z.string().optional().nullable(),
     [FIELD_SOLICITUD_DESCRIPCION]: z.string().optional().nullable(),
+    [FIELD_LEGAJO_PPS]: z.string().optional().nullable(), // FK, can be null
 }).passthrough();
 
 export const lanzamientoPPSFieldsSchema = z.object({
@@ -187,40 +190,40 @@ export const lanzamientoPPSFieldsSchema = z.object({
     [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: z.number().optional().nullable(),
     [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: z.string().optional().nullable(),
     [FIELD_DURACION_INSCRIPCION_DIAS_LANZAMIENTOS]: z.number().optional().nullable(),
-    [FIELD_PLANTILLA_SEGURO_LANZAMIENTOS]: z.array(z.any()).optional().nullable(),
+    [FIELD_PLANTILLA_SEGURO_LANZAMIENTOS]: z.union([z.array(z.any()), z.string()]).optional().nullable(), // Can be string (url) or array
     [FIELD_INFORME_LANZAMIENTOS]: z.string().optional().nullable(),
     [FIELD_ESTADO_GESTION_LANZAMIENTOS]: z.string().optional().nullable(),
     [FIELD_NOTAS_GESTION_LANZAMIENTOS]: z.string().optional().nullable(),
     [FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS]: z.string().optional().nullable(),
-    [FIELD_TELEFONO_INSTITUCION_LANZAMIENTOS]: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+    [FIELD_TELEFONO_INSTITUCION_LANZAMIENTOS]: z.string().optional().nullable(),
     [FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS]: z.boolean().optional().nullable(),
     [FIELD_AIRTABLE_ID]: z.string().optional().nullable(),
 }).passthrough();
 
 export const convocatoriaFieldsSchema = z.object({
-    [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: z.array(z.string()).optional(),
-    [FIELD_NOMBRE_PPS_CONVOCATORIAS]: z.union([z.string(), z.array(z.string())]).optional().nullable(),
-    [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: z.array(z.string()).optional(),
+    [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: z.string().optional().nullable(), // Single ID, Allow null
+    [FIELD_NOMBRE_PPS_CONVOCATORIAS]: z.string().optional().nullable(),
+    [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: z.string().optional().nullable(), // Single ID, Allow null
     [FIELD_FECHA_INICIO_CONVOCATORIAS]: z.string().optional().nullable(),
     [FIELD_FECHA_FIN_CONVOCATORIAS]: z.string().optional().nullable(),
-    [FIELD_DIRECCION_CONVOCATORIAS]: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+    [FIELD_DIRECCION_CONVOCATORIAS]: z.string().optional().nullable(),
     [FIELD_HORARIO_FORMULA_CONVOCATORIAS]: z.string().optional().nullable(),
-    [FIELD_HORAS_ACREDITADAS_CONVOCATORIAS]: z.union([z.number(), z.array(z.number())]).optional().nullable(),
-    [FIELD_CUPOS_DISPONIBLES_CONVOCATORIAS]: z.union([z.number(), z.array(z.number())]).optional().nullable(),
+    [FIELD_HORAS_ACREDITADAS_CONVOCATORIAS]: z.number().optional().nullable(),
+    [FIELD_CUPOS_DISPONIBLES_CONVOCATORIAS]: z.number().optional().nullable(),
     [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: z.string().optional().nullable(),
-    [FIELD_ORIENTACION_CONVOCATORIAS]: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+    [FIELD_ORIENTACION_CONVOCATORIAS]: z.string().optional().nullable(),
     [FIELD_TERMINO_CURSAR_CONVOCATORIAS]: z.string().optional().nullable(),
     [FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS]: z.string().optional().nullable(),
     [FIELD_FINALES_ADEUDA_CONVOCATORIAS]: z.string().optional().nullable(),
     [FIELD_OTRA_SITUACION_CONVOCATORIAS]: z.string().optional().nullable(),
-    [FIELD_LEGAJO_CONVOCATORIAS]: z.union([z.number(), z.array(z.number())]).optional().nullable(),
-    [FIELD_DNI_CONVOCATORIAS]: z.union([z.number(), z.array(z.number())]).optional().nullable(),
-    [FIELD_CORREO_CONVOCATORIAS]: z.union([z.string(), z.array(z.string())]).optional().nullable(),
-    [FIELD_FECHA_NACIMIENTO_CONVOCATORIAS]: z.union([z.string(), z.array(z.string())]).optional().nullable(),
-    [FIELD_TELEFONO_CONVOCATORIAS]: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+    [FIELD_LEGAJO_CONVOCATORIAS]: z.union([z.number(), z.string()]).optional().nullable(),
+    [FIELD_DNI_CONVOCATORIAS]: z.number().optional().nullable(),
+    [FIELD_CORREO_CONVOCATORIAS]: z.string().optional().nullable(),
+    [FIELD_FECHA_NACIMIENTO_CONVOCATORIAS]: z.string().optional().nullable(),
+    [FIELD_TELEFONO_CONVOCATORIAS]: z.string().optional().nullable(),
     [FIELD_INFORME_SUBIDO_CONVOCATORIAS]: z.boolean().optional().nullable(),
     [FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS]: z.string().optional().nullable(),
-    [FIELD_CERTIFICADO_CONVOCATORIAS]: z.array(z.any()).optional().nullable(),
+    [FIELD_CERTIFICADO_CONVOCATORIAS]: z.union([z.array(z.any()), z.string()]).optional().nullable(), // Allow array or string
 }).passthrough();
 
 export const institucionFieldsSchema = z.object({
@@ -232,16 +235,16 @@ export const institucionFieldsSchema = z.object({
 }).passthrough();
 
 export const penalizacionFieldsSchema = z.object({
-    [FIELD_PENALIZACION_ESTUDIANTE_LINK]: z.array(z.string()).optional(),
+    [FIELD_PENALIZACION_ESTUDIANTE_LINK]: z.string().optional().nullable(),
     [FIELD_PENALIZACION_TIPO]: z.string().optional().nullable(),
     [FIELD_PENALIZACION_FECHA]: z.string().optional().nullable(),
     [FIELD_PENALIZACION_NOTAS]: z.string().optional().nullable(),
     [FIELD_PENALIZACION_PUNTAJE]: z.number().optional().nullable(),
-    [FIELD_PENALIZACION_CONVOCATORIA_LINK]: z.array(z.string()).optional(),
+    [FIELD_PENALIZACION_CONVOCATORIA_LINK]: z.string().optional().nullable(),
 }).passthrough();
 
 export const finalizacionPPSFieldsSchema = z.object({
-    [FIELD_ESTUDIANTE_FINALIZACION]: z.array(z.string()).optional(),
+    [FIELD_ESTUDIANTE_FINALIZACION]: z.string().optional(),
     [FIELD_FECHA_SOLICITUD_FINALIZACION]: z.string().optional().nullable(),
     [FIELD_ESTADO_FINALIZACION]: z.string().optional().nullable(),
     [FIELD_INFORME_FINAL_FINALIZACION]: z.array(z.any()).optional().nullable(),
@@ -255,23 +258,23 @@ export const authUserFieldsSchema = z.object({
     [FIELD_NOMBRE_AUTH]: z.string().optional(),
     [FIELD_PASSWORD_HASH_AUTH]: z.string().optional(),
     [FIELD_SALT_AUTH]: z.string().optional(),
-    [FIELD_ROLE_AUTH]: z.union([z.string(), z.array(z.string())]).optional(),
+    [FIELD_ROLE_AUTH]: z.string().optional(),
     [FIELD_ORIENTACIONES_AUTH]: z.string().optional(),
 }).passthrough();
 
-// Schemas for array responses
-const airtableRecord = <T extends z.ZodTypeAny>(fieldsSchema: T) => z.object({
-    id: z.string(),
-    createdTime: z.string(),
-    fields: fieldsSchema,
-});
+// Flat record schema: mix of TFields + { id, created_at }
+const flatRecord = <T extends z.ZodTypeAny>(fieldsSchema: T) => 
+    fieldsSchema.and(z.object({
+        id: z.string(),
+        created_at: z.string().optional()
+    }));
 
-export const estudianteArraySchema = z.array(airtableRecord(estudianteFieldsSchema));
-export const practicaArraySchema = z.array(airtableRecord(practicaFieldsSchema));
-export const solicitudPPSArraySchema = z.array(airtableRecord(solicitudPPSFieldsSchema));
-export const lanzamientoPPSArraySchema = z.array(airtableRecord(lanzamientoPPSFieldsSchema));
-export const convocatoriaArraySchema = z.array(airtableRecord(convocatoriaFieldsSchema));
-export const institucionArraySchema = z.array(airtableRecord(institucionFieldsSchema));
-export const penalizacionArraySchema = z.array(airtableRecord(penalizacionFieldsSchema));
-export const finalizacionPPSArraySchema = z.array(airtableRecord(finalizacionPPSFieldsSchema));
-export const authUserArraySchema = z.array(airtableRecord(authUserFieldsSchema));
+export const estudianteArraySchema = z.array(flatRecord(estudianteFieldsSchema));
+export const practicaArraySchema = z.array(flatRecord(practicaFieldsSchema));
+export const solicitudPPSArraySchema = z.array(flatRecord(solicitudPPSFieldsSchema));
+export const lanzamientoPPSArraySchema = z.array(flatRecord(lanzamientoPPSFieldsSchema));
+export const convocatoriaArraySchema = z.array(flatRecord(convocatoriaFieldsSchema));
+export const institucionArraySchema = z.array(flatRecord(institucionFieldsSchema));
+export const penalizacionArraySchema = z.array(flatRecord(penalizacionFieldsSchema));
+export const finalizacionPPSArraySchema = z.array(flatRecord(finalizacionPPSFieldsSchema));
+export const authUserArraySchema = z.array(flatRecord(authUserFieldsSchema));

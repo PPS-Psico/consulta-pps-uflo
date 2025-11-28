@@ -4,28 +4,13 @@ import Input from './Input';
 import Toast from './Toast';
 import Button from './Button';
 import emailjs from '@emailjs/browser';
-
-// Constantes de almacenamiento (Keys)
-const KEY_SELECTION_SUBJECT = 'pps_email_subject';
-const KEY_SELECTION_BODY = 'pps_email_body';
-const KEY_SELECTION_ACTIVE = 'pps_email_automation';
-
-const KEY_REQUEST_SUBJECT = 'pps_email_req_subject';
-const KEY_REQUEST_BODY = 'pps_email_req_body';
-const KEY_REQUEST_ACTIVE = 'pps_email_req_active';
-
-const KEY_SAC_SUBJECT = 'pps_email_sac_subject';
-const KEY_SAC_BODY = 'pps_email_sac_body';
-const KEY_SAC_ACTIVE = 'pps_email_sac_active';
-
-const KEY_SERVICE_ID = 'pps_email_service_id';
-const KEY_TEMPLATE_ID = 'pps_email_template_id';
-const KEY_PUBLIC_KEY = 'pps_email_public_key';
-
-// Keys para el contador de cuota
-const KEY_EMAIL_COUNT = 'pps_email_monthly_count';
-const KEY_EMAIL_MONTH = 'pps_email_current_month_key';
-const MONTHLY_LIMIT = 200;
+import {
+    KEY_SELECTION_SUBJECT, KEY_SELECTION_BODY, KEY_SELECTION_ACTIVE,
+    KEY_REQUEST_SUBJECT, KEY_REQUEST_BODY, KEY_REQUEST_ACTIVE,
+    KEY_SAC_SUBJECT, KEY_SAC_BODY, KEY_SAC_ACTIVE,
+    KEY_SERVICE_ID, KEY_TEMPLATE_ID, KEY_PUBLIC_KEY,
+    KEY_EMAIL_COUNT, KEY_EMAIL_MONTH, MONTHLY_LIMIT
+} from '../constants';
 
 interface AutomationScenario {
     id: string;
@@ -114,7 +99,7 @@ const EmailAutomationManager: React.FC = () => {
     const [serviceId, setServiceId] = useState('');
     const [templateId, setTemplateId] = useState('');
     const [publicKey, setPublicKey] = useState('');
-    const [isConfigExpanded, setIsConfigExpanded] = useState(true); // Nuevo estado para colapsar
+    const [isConfigExpanded, setIsConfigExpanded] = useState(true); 
 
     // Testing state
     const [testEmail, setTestEmail] = useState('');
@@ -155,7 +140,7 @@ const EmailAutomationManager: React.FC = () => {
 
         // Inicializar contador mensual
         const now = new Date();
-        const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`; // ej: "2024-5" para Junio
+        const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`; 
         const storedMonthKey = localStorage.getItem(KEY_EMAIL_MONTH);
         const storedCount = parseInt(localStorage.getItem(KEY_EMAIL_COUNT) || '0', 10);
 
@@ -193,7 +178,7 @@ const EmailAutomationManager: React.FC = () => {
         localStorage.setItem(KEY_PUBLIC_KEY, publicKey.trim());
         
         setToastInfo({ message: 'Credenciales guardadas correctamente.', type: 'success' });
-        setIsConfigExpanded(false); // Colapsar automáticamente al guardar
+        setIsConfigExpanded(false);
     };
 
     const handleSendTest = async () => {

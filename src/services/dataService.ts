@@ -26,7 +26,6 @@ import {
   FIELD_ESTADO_PRACTICA,
   FIELD_NOMBRE_INSTITUCIONES,
   FIELD_DIRECCION_INSTITUCIONES,
-  FIELD_NOMBRE_BUSQUEDA_PRACTICAS,
   FIELD_LEGAJO_PPS,
   FIELD_ESPECIALIDAD_PRACTICAS,
   FIELD_HORAS_PRACTICAS,
@@ -35,23 +34,24 @@ import {
   FIELD_ESTADO_PPS,
   FIELD_NOTAS_PPS,
   FIELD_ESTUDIANTE_LINK_PRACTICAS,
-  AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
   FIELD_AIRTABLE_ID,
-  FIELD_ORIENTACION_LANZAMIENTOS,
-  FIELD_HORAS_ACREDITADAS_LANZAMIENTOS
+  FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES,
+  FIELD_DNI_ESTUDIANTES,
+  FIELD_CORREO_ESTUDIANTES,
+  FIELD_TELEFONO_ESTUDIANTES
 } from '../constants';
 import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatters';
 import { lanzamientoPPSArraySchema } from '../schemas';
 import { fetchAllData } from './supabaseService';
 
-// --- MOCK DATA FOR TESTING USER ---
+// --- MOCK DATA UPDATED FOR FLAT STRUCTURE ---
 const mockStudentDetails: EstudianteFields = {
   [FIELD_LEGAJO_ESTUDIANTES]: '99999',
   [FIELD_NOMBRE_ESTUDIANTES]: 'Usuario de Prueba',
-  'Orientación Elegida': 'Clinica',
-  'DNI': 12345678,
-  'Correo': 'testing@uflo.edu.ar',
-  'Teléfono': '1122334455',
+  [FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]: 'Clinica',
+  [FIELD_DNI_ESTUDIANTES]: 12345678,
+  [FIELD_CORREO_ESTUDIANTES]: 'testing@uflo.edu.ar',
+  [FIELD_TELEFONO_ESTUDIANTES]: '1122334455',
   [FIELD_GENERO_ESTUDIANTES]: 'Otro',
 };
 
@@ -59,20 +59,20 @@ const mockPracticas: Practica[] = [
   { id: 'prac_mock_1', [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: 'Hospital Central', [FIELD_ESPECIALIDAD_PRACTICAS]: 'Clinica', [FIELD_HORAS_PRACTICAS]: 120, [FIELD_FECHA_INICIO_PRACTICAS]: '2023-08-01', [FIELD_FECHA_FIN_PRACTICAS]: '2023-12-15', [FIELD_ESTADO_PRACTICA]: 'Finalizada', [FIELD_NOTA_PRACTICAS]: '9' },
   { id: 'prac_mock_2', [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: 'Colegio San Martín', [FIELD_ESPECIALIDAD_PRACTICAS]: 'Educacional', [FIELD_HORAS_PRACTICAS]: 80, [FIELD_FECHA_INICIO_PRACTICAS]: '2024-03-01', [FIELD_FECHA_FIN_PRACTICAS]: '2024-07-15', [FIELD_ESTADO_PRACTICA]: 'En curso' },
   { id: 'prac_mock_3', [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: 'Empresa Tech Solutions', [FIELD_ESPECIALIDAD_PRACTICAS]: 'Laboral', [FIELD_HORAS_PRACTICAS]: 50, [FIELD_FECHA_INICIO_PRACTICAS]: '2024-08-01', [FIELD_FECHA_FIN_PRACTICAS]: '2024-10-01', [FIELD_ESTADO_PRACTICA]: 'Finalizada' },
-];
+] as any;
 
 const mockSolicitudes: SolicitudPPS[] = [
     { id: 'sol_mock_1', [FIELD_EMPRESA_PPS_SOLICITUD]: 'Consultora Global', [FIELD_ESTADO_PPS]: 'En conversaciones', [FIELD_ULTIMA_ACTUALIZACION_PPS]: '2024-05-20', [FIELD_NOTAS_PPS]: 'Se contactó para coordinar entrevista.' }
-];
+] as any;
 
 const mockLanzamientos: LanzamientoPPS[] = [
     { id: 'lanz_mock_1', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hogar de Ancianos "Amanecer"', [FIELD_FECHA_INICIO_LANZAMIENTOS]: '2024-09-01', [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Abierta', [FIELD_INFORME_LANZAMIENTOS]: 'http://example.com' },
     { id: 'lanz_mock_2', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Fundación "Crecer Juntos"', [FIELD_FECHA_INICIO_LANZAMIENTOS]: '2024-08-15', [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Cerrado', [FIELD_INFORME_LANZAMIENTOS]: 'http://example.com' },
-];
+] as any;
 
 const mockMyEnrollments: Convocatoria[] = [
-    { id: 'conv_mock_1', [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'Seleccionado', [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: ['lanz_mock_2'], [FIELD_NOMBRE_PPS_CONVOCATORIAS]: 'Fundación "Crecer Juntos"', [FIELD_FECHA_INICIO_CONVOCATORIAS]: '2024-08-15' },
-];
+    { id: 'conv_mock_1', [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'Seleccionado', [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: 'lanz_mock_2', [FIELD_NOMBRE_PPS_CONVOCATORIAS]: 'Fundación "Crecer Juntos"', [FIELD_FECHA_INICIO_CONVOCATORIAS]: '2024-08-15' },
+] as any;
 
 
 export const fetchStudentData = async (legajo: string): Promise<{ studentDetails: EstudianteFields | null; studentAirtableId: string | null; }> => {
@@ -90,11 +90,12 @@ export const fetchStudentData = async (legajo: string): Promise<{ studentDetails
 
   const studentRecord = records[0];
 
-  if (!studentRecord || !(studentRecord.fields as any)[FIELD_LEGAJO_ESTUDIANTES] || !(studentRecord.fields as any)[FIELD_NOMBRE_ESTUDIANTES]) {
+  if (!studentRecord) {
     return { studentDetails: null, studentAirtableId: null };
   }
   
-  return { studentDetails: studentRecord.fields as EstudianteFields, studentAirtableId: studentRecord.id };
+  // Return flat object
+  return { studentDetails: studentRecord, studentAirtableId: studentRecord.id };
 };
 
 export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
@@ -105,13 +106,11 @@ export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
   const { studentAirtableId } = await fetchStudentData(legajo);
   if (!studentAirtableId) return [];
 
-  // Filter practices linked to this student
   const records = await db.practicas.getAll({
     filterByFormula: `{${FIELD_ESTUDIANTE_LINK_PRACTICAS}} = '${studentAirtableId}'`
   });
 
-  // --- MANUAL JOIN LOGIC ---
-  // Fetch ALL launches to link names, as practices table might only have IDs
+  // --- MANUAL JOIN LOGIC ADAPTED FOR FLAT OBJECTS ---
   const launchRecords = await db.lanzamientos.getAll({
       fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_AIRTABLE_ID]
   });
@@ -119,56 +118,39 @@ export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
   const launchMap = new Map<string, string>();
   
   launchRecords.forEach(l => {
-      const name = l.fields[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-      const airtableId = l.fields[FIELD_AIRTABLE_ID];
+      const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+      const airtableId = l[FIELD_AIRTABLE_ID];
       if (name) {
-          // Map Supabase UUID -> Name
           launchMap.set(l.id, name);
-          
-          // Map Airtable ID -> Name (Critical for legacy migrated records)
           if (airtableId) {
-              const safeAirtableId = Array.isArray(airtableId) ? String(airtableId[0]) : String(airtableId);
-              launchMap.set(safeAirtableId, name);
+              launchMap.set(airtableId, name);
           }
       }
   });
 
   return records.map(r => {
-      const data = { ...(r.fields as any), id: r.id };
+      // Clone to avoid mutating source
+      const data = { ...r };
       
-      // Attempt to resolve the institution name from the linked launch
-      let linkedLaunchId: string | undefined;
-      const rawLink = data[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
-      
-      if (Array.isArray(rawLink) && rawLink.length > 0) linkedLaunchId = String(rawLink[0]);
-      else if (typeof rawLink === 'string') linkedLaunchId = rawLink;
-
+      let linkedLaunchId = data[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
       let institutionName: string | null = null;
 
-      // 1. Try to get name from linked Launch
       if (linkedLaunchId && launchMap.has(linkedLaunchId)) {
           institutionName = launchMap.get(linkedLaunchId)!;
       }
 
-      // 2. If not found via link, check the existing text field in the practice record (Legacy Name)
       if (!institutionName) {
           const currentName = data[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-          if (Array.isArray(currentName) && currentName.length > 0) {
-              institutionName = currentName[0];
-          } else if (typeof currentName === 'string' && currentName.trim() !== '') {
-              institutionName = currentName;
-          }
+          if (currentName) institutionName = currentName;
       }
 
-      // 3. Fallback if absolutely nothing found
       if (!institutionName) {
           institutionName = 'Institución desconocida';
       }
 
-      // Assign the resolved name to the field expected by UI components
-      data[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] = [institutionName];
+      data[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] = institutionName;
       
-      return data;
+      return data as Practica;
   });
 };
 
@@ -185,12 +167,13 @@ export const fetchSolicitudes = async (legajo: string, studentAirtableId: string
   
   if (!targetId) return [];
 
+  // Using the FK field directly
   const records = await db.solicitudes.getAll({ 
     filterByFormula: `{${FIELD_LEGAJO_PPS}} = '${targetId}'`,
     sort: [{ field: FIELD_ULTIMA_ACTUALIZACION_PPS, direction: 'desc' }]
   });
   
-  return records.map(r => ({ ...(r.fields as any), id: r.id }));
+  return records as SolicitudPPS[];
 };
 
 export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: string | null, isSuperUserMode: boolean): Promise<{
@@ -214,26 +197,16 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       db.instituciones.getAll()
   ]);
 
-  const myEnrollments = convocatoriasRecords
-      .filter(r => {
-          const linkedStudent = r.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-          const linkedLegajo = r.fields[FIELD_LEGAJO_CONVOCATORIAS];
+  const myEnrollments = convocatoriasRecords.filter(r => {
+          const linkedStudent = r[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+          const linkedLegajo = r[FIELD_LEGAJO_CONVOCATORIAS];
           
-          // Defensive check for both string and array formats
-          if (studentAirtableId) {
-              if (Array.isArray(linkedStudent) && linkedStudent.includes(studentAirtableId)) return true;
-              if (typeof linkedStudent === 'string' && linkedStudent === studentAirtableId) return true;
-          }
-          
-          if (Array.isArray(linkedLegajo)) {
-            const arr = linkedLegajo as unknown as any[];
-            return arr.includes(Number(legajo)) || arr.includes(legajo);
-          }
-          return String(linkedLegajo) == legajo;
-      })
-      .map(r => ({ ...(r.fields as any), id: r.id }));
+          if (studentAirtableId && linkedStudent === studentAirtableId) return true;
+          if (String(linkedLegajo) == legajo) return true;
+          return false;
+      }) as Convocatoria[];
   
-  const allLanzamientosRecords = lanzamientosRecords.map(r => ({ ...(r.fields as any), id: r.id }));
+  const allLanzamientosRecords = lanzamientosRecords as LanzamientoPPS[];
   
   const lanzamientos = allLanzamientosRecords.filter(lanzamiento => {
     const estado = normalizeStringForComparison(lanzamiento[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
@@ -242,8 +215,8 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
 
   const institutionAddressMap = new Map<string, string>();
   institutionsRecords.forEach(record => {
-      const name = record.fields[FIELD_NOMBRE_INSTITUCIONES];
-      const address = record.fields[FIELD_DIRECCION_INSTITUCIONES];
+      const name = record[FIELD_NOMBRE_INSTITUCIONES];
+      const address = record[FIELD_DIRECCION_INSTITUCIONES];
       if (name && address) {
           institutionAddressMap.set(normalizeStringForComparison(name), address);
       }
@@ -262,37 +235,28 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
     
     const convocatoriasRecords = await db.convocatorias.getAll();
     const filteredConvocatorias = convocatoriasRecords.filter(c => {
-        const state = String(c.fields[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] || '').toLowerCase();
-        const linkedIds = c.fields[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
-        
-        let isLinked = false;
-        if (Array.isArray(linkedIds)) isLinked = linkedIds.includes(lanzamientoId);
-        else if (typeof linkedIds === 'string') isLinked = linkedIds === lanzamientoId;
-
-        return state.includes('seleccionado') && isLinked;
+        const state = String(c[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] || '').toLowerCase();
+        const linkedId = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+        return state.includes('seleccionado') && linkedId === lanzamientoId;
     });
 
     if (filteredConvocatorias.length === 0) return null;
 
-    const studentIds = [...new Set(filteredConvocatorias.flatMap(c => {
-        const raw = c.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-        return Array.isArray(raw) ? raw : [raw];
-    }).filter(Boolean) as string[])];
+    const studentIds = [...new Set(filteredConvocatorias.map(c => c[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]).filter(Boolean) as string[])];
 
     if (studentIds.length === 0) return null;
 
     const studentRecords = await db.estudiantes.getAll();
-    const studentMap = new Map(studentRecords.filter(s => studentIds.includes(s.id)).map(r => [r.id, r.fields]));
+    // Now studentRecords is flat array of objects
+    const studentMap = new Map(studentRecords.filter(s => studentIds.includes(s.id)).map(r => [r.id, r]));
 
     const grouped: GroupedSeleccionados = {};
     filteredConvocatorias.forEach(convRecord => {
-        const rawStudent = convRecord.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-        const studentId = Array.isArray(rawStudent) ? rawStudent[0] : rawStudent;
-        
+        const studentId = convRecord[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
         const student = studentId ? studentMap.get(String(studentId)) : null;
         
         if (student) {
-            const horario = convRecord.fields[FIELD_HORARIO_FORMULA_CONVOCATORIAS] || 'No especificado';
+            const horario = convRecord[FIELD_HORARIO_FORMULA_CONVOCATORIAS] || 'No especificado';
             if (!grouped[horario]) grouped[horario] = [];
             grouped[horario].push({ nombre: student[FIELD_NOMBRE_ESTUDIANTES] || 'N/A', legajo: student[FIELD_LEGAJO_ESTUDIANTES] || 'N/A' });
         }
@@ -302,23 +266,14 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
         grouped[horario].sort((a, b) => a.nombre.localeCompare(b.nombre));
     }
 
-    if (Object.keys(grouped).length === 0) return null;
-
     return grouped;
 };
 
-function getLookupName(fieldValue: any): string | null {
-    if (Array.isArray(fieldValue)) return typeof fieldValue[0] === 'string' ? fieldValue[0] : null;
-    return typeof fieldValue === 'string' ? fieldValue : null;
-}
-
 function findLanzamientoForConvocatoria(convocatoria: Convocatoria, lanzamientosMap: Map<string, LanzamientoPPS>, allLanzamientos: LanzamientoPPS[]): LanzamientoPPS | undefined {
-    const rawLink = convocatoria[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
-    const linkedId = Array.isArray(rawLink) ? rawLink[0] : rawLink;
-    
-    if (linkedId && lanzamientosMap.has(String(linkedId))) return lanzamientosMap.get(String(linkedId));
+    const linkedId = convocatoria[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+    if (linkedId && lanzamientosMap.has(linkedId)) return lanzamientosMap.get(linkedId);
 
-    const convPpsName = getLookupName(convocatoria[FIELD_NOMBRE_PPS_CONVOCATORIAS]);
+    const convPpsName = convocatoria[FIELD_NOMBRE_PPS_CONVOCATORIAS];
     const convStartDate = parseToUTCDate(convocatoria[FIELD_FECHA_INICIO_CONVOCATORIAS]);
     if (!convPpsName || !convStartDate) return undefined;
 
@@ -344,12 +299,10 @@ function findLanzamientoForConvocatoria(convocatoria: Convocatoria, lanzamientos
 }
 
 function findLanzamientoForPractica(practica: Practica, allLanzamientos: LanzamientoPPS[]): LanzamientoPPS | undefined {
-    const rawLink = practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
-    const linkedId = Array.isArray(rawLink) ? rawLink[0] : rawLink;
-    
-    if (linkedId) return allLanzamientos.find(l => l.id === String(linkedId));
+    const linkedId = practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+    if (linkedId) return allLanzamientos.find(l => l.id === linkedId);
 
-    const practicaInstitucion = getLookupName(practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
+    const practicaInstitucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
     const practicaOrientacion = practica[FIELD_ESPECIALIDAD_PRACTICAS];
     const practicaFechaInicio = parseToUTCDate(practica[FIELD_FECHA_INICIO_PRACTICAS]);
     
@@ -387,12 +340,7 @@ export const processInformeTasks = (myEnrollments: Convocatoria[], practicas: Pr
     for (const enrollment of selectedEnrollments) {
         const pps = findLanzamientoForConvocatoria(enrollment, lanzamientosMap, allLanzamientos);
         if (pps && pps[FIELD_INFORME_LANZAMIENTOS] && !processedForInforme.has(pps.id)) {
-            // Find linked practice by ID if possible
-            const practica = practicas.find(p => {
-                const rawLink = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
-                const link = Array.isArray(rawLink) ? rawLink[0] : rawLink;
-                return String(link) === pps.id;
-            });
+            const practica = practicas.find(p => p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] === pps.id);
 
             informeTasks.push({
                 convocatoriaId: enrollment.id,
@@ -420,7 +368,9 @@ export const processInformeTasks = (myEnrollments: Convocatoria[], practicas: Pr
                     ppsName: pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Práctica sin nombre',
                     informeLink: pps[FIELD_INFORME_LANZAMIENTOS],
                     fechaFinalizacion: pps[FIELD_FECHA_FIN_LANZAMIENTOS] || new Date().toISOString(),
-                    informeSubido: !!(practica as any)[FIELD_INFORME_SUBIDO_CONVOCATORIAS], 
+                    // We don't have enrollment info here easily, assume uploaded if graded? 
+                    // Actually better to check if practica has a note
+                    informeSubido: !!practica[FIELD_NOTA_PRACTICAS], 
                     nota: practica[FIELD_NOTA_PRACTICAS],
                 });
                 processedForInforme.add(pps.id);
@@ -442,13 +392,6 @@ export const processInformeTasks = (myEnrollments: Convocatoria[], practicas: Pr
     return informeTasks;
 };
 
-// --- NEW FUNCTIONS FOR ENROLLMENT FLOW AUTOMATION ---
-
-/**
- * Toggles a student's selection status for a specific launch.
- * - If selecting: Updates Convocatoria to 'Seleccionado'. Database trigger automatically creates the Practice.
- * - If unselecting: Updates Convocatoria to 'Inscripto'. Database trigger automatically deletes the Practice.
- */
 export const toggleStudentSelection = async (
     convocatoriaId: string,
     isSelecting: boolean,
@@ -458,10 +401,7 @@ export const toggleStudentSelection = async (
     const newStatus = isSelecting ? 'Seleccionado' : 'Inscripto';
 
     try {
-        // 1. Update Convocatoria Status. 
-        // The Database Trigger 'handle_seleccion_alumno' automatically creates/deletes the practice record.
-        await db.convocatorias.update(convocatoriaId, { estadoInscripcion: newStatus });
-        
+        await db.convocatorias.update(convocatoriaId, { [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: newStatus });
         return { success: true };
     } catch (error: any) {
         console.error("Error updating selection:", error);
@@ -469,17 +409,8 @@ export const toggleStudentSelection = async (
     }
 };
 
-/**
- * Automates the closing of practices.
- * Runs a check for all practices with status 'En curso' where the end date has passed.
- * Updates them to 'Finalizada'.
- * 
- * REVISED: Now performs safe client-side filtering to avoid mass updates due to filter incompatibilities.
- */
 export const autoCloseExpiredPractices = async (): Promise<number> => {
     try {
-        // 1. Fetch ONLY practices that are marked 'En curso'.
-        // The supabaseService filter translator handles simple equality {Field} = 'Value' reliably.
         const activePractices = await db.practicas.getAll({
             filterByFormula: `{${FIELD_ESTADO_PRACTICA}} = 'En curso'`
         });
@@ -487,18 +418,15 @@ export const autoCloseExpiredPractices = async (): Promise<number> => {
         if (activePractices.length === 0) return 0;
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
+        today.setHours(0, 0, 0, 0);
 
         const expiredUpdates: { id: string; fields: Partial<PracticaFields> }[] = [];
 
-        // 2. Filter manually in JavaScript for safety and precision with dates.
         for (const practice of activePractices) {
-            const endDateStr = practice.fields[FIELD_FECHA_FIN_PRACTICAS];
-            if (!endDateStr) continue; // Skip if no end date
+            const endDateStr = practice[FIELD_FECHA_FIN_PRACTICAS];
+            if (!endDateStr) continue;
 
             const endDate = parseToUTCDate(endDateStr);
-            
-            // If valid date and strictly before today
             if (endDate && endDate < today) {
                 expiredUpdates.push({
                     id: practice.id,
@@ -508,11 +436,8 @@ export const autoCloseExpiredPractices = async (): Promise<number> => {
         }
 
         if (expiredUpdates.length === 0) return 0;
-
-        // 3. Perform updates
-        await db.practicas.updateMany(expiredUpdates as any);
+        await db.practicas.updateMany(expiredUpdates);
         
-        console.log(`Auto-closed ${expiredUpdates.length} expired practices.`);
         return expiredUpdates.length;
 
     } catch (error) {
