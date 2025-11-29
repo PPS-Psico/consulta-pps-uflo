@@ -1,8 +1,6 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES } from '../constants';
 import Toast from './Toast';
 
 interface ChangePasswordModalProps {
@@ -10,7 +8,7 @@ interface ChangePasswordModalProps {
 }
 
 const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => {
-    const { authenticatedUser } = useAuth();
+    const { completePasswordChange } = useAuth();
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -28,29 +26,51 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
             return;
         }
 
+        if (newPassword.length < 6) {
+            setError('La contraseña debe tener al menos 6 caracteres.');
+            return;
+        }
+
         setIsLoading(true);
         try {
-            // 1. Update Auth Password
+            // 1. Actualizar contraseña en Sistema de Autenticación (Supabase Auth)
             const { error: updateError } = await (supabase.auth as any).updateUser({ password: newPassword });
             if (updateError) throw updateError;
 
-            // 2. Update Database Flag
-            const { error: dbError } = await supabase
-                .from('estudiantes')
-                .update({ [FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES]: false })
-                .eq('id', authenticatedUser?.id);
+            // 2. Sincronizar "banderita" en la Base de Datos (Tabla estudiantes)
+            // Intentamos primero por RPC (más seguro/admin)
+            const { error: rpcError } = await supabase.rpc('mark_password_changed');
 
-            if (dbError) throw dbError;
+            // Si el RPC falla (a veces por permisos o caché), intentamos actualización directa
+            if (rpcError) {
+                console.warn("RPC mark_password_changed falló, intentando update directo...", rpcError);
+                
+                const { data: userData } = await supabase.auth.getUser();
+                if (userData.user) {
+                    const { error: directError } = await supabase
+                        .from('estudiantes')
+                        .update({ must_change_password: false })
+                        .eq('user_id', userData.user.id);
+                    
+                    if (directError) {
+                        console.error("Fallo crítico al actualizar estado en DB:", directError);
+                        // No lanzamos error aquí para no bloquear al usuario, ya que el Auth sí se actualizó.
+                        // El estado local lo salvará por esta sesión.
+                    }
+                }
+            }
 
             setToastInfo({ message: 'Contraseña actualizada correctamente.', type: 'success' });
             
-            // Reload to refresh auth context and close modal
-            setTimeout(() => window.location.reload(), 1500);
+            // 3. Actualizar estado local inmediatamente (SIN RECARGAR)
+            // Esto cierra el modal y permite al usuario seguir usando la app.
+            setTimeout(() => {
+                completePasswordChange();
+            }, 1500);
 
         } catch (e: any) {
             setError(e.message || 'Error al actualizar la contraseña.');
-        } finally {
-            setIsLoading(false);
+            setIsLoading(false); // Solo detenemos carga si hubo error en el paso 1
         }
     };
 
@@ -64,7 +84,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
                     </div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Cambio de Contraseña Requerido</h2>
                     <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">
-                        Por mejoras internas de seguridad es necesario que coloque una nueva contraseña (puede ser la misma que tenía antes).
+                        Por seguridad, necesitamos que definas una nueva contraseña personal para unificar el acceso a tu panel.
                     </p>
                 </div>
 
@@ -76,8 +96,9 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
                             value={newPassword}
                             onChange={e => setNewPassword(e.target.value)}
                             className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Ingresa tu nueva contraseña"
+                            placeholder="Mínimo 6 caracteres"
                             required
+                            minLength={6}
                         />
                     </div>
                     <div>
@@ -89,6 +110,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
                             className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="Repite la contraseña"
                             required
+                            minLength={6}
                         />
                     </div>
 
@@ -103,7 +125,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
                         disabled={isLoading}
                         className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                        {isLoading ? 'Actualizando...' : 'Establecer Contraseña'}
+                        {isLoading ? <><div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/><span>Guardando...</span></> : 'Establecer Contraseña'}
                     </button>
                 </form>
             </div>

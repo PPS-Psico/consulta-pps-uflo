@@ -141,8 +141,6 @@ const HomeView: React.FC<HomeViewProps> = ({
     institutionAddressMap, 
     enrollmentMap, 
     completedLanzamientoIds, 
-    informeTasks, 
-    onNavigate,
     criterios,
     onOpenFinalization
 }) => {
@@ -248,30 +246,12 @@ const HomeView: React.FC<HomeViewProps> = ({
             startFilterDate.setDate(today.getDate() + 1);
         }
 
-        return allPracticeEvents.filter(e => e.date >= startFilterDate).slice(0, 3);
+        return allPracticeEvents.filter(e => e.date >= startFilterDate).slice(0, 4); // Show up to 4 events now that we have more space
     }, [allPracticeEvents, nextPracticeForTodayOrTomorrow]);
 
-
-    const reportReminders = useMemo(() => {
-        const now = new Date();
-        const eightDaysFromNow = new Date();
-        eightDaysFromNow.setDate(now.getDate() + 8);
-
-        return informeTasks.filter(task => {
-            if (task.informeSubido) return false;
-            const finalizacionDate = parseToUTCDate(task.fechaFinalizacion);
-            if (!finalizacionDate) return false;
-            
-            const deadline = new Date(finalizacionDate);
-            deadline.setDate(deadline.getDate() + 30);
-            
-            return deadline <= eightDaysFromNow;
-        });
-    }, [informeTasks]);
-    
     const canFinalize = criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion;
 
-    if (lanzamientos.length === 0 && allPracticeEvents.length === 0 && reportReminders.length === 0 && !canFinalize) {
+    if (lanzamientos.length === 0 && allPracticeEvents.length === 0 && !canFinalize) {
         return <EmptyState icon="home" title="Todo Tranquilo" message="No tienes actividades pendientes ni hay convocatorias abiertas en este momento."/>;
     }
 
@@ -282,11 +262,11 @@ const HomeView: React.FC<HomeViewProps> = ({
                 <FinalizationReadyCard onClick={onOpenFinalization} />
             )}
 
-            {/* BENTO GRID LAYOUT */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Layout ajustado a columna completa al eliminar alertas */}
+            <div className="space-y-6">
                 
-                {/* COL 1 & 2: Next Practice (Hero) */}
-                <div className="lg:col-span-2 space-y-6">
+                {/* Próxima Práctica (Hero) */}
+                <div>
                     {nextPracticeForTodayOrTomorrow ? (
                         <NextPracticeCard 
                             event={nextPracticeForTodayOrTomorrow.event} 
@@ -306,51 +286,19 @@ const HomeView: React.FC<HomeViewProps> = ({
                             </div>
                         </Card>
                     )}
-
-                    {/* Upcoming Practices List */}
-                    {upcomingEvents.length > 0 && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 ml-1">Próximas Fechas</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {upcomingEvents.map(({date, event}) => (
-                                    <UpcomingPracticeItem key={`${event.id}-${date.toISOString()}`} event={event} date={date} />
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
 
-                {/* COL 3: Alerts & Notifications */}
-                <div className="space-y-6">
-                    {reportReminders.length > 0 && (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-5 shadow-sm animate-pulse-glow-success">
-                            <div className="flex items-center gap-2 mb-4 text-amber-800 dark:text-amber-200">
-                                <span className="material-icons">priority_high</span>
-                                <h3 className="font-bold">Recordatorio de Informe</h3>
-                            </div>
-                            <div className="space-y-3">
-                                {reportReminders.map(task => {
-                                    const deadline = new Date(parseToUTCDate(task.fechaFinalizacion)!.getTime() + 30 * 24 * 60 * 60 * 1000);
-                                    const daysLeft = Math.ceil((deadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                                    
-                                    return (
-                                     <div key={task.convocatoriaId} className="block p-3 rounded-xl bg-white dark:bg-slate-800 border border-amber-200/60 dark:border-amber-800/60">
-                                        <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{task.ppsName}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-2">
-                                            Fecha límite: <span className="font-semibold">{formatDate(deadline.toISOString())}</span>
-                                        </p>
-                                        <p className={`text-xs font-bold ${daysLeft <= 3 ? 'text-red-600' : 'text-amber-600'}`}>
-                                            {daysLeft <= 0 ? '¡Plazo Vencido!' : `Quedan ${daysLeft} días para entregar`}
-                                        </p>
-                                    </div>
-                                )})}
-                            </div>
-                            <p className="text-xs text-amber-800/70 dark:text-amber-200/70 mt-4 italic">
-                                Recuerda enviar tu informe a través del campus virtual.
-                            </p>
+                {/* Upcoming Practices List */}
+                {upcomingEvents.length > 0 && (
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 ml-1">Próximas Fechas</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {upcomingEvents.map(({date, event}) => (
+                                <UpcomingPracticeItem key={`${event.id}-${date.toISOString()}`} event={event} date={date} />
+                            ))}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* SECTION: Open Convocatorias */}

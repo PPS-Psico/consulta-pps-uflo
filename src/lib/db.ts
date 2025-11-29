@@ -103,7 +103,8 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
 export const getStudentLoginInfo = async (legajo: string): Promise<{ email: string } | null> => {
     try {
         // SECURITY CRITICAL: Use RPC to bypass RLS securely for this specific lookup.
-        const { data: email, error } = await supabase.rpc('get_student_email_by_legajo', { 
+        // data is the JSON object returned by postgres function: { "email": "user@example.com" }
+        const { data, error } = await supabase.rpc('get_student_email_by_legajo', { 
             legajo_input: legajo 
         });
             
@@ -112,9 +113,13 @@ export const getStudentLoginInfo = async (legajo: string): Promise<{ email: stri
             return null;
         }
         
-        if (!email) return null;
+        // Validate data structure
+        if (!data || typeof data !== 'object' || !('email' in data)) {
+             return null;
+        }
         
-        return { email };
+        // Return exactly { email: "string" }
+        return { email: String(data.email) };
     } catch (error) {
         console.error("Error fetching student login info:", error);
         return null;
