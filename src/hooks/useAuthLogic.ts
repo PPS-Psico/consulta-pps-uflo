@@ -1,21 +1,23 @@
-
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { getStudentLoginInfo } from '../lib/db';
+import { getStudentLoginInfo, db } from '../lib/db';
 import { 
-    FIELD_DNI_ESTUDIANTES, FIELD_FECHA_NACIMIENTO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_TELEFONO_ESTUDIANTES
+    FIELD_DNI_ESTUDIANTES, FIELD_FECHA_NACIMIENTO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_TELEFONO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES
 } from '../constants';
 import type { EstudianteFields, AirtableRecord } from '../types';
 import type { AuthUser } from '../contexts/AuthContext';
 
 
 interface UseAuthLogicProps {
-    login: (user: AuthUser, rememberMe?: boolean) => void;
+    login: (user: AuthUser) => void;
     showModal: (title: string, message: string) => void;
 }
 
 export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
     const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
+    // Nuevo estado para controlar el paso del reset: 'verify' (DNI/Mail) o 'setPassword' (Nueva pass)
+    const [resetStep, setResetStep] = useState<'verify' | 'setPassword'>('verify');
+    
     const [legajo, setLegajo] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -36,6 +38,8 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         setError(null);
         setPassword('');
         setConfirmPassword('');
+        setResetStep('verify'); // Resetear al paso 1 al cambiar de modo
+        setVerificationData({ dni: '', correo: '', telefono: '' });
     };
 
     const handleModeChange = (newMode: 'login' | 'register' | 'forgot' | 'reset') => {
@@ -70,19 +74,19 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         
         // --- Preview/Testing User Logic (Bypasses Supabase) ---
         if (legajoTrimmed === 'testing' && passwordTrimmed === 'testing') {
-            login({ legajo: '99999', nombre: 'Usuario de Prueba', role: 'AdminTester' }, rememberMe);
+            login({ legajo: '99999', nombre: 'Usuario de Prueba', role: 'AdminTester' });
             return;
         }
         if (legajoTrimmed === '12345' && passwordTrimmed === '12345') {
-            login({ legajo: '12345', nombre: 'Estudiante de Prueba' }, rememberMe);
+            login({ legajo: '12345', nombre: 'Estudiante de Prueba' });
             return;
         }
         if (legajoTrimmed === 'reportero' && passwordTrimmed === 'reportero') {
-            login({ legajo: 'reportero', nombre: 'Usuario Reportero', role: 'Reportero' }, rememberMe);
+            login({ legajo: 'reportero', nombre: 'Usuario Reportero', role: 'Reportero' });
             return;
         }
         if (legajoTrimmed === 'admin' && passwordTrimmed === 'superadmin' && mode === 'login') {
-            login({ legajo: 'admin', nombre: 'Super Usuario', role: 'SuperUser' }, rememberMe);
+            login({ legajo: 'admin', nombre: 'Super Usuario', role: 'SuperUser' });
             return;
         }
 
@@ -93,16 +97,12 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             try {
                 if (!legajoTrimmed || !passwordTrimmed) throw new Error('Por favor, completa todos los campos.');
 
-                // 1. CRÍTICO: Obtener el email asociado al legajo desde la base de datos pública
-                // Esto permite que el usuario escriba su Legajo, pero el sistema use el Email para Auth.
                 const loginInfo = await getStudentLoginInfo(legajoTrimmed);
 
                 if (!loginInfo || !loginInfo.email) {
                      throw new Error('No encontramos una cuenta asociada a este legajo. Si es tu primera vez, contacta a soporte.');
                 }
 
-                // 2. Autenticar con Supabase usando el email recuperado y la contraseña ingresada
-                // Cast as any para evitar problemas de tipado con versiones viejas de la lib
                 const { error: signInError } = await (supabase.auth as any).signInWithPassword({
                     email: loginInfo.email,
                     password: passwordTrimmed,
@@ -110,12 +110,15 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                 if (signInError) {
                     if (signInError.message.includes('Invalid login credentials')) {
-                        throw new Error('Contraseña incorrecta. Si es tu primera vez, intenta ingresar usando tu DNI como contraseña.');
+                        // Instead of showing an error, switch to reset mode
+                        setMode('reset');
+                        setResetStep('verify');
+                        // Not pre-filling to force verification
+                    } else {
+                        throw signInError;
                     }
-                    throw signInError;
                 }
-                
-                // El AuthProvider detectará el cambio de sesión automáticamente
+                // AuthProvider will handle successful login
                 
             } catch (err: any) {
                 console.error("Login error:", err);
@@ -123,19 +126,87 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             } finally {
                 setIsLoading(false);
             }
+        } else if (mode === 'reset') {
+            try {
+                // PASO 1: VERIFICAR IDENTIDAD
+                if (resetStep === 'verify') {
+                    if (!verificationData.dni || !verificationData.correo) {
+                        throw new Error("Por favor completa DNI y Correo.");
+                    }
+
+                    const [studentData] = await db.estudiantes.get({ filterByFormula: `{${FIELD_LEGAJO_ESTUDIANTES}} = '${legajoTrimmed}'`});
+                    if (!studentData) throw new Error("No se pudo encontrar el estudiante para verificar.");
+
+                    const isDniMatch = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim() === verificationData.dni.trim();
+                    const isEmailMatch = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase() === verificationData.correo.trim().toLowerCase();
+                    
+                    if (!isDniMatch || !isEmailMatch) {
+                        throw new Error("Los datos de verificación (DNI y Correo) no coinciden con nuestros registros.");
+                    }
+
+                    // Si todo coincide, avanzamos al paso 2
+                    setResetStep('setPassword');
+                    setIsLoading(false);
+                    return; 
+                }
+
+                // PASO 2: ACTUALIZAR CONTRASEÑA
+                if (resetStep === 'setPassword') {
+                    if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
+                    
+                    const [studentData] = await db.estudiantes.get({ filterByFormula: `{${FIELD_LEGAJO_ESTUDIANTES}} = '${legajoTrimmed}'`});
+                    if (!studentData || !studentData[FIELD_USER_ID_ESTUDIANTES]) throw new Error("Error de sesión. Intenta de nuevo.");
+
+                    const email = verificationData.correo.trim().toLowerCase();
+                    const dniAsPassword = String(verificationData.dni).trim();
+
+                    const { data: signInData, error: signInError } = await (supabase.auth as any).signInWithPassword({
+                        email: email,
+                        password: dniAsPassword,
+                    });
+
+                    if (signInError || !signInData.session) {
+                        console.error("Fallo login con DNI:", signInError);
+                        throw new Error("No pudimos validar tu identidad con el DNI como contraseña temporal. Es posible que ya hayas cambiado tu contraseña antes. Si no la recuerdas, contacta a soporte administrativo.");
+                    }
+
+                    const { error: updatePassError } = await (supabase.auth as any).updateUser({
+                        password: password
+                    });
+
+                    if (updatePassError) throw updatePassError;
+
+                    // Set flag to prevent race condition in onAuthStateChange
+                    sessionStorage.setItem('__password_reset_in_progress', 'true');
+                    
+                    // Manually log in the user with the correct, updated data.
+                    login({
+                        id: studentData[FIELD_USER_ID_ESTUDIANTES],
+                        legajo: studentData[FIELD_LEGAJO_ESTUDIANTES],
+                        nombre: studentData[FIELD_NOMBRE_ESTUDIANTES],
+                        orientaciones: studentData[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [studentData[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
+                    });
+                }
+
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
         } else {
-            // Registration and reset are currently disabled
+            // Registration is currently disabled
             setIsLoading(false);
         }
     };
 
     const handleForgotLegajoSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setError("La recuperación de contraseña no está habilitada en esta fase de la migración.");
+        setMode('reset');
     };
     
     return {
         mode, setMode: handleModeChange,
+        resetStep,
         legajo, setLegajo,
         password, setPassword,
         confirmPassword, setConfirmPassword,

@@ -5,7 +5,7 @@ import AdminSearch from '../../components/AdminSearch';
 import PenalizationManager from '../../components/PenalizationManager';
 import { useModal } from '../../contexts/ModalContext';
 import type { AirtableRecord, EstudianteFields } from '../../types';
-import AirtableEditor from '../../components/AirtableEditor';
+import DatabaseEditor from '../../components/DatabaseEditor';
 import Loader from '../../components/Loader';
 import EmailAutomationManager from '../../components/EmailAutomationManager';
 import NuevosConvenios from '../../components/NuevosConvenios'; // Imported
@@ -37,7 +37,7 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
       <div className="mt-6">
         <Suspense fallback={<div className="flex justify-center p-8"><Loader /></div>}>
           
-          {activeTabId === 'editor-db' && <AirtableEditor isTestingMode={isTestingMode} />}
+          {activeTabId === 'editor-db' && <DatabaseEditor isTestingMode={isTestingMode} />}
           
           {activeTabId === 'convenios' && <NuevosConvenios isTestingMode={isTestingMode} />}
 

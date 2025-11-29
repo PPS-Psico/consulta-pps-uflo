@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,10 +23,6 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
         e.preventDefault();
         setError(null);
         
-        if (newPassword.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres.');
-            return;
-        }
         if (newPassword !== confirmPassword) {
             setError('Las contraseñas no coinciden.');
             return;
@@ -69,7 +64,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
                     </div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Cambio de Contraseña Requerido</h2>
                     <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">
-                        Por seguridad, debes establecer una nueva contraseña personal para continuar accediendo a tu panel.
+                        Por mejoras internas de seguridad es necesario que coloque una nueva contraseña (puede ser la misma que tenía antes).
                     </p>
                 </div>
 
@@ -81,7 +76,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen }) => 
                             value={newPassword}
                             onChange={e => setNewPassword(e.target.value)}
                             className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Mínimo 6 caracteres"
+                            placeholder="Ingresa tu nueva contraseña"
                             required
                         />
                     </div>

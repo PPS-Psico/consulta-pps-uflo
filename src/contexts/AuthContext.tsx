@@ -1,11 +1,9 @@
-
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
     FIELD_LEGAJO_ESTUDIANTES, 
     FIELD_NOMBRE_ESTUDIANTES, 
     FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES,
-    FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES,
     FIELD_USER_ID_ESTUDIANTES
 } from '../constants';
 
@@ -15,7 +13,6 @@ export type AuthUser = {
   nombre: string;
   role?: 'Jefe' | 'SuperUser' | 'Directivo' | 'AdminTester' | 'Reportero';
   orientaciones?: string[];
-  mustChangePassword?: boolean;
 };
 
 interface AuthContextType {
@@ -26,7 +23,7 @@ interface AuthContextType {
   isAdminTesterMode: boolean;
   isReporteroMode: boolean;
   isAuthLoading: boolean;
-  login: (user: AuthUser, rememberMe?: boolean) => void;
+  login: (user: AuthUser) => void;
   logout: () => void;
 }
 
@@ -38,30 +35,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const fetchSessionAndProfile = async () => {
-        const { data: { session } } = await (supabase.auth as any).getSession();
+        console.log("AUTH: Iniciando verificación de sesión...");
+        const { data: { session }, error: sessionError } = await (supabase.auth as any).getSession();
+        
+        if (sessionError) {
+            console.error("AUTH: Error obteniendo sesión:", sessionError);
+        }
 
         if (session?.user) {
-            // Query public table to get user details matching the Auth User ID
+            console.log("AUTH: Sesión activa encontrada.", { auth_user_id: session.user.id, email: session.user.email });
+
             const { data: profile, error } = await supabase
                 .from('estudiantes')
-                .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}`) 
+                .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}`) 
                 .eq(FIELD_USER_ID_ESTUDIANTES, session.user.id) 
+                .limit(1)
                 .single();
             
-            if (profile && !error) {
+            if (error) {
+                 console.error("AUTH CRITICAL: Error buscando perfil en tabla 'estudiantes'.", error);
+            }
+
+            if (profile) {
+                console.log("AUTH: Perfil encontrado y vinculado correctamente.", profile);
                 setAuthenticatedUser({
                     id: session.user.id,
                     legajo: profile[FIELD_LEGAJO_ESTUDIANTES],
                     nombre: profile[FIELD_NOMBRE_ESTUDIANTES],
-                    // Role handling would go here if added to public table
                     orientaciones: profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
-                    mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES] || false
                 });
             } else {
-                 console.error("AUTH ERROR: Sesión activa pero perfil no encontrado.", { uid: session.user.id, error });
-                 // If we have a session but no profile link, something is wrong with the data linkage
+                 console.error("AUTH ERROR: Usuario autenticado pero NO VINCULADO en tabla pública. user_id no coincide o no existe.", { auth_id: session.user.id });
                  await (supabase.auth as any).signOut();
             }
+        } else {
+            console.log("AUTH: No hay sesión activa.");
         }
         setIsAuthLoading(false);
     };
@@ -69,13 +77,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     fetchSessionAndProfile();
 
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(
-      async (_event: any, session: any) => {
+      async (event: string, session: any) => {
+        console.log(`AUTH EVENT: ${event}`);
+
+        const isResetting = sessionStorage.getItem('__password_reset_in_progress');
+        if (isResetting) {
+            sessionStorage.removeItem('__password_reset_in_progress');
+            console.log("AUTH: Ignorando evento post-reseteo para evitar race condition.");
+            return;
+        }
+        
         setIsAuthLoading(true);
         if (session?.user) {
             const { data: profile, error } = await supabase
                 .from('estudiantes')
-                .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}`)
+                .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}`)
                 .eq(FIELD_USER_ID_ESTUDIANTES, session.user.id) 
+                .limit(1)
                 .single();
 
             if (profile && !error) {
@@ -84,13 +102,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     legajo: profile[FIELD_LEGAJO_ESTUDIANTES],
                     nombre: profile[FIELD_NOMBRE_ESTUDIANTES],
                     orientaciones: profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
-                    mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES] || false
                 });
             } else {
-                console.error("AUTH CHANGE ERROR: Perfil no vinculado.", { uid: session.user.id, error });
+                console.error("AUTH CHANGE ERROR: Perfil no vinculado en cambio de estado.", { uid: session.user.id, error });
                 setAuthenticatedUser(null);
-                // Force signout to avoid infinite loading loops if data is corrupted
-                await (supabase.auth as any).signOut();
+                if (event !== 'SIGNED_OUT') {
+                    await (supabase.auth as any).signOut();
+                }
             }
         } else {
             setAuthenticatedUser(null);
@@ -102,16 +120,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = useCallback((user: AuthUser, rememberMe = false) => {
+  const login = useCallback((user: AuthUser) => {
     setAuthenticatedUser(user);
-    const storage = rememberMe ? localStorage : sessionStorage;
-    storage.setItem('authenticatedUser', JSON.stringify(user));
   }, []);
 
   const logout = useCallback(async () => {
-    sessionStorage.removeItem('authenticatedUser');
-    localStorage.removeItem('authenticatedUser');
-    
     const { error } = await (supabase.auth as any).signOut();
     if (error) console.error("Error logging out:", error.message);
     setAuthenticatedUser(null);

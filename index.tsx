@@ -26,7 +26,10 @@ root.render(
 );
 
 // Service Worker Registration
-if ('serviceWorker' in navigator) {
+// Only register in production to avoid origin mismatch errors in preview environments
+// Safe check for import.meta.env to prevent runtime errors if env is not fully polyfilled
+const meta = import.meta as any;
+if (meta.env && meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     // In this environment, an absolute path based on the app's base path is required
     // to avoid cross-origin errors during service worker registration.

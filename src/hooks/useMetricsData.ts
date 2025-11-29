@@ -1,12 +1,9 @@
-
-
-
 import { useQuery } from '@tanstack/react-query';
 import {
-    AIRTABLE_TABLE_NAME_ESTUDIANTES,
-    AIRTABLE_TABLE_NAME_PRACTICAS,
-    AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
-    AIRTABLE_TABLE_NAME_INSTITUCIONES,
+    TABLE_NAME_ESTUDIANTES,
+    TABLE_NAME_PRACTICAS,
+    TABLE_NAME_LANZAMIENTOS_PPS,
+    TABLE_NAME_INSTITUCIONES,
     FIELD_LEGAJO_ESTUDIANTES,
     FIELD_NOMBRE_ESTUDIANTES,
     FIELD_FECHA_INICIO_LANZAMIENTOS,
@@ -24,7 +21,7 @@ import {
     FIELD_FECHA_FINALIZACION_ESTUDIANTES,
     FIELD_FINALIZARON_ESTUDIANTES,
 } from '../constants';
-import { fetchAllAirtableData } from '../services/airtableService';
+import { fetchAllData } from '../services/supabaseService';
 import { parseToUTCDate, formatDate, normalizeStringForComparison } from '../utils/formatters';
 import type { EstudianteFields, PracticaFields, LanzamientoPPSFields, InstitucionFields, AirtableRecord, StudentInfo, TimelineMonthData } from '../types';
 import { estudianteArraySchema, institucionArraySchema, lanzamientoPPSArraySchema, practicaArraySchema } from '../schemas';
@@ -109,10 +106,10 @@ const processLaunchesForYear = (
 
 const fetchAllDataForReport = async () => {
     const [estudiantesRes, practicasRes, lanzamientosRes, institucionesRes] = await Promise.all([
-        fetchAllAirtableData<EstudianteFields>(AIRTABLE_TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES, FIELD_FECHA_FINALIZACION_ESTUDIANTES]),
-        fetchAllAirtableData<PracticaFields>(AIRTABLE_TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_FECHA_FIN_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_ESPECIALIDAD_PRACTICAS]),
-        fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ORIENTACION_LANZAMIENTOS]),
-        fetchAllAirtableData<InstitucionFields>(AIRTABLE_TABLE_NAME_INSTITUCIONES, institucionArraySchema, [FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_NOMBRE_INSTITUCIONES])
+        fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES, FIELD_FECHA_FINALIZACION_ESTUDIANTES]),
+        fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_FECHA_FIN_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_ESPECIALIDAD_PRACTICAS]),
+        fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ORIENTACION_LANZAMIENTOS]),
+        fetchAllData<InstitucionFields>(TABLE_NAME_INSTITUCIONES, institucionArraySchema, [FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_NOMBRE_INSTITUCIONES])
     ]);
 
     const error = estudiantesRes.error || practicasRes.error || lanzamientosRes.error || institucionesRes.error;

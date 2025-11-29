@@ -145,7 +145,10 @@ async function pushToSupabase(tableName, records, mapperFn) {
         if (existingData) existingData.forEach(r => existingRecordsMap.set(r.airtable_id, r));
     }
 
+    // Set para deduplicación
+    const seenKeys = new Set();
     const mappedRecords = [];
+
     for (let i = 0; i < records.length; i++) {
         const rec = records[i];
         try {
@@ -156,6 +159,32 @@ async function pushToSupabase(tableName, records, mapperFn) {
                 mapped = mapperFn(rec.fields, rec.id); // Pasamos ID para cacheo
             }
             
+            // Lógica de deduplicación para estudiantes (Legajo único)
+            if (tableName === 'estudiantes') {
+                const legajo = mapped.legajo ? String(mapped.legajo).trim() : null;
+                if (legajo) {
+                    if (seenKeys.has(legajo)) {
+                        console.warn(`   ⚠️ Saltando estudiante duplicado (Legajo: ${legajo}, ID Airtable: ${rec.id})`);
+                        continue; // Saltar este registro
+                    }
+                    seenKeys.add(legajo);
+                }
+            }
+            // Lógica de deduplicación para convocatorias (Estudiante + Lanzamiento único)
+            else if (tableName === 'convocatorias') {
+                const estId = mapped.estudiante_id;
+                const lanzId = mapped.lanzamiento_id;
+                
+                if (estId && lanzId) {
+                    const compositeKey = `${estId}_${lanzId}`;
+                    if (seenKeys.has(compositeKey)) {
+                         console.warn(`   ⚠️ Saltando inscripción duplicada en Airtable (ID: ${rec.id})`);
+                         continue;
+                    }
+                    seenKeys.add(compositeKey);
+                }
+            }
+
             mapped.airtable_id = rec.id;
             mappedRecords.push(mapped);
             if (i > 0 && i % 10 === 0) process.stdout.write(` ${i}`);
@@ -258,8 +287,7 @@ const mapConvocatoria = (f) => {
         direccion: lanzamientoData.direccion || null,
         orientacion: lanzamientoData.orientacion || null,
         horas_acreditadas: lanzamientoData.horas_acreditadas || null,
-        cupos_disponibles: lanzamientoData.cupos_disponibles || null,
-
+        
         legajo: estudianteData.legajo || null,
         dni: estudianteData.dni || null,
         correo: estudianteData.correo || null,

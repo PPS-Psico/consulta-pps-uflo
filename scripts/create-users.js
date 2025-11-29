@@ -28,7 +28,7 @@ async function getAllAuthUsers() {
     const perPage = 1000;
     let hasMore = true;
 
-    console.log("🔍 [1/4] Obteniendo usuarios existentes de Auth...");
+    console.log("🔍 [1/3] Obteniendo usuarios de Auth (Sistema de Login)...");
     
     while (hasMore) {
         const { data: { users }, error } = await supabase.auth.admin.listUsers({
@@ -48,19 +48,19 @@ async function getAllAuthUsers() {
             page++;
         }
     }
-    console.log(`   -> ${allUsers.length} usuarios encontrados en Auth.`);
+    console.log(`   -> ${allUsers.length} usuarios en Auth.`);
     return allUsers;
 }
 
-async function createUsers() {
-    console.log("🚀 Iniciando proceso de reparación de usuarios...");
+async function createAndVerifyUsers() {
+    console.log("🚀 INICIANDO DIAGNÓSTICO Y REPARACIÓN DE USUARIOS...");
 
-    // 1. Obtener mapa de usuarios Auth existentes (Email -> ID)
+    // 1. Obtener usuarios Auth
     const existingAuthUsers = await getAllAuthUsers();
     const authMap = new Map(existingAuthUsers.map(u => [u.email.toLowerCase(), u.id]));
 
-    // 2. Obtener todos los estudiantes de la tabla pública
-    console.log("🔍 [2/4] Leyendo tabla 'estudiantes'...");
+    // 2. Obtener estudiantes DB
+    console.log("🔍 [2/3] Obteniendo estudiantes de la Base de Datos (Tabla Pública)...");
     const { data: students, error: fetchError } = await supabase
         .from('estudiantes')
         .select('id, legajo, dni, correo, nombre, user_id')
@@ -71,122 +71,92 @@ async function createUsers() {
         return;
     }
 
-    console.log(`   -> ${students.length} estudiantes encontrados.`);
-    console.log("⚙️  [3/4] Procesando vinculaciones y contraseñas...");
+    console.log(`   -> ${students.length} estudiantes en DB.`);
+    console.log("⚙️  [3/3] Procesando vinculaciones...");
 
-    let createdCount = 0;
-    let updatedCount = 0;
-    let linkedCount = 0;
-    let errorCount = 0;
+    const report = [];
 
-    // 3. Iterar y procesar
-    for (let i = 0; i < students.length; i++) {
-        const student = students[i];
-        
-        // Barra de progreso simple
-        if (i % 10 === 0) process.stdout.write(".");
-
+    for (const student of students) {
         const email = student.correo.trim().toLowerCase();
-        const password = String(student.dni).trim(); 
-        
+        let password = String(student.dni).trim(); 
+
+        // Validación básica
         if (!email || password.length < 6) {
-            // DNI menor a 6 caracteres o sin mail
+            report.push({ legajo: student.legajo, email, status: 'SKIP (Datos inválidos)' });
             continue;
         }
 
-        let userId = authMap.get(email);
+        let authId = authMap.get(email);
+        let status = '';
 
-        if (userId) {
-            // === CASO A: El usuario YA EXISTE en Auth ===
-            // Acciones: 
-            // 1. Forzar cambio de contraseña al DNI actual (por si era vieja).
-            // 2. Asegurar que student.user_id sea igual a userId.
+        try {
+            if (authId) {
+                // --- EL USUARIO YA EXISTE EN AUTH ---
+                status = 'Auth Existe. ';
+                
+                // 1. Forzar contraseña al DNI (por si estaba vieja)
+                const { error: updateError } = await supabase.auth.admin.updateUserById(
+                    authId,
+                    { password: password, email_confirm: true }
+                );
+                
+                if (updateError) status += `Pass Error: ${updateError.message}. `;
+                else status += `Pass OK. `;
 
-            // Paso 1: Actualizar contraseña
-            const { error: updateAuthError } = await supabase.auth.admin.updateUserById(
-                userId,
-                { password: password, email_confirm: true }
-            );
-
-            if (updateAuthError) {
-                console.error(`\n❌ Error pass ${student.legajo}: ${updateAuthError.message}`);
-                errorCount++;
-            } else {
-                updatedCount++;
-            }
-
-            // Paso 2: Verificar y Reparar Vínculo en DB Pública
-            // Si el user_id en la DB no coincide o está vacío, lo actualizamos.
-            if (student.user_id !== userId) {
-                const { error: linkError } = await supabase
-                    .from('estudiantes')
-                    .update({ 
-                        user_id: userId,
-                        must_change_password: true 
-                    })
-                    .eq('id', student.id);
-
-                if (linkError) {
-                    console.error(`\n❌ Error vinculando ${student.legajo}: ${linkError.message}`);
-                    errorCount++;
-                } else {
-                    linkedCount++;
-                }
-            }
-            
-        } else {
-            // === CASO B: El usuario NO EXISTE en Auth ===
-            // Acciones: Crear usuario y vincular.
-            
-            try {
-                const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-                    email: email,
-                    password: password,
-                    email_confirm: true, 
-                    user_metadata: {
-                        legajo: student.legajo,
-                        nombre: student.nombre
-                    }
-                });
-
-                if (authError) {
-                    console.error(`\n❌ Error creando auth ${student.legajo}: ${authError.message}`);
-                    errorCount++;
-                    continue;
-                }
-
-                if (authData.user) {
-                    userId = authData.user.id;
-                    
-                    // Vincular en DB
+                // 2. Verificar/Reparar Vínculo en DB
+                if (student.user_id !== authId) {
                     const { error: linkError } = await supabase
                         .from('estudiantes')
-                        .update({ 
-                            user_id: userId,
-                            must_change_password: true
-                        })
+                        .update({ user_id: authId })
+                        .eq('id', student.id);
+
+                    if (linkError) status += `Link Error: ${linkError.message}`;
+                    else status += `Link REPARADO.`;
+                } else {
+                    status += `Link OK.`;
+                }
+
+            } else {
+                // --- EL USUARIO NO EXISTE, CREARLO ---
+                status = 'Creando Auth... ';
+                const { data: authData, error: createError } = await supabase.auth.admin.createUser({
+                    email: email,
+                    password: password,
+                    email_confirm: true,
+                    user_metadata: { legajo: student.legajo, nombre: student.nombre }
+                });
+
+                if (createError) {
+                    status += `Error: ${createError.message}`;
+                } else if (authData.user) {
+                    authId = authData.user.id;
+                    const { error: linkError } = await supabase
+                        .from('estudiantes')
+                        .update({ user_id: authId })
                         .eq('id', student.id);
                     
-                    if (linkError) {
-                         console.error(`\n❌ Error vinculando nuevo ${student.legajo}: ${linkError.message}`);
-                    } else {
-                        createdCount++;
-                        linkedCount++;
-                    }
+                    if (linkError) status += `Creado pero Link Error: ${linkError.message}`;
+                    else status += `CREADO Y VINCULADO.`;
                 }
-            } catch (e) {
-                console.error(`\n❌ Excepción con ${student.legajo}:`, e.message);
-                errorCount++;
             }
+        } catch (e) {
+            status += `EXCEPCIÓN: ${e.message}`;
         }
+
+        report.push({ 
+            legajo: student.legajo, 
+            email: email, 
+            auth_id: authId || '---', 
+            db_user_id: student.user_id || 'NULL (Antes)', 
+            result: status 
+        });
     }
 
-    console.log("\n\n=== [4/4] RESUMEN FINAL ===");
-    console.log(`✨ Usuarios Nuevos Creados: ${createdCount}`);
-    console.log(`🔑 Contraseñas Actualizadas: ${updatedCount}`);
-    console.log(`🔗 Vínculos (user_id) Reparados/Creados: ${linkedCount}`);
-    console.log(`❌ Errores: ${errorCount}`);
-    console.log("======================");
+    console.log("\n📊 REPORTE DE ESTADO (Últimos 15 procesados):");
+    console.table(report.slice(-15)); 
+    
+    console.log("\n💡 SUGERENCIA: Busca tu usuario en la tabla de arriba o en el log completo.");
+    console.log("   Si 'result' dice 'Link OK' o 'Link REPARADO', el login debería funcionar.");
 }
 
-createUsers();
+createAndVerifyUsers();

@@ -25,25 +25,29 @@ import {
 } from './constants';
 
 // --- Base Record Type ---
-// Now represents a flat database row, not Airtable structure
+// Represents a flat database row
 export interface DBRecord {
   id: string;
   created_at?: string;
-  // We keep createdTime for compatibility in some components during refactor
+  // Alias alias for compatibility during migration
   createdTime?: string;
 }
 
-// Alias for compatibility, but now points to a flat structure
-export type AirtableRecord<T> = T & DBRecord;
+// Generic App Record Type
+export type AppRecord<T> = T & DBRecord;
+// Deprecated alias for backwards compatibility during refactor
+export type AirtableRecord<T> = AppRecord<T>;
 
-export interface AirtableError {
+export interface AppError {
   type: string;
   message: string;
 }
 
-export interface AirtableErrorResponse {
-  error: AirtableError | string;
+export interface AppErrorResponse {
+  error: AppError | string;
 }
+// Deprecated alias
+export type AirtableErrorResponse = AppErrorResponse;
 
 // --- App-specific Types ---
 

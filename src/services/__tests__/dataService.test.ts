@@ -2,8 +2,8 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import * as airtableService from '../airtableService';
 import { fetchSeleccionados } from '../dataService';
 import {
-  AIRTABLE_TABLE_NAME_ESTUDIANTES,
-  AIRTABLE_TABLE_NAME_CONVOCATORIAS,
+  TABLE_NAME_ESTUDIANTES,
+  TABLE_NAME_CONVOCATORIAS,
   FIELD_NOMBRE_ESTUDIANTES,
   FIELD_LEGAJO_ESTUDIANTES,
   FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
@@ -35,7 +35,7 @@ describe('fetchSeleccionados', () => {
     it('should return grouped selected students correctly', async () => {
         
         mockedAirtable.fetchAllAirtableData.mockImplementation(async (tableName: string, fields?: string[], filterByFormula?: string): Promise<any> => {
-            if (tableName === AIRTABLE_TABLE_NAME_CONVOCATORIAS) {
+            if (tableName === TABLE_NAME_CONVOCATORIAS) {
                 return {
                     records: [
                         { id: 'recConv1', createdTime: '', fields: { [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: ['recStudent1'], [FIELD_HORARIO_FORMULA_CONVOCATORIAS]: 'Turno Mañana' } },
@@ -45,7 +45,7 @@ describe('fetchSeleccionados', () => {
                     error: null
                 };
             }
-            if (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) {
+            if (tableName === TABLE_NAME_ESTUDIANTES) {
                 return {
                     records: [
                         { id: 'recStudent1', createdTime: '', fields: { [FIELD_NOMBRE_ESTUDIANTES]: 'Ana Perez', [FIELD_LEGAJO_ESTUDIANTES]: '11111' } },
@@ -80,7 +80,7 @@ describe('fetchSeleccionados', () => {
     
     it('should return null if no students are found for the convocatorias', async () => {
         mockedAirtable.fetchAllAirtableData.mockImplementation(async (tableName: string): Promise<any> => {
-            if (tableName === AIRTABLE_TABLE_NAME_CONVOCATORIAS) {
+            if (tableName === TABLE_NAME_CONVOCATORIAS) {
                 return {
                     records: [
                         { id: 'recConv1', createdTime: '', fields: { [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: ['recStudent1'] } }
@@ -88,7 +88,7 @@ describe('fetchSeleccionados', () => {
                     error: null
                 };
             }
-            if (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) {
+            if (tableName === TABLE_NAME_ESTUDIANTES) {
                  return { records: [], error: null }; // No students
             }
             return { records: [], error: null };
@@ -100,7 +100,7 @@ describe('fetchSeleccionados', () => {
 
     it('should group students under "No especificado" if horario is missing', async () => {
         mockedAirtable.fetchAllAirtableData.mockImplementation(async (tableName: string): Promise<any> => {
-            if (tableName === AIRTABLE_TABLE_NAME_CONVOCATORIAS) {
+            if (tableName === TABLE_NAME_CONVOCATORIAS) {
                 return {
                     records: [
                         { id: 'recConv1', createdTime: '', fields: { [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: ['recStudent1'] } }, // No horario field
@@ -108,7 +108,7 @@ describe('fetchSeleccionados', () => {
                     error: null
                 };
             }
-            if (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) {
+            if (tableName === TABLE_NAME_ESTUDIANTES) {
                 return {
                     records: [
                         { id: 'recStudent1', createdTime: '', fields: { [FIELD_NOMBRE_ESTUDIANTES]: 'Ana Perez', [FIELD_LEGAJO_ESTUDIANTES]: '11111' } },

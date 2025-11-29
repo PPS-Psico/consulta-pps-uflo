@@ -1,27 +1,106 @@
 
 import { supabase } from '../lib/supabaseClient';
-import type { AirtableRecord, AirtableErrorResponse } from '../types';
+import type { AppRecord, AppErrorResponse } from '../types';
 import { z } from 'zod';
-import { FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, AIRTABLE_TABLE_NAME_ESTUDIANTES } from '../constants';
+import { FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, TABLE_NAME_ESTUDIANTES } from '../constants';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Helper para construir filtros de búsqueda dinámicos
+const buildSearchFilter = (tableName: string, searchTerm: string, searchFields: string[]) => {
+    if (!searchTerm || searchFields.length === 0) return null;
+    
+    const term = searchTerm.replace(/[^\w\s]/gi, ''); // Sanitize simple
+    if (!term) return null;
+
+    // Construye una query tipo "campo1.ilike.%term%,campo2.ilike.%term%"
+    // Supabase usa sintaxis PostgREST
+    return searchFields.map(field => `${field}.ilike.%${term}%`).join(',');
+};
+
+export const fetchPaginatedData = async <TFields extends Record<string, any>>(
+    tableName: string,
+    zodSchema: z.ZodSchema<AppRecord<TFields>[]>,
+    page: number,
+    pageSize: number,
+    fields?: string[],
+    searchTerm?: string,
+    searchFields?: string[], // Campos donde buscar el searchTerm
+    sort?: { field: string; direction: 'asc' | 'desc' }
+): Promise<{ records: AppRecord<TFields>[], total: number, error: AppErrorResponse | null }> => {
+    try {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        const selectQuery = fields && fields.length > 0 ? `id, created_at, ${fields.join(', ')}` : '*';
+
+        let query = supabase
+            .from(tableName)
+            .select(selectQuery, { count: 'exact' });
+
+        // --- SERVER SIDE FILTERING ---
+        if (searchTerm && searchFields && searchFields.length > 0) {
+             const orQuery = buildSearchFilter(tableName, searchTerm, searchFields);
+             if (orQuery) {
+                 query = query.or(orQuery);
+             }
+        }
+
+        // --- SORTING ---
+        if (sort) {
+            query = query.order(sort.field, { ascending: sort.direction === 'asc' });
+        } else {
+            query = query.order('created_at', { ascending: false });
+        }
+
+        // --- PAGINATION ---
+        const { data, error, count } = await query.range(from, to);
+
+        if (error) {
+             console.error(`Supabase Error fetching page for ${tableName}:`, error);
+             return { records: [], total: 0, error: { error: { type: 'SUPABASE_ERROR', message: error.message } } };
+        }
+
+        const records = (data || []).map(row => ({
+            ...row,
+            createdTime: row.created_at // Alias compatibility
+        }));
+
+        // Validación "laxa" para no romper la UI si el esquema ha cambiado ligeramente,
+        // pero mantenemos el tipado fuerte.
+        const validationResult = zodSchema.safeParse(records);
+        if (!validationResult.success) {
+            console.warn(`Schema validation warning for ${tableName}:`, validationResult.error.issues);
+            // Return raw records cast to expected type to prevent UI crash
+            return { records: records as AppRecord<TFields>[], total: count || 0, error: null };
+        }
+
+        return { 
+            records: validationResult.data as AppRecord<TFields>[], 
+            total: count || 0, 
+            error: null 
+        };
+
+    } catch (e: any) {
+        console.error("Unexpected error in fetchPaginatedData:", e);
+        return { records: [], total: 0, error: { error: { type: 'UNKNOWN_ERROR', message: e.message } } };
+    }
+};
+
 export const fetchAllData = async <TFields extends Record<string, any>>(
     tableName: string,
-    zodSchema: z.ZodSchema<AirtableRecord<TFields>[]>,
-    fields?: string[], // Now used for selecting specific columns in SQL
-    filterByFormula?: string, // Adjusted for SQL-like filtering or custom logic
+    zodSchema: z.ZodSchema<AppRecord<TFields>[]>,
+    fields?: string[],
+    filterByFormula?: string, 
     sort?: { field: string; direction: 'asc' | 'desc' }[]
-): Promise<{ records: AirtableRecord<TFields>[], error: AirtableErrorResponse | null }> => {
+): Promise<{ records: AppRecord<TFields>[], error: AppErrorResponse | null }> => {
     try {
         let allRows: any[] = [];
         let from = 0;
         const PAGE_SIZE = 200; 
         let hasMore = true;
 
-        // --- QUERY BUILDER ---
         const selectQuery = fields && fields.length > 0 ? `id, created_at, ${fields.join(', ')}` : '*';
 
         while (hasMore) {
@@ -33,16 +112,12 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                 try {
                     let query = supabase.from(tableName).select(selectQuery);
 
-                    // --- FILTERING LOGIC ---
-                    // We still support some basic "formula" emulation for compatibility
+                    // --- FILTERING LOGIC (Legacy/Compatibility for complex queries) ---
                     if (filterByFormula) {
-                         // 1. Simple Equality: {Field} = 'Value'
                         const equalityMatch = filterByFormula.match(/^\{\s*(.+?)\s*\}\s*=\s*['"](.+?)['"]$/);
-                        // 2. ID Search: RECORD_ID() = '...'
                         const idMatch = filterByFormula.match(/^RECORD_ID\(\)\s*=\s*['"]([^'"]+)['"]$/i);
                         
-                        // 3. Student Search (AdminSearch.tsx)
-                        const studentSearchMatch = (tableName === AIRTABLE_TABLE_NAME_ESTUDIANTES) 
+                        const studentSearchMatch = (tableName === TABLE_NAME_ESTUDIANTES) 
                             ? filterByFormula.match(/OR\(\s*SEARCH\("([^"]+)",\s*LOWER\(\{(.+?)\}\)\),\s*SEARCH\("([^"]+)",\s*\{(.+?)\}\s*&\s*''\)\s*\)/i)
                             : null;
 
@@ -52,13 +127,10 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                             query = query.eq('id', idMatch[1]);
                         } else if (studentSearchMatch) {
                              const term = studentSearchMatch[1];
-                             // Assuming FIELDS are already mapped to constants in AdminSearch
-                             // We rely on the constants.ts file having the correct DB column names
                              query = query.or(`${FIELD_NOMBRE_ESTUDIANTES}.ilike.%${term}%,${FIELD_LEGAJO_ESTUDIANTES}.ilike.%${term}%`);
                         }
                     }
 
-                    // --- SORTING ---
                     if (sort && sort.length > 0) {
                         sort.forEach(s => {
                             query = query.order(s.field, { ascending: s.direction === 'asc' });
@@ -67,7 +139,6 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                         query = query.order('id', { ascending: true });
                     }
 
-                    // Pagination
                     const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
 
                     if (error) throw error;
@@ -98,23 +169,19 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
             }
         }
 
-        // --- MAPPING ---
-        // No transformation needed! The data is already flat.
-        // We add 'createdTime' alias for compatibility with existing code that might use it.
         const records = allRows.map(row => ({
             ...row,
-            createdTime: row.created_at // Alias
+            createdTime: row.created_at // Alias compatibility
         }));
 
-        // --- VALIDATION (Optional but good) ---
         const validationResult = zodSchema.safeParse(records);
         if (!validationResult.success) {
             console.warn(`Schema validation warning for ${tableName}:`, validationResult.error.issues);
-            // Return unvalidated to avoid breaking UI on minor mismatches during refactor
-             return { records: records as AirtableRecord<TFields>[], error: null };
+             // Return raw records cast to expected type to prevent UI crash
+             return { records: records as AppRecord<TFields>[], error: null };
         }
 
-        return { records: validationResult.data as AirtableRecord<TFields>[], error: null };
+        return { records: validationResult.data as AppRecord<TFields>[], error: null };
 
     } catch (e: any) {
         console.error("Unexpected error in fetchAllData:", e);
@@ -124,13 +191,12 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
 
 export const fetchData = async <TFields extends Record<string, any>>(
     tableName: string,
-    zodSchema: z.ZodSchema<AirtableRecord<TFields>[]>,
+    zodSchema: z.ZodSchema<AppRecord<TFields>[]>,
     fields?: string[],
     filterByFormula?: string,
     maxRecords?: number,
     sort?: { field: string; direction: 'asc' | 'desc' }[]
-): Promise<{ records: AirtableRecord<TFields>[], error: AirtableErrorResponse | null }> => {
-    // Reusing fetchAllData but we could optimize for limit if needed
+): Promise<{ records: AppRecord<TFields>[], error: AppErrorResponse | null }> => {
     const result = await fetchAllData<TFields>(tableName, zodSchema, fields, filterByFormula, sort);
     if (maxRecords && result.records) {
         result.records = result.records.slice(0, maxRecords);
@@ -141,7 +207,7 @@ export const fetchData = async <TFields extends Record<string, any>>(
 export const createRecord = async <TFields>(
     tableName: string,
     fields: TFields
-): Promise<{ record: AirtableRecord<TFields> | null, error: AirtableErrorResponse | null }> => {
+): Promise<{ record: AppRecord<TFields> | null, error: AppErrorResponse | null }> => {
     try {
         const { data, error } = await supabase
             .from(tableName)
@@ -165,7 +231,7 @@ export const updateRecord = async <TFields>(
     tableName: string,
     recordId: string,
     fields: Partial<TFields>
-): Promise<{ record: AirtableRecord<TFields> | null, error: AirtableErrorResponse | null }> => {
+): Promise<{ record: AppRecord<TFields> | null, error: AppErrorResponse | null }> => {
     try {
         const { data, error } = await supabase
             .from(tableName)
@@ -189,10 +255,8 @@ export const updateRecord = async <TFields>(
 export const updateRecords = async <TFields>(
     tableName: string,
     records: { id: string; fields: Partial<TFields> }[]
-): Promise<{ records: AirtableRecord<TFields>[] | null, error: AirtableErrorResponse | null }> => {
+): Promise<{ records: AppRecord<TFields>[] | null, error: AppErrorResponse | null }> => {
     try {
-        // Supabase doesn't have a bulk update for different values per row easily accessible via JS client
-        // We iterate. Optimization: could use an RPC function if performance becomes an issue.
         const promises = records.map(rec => updateRecord<TFields>(tableName, rec.id, rec.fields));
         const results = await Promise.all(promises);
         
@@ -211,7 +275,7 @@ export const updateRecords = async <TFields>(
 export const deleteRecord = async (
     tableName: string,
     recordId: string
-): Promise<{ success: boolean, error: AirtableErrorResponse | null }> => {
+): Promise<{ success: boolean, error: AppErrorResponse | null }> => {
     try {
         const { error } = await supabase.from(tableName).delete().eq('id', recordId);
         if (error) {
