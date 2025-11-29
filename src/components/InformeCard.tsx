@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { InformeTask } from '../types';
 import { formatDate, parseToUTCDate } from '../utils/formatters';
@@ -38,26 +39,20 @@ const InformeCard: React.FC<InformeCardProps> = ({ task, onConfirmar }) => {
   }, [nota, informeSubido]);
 
 
-  const { deadlineLabel, deadline, daysRemaining, isOverdue } = useMemo(() => {
+  const { deadlineLabel, deadline } = useMemo(() => {
     const isSubmitted = statusInfo.key === 'en_correccion' && task.fechaEntregaInforme;
     const baseDateString = isSubmitted ? task.fechaEntregaInforme : task.fechaFinalizacion;
-    const label = isSubmitted ? 'Límite de Corrección' : 'Límite de Entrega';
+    const label = isSubmitted ? 'Límite de Corrección' : 'Fecha Estimada de Entrega';
 
     const baseDate = parseToUTCDate(baseDateString);
     if (!baseDate) {
-      return { deadlineLabel: label, deadline: null, daysRemaining: 0, isOverdue: false };
+      return { deadlineLabel: label, deadline: null };
     }
 
     const deadlineDate = new Date(baseDate.getTime());
     deadlineDate.setUTCDate(deadlineDate.getUTCDate() + 30);
 
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-
-    const timeDiff = deadlineDate.getTime() - today.getTime();
-    const days = Math.floor(timeDiff / (1000 * 3600 * 24));
-
-    return { deadlineLabel: label, deadline: deadlineDate, daysRemaining: days, isOverdue: days < 0 };
+    return { deadlineLabel: label, deadline: deadlineDate };
   }, [task.fechaFinalizacion, task.fechaEntregaInforme, statusInfo.key]);
 
   const handleConfirmClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -83,23 +78,10 @@ const InformeCard: React.FC<InformeCardProps> = ({ task, onConfirmar }) => {
       return null;
     }
     
-    let textColor = 'text-slate-600 dark:text-slate-300';
-    let text = `Vence en ${daysRemaining + 1} día${daysRemaining + 1 !== 1 ? 's' : ''}`;
-
-    if (isOverdue) {
-      textColor = 'text-red-600 dark:text-red-400';
-      text = `Venció hace ${Math.abs(daysRemaining)} día${Math.abs(daysRemaining) !== 1 ? 's' : ''}`;
-    } else if (daysRemaining <= 0) {
-      textColor = 'text-amber-600 dark:text-amber-400 font-semibold';
-      text = `Vence hoy`;
-    } else if (daysRemaining < 7) {
-      textColor = 'text-amber-600 dark:text-amber-400';
-    }
-
+    // Visualización neutra sin alertas de colores
     return (
-      <p className={`text-sm font-medium mt-1.5 ${textColor} tracking-tight`}>
+      <p className="text-sm font-medium mt-1.5 text-slate-500 dark:text-slate-400 tracking-tight">
         {deadlineLabel}: {formatDate(deadline.toISOString())}
-        <span className="hidden sm:inline"> ({text})</span>
       </p>
     );
   };

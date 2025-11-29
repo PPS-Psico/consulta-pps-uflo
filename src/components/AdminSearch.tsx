@@ -53,7 +53,6 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
     }
     
     // Optimización: Usamos getPage que utiliza la búsqueda nativa de Supabase (ilike)
-    // en lugar de construir fórmulas complejas manualmente.
     const { records, error } = await db.estudiantes.getPage(1, 20, {
         searchTerm: term,
         searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES]

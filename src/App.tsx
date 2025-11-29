@@ -10,7 +10,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { PwaInstallProvider } from './contexts/PwaInstallContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useStudentPanel, StudentPanelProvider } from './contexts/StudentPanelContext';
-import ChangePasswordModal from './components/ChangePasswordModal';
 
 // Views
 const StudentView = lazy(() => import('./views/StudentView'));

@@ -1,8 +1,9 @@
+
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getStudentLoginInfo, db } from '../lib/db';
 import { 
-    FIELD_DNI_ESTUDIANTES, FIELD_FECHA_NACIMIENTO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_TELEFONO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES
+    FIELD_DNI_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES
 } from '../constants';
 import type { EstudianteFields, AirtableRecord } from '../types';
 import type { AuthUser } from '../contexts/AuthContext';
@@ -14,9 +15,13 @@ interface UseAuthLogicProps {
 }
 
 export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
-    const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
-    // Nuevo estado para controlar el paso del reset: 'verify' (DNI/Mail) o 'setPassword' (Nueva pass)
+    const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'reset' | 'migration'>('login');
+    
+    // Reset steps (para recupero de contraseña)
     const [resetStep, setResetStep] = useState<'verify' | 'setPassword'>('verify');
+    
+    // Migration steps (para activación de cuenta)
+    const [migrationStep, setMigrationStep] = useState<1 | 2>(1);
     
     const [legajo, setLegajo] = useState('');
     const [password, setPassword] = useState('');
@@ -26,40 +31,39 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Registration-related state is kept for potential future re-implementation
+    // Variables no usadas pero mantenidas por compatibilidad de interfaz
     const [legajoCheckState, setLegajoCheckState] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
     const [legajoMessage, setLegajoMessage] = useState<string | null>(null);
     const [foundStudent, setFoundStudent] = useState<AirtableRecord<EstudianteFields> | null>(null);
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const [newData, setNewData] = useState<Partial<EstudianteFields>>({});
+    
     const [verificationData, setVerificationData] = useState({ dni: '', correo: '', telefono: '' });
     
     const resetFormState = () => {
         setError(null);
         setPassword('');
         setConfirmPassword('');
-        setResetStep('verify'); // Resetear al paso 1 al cambiar de modo
+        setResetStep('verify'); 
+        setMigrationStep(1); // Resetear paso de migración
         setVerificationData({ dni: '', correo: '', telefono: '' });
     };
 
-    const handleModeChange = (newMode: 'login' | 'register' | 'forgot' | 'reset') => {
+    const handleModeChange = (newMode: any) => {
         setMode(newMode);
-        resetFormState();
+        // Si venimos de un login fallido a migración, no borramos el legajo para UX
+        if (!(newMode === 'migration' && mode === 'login')) {
+             resetFormState();
+        } else {
+            // Si pasamos a migración manteniendo datos, nos aseguramos de estar en el paso 1
+            setMigrationStep(1);
+            setError(null);
+        }
     };
-
 
     const handleNewDataChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        if (name === FIELD_DNI_ESTUDIANTES) {
-            const numericString = value.replace(/\D/g, '');
-            if (numericString === '') {
-                setNewData(prev => ({ ...prev, [name]: null }));
-            } else {
-                setNewData(prev => ({ ...prev, [name]: parseInt(numericString, 10) }));
-            }
-        } else {
-            setNewData(prev => ({ ...prev, [name]: value || null }));
-        }
+        setNewData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleVerificationDataChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -72,17 +76,9 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         const legajoTrimmed = legajo.trim();
         const passwordTrimmed = password.trim();
         
-        // --- Preview/Testing User Logic (Bypasses Supabase) ---
+        // --- MODO DE PRUEBA ---
         if (legajoTrimmed === 'testing' && passwordTrimmed === 'testing') {
             login({ legajo: '99999', nombre: 'Usuario de Prueba', role: 'AdminTester' });
-            return;
-        }
-        if (legajoTrimmed === '12345' && passwordTrimmed === '12345') {
-            login({ legajo: '12345', nombre: 'Estudiante de Prueba' });
-            return;
-        }
-        if (legajoTrimmed === 'reportero' && passwordTrimmed === 'reportero') {
-            login({ legajo: 'reportero', nombre: 'Usuario Reportero', role: 'Reportero' });
             return;
         }
         if (legajoTrimmed === 'admin' && passwordTrimmed === 'superadmin' && mode === 'login') {
@@ -97,12 +93,14 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             try {
                 if (!legajoTrimmed || !passwordTrimmed) throw new Error('Por favor, completa todos los campos.');
 
+                // 1. Buscamos si el alumno existe en la DB
                 const loginInfo = await getStudentLoginInfo(legajoTrimmed);
 
                 if (!loginInfo || !loginInfo.email) {
-                     throw new Error('No encontramos una cuenta asociada a este legajo. Si es tu primera vez, contacta a soporte.');
+                     throw new Error('No encontramos una cuenta asociada a este legajo. Contacta a soporte.');
                 }
 
+                // 2. Intentamos login normal
                 const { error: signInError } = await (supabase.auth as any).signInWithPassword({
                     email: loginInfo.email,
                     password: passwordTrimmed,
@@ -110,103 +108,118 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                 if (signInError) {
                     if (signInError.message.includes('Invalid login credentials')) {
-                        // Instead of showing an error, switch to reset mode
-                        setMode('reset');
-                        setResetStep('verify');
-                        // Not pre-filling to force verification
+                        // 3. DETECCIÓN DE MIGRACIÓN
+                        // Usuario existe en datos pero falla login -> ofrecer activar cuenta
+                        setMode('migration');
+                        setMigrationStep(1); // Asegurar paso 1
                     } else {
                         throw signInError;
                     }
                 }
-                // AuthProvider will handle successful login
                 
             } catch (err: any) {
                 console.error("Login error:", err);
-                setError(err.message || 'Error al iniciar sesión. Verifica tu legajo y contraseña.');
+                setError(err.message || 'Error al iniciar sesión.');
             } finally {
                 setIsLoading(false);
             }
-        } else if (mode === 'reset') {
+        } else if (mode === 'migration') {
+            // --- LÓGICA DE MIGRACIÓN / ACTIVACIÓN (2 PASOS) ---
             try {
-                // PASO 1: VERIFICAR IDENTIDAD
-                if (resetStep === 'verify') {
+                // PASO 1: VALIDAR IDENTIDAD
+                if (migrationStep === 1) {
                     if (!verificationData.dni || !verificationData.correo) {
-                        throw new Error("Por favor completa DNI y Correo.");
+                        throw new Error("Por favor completa DNI y Correo para validar tu identidad.");
                     }
 
+                    // Verificar datos contra la base de datos
                     const [studentData] = await db.estudiantes.get({ filterByFormula: `{${FIELD_LEGAJO_ESTUDIANTES}} = '${legajoTrimmed}'`});
-                    if (!studentData) throw new Error("No se pudo encontrar el estudiante para verificar.");
-
-                    const isDniMatch = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim() === verificationData.dni.trim();
-                    const isEmailMatch = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase() === verificationData.correo.trim().toLowerCase();
                     
-                    if (!isDniMatch || !isEmailMatch) {
-                        throw new Error("Los datos de verificación (DNI y Correo) no coinciden con nuestros registros.");
-                    }
+                    if (!studentData) throw new Error("Error de validación. No se encontraron datos para este legajo.");
 
-                    // Si todo coincide, avanzamos al paso 2
-                    setResetStep('setPassword');
+                    const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim();
+                    const inputDni = verificationData.dni.trim();
+                    const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
+                    const inputEmail = verificationData.correo.trim().toLowerCase();
+                    
+                    if (dbDni !== inputDni || dbEmail !== inputEmail) {
+                        throw new Error("Los datos ingresados (DNI o Correo) no coinciden con nuestros registros.");
+                    }
+                    
+                    // Si todo ok, guardamos los datos del estudiante encontrado y avanzamos
+                    setFoundStudent(studentData);
+                    setMigrationStep(2);
                     setIsLoading(false);
-                    return; 
+                    return;
                 }
 
-                // PASO 2: ACTUALIZAR CONTRASEÑA
-                if (resetStep === 'setPassword') {
-                    if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
-                    
-                    const [studentData] = await db.estudiantes.get({ filterByFormula: `{${FIELD_LEGAJO_ESTUDIANTES}} = '${legajoTrimmed}'`});
-                    if (!studentData || !studentData[FIELD_USER_ID_ESTUDIANTES]) throw new Error("Error de sesión. Intenta de nuevo.");
-
-                    const email = verificationData.correo.trim().toLowerCase();
-                    const dniAsPassword = String(verificationData.dni).trim();
-
-                    const { data: signInData, error: signInError } = await (supabase.auth as any).signInWithPassword({
-                        email: email,
-                        password: dniAsPassword,
-                    });
-
-                    if (signInError || !signInData.session) {
-                        console.error("Fallo login con DNI:", signInError);
-                        throw new Error("No pudimos validar tu identidad con el DNI como contraseña temporal. Es posible que ya hayas cambiado tu contraseña antes. Si no la recuerdas, contacta a soporte administrativo.");
+                // PASO 2: CREAR CUENTA
+                if (migrationStep === 2) {
+                    if (password.length < 6) {
+                        throw new Error("La contraseña debe tener al menos 6 caracteres.");
                     }
 
-                    const { error: updatePassError } = await (supabase.auth as any).updateUser({
-                        password: password
+                    if (!foundStudent) throw new Error("Error de sesión. Por favor vuelve al paso anterior.");
+
+                    const inputEmail = verificationData.correo.trim().toLowerCase();
+
+                    // Crear Usuario en Supabase (Sign Up)
+                    const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
+                        email: inputEmail,
+                        password: password,
+                        options: {
+                            data: {
+                                legajo: legajoTrimmed,
+                                nombre: foundStudent[FIELD_NOMBRE_ESTUDIANTES]
+                            }
+                        }
                     });
 
-                    if (updatePassError) throw updatePassError;
+                    if (signUpError) {
+                        if (signUpError.message.includes('already registered')) {
+                            throw new Error("Este usuario ya está registrado. Si olvidaste tu contraseña, usa la opción de recuperación.");
+                        }
+                        throw signUpError;
+                    }
 
-                    // Set flag to prevent race condition in onAuthStateChange
-                    sessionStorage.setItem('__password_reset_in_progress', 'true');
-                    
-                    // Manually log in the user with the correct, updated data.
-                    login({
-                        id: studentData[FIELD_USER_ID_ESTUDIANTES],
-                        legajo: studentData[FIELD_LEGAJO_ESTUDIANTES],
-                        nombre: studentData[FIELD_NOMBRE_ESTUDIANTES],
-                        orientaciones: studentData[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [studentData[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
-                    });
+                    if (authData.user) {
+                        // Vincular el nuevo ID de usuario a la tabla de estudiantes
+                        await db.estudiantes.update(foundStudent.id, {
+                            user_id: authData.user.id
+                        } as any);
+
+                        // Iniciar sesión
+                        login({
+                            id: authData.user.id,
+                            legajo: String(foundStudent[FIELD_LEGAJO_ESTUDIANTES]),
+                            nombre: String(foundStudent[FIELD_NOMBRE_ESTUDIANTES]),
+                            orientaciones: foundStudent[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [String(foundStudent[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES])] : [],
+                        });
+                    }
                 }
 
             } catch (err: any) {
-                setError(err.message);
+                let msg = err.message;
+                if (msg.includes('Password should be at least 6 characters')) {
+                    msg = "La contraseña debe tener al menos 6 caracteres.";
+                }
+                setError(msg);
             } finally {
                 setIsLoading(false);
             }
         } else {
-            // Registration is currently disabled
             setIsLoading(false);
         }
     };
 
     const handleForgotLegajoSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setMode('reset');
     };
     
     return {
         mode, setMode: handleModeChange,
         resetStep,
+        migrationStep, setMigrationStep, // Exponemos el paso de migración
         legajo, setLegajo,
         password, setPassword,
         confirmPassword, setConfirmPassword,
