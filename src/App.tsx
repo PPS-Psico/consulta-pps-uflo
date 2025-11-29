@@ -1,7 +1,5 @@
-
-
 import React, { lazy, Suspense } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import Loader from './components/Loader';
 import Auth from './components/Auth';
 import Layout from './components/Layout';
@@ -70,10 +68,10 @@ const AdminStudentWrapper = () => {
 
 const AppRoutes = () => {
     const { authenticatedUser } = useAuth();
+    const location = useLocation();
     
     return (
         <>
-            {authenticatedUser?.mustChangePassword && <ChangePasswordModal isOpen={true} />}
             <Routes>
                  {/* Public */}
                 <Route path="/login" element={!authenticatedUser ? <Auth /> : <Navigate to="/" />} />

@@ -11,7 +11,7 @@ import {
   FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
   FIELD_INFORME_LANZAMIENTOS,
   FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
-  AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
+  TABLE_NAME_LANZAMIENTOS_PPS,
   FIELD_FECHA_INICIO_LANZAMIENTOS,
   FIELD_FECHA_FIN_LANZAMIENTOS,
   FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
@@ -26,7 +26,7 @@ import { normalizeStringForComparison, formatDate, getEspecialidadClasses } from
 import SubTabs from './SubTabs';
 import EmptyState from './EmptyState';
 import RecordEditModal from './RecordEditModal';
-import { schema } from '../lib/airtableSchema';
+import { schema } from '../lib/dbSchema';
 
 const mockInstitutions = [
   { id: 'recInstMock1', [FIELD_NOMBRE_INSTITUCIONES]: 'Hospital de Juguete' },
@@ -391,219 +391,139 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                         <div className="space-y-6">
                             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
                                 <span className="material-icons text-slate-400 !text-lg">date_range</span>
-                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">Cronograma</h4>
+                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Cronograma</h4>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-4">
-                                <InputWrapper label="Inicio" icon="event_available">
-                                    <input type="date" name="fechaInicio" id="fechaInicio" value={formData.fechaInicio as string || ''} onChange={handleChange} className={inputClass} required/>
-                                </InputWrapper>
-                                <InputWrapper label="Finalización" icon="event_busy">
-                                    <input type="date" name="fechaFin" id="fechaFin" value={formData.fechaFin as string || ''} onChange={handleChange} className={inputClass} />
-                                </InputWrapper>
+                            <InputWrapper label="Fecha de Inicio" icon="event">
+                                <input type="date" name="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className={inputClass} required />
+                            </InputWrapper>
+
+                            <InputWrapper label="Fecha de Finalización" icon="event_busy">
+                                <input type="date" name="fechaFin" value={formData.fechaFin} onChange={handleChange} className={inputClass} required />
+                            </InputWrapper>
+
+                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700 mt-8">
+                                <span className="material-icons text-slate-400 !text-lg">info</span>
+                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Detalles Académicos</h4>
                             </div>
 
-                             <div className="group">
-                                 <div className="flex justify-between items-center mb-1.5">
-                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">Opciones de Horario</label>
-                                     <button type="button" onClick={addSchedule} className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1">
-                                         <span className="material-icons !text-sm">add</span> Agregar
-                                     </button>
-                                 </div>
-                                 <div className="space-y-2">
-                                     {schedules.map((schedule, idx) => (
-                                         <div key={idx} className="relative flex items-center gap-2 animate-fade-in">
-                                             <div className="relative flex-grow">
-                                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                     <span className="material-icons text-slate-400 !text-xl">schedule</span>
-                                                 </div>
-                                                 <input 
-                                                     type="text" 
-                                                     value={schedule} 
-                                                     onChange={(e) => handleScheduleChange(idx, e.target.value)}
-                                                     placeholder="Ej: Lunes 9 a 13hs" 
-                                                     className={inputClass} 
-                                                 />
-                                             </div>
-                                             {schedules.length > 1 && (
-                                                 <button type="button" onClick={() => removeSchedule(idx)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors" title="Eliminar horario">
-                                                     <span className="material-icons !text-lg">delete</span>
-                                                 </button>
-                                             )}
-                                         </div>
-                                     ))}
-                                 </div>
+                            <InputWrapper label="Orientación" icon="school">
+                                <select name="orientacion" value={formData.orientacion} onChange={handleChange} className={inputClass} required>
+                                    <option value="">Seleccionar...</option>
+                                    {ALL_ORIENTACIONES.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                            </InputWrapper>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <InputWrapper label="Horas Acreditadas" icon="schedule">
+                                    <input type="number" name="horasAcreditadas" value={formData.horasAcreditadas} onChange={handleChange} className={inputClass} required min="1" />
+                                </InputWrapper>
+                                <InputWrapper label="Cupos Disponibles" icon="group_add">
+                                    <input type="number" name="cuposDisponibles" value={formData.cuposDisponibles} onChange={handleChange} className={inputClass} required min="1" />
+                                </InputWrapper>
                             </div>
                         </div>
 
                         {/* Columna Derecha */}
                         <div className="space-y-6">
                             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                                <span className="material-icons text-slate-400 !text-lg">school</span>
-                                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">Detalles Académicos</h4>
+                                <span className="material-icons text-slate-400 !text-lg">schedule</span>
+                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Horarios y Recursos</h4>
                             </div>
 
-                            <InputWrapper label="Orientación" icon="psychology">
-                                <select name="orientacion" id="orientacion" value={formData.orientacion as string || ''} onChange={handleChange} className={`${inputClass} appearance-none`} required>
-                                    <option value="" disabled>Seleccionar...</option>
-                                    {ALL_ORIENTACIONES.map(o => <option key={o} value={o}>{o}</option>)}
-                                </select>
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 pointer-events-none !text-lg">expand_more</span>
-                            </InputWrapper>
+                            <div className="space-y-3">
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+                                    Opciones de Horarios
+                                </label>
+                                {schedules.map((schedule, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={schedule}
+                                            onChange={(e) => handleScheduleChange(idx, e.target.value)}
+                                            placeholder="Ej: Lunes 9 a 13hs"
+                                            className={inputClass}
+                                            required
+                                        />
+                                        {schedules.length > 1 && (
+                                            <button type="button" onClick={() => removeSchedule(idx)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
+                                                <span className="material-icons">remove_circle_outline</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                <button type="button" onClick={addSchedule} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 mt-2">
+                                    <span className="material-icons !text-lg">add</span> Agregar otro horario
+                                </button>
+                            </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                 <InputWrapper label="Horas" icon="timelapse">
-                                    <input type="number" name="horasAcreditadas" id="horasAcreditadas" value={formData.horasAcreditadas as number || ''} onChange={handleChange} className={inputClass} required />
-                                </InputWrapper>
-                                 <InputWrapper label="Cupos" icon="group_add">
-                                    <input type="number" name="cuposDisponibles" id="cuposDisponibles" value={formData.cuposDisponibles as number || ''} onChange={handleChange} className={inputClass} required min="1"/>
+                            <div className="mt-6">
+                                <InputWrapper label="Link al Programa / Informe (Opcional)" icon="link">
+                                    <input type="url" name="informe" value={formData.informe} onChange={handleChange} placeholder="https://..." className={inputClass} />
                                 </InputWrapper>
                             </div>
                         </div>
                     </div>
 
-                    {/* SECCIÓN 3: DOCUMENTACIÓN */}
-                    <div className="pt-2">
-                         <InputWrapper label="Enlace al Informe (Campus Virtual)" icon="link">
-                            <input type="url" name="informe" id="informe" placeholder="https://campus.uflo.edu.ar/..." value={formData.informe as string || ''} onChange={handleChange} className={inputClass} />
-                        </InputWrapper>
-                    </div>
-                    
-                    {/* BOTÓN DE ACCIÓN */}
-                    <div className="pt-6 flex justify-end border-t border-slate-200 dark:border-slate-700">
+                    <div className="pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
                         <button 
                             type="submit" 
-                            disabled={createLaunchMutation.isPending} 
-                            className="relative overflow-hidden group bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-xl text-base transition-all shadow-lg hover:shadow-blue-500/30 hover:-translate-y-1 disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-3"
+                            disabled={createLaunchMutation.isPending}
+                            className="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-blue-700 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                         >
-                             {createLaunchMutation.isPending ? (
-                                 <><div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"/><span>Procesando...</span></>
-                             ) : (
-                                 <>
-                                    <span className="material-icons !text-xl transition-transform group-hover:rotate-12 group-hover:scale-110">rocket_launch</span>
-                                    <span>Lanzar Convocatoria</span>
-                                 </>
-                             )}
+                            {createLaunchMutation.isPending ? (
+                                <><div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"/> Lanzando...</>
+                            ) : (
+                                <><span className="material-icons">rocket_launch</span> Publicar Convocatoria</>
+                            )}
                         </button>
                     </div>
                 </form>
             )}
 
             {activeTab === 'history' && (
-                <div className="mt-6 animate-fade-in">
-                    {isLoadingHistory ? (
-                        <Loader />
-                    ) : launchHistory.length === 0 ? (
-                        <EmptyState icon="history_toggle_off" title="Sin Historial" message="Aún no se han registrado lanzamientos." />
-                    ) : (
-                        <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
-                                        <tr>
-                                            <th className="px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nombre PPS</th>
-                                            <th className="px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fecha Inicio</th>
-                                            <th className="px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Orientación</th>
-                                            <th className="px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Cupos</th>
-                                            <th className="px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Estado</th>
-                                            <th className="px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                        {launchHistory.map((launch: AirtableRecord<LanzamientoPPSFields>) => {
-                                            // Direct property access for flat objects
-                                            const status = String(launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] || 'Cerrado');
-                                            const normalizedStatus = normalizeStringForComparison(status);
-                                            const isAbierta = normalizedStatus === 'abierta' || normalizedStatus === 'abierto';
-                                            const isOculto = normalizedStatus === 'oculto';
-                                            
-                                            const visuals = getEspecialidadClasses(launch[FIELD_ORIENTACION_LANZAMIENTOS] || 'N/A');
-                                            
-                                            return (
-                                                <tr key={launch.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                                    <td className="px-6 py-3 font-semibold text-slate-700 dark:text-slate-200">
-                                                        {launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
-                                                    </td>
-                                                    <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">
-                                                        {formatDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS])}
-                                                    </td>
-                                                    <td className="px-6 py-3 text-center">
-                                                        <span className={`${visuals.tag} whitespace-nowrap border-0`}>
-                                                            {launch[FIELD_ORIENTACION_LANZAMIENTOS]}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-3 text-center font-bold text-slate-700 dark:text-slate-300">
-                                                        {launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]}
-                                                    </td>
-                                                    <td className="px-6 py-3 text-center">
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                            isAbierta ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200' :
-                                                            isOculto ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' :
-                                                            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200'
-                                                        }`}>
-                                                            {status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-3 text-right">
-                                                        <div className="flex justify-end items-center gap-2">
-                                                            <button 
-                                                                onClick={() => setEditingLaunch(launch)}
-                                                                className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                                                title="Editar detalles"
-                                                            >
-                                                                <span className="material-icons !text-base">edit</span>
-                                                            </button>
-                                                            
-                                                            {isAbierta ? (
-                                                                <button
-                                                                    onClick={() => handleStatusAction(launch.id, status, 'cerrar')}
-                                                                    disabled={updateStatusMutation.isPending}
-                                                                    className="px-3 py-1 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-xs font-bold transition-colors"
-                                                                >
-                                                                    Cerrar
-                                                                </button>
-                                                            ) : (
-                                                                <>
-                                                                    <button
-                                                                        onClick={() => handleStatusAction(launch.id, status, 'abrir')}
-                                                                        disabled={updateStatusMutation.isPending}
-                                                                        className="px-3 py-1 rounded bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-xs font-bold transition-colors"
-                                                                    >
-                                                                        Abrir
-                                                                    </button>
-                                                                    {!isOculto && (
-                                                                        <button
-                                                                            onClick={() => handleStatusAction(launch.id, status, 'ocultar')}
-                                                                            disabled={updateStatusMutation.isPending}
-                                                                            className="px-3 py-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600 text-xs font-bold transition-colors"
-                                                                        >
-                                                                            Ocultar
-                                                                        </button>
-                                                                    )}
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
+                <div className="mt-6 space-y-4">
+                    {isLoadingHistory ? <Loader /> : launchHistory.length === 0 ? <EmptyState icon="history_toggle_off" title="Sin Historial" message="No hay lanzamientos registrados." /> : (
+                        launchHistory.map(launch => (
+                            <div key={launch.id} className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]}</h4>
+                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] === 'Abierta' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                            {launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                                        Inicio: {formatDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS])} &bull; Orientación: {launch[FIELD_ORIENTACION_LANZAMIENTOS]}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => setEditingLaunch(launch)} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
+                                        <span className="material-icons !text-xl">edit</span>
+                                    </button>
+                                    {launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] === 'Abierta' ? (
+                                        <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'cerrar')} className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Cerrar Convocatoria">
+                                            <span className="material-icons !text-xl">lock</span>
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'abrir')} className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Reabrir Convocatoria">
+                                            <span className="material-icons !text-xl">lock_open</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        ))
                     )}
                 </div>
             )}
-            
+
             {editingLaunch && (
-                <RecordEditModal
+                <RecordEditModal 
                     isOpen={!!editingLaunch}
                     onClose={() => setEditingLaunch(null)}
                     record={editingLaunch}
                     tableConfig={LAUNCH_TABLE_CONFIG}
-                    onSave={(id, fields) => {
-                        if (id) updateDetailsMutation.mutate({ id, fields });
-                    }}
+                    onSave={(id, fields) => updateDetailsMutation.mutate({ id: id!, fields })}
                     isSaving={updateDetailsMutation.isPending}
                 />
             )}

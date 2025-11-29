@@ -1,8 +1,9 @@
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { fetchAllAirtableData, updateAirtableRecord, createAirtableRecord, updateAirtableRecords } from '../services/airtableService';
+import { fetchAllData, updateRecord, createRecord, updateRecords } from '../services/supabaseService';
 import type { LanzamientoPPS, InstitucionFields, AirtableRecord, LanzamientoPPSFields, PracticaFields } from '../types';
 import {
-  AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
+  TABLE_NAME_LANZAMIENTOS_PPS,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
   FIELD_FECHA_FIN_LANZAMIENTOS,
   FIELD_ORIENTACION_LANZAMIENTOS,
@@ -10,7 +11,7 @@ import {
   FIELD_NOTAS_GESTION_LANZAMIENTOS,
   FIELD_FECHA_INICIO_LANZAMIENTOS,
   FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS,
-  AIRTABLE_TABLE_NAME_PRACTICAS,
+  TABLE_NAME_PRACTICAS,
   FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
   FIELD_ESPECIALIDAD_PRACTICAS,
   FIELD_HORAS_PRACTICAS,
@@ -19,9 +20,10 @@ import {
   FIELD_FECHA_FIN_PRACTICAS,
   FIELD_HORAS_ACREDITADAS_LANZAMIENTOS,
   FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
-  AIRTABLE_TABLE_NAME_INSTITUCIONES,
+  TABLE_NAME_INSTITUCIONES,
   FIELD_NOMBRE_INSTITUCIONES,
   FIELD_TELEFONO_INSTITUCIONES,
+  FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
 } from '../constants';
 import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatters';
 import { lanzamientoPPSArraySchema, institucionArraySchema, practicaArraySchema } from '../schemas';
@@ -61,6 +63,7 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
     const [searchTerm, setSearchTerm] = useState('');
     const [orientationFilter, setOrientationFilter] = useState('all');
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isLinking, setIsLinking] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoadingState('loading');
@@ -74,8 +77,8 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
         }
         
         const [lanzamientosRes, institucionesRes] = await Promise.all([
-            fetchAllAirtableData<LanzamientoPPSFields>(
-                AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
+            fetchAllData<LanzamientoPPSFields>(
+                TABLE_NAME_LANZAMIENTOS_PPS,
                 lanzamientoPPSArraySchema,
                 [
                     FIELD_NOMBRE_PPS_LANZAMIENTOS,
@@ -91,8 +94,8 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
                 undefined,
                 [{ field: FIELD_FECHA_FIN_LANZAMIENTOS, direction: 'desc' }]
             ),
-            fetchAllAirtableData<InstitucionFields>(
-                AIRTABLE_TABLE_NAME_INSTITUCIONES,
+            fetchAllData<InstitucionFields>(
+                TABLE_NAME_INSTITUCIONES,
                 institucionArraySchema,
                 [FIELD_NOMBRE_INSTITUCIONES, FIELD_TELEFONO_INSTITUCIONES]
             )
@@ -106,17 +109,17 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
         } else {
             const newInstitutionsMap = new Map<string, { id: string; phone?: string }>();
             institucionesRes.records.forEach(record => {
-                const name = record.fields[FIELD_NOMBRE_INSTITUCIONES];
+                const name = record[FIELD_NOMBRE_INSTITUCIONES];
                 if (name) {
                     newInstitutionsMap.set(normalizeStringForComparison(name as string), {
                         id: record.id,
-                        phone: record.fields[FIELD_TELEFONO_INSTITUCIONES]
+                        phone: record[FIELD_TELEFONO_INSTITUCIONES]
                     });
                 }
             });
             setInstitutionsMap(newInstitutionsMap);
 
-            const mappedRecords = lanzamientosRes.records.map((r: AirtableRecord<LanzamientoPPSFields>) => ({ ...r.fields as any, id: r.id } as LanzamientoPPS));
+            const mappedRecords = lanzamientosRes.records.map(r => r as LanzamientoPPS);
             const filteredRecords = mappedRecords.filter(pps => 
                 !String(pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').toLowerCase().includes('uflo')
             );
@@ -180,7 +183,7 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
     
         if (updatesToPerform.length > 0) {
             const batchUpdate = async () => {
-                const { error } = await updateAirtableRecords(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, updatesToPerform);
+                const { error } = await updateRecords(TABLE_NAME_LANZAMIENTOS_PPS, updatesToPerform);
                 if (error) {
                     setToastInfo({ message: 'Error al archivar relanzamientos completados.', type: 'error' });
                 } else {
@@ -204,7 +207,7 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
             return true;
         }
 
-        const { error: updateError } = await updateAirtableRecord(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, id, updates);
+        const { error: updateError } = await updateRecord(TABLE_NAME_LANZAMIENTOS_PPS, id, updates);
         
         let success = false;
         if (updateError) {
@@ -243,7 +246,7 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
           return true;
       }
 
-      const { error: updateError } = await updateAirtableRecord(AIRTABLE_TABLE_NAME_INSTITUCIONES, institutionId, {
+      const { error: updateError } = await updateRecord(TABLE_NAME_INSTITUCIONES, institutionId, {
           [FIELD_TELEFONO_INSTITUCIONES]: phone
       });
 
@@ -287,10 +290,11 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
     
             const currentYear = new Date().getFullYear();
             const lastYearStart = new Date(currentYear - 1, 0, 1).toISOString().split('T')[0];
-            const filterFormula = `IS_AFTER({${FIELD_FECHA_INICIO_PRACTICAS}}, DATETIME_PARSE('${lastYearStart}', 'YYYY-MM-DD'))`;
+            // Note: filterByFormula is limited in Supabase implementation. Fetching larger set and filtering in JS.
+            // const filterFormula = `IS_AFTER({${FIELD_FECHA_INICIO_PRACTICAS}}, DATETIME_PARSE('${lastYearStart}', 'YYYY-MM-DD'))`;
     
-            const { records: recentPracticas, error: practicasError } = await fetchAllAirtableData<PracticaFields>(
-                AIRTABLE_TABLE_NAME_PRACTICAS,
+            const { records: recentPracticas, error: practicasError } = await fetchAllData<PracticaFields>(
+                TABLE_NAME_PRACTICAS,
                 practicaArraySchema,
                 [
                     FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
@@ -298,14 +302,21 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
                     FIELD_FECHA_FIN_PRACTICAS,
                     FIELD_ESPECIALIDAD_PRACTICAS,
                     FIELD_HORAS_PRACTICAS,
-                ],
-                filterFormula
+                ]
             );
     
-            if (practicasError) throw new Error('Error al obtener las prácticas antiguas desde Airtable.');
+            if (practicasError) throw new Error('Error al obtener las prácticas antiguas.');
+            
+            // Client side filtering for date
+            const filteredPracticas = recentPracticas.filter(p => {
+                const date = parseToUTCDate(p[FIELD_FECHA_INICIO_PRACTICAS]);
+                const cutoff = new Date(lastYearStart);
+                return date && date > cutoff;
+            });
     
             const groupedPracticas = new Map<string, (PracticaFields & { id: string })[]>();
-            const mappedPracticas: any[] = recentPracticas.map((p: AirtableRecord<PracticaFields>) => ({ ...(p.fields as any), id: p.id }));
+            // Records are already flat from fetchAllData
+            const mappedPracticas: any[] = filteredPracticas.map(p => ({ ...p, id: p.id }));
 
             for (const practica of mappedPracticas) {
                 const nameRaw = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
@@ -360,7 +371,7 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
                 const launchData = newLaunchesToCreate[i];
                 setToastInfo({ message: `Sincronizando ${i + 1} de ${totalToCreate}...`, type: 'success' });
 
-                const { error } = await createAirtableRecord(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, launchData);
+                const { error } = await createRecord(TABLE_NAME_LANZAMIENTOS_PPS, launchData);
                 
                 if (error) {
                     failedCreations++;
@@ -384,6 +395,76 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
             setToastInfo({ message: e.message || 'Ocurrió un error inesperado durante la sincronización.', type: 'error' });
         } finally {
             setIsSyncing(false);
+        }
+    };
+
+    const handleLinkOrphans = async () => {
+        setIsLinking(true);
+        setToastInfo({ message: 'Buscando vínculos huérfanos...', type: 'success' });
+        
+        try {
+            // 1. Fetch orphaned practices (no launch ID)
+            const { records: allPractices, error } = await fetchAllData<PracticaFields>(
+                TABLE_NAME_PRACTICAS,
+                practicaArraySchema,
+                [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]
+            );
+            
+            if (error) throw new Error("Error fetching practices.");
+
+            const orphans = allPractices.filter(p => !p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] || (Array.isArray(p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]) && p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS].length === 0));
+
+            if (orphans.length === 0) {
+                setToastInfo({ message: 'No se encontraron prácticas huérfanas.', type: 'success' });
+                setIsLinking(false);
+                return;
+            }
+
+            // Create lookup map for launches
+            const launchMap = new Map<string, string>();
+            lanzamientos.forEach(l => {
+                const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+                const date = l[FIELD_FECHA_INICIO_LANZAMIENTOS];
+                if (name && date) {
+                    launchMap.set(`${normalizeStringForComparison(name)}|${date}`, l.id);
+                }
+            });
+
+            const updates: { id: string, fields: Partial<PracticaFields> }[] = [];
+            
+            for (const practice of orphans) {
+                const pNameRaw = practice[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
+                const pName = Array.isArray(pNameRaw) ? pNameRaw[0] : pNameRaw;
+                const pDate = practice[FIELD_FECHA_INICIO_PRACTICAS];
+
+                if (pName && pDate) {
+                    const key = `${normalizeStringForComparison(String(pName))}|${pDate}`;
+                    if (launchMap.has(key)) {
+                        updates.push({
+                            id: practice.id,
+                            fields: { [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: [launchMap.get(key)!] }
+                        });
+                    }
+                }
+            }
+            
+            if (updates.length > 0) {
+                if (isTestingMode) {
+                    console.log("TEST MODE: Linking orphans", updates);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    const { error: updateError } = await updateRecords(TABLE_NAME_PRACTICAS, updates);
+                    if (updateError) throw new Error("Error updating records.");
+                }
+                setToastInfo({ message: `Se vincularon ${updates.length} prácticas huérfanas.`, type: 'success' });
+            } else {
+                setToastInfo({ message: 'No se encontraron coincidencias para vincular.', type: 'success' });
+            }
+            
+        } catch (e: any) {
+             setToastInfo({ message: 'Error vinculando huérfanos: ' + e.message, type: 'error' });
+        } finally {
+            setIsLinking(false);
         }
     };
     
@@ -462,9 +543,11 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
         orientationFilter,
         setOrientationFilter,
         isSyncing,
+        isLinking,
         handleSave,
         handleUpdateInstitutionPhone,
         handleSync,
+        handleLinkOrphans,
         filteredData,
     };
 };

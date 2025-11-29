@@ -1,17 +1,17 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import {
-    AIRTABLE_TABLE_NAME_FINALIZACION,
+    TABLE_NAME_FINALIZACION,
     FIELD_ESTUDIANTE_FINALIZACION,
+    FIELD_FECHA_SOLICITUD_FINALIZACION,
     FIELD_ESTADO_FINALIZACION,
     FIELD_INFORME_FINAL_FINALIZACION,
     FIELD_PLANILLA_HORAS_FINALIZACION,
     FIELD_PLANILLA_ASISTENCIA_FINALIZACION,
     FIELD_SUGERENCIAS_MEJORAS_FINALIZACION,
-    AIRTABLE_TABLE_NAME_ESTUDIANTES,
+    TABLE_NAME_ESTUDIANTES,
     FIELD_NOMBRE_ESTUDIANTES,
     FIELD_LEGAJO_ESTUDIANTES,
     FIELD_CORREO_ESTUDIANTES
@@ -292,8 +292,8 @@ const FinalizacionReview: React.FC = () => {
         queryKey: ['finalizacionRequests'],
         queryFn: async () => {
             const [finalizacionRes, estudiantesRes] = await Promise.all([
-                fetchAllData<any>(AIRTABLE_TABLE_NAME_FINALIZACION, finalizacionPPSArraySchema),
-                fetchAllData<EstudianteFields>(AIRTABLE_TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES])
+                fetchAllData<any>(TABLE_NAME_FINALIZACION, finalizacionPPSArraySchema),
+                fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES])
             ]);
             const studentMap = new Map(estudiantesRes.records.map(s => [s.id, s]));
             return finalizacionRes.records.map(req => {

@@ -1,3 +1,5 @@
+
+
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useStudentData } from '../hooks/useStudentData';
@@ -6,6 +8,7 @@ import { useStudentSolicitudes } from '../hooks/useStudentSolicitudes';
 import { useConvocatorias } from '../hooks/useConvocatorias';
 import { calculateCriterios, initialCriterios } from '../utils/criteriaCalculations';
 import { processAndLinkStudentData } from '../utils/dataLinker';
+import { FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES } from '../constants';
 
 import type { UseMutationResult } from '@tanstack/react-query';
 import type {
@@ -69,7 +72,10 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
         refetchConvocatorias();
     }, [refetchStudent, refetchPracticas, refetchSolicitudes, refetchConvocatorias]);
     
-    const selectedOrientacion = (studentDetails?.['Orientación Elegida'] || "") as Orientacion | "";
+    // Safely access the orientation field
+    const selectedOrientacion = (studentDetails && studentDetails[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] 
+        ? studentDetails[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] 
+        : "") as Orientacion | "";
 
     const criterios = useMemo(() => 
         (isLoading ? initialCriterios : calculateCriterios(practicas, selectedOrientacion)), 

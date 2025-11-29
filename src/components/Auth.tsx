@@ -21,6 +21,7 @@ const Auth: React.FC = () => {
 
   const {
       mode, setMode,
+      resetStep, // Nuevo estado del hook
       legajo, setLegajo,
       password, setPassword,
       confirmPassword, setConfirmPassword,
@@ -114,7 +115,7 @@ const Auth: React.FC = () => {
             </label>
             {mode === 'login' && (
                 <div className="text-sm">
-                    <button type="button" onClick={() => handleModeChange('forgot')} disabled className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 focus:outline-none focus:underline disabled:text-slate-400 disabled:no-underline disabled:cursor-not-allowed">¿Olvidaste tu contraseña?</button>
+                    <button type="button" onClick={() => handleModeChange('forgot')} className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 focus:outline-none focus:underline">¿Olvidaste tu contraseña?</button>
                 </div>
             )}
         </div>
@@ -151,29 +152,63 @@ const Auth: React.FC = () => {
     <form onSubmit={handleFormSubmit} className="space-y-5 animate-fade-in-up">
         <div className="text-left mb-8">
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">Verificación de Identidad</h2>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">Para proteger tu cuenta, por favor, confirma tus datos. Deben coincidir con los que tenemos registrados.</p>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">
+                Por una actualización de seguridad, necesitamos verificar tu identidad antes de que puedas establecer una nueva contraseña.
+            </p>
         </div>
-        <Input name="dni" type="text" placeholder="DNI (sin puntos)" icon="badge" value={verificationData.dni} onChange={handleVerificationDataChange} disabled={isLoading} inputMode="numeric" pattern="[0-9]*" />
-        <Input name="correo" type="email" placeholder="Correo" icon="email" value={verificationData.correo} onChange={handleVerificationDataChange} disabled={isLoading} />
-        <Input name="telefono" type="tel" placeholder="Teléfono (con cód. de área)" icon="phone" value={verificationData.telefono} onChange={handleVerificationDataChange} disabled={isLoading} />
+
+        {/* Campos de Verificación (Siempre visibles, deshabilitados en paso 2) */}
+        <Input 
+            name="dni" 
+            type="text" 
+            placeholder="DNI (sin puntos)" 
+            icon="badge" 
+            value={verificationData.dni} 
+            onChange={handleVerificationDataChange} 
+            disabled={isLoading || resetStep === 'setPassword'} 
+            inputMode="numeric" 
+            pattern="[0-9]*" 
+        />
+        <Input 
+            name="correo" 
+            type="email" 
+            placeholder="Correo electrónico registrado" 
+            icon="email" 
+            value={verificationData.correo} 
+            onChange={handleVerificationDataChange} 
+            disabled={isLoading || resetStep === 'setPassword'} 
+        />
         
-        <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-5">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">Nueva Contraseña</h3>
-            <div className="relative">
-                <label htmlFor="password" className="sr-only">Nueva Contraseña</label>
-                <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva Contraseña" icon="lock" disabled={isLoading} autoComplete="new-password"/>
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
-                  <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
-                </button>
+        {/* Paso 2: Nueva Contraseña (Solo visible si verificado) */}
+        {resetStep === 'setPassword' && (
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-5 animate-fade-in-up">
+                <div className="flex justify-between items-baseline">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">Nueva Contraseña</h3>
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-md animate-pulse">
+                        (puede ser la misma de antes)
+                    </span>
+                </div>
+                <div className="relative">
+                    <label htmlFor="password" className="sr-only">Nueva Contraseña</label>
+                    <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva Contraseña" icon="lock" disabled={isLoading} autoComplete="new-password"/>
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                    <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                </div>
+                <div className="relative">
+                    <label htmlFor="confirmPassword" className="sr-only">Confirmar Nueva Contraseña</label>
+                    <Input id="confirmPassword" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar Nueva Contraseña" icon="lock_person" disabled={isLoading} autoComplete="new-password"/>
+                </div>
             </div>
-             <div className="relative">
-                <label htmlFor="confirmPassword" className="sr-only">Confirmar Nueva Contraseña</label>
-                <Input id="confirmPassword" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar Nueva Contraseña" icon="lock_person" disabled={isLoading} autoComplete="new-password"/>
-             </div>
-        </div>
+        )}
+
         <div className="pt-4 space-y-4">
           <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white font-bold text-base py-3 px-6 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-800 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 flex items-center justify-center gap-3">
-            {isLoading ? <><div className="border-2 border-white/50 border-t-white rounded-full w-5 h-5 animate-spin"></div><span>Restableciendo...</span></> : <span>Restablecer y Entrar</span>}
+            {isLoading ? (
+                <><div className="border-2 border-white/50 border-t-white rounded-full w-5 h-5 animate-spin"></div><span>Procesando...</span></>
+            ) : (
+                <span>{resetStep === 'verify' ? 'Verificar Datos' : 'Restablecer y Entrar'}</span>
+            )}
           </button>
           <button type="button" onClick={() => handleModeChange('login')} className="w-full text-center text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-colors">Cancelar</button>
         </div>

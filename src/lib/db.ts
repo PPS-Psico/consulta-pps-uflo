@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 import * as supabaseService from '../services/supabaseService';
-import { schema } from './airtableSchema';
+import { schema } from './dbSchema';
 import { 
     estudianteArraySchema, practicaArraySchema, authUserArraySchema, convocatoriaArraySchema, 
     lanzamientoPPSArraySchema, institucionArraySchema, penalizacionArraySchema, solicitudPPSArraySchema, 
@@ -10,14 +10,14 @@ import {
 import type { 
     EstudianteFields, PracticaFields, AuthUserFields, ConvocatoriaFields, 
     LanzamientoPPSFields, InstitucionFields, PenalizacionFields, SolicitudPPSFields, FinalizacionPPSFields,
-    AirtableRecord
+    AppRecord
 } from '../types';
 import { supabase } from './supabaseClient';
 
 // Helper to access the table name from the schema object
 function createTableInterface<TSchema extends { _tableName: string }, TRecordFields extends object>(
     tableSchema: TSchema,
-    zodArraySchema: z.ZodSchema<AirtableRecord<TRecordFields>[]>
+    zodArraySchema: z.ZodSchema<AppRecord<TRecordFields>[]>
 ) {
     const { _tableName } = tableSchema;
 
@@ -53,6 +53,24 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             return records;
         },
 
+        // New method for Server-Side Pagination
+        getPage: async (
+            page: number, 
+            pageSize: number, 
+            options?: { searchTerm?: string, searchFields?: string[], sort?: { field: string; direction: 'asc' | 'desc' } }
+        ) => {
+            return supabaseService.fetchPaginatedData<TRecordFields>(
+                _tableName,
+                zodArraySchema,
+                page,
+                pageSize,
+                [], // Fetch all fields for editor
+                options?.searchTerm,
+                options?.searchFields,
+                options?.sort
+            );
+        },
+
         create: async (fields: TRecordFields) => {
             const { record, error } = await supabaseService.createRecord<TRecordFields>(_tableName, fields);
             if (error) throw error;
@@ -85,7 +103,6 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
 export const getStudentLoginInfo = async (legajo: string): Promise<{ email: string } | null> => {
     try {
         // SECURITY CRITICAL: Use RPC to bypass RLS securely for this specific lookup.
-        // Direct table query would fail for unauthenticated users if RLS is enabled.
         const { data: email, error } = await supabase.rpc('get_student_email_by_legajo', { 
             legajo_input: legajo 
         });

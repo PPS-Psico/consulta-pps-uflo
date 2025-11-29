@@ -1,10 +1,10 @@
 
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchAllAirtableData } from '../services/airtableService';
+import { fetchAllData } from '../services/supabaseService';
 import type { LanzamientoPPS, LanzamientoPPSFields } from '../types';
 import {
-  AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
+  TABLE_NAME_LANZAMIENTOS_PPS,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
   FIELD_ORIENTACION_LANZAMIENTOS,
   FIELD_FECHA_INICIO_LANZAMIENTOS,
@@ -23,8 +23,8 @@ const MOCK_TIMELINE_DATA: LanzamientoPPS[] = [
 ];
 
 const fetchTimelineData = async (): Promise<LanzamientoPPS[]> => {
-  const { records, error } = await fetchAllAirtableData<LanzamientoPPSFields>(
-    AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
+  const { records, error } = await fetchAllData<LanzamientoPPSFields>(
+    TABLE_NAME_LANZAMIENTOS_PPS,
     lanzamientoPPSArraySchema,
     [
       FIELD_NOMBRE_PPS_LANZAMIENTOS,

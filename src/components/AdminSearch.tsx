@@ -1,12 +1,11 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchAirtableData } from '../services/airtableService';
+import { db } from '../lib/db';
 import { 
-    AIRTABLE_TABLE_NAME_ESTUDIANTES, 
     FIELD_LEGAJO_ESTUDIANTES, 
-    FIELD_NOMBRE_ESTUDIANTES,
+    FIELD_NOMBRE_ESTUDIANTES, 
 } from '../constants';
 import type { EstudianteFields, AirtableRecord } from '../types';
-import { estudianteArraySchema } from '../schemas';
 import Input from './Input';
 
 const MOCK_STUDENTS_FOR_SEARCH: AirtableRecord<EstudianteFields>[] = [
@@ -53,19 +52,12 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
         return;
     }
     
-    const cleanedTerm = term.replace(/"/g, '\\"').toLowerCase();
-    const formula = `OR(
-        SEARCH("${cleanedTerm}", LOWER({${FIELD_NOMBRE_ESTUDIANTES}})),
-        SEARCH("${cleanedTerm}", {${FIELD_LEGAJO_ESTUDIANTES}} & '')
-    )`;
-    
-    const { records, error } = await fetchAirtableData<EstudianteFields>(
-        AIRTABLE_TABLE_NAME_ESTUDIANTES,
-        estudianteArraySchema,
-        [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES],
-        formula,
-        7
-    );
+    // Optimización: Usamos getPage que utiliza la búsqueda nativa de Supabase (ilike)
+    // en lugar de construir fórmulas complejas manualmente.
+    const { records, error } = await db.estudiantes.getPage(1, 20, {
+        searchTerm: term,
+        searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES]
+    });
     
     if (!error) {
       setResults(records);

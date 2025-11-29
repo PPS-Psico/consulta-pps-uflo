@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchAllAirtableData, updateAirtableRecord } from '../services/airtableService';
+import { fetchAllData, updateRecord } from '../services/supabaseService';
 import type { LanzamientoPPS } from '../types';
 import {
-  AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
+  TABLE_NAME_LANZAMIENTOS_PPS,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
   FIELD_FECHA_FIN_LANZAMIENTOS,
   FIELD_ORIENTACION_LANZAMIENTOS,
@@ -113,7 +113,7 @@ const CollapsibleSection: React.FC<{ title: string; count: number; children: Rea
       <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h3>
       <span className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold px-2.5 py-1 rounded-full">{count}</span>
       <div className="flex-grow border-b-2 border-slate-200/60 dark:border-slate-700/60"></div>
-      <span className="material-icons text-slate-400 dark:text-slate-500 transition-transform duration-300 group-open:rotate-180">expand_more</span>
+      <span className="material-icons text-slate-400 dark:text-slate-500 transition-transform duration-300 group-open/rotate-180">expand_more</span>
     </summary>
     {children}
   </details>
@@ -140,8 +140,8 @@ const ConvocatoriaStatusManager: React.FC<ConvocatoriaStatusManagerProps> = ({ i
             return;
         }
         
-        const { records, error: fetchError } = await fetchAllAirtableData(
-            AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
+        const { records, error: fetchError } = await fetchAllData(
+            TABLE_NAME_LANZAMIENTOS_PPS,
             lanzamientoPPSArraySchema,
             [
                 FIELD_NOMBRE_PPS_LANZAMIENTOS,
@@ -159,7 +159,7 @@ const ConvocatoriaStatusManager: React.FC<ConvocatoriaStatusManagerProps> = ({ i
             setLoadingState('error');
         } else {
             // Ensure records are treated as flat objects. 
-            // fetchAllAirtableData via supabaseService already returns flat records, 
+            // fetchAllData via supabaseService already returns flat records, 
             // so spreading `r` works. `r.id` is standard.
             const mappedRecords = records.map(r => ({ ...r, id: r.id } as LanzamientoPPS));
             setLanzamientos(mappedRecords);
@@ -183,7 +183,7 @@ const ConvocatoriaStatusManager: React.FC<ConvocatoriaStatusManagerProps> = ({ i
             return true;
         }
 
-        const { error: updateError } = await updateAirtableRecord(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, id, {
+        const { error: updateError } = await updateRecord(TABLE_NAME_LANZAMIENTOS_PPS, id, {
             [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: newStatus
         });
         

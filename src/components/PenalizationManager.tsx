@@ -1,25 +1,26 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AdminSearch from './AdminSearch';
-import { fetchAllAirtableData, createAirtableRecord, deleteAirtableRecord, updateAirtableRecord } from '../services/airtableService';
+import { fetchAllData, createRecord, deleteRecord, updateRecord } from '../services/supabaseService';
 import type { EstudianteFields, Penalizacion, PenalizacionFields, ConvocatoriaFields, PracticaFields, LanzamientoPPSFields, AirtableRecord } from '../types';
 import {
-  AIRTABLE_TABLE_NAME_ESTUDIANTES,
+  TABLE_NAME_ESTUDIANTES,
   FIELD_LEGAJO_ESTUDIANTES,
   FIELD_NOMBRE_ESTUDIANTES,
-  AIRTABLE_TABLE_NAME_PENALIZACIONES,
+  TABLE_NAME_PENALIZACIONES,
   FIELD_PENALIZACION_ESTUDIANTE_LINK,
   FIELD_PENALIZACION_TIPO,
   FIELD_PENALIZACION_FECHA,
   FIELD_PENALIZACION_NOTAS,
   FIELD_PENALIZACION_PUNTAJE,
-  AIRTABLE_TABLE_NAME_CONVOCATORIAS,
+  TABLE_NAME_CONVOCATORIAS,
   FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
   FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
-  AIRTABLE_TABLE_NAME_PRACTICAS,
+  TABLE_NAME_PRACTICAS,
   FIELD_ESTADO_PRACTICA,
   FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
-  AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS,
+  TABLE_NAME_LANZAMIENTOS_PPS,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
   FIELD_FECHA_INICIO_LANZAMIENTOS,
   FIELD_PENALIZACION_CONVOCATORIA_LINK,
@@ -78,9 +79,9 @@ const AddPenaltyModal: React.FC<{
             // given complex Airtable formula logic.
             
             const [convocatoriasRes, practicasRes, lanzamientosRes] = await Promise.all([
-                fetchAllAirtableData<ConvocatoriaFields>(AIRTABLE_TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS, FIELD_LEGAJO_CONVOCATORIAS, FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]),
-                fetchAllAirtableData<PracticaFields>(AIRTABLE_TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_NOMBRE_BUSQUEDA_PRACTICAS, FIELD_ESTADO_PRACTICA]),
-                fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS])
+                fetchAllData<ConvocatoriaFields>(TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS, FIELD_LEGAJO_CONVOCATORIAS, FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]),
+                fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_NOMBRE_BUSQUEDA_PRACTICAS, FIELD_ESTADO_PRACTICA]),
+                fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS])
             ]);
 
             const lanzamientoIds = new Set<string>();
@@ -123,7 +124,7 @@ const AddPenaltyModal: React.FC<{
                 console.log("TEST MODE: Applying penalty:", penaltyData);
                 return;
             }
-            const penaltyResult = await createAirtableRecord<PenalizacionFields>(AIRTABLE_TABLE_NAME_PENALIZACIONES, penaltyData);
+            const penaltyResult = await createRecord<PenalizacionFields>(TABLE_NAME_PENALIZACIONES, penaltyData);
             if (penaltyResult.error) {
                 const errorMsg = typeof penaltyResult.error.error === 'string' ? penaltyResult.error.error : penaltyResult.error.error.message;
                 throw new Error(`Error al crear la penalización: ${errorMsg}`);
@@ -134,9 +135,9 @@ const AddPenaltyModal: React.FC<{
                 const ppsId = selectedPpsId;
                 
                 const [convocatoriasRes, practicasRes, lanzamientosRes] = await Promise.all([
-                    fetchAllAirtableData<ConvocatoriaFields>(AIRTABLE_TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema),
-                    fetchAllAirtableData<PracticaFields>(AIRTABLE_TABLE_NAME_PRACTICAS, practicaArraySchema),
-                    fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema)
+                    fetchAllData<ConvocatoriaFields>(TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema),
+                    fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema),
+                    fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema)
                 ]);
                 
                 // Filter in memory
@@ -166,12 +167,12 @@ const AddPenaltyModal: React.FC<{
                 const sideEffectPromises = [];
                 if (targetConv) {
                     sideEffectPromises.push(
-                        updateAirtableRecord(AIRTABLE_TABLE_NAME_CONVOCATORIAS, targetConv.id, { [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'No Seleccionado' })
+                        updateRecord(TABLE_NAME_CONVOCATORIAS, targetConv.id, { [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'No Seleccionado' })
                     );
                 }
     
                 if (targetPractica) {
-                    sideEffectPromises.push(deleteAirtableRecord(AIRTABLE_TABLE_NAME_PRACTICAS, targetPractica.id));
+                    sideEffectPromises.push(deleteRecord(TABLE_NAME_PRACTICAS, targetPractica.id));
                 }
                 
                 if (sideEffectPromises.length > 0) {
@@ -365,9 +366,9 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
         queryFn: async () => {
             if (isTestingMode) return [];
             const [penaltiesRes, studentsRes, lanzamientosRes] = await Promise.all([
-                fetchAllAirtableData<PenalizacionFields>(AIRTABLE_TABLE_NAME_PENALIZACIONES, penalizacionArraySchema),
-                fetchAllAirtableData<EstudianteFields>(AIRTABLE_TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES]),
-                fetchAllAirtableData<LanzamientoPPSFields>(AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_NOMBRE_PPS_LANZAMIENTOS])
+                fetchAllData<PenalizacionFields>(TABLE_NAME_PENALIZACIONES, penalizacionArraySchema),
+                fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES]),
+                fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_NOMBRE_PPS_LANZAMIENTOS])
             ]);
 
             const studentsMap = new Map<string, { legajo: string, nombre: string }>();
@@ -421,7 +422,7 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
                 console.log("TESTING: Deleting penalty", penaltyId);
                 return Promise.resolve({ success: true, error: null });
             }
-            return deleteAirtableRecord(AIRTABLE_TABLE_NAME_PENALIZACIONES, penaltyId)
+            return deleteRecord(TABLE_NAME_PENALIZACIONES, penaltyId)
         },
         onSuccess: () => {
             setToastInfo({ message: 'Penalización eliminada.', type: 'success' });

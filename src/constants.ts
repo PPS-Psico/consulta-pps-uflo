@@ -4,15 +4,15 @@ export const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "";
 export const SUPABASE_ANON_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";
 
 // Table Names (Mapped to Supabase SQL Tables)
-export const AIRTABLE_TABLE_NAME_PPS = 'solicitudes_pps';
-export const AIRTABLE_TABLE_NAME_PRACTICAS = 'practicas';
-export const AIRTABLE_TABLE_NAME_ESTUDIANTES = 'estudiantes';
-export const AIRTABLE_TABLE_NAME_AUTH_USERS = 'auth_users';
-export const AIRTABLE_TABLE_NAME_LANZAMIENTOS_PPS = 'lanzamientos_pps';
-export const AIRTABLE_TABLE_NAME_CONVOCATORIAS = 'convocatorias';
-export const AIRTABLE_TABLE_NAME_INSTITUCIONES = 'instituciones';
-export const AIRTABLE_TABLE_NAME_FINALIZACION = 'finalizacion_pps';
-export const AIRTABLE_TABLE_NAME_PENALIZACIONES = 'penalizaciones';
+export const TABLE_NAME_PPS = 'solicitudes_pps';
+export const TABLE_NAME_PRACTICAS = 'practicas';
+export const TABLE_NAME_ESTUDIANTES = 'estudiantes';
+export const TABLE_NAME_AUTH_USERS = 'auth_users';
+export const TABLE_NAME_LANZAMIENTOS_PPS = 'lanzamientos_pps';
+export const TABLE_NAME_CONVOCATORIAS = 'convocatorias';
+export const TABLE_NAME_INSTITUCIONES = 'instituciones';
+export const TABLE_NAME_FINALIZACION = 'finalizacion_pps';
+export const TABLE_NAME_PENALIZACIONES = 'penalizaciones';
 
 
 // --- Fields for 'Estudiantes' table ---
@@ -29,8 +29,8 @@ export const FIELD_TELEFONO_ESTUDIANTES = 'telefono';
 export const FIELD_NOTAS_INTERNAS_ESTUDIANTES = 'notas_internas';
 export const FIELD_FECHA_FINALIZACION_ESTUDIANTES = 'fecha_finalizacion';
 export const FIELD_FINALIZARON_ESTUDIANTES = 'finalizaron';
-export const FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES = 'must_change_password';
 export const FIELD_USER_ID_ESTUDIANTES = 'user_id';
+export const FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES = 'must_change_password';
 
 
 // --- Fields for 'Prácticas' table ---
