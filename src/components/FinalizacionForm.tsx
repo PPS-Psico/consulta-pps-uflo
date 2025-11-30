@@ -11,6 +11,7 @@ import {
     FIELD_PLANILLA_HORAS_FINALIZACION,
     FIELD_PLANILLA_ASISTENCIA_FINALIZACION,
     FIELD_SUGERENCIAS_MEJORAS_FINALIZACION,
+    FIELD_FECHA_FINALIZACION_ESTUDIANTES
 } from '../constants';
 import Card from './Card';
 import Button from './Button';
@@ -29,22 +30,25 @@ interface FileState {
     url: string | null;
 }
 
+// Using a dummy link for now, or could be a public URL from supabase storage if uploaded
+const TEMPLATE_URL = "https://qxnxtnhtbpsgzprqtrjl.supabase.co/storage/v1/object/public/documentos_seguros/Modelo_Planilla_Seguimiento.xlsx"; // Assuming this file exists or will exist
+
 const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }) => {
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
     
     const [files, setFiles] = useState<Record<FileUploadType, FileState>>({
-        informe: { file: null, uploading: false, url: null },
-        horas: { file: null, uploading: false, url: null },
-        asistencia: { file: null, uploading: false, url: null },
+        horas: { file: null, uploading: false, url: null }, // 1. Planilla de Seguimiento
+        asistencia: { file: null, uploading: false, url: null }, // 2. Asistencia
+        informe: { file: null, uploading: false, url: null }, // 3. Informes
     });
     
     const [sugerencias, setSugerencias] = useState('');
 
     const fileInputRefs = {
-        informe: useRef<HTMLInputElement>(null),
         horas: useRef<HTMLInputElement>(null),
         asistencia: useRef<HTMLInputElement>(null),
+        informe: useRef<HTMLInputElement>(null),
     };
 
     const uploadFile = async (file: File, type: FileUploadType): Promise<string> => {
@@ -127,7 +131,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
             const today = new Date().toISOString().split('T')[0];
             await db.estudiantes.update(studentAirtableId, {
                 finalizaron: true,
-                fechaFinalizacion: today
+                [FIELD_FECHA_FINALIZACION_ESTUDIANTES]: today
             });
 
             return true;
@@ -140,6 +144,15 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
             setToastInfo({ message: `Error al enviar: ${error.message}`, type: 'error' });
         }
     });
+
+    const handleDownloadTemplate = (e: React.MouseEvent) => {
+        e.preventDefault();
+        // Here you would ideally trigger a download for the template
+        // For now we can try to open the dummy link or show a toast
+        // Since we don't have a real file hosted, I'll alert for now
+        alert("La descarga del modelo estará disponible pronto. Por favor solicítalo por correo si no lo tienes.");
+        // window.open(TEMPLATE_URL, '_blank');
+    };
 
     if (isSubmitted) {
         return (
@@ -155,6 +168,28 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
             </Card>
         );
     }
+
+    const uploadItems = [
+        { 
+            key: 'horas', 
+            label: 'Planilla de Seguimiento', 
+            desc: 'Excel de seguimiento de horas firmado.', 
+            icon: 'schedule',
+            hasTemplate: true 
+        },
+        { 
+            key: 'asistencia', 
+            label: 'Planilla de Asistencia', 
+            desc: 'Registro diario de asistencia.', 
+            icon: 'event_available' 
+        },
+        { 
+            key: 'informe', 
+            label: 'Informes', 
+            desc: 'Informes finales de la práctica.', 
+            icon: 'description' 
+        },
+    ];
 
     return (
         <div className="animate-fade-in-up h-full flex flex-col">
@@ -174,17 +209,24 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
 
             <div className="flex-grow overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/30">
                 {/* Upload Sections */}
-                {[
-                    { key: 'informe', label: 'Informe Final', desc: 'El informe completo de tu práctica.', icon: 'description' },
-                    { key: 'horas', label: 'Planilla de Horas', desc: 'Firmada por tu tutor institucional.', icon: 'schedule' },
-                    { key: 'asistencia', label: 'Planilla de Asistencia', desc: 'Registro diario de asistencia.', icon: 'event_available' }
-                ].map((item) => (
+                {uploadItems.map((item) => (
                     <div key={item.key} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
                         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-800">
                             <span className="material-icons">{item.icon}</span>
                         </div>
                         <div className="flex-grow">
-                            <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.label}</h4>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.label}</h4>
+                                {item.hasTemplate && (
+                                    <button 
+                                        onClick={handleDownloadTemplate}
+                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-0.5"
+                                    >
+                                        <span className="material-icons !text-xs">download</span>
+                                        Descargar Modelo
+                                    </button>
+                                )}
+                            </div>
                             <p className="text-sm text-slate-500 dark:text-slate-400">{item.desc}</p>
                         </div>
                         <div className="flex-shrink-0 w-full sm:w-auto">
@@ -193,7 +235,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
                                 ref={fileInputRefs[item.key as FileUploadType]}
                                 onChange={(e) => handleFileChange(e, item.key as FileUploadType)}
                                 className="hidden"
-                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
                             />
                             <button
                                 type="button"

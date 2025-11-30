@@ -1,7 +1,22 @@
+
 import React from 'react';
 import type { SolicitudPPS } from '../types';
 import { FIELD_EMPRESA_PPS_SOLICITUD, FIELD_ESTADO_PPS, FIELD_ULTIMA_ACTUALIZACION_PPS, FIELD_NOTAS_PPS } from '../constants';
 import { formatDate, getStatusVisuals } from '../utils/formatters';
+
+// Helper function to clean Airtable array strings
+const cleanValue = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    if (Array.isArray(val)) return cleanValue(val[0]);
+    let str = String(val);
+    if (str.startsWith('["') && str.endsWith('"]')) {
+        try {
+            const parsed = JSON.parse(str);
+            if (Array.isArray(parsed) && parsed.length > 0) return cleanValue(parsed[0]);
+        } catch (e) {}
+    }
+    return str.replace(/[\[\]"]/g, '').trim();
+}
 
 interface SolicitudCardProps {
   solicitud: SolicitudPPS;
@@ -9,10 +24,10 @@ interface SolicitudCardProps {
 
 const SolicitudCard: React.FC<SolicitudCardProps> = ({ solicitud }) => {
   const institucionRaw = solicitud[FIELD_EMPRESA_PPS_SOLICITUD];
-  const institucion = Array.isArray(institucionRaw) ? institucionRaw?.[0] : institucionRaw;
+  const institucion = cleanValue(institucionRaw);
 
   const statusRaw = solicitud[FIELD_ESTADO_PPS];
-  const status = Array.isArray(statusRaw) ? statusRaw?.[0] : statusRaw;
+  const status = cleanValue(statusRaw);
   
   const notas = solicitud[FIELD_NOTAS_PPS];
   const actualizacion = solicitud[FIELD_ULTIMA_ACTUALIZACION_PPS];
@@ -45,7 +60,7 @@ const SolicitudCard: React.FC<SolicitudCardProps> = ({ solicitud }) => {
 
         <div className="flex-shrink-0 self-start sm:self-center">
           <span className={`${visuals.labelClass} transition-transform group-hover:scale-105`}>
-            {status || 'N/A'}
+            {status || 'Pendiente'}
           </span>
         </div>
 

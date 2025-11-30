@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -22,7 +23,8 @@ import type { EstudianteFields } from '../types';
 import Loader from './Loader';
 import EmptyState from './EmptyState';
 import Toast from './Toast';
-import { formatDate } from '../utils/formatters';
+import CollapsibleSection from './CollapsibleSection';
+import { formatDate, normalizeStringForComparison } from '../utils/formatters';
 import { sendSmartEmail } from '../utils/emailService';
 
 // --- Tipos y Helpers ---
@@ -39,16 +41,20 @@ const normalizeAttachments = (attachment: any): Attachment[] => {
     if (typeof data === 'string') {
         try {
             const parsed = JSON.parse(data);
-            if (typeof parsed === 'object') data = parsed;
+            data = parsed;
         } catch (e) {
+            // Si no es JSON válido, asumimos que es una URL directa
             return [{ url: data, filename: 'Archivo Adjunto', type: 'unknown' }];
         }
     }
+    
     const arr = Array.isArray(data) ? data : [data];
+    
     return arr.map((a: any) => {
         if (typeof a === 'string') {
             return { url: a, filename: 'Archivo Adjunto', type: 'unknown' };
         }
+        // Soporte para estructura de Supabase Storage o Airtable
         return { 
             url: a.url || a.signedUrl || '', 
             filename: a.filename || a.name || 'Archivo', 
@@ -63,6 +69,13 @@ const getFileType = (filename: string) => {
     if (ext === 'pdf') return 'pdf';
     if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext || '')) return 'office';
     return 'other';
+};
+
+// Estado normalizado: 'pendiente' | 'en proceso' | 'cargado'
+const getNormalizationState = (request: any): string => {
+    const rawState = request[FIELD_ESTADO_FINALIZACION];
+    const stateStr = Array.isArray(rawState) ? rawState[0] : rawState;
+    return normalizeStringForComparison(stateStr);
 };
 
 interface FilePreviewModalProps {
@@ -121,7 +134,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
                     if (fileType === 'pdf') setIsLoadingPreview(false);
                 });
         } else {
-            setIsLoadingPreview(true); 
+            // Office files are loaded via iframe directly
+            setIsLoadingPreview(false); 
         }
 
         return () => {
@@ -151,10 +165,11 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
     const hasPrev = currentIndex > 0;
     
     const renderFallback = () => (
-        <div className="text-white text-center p-8 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl max-w-md mx-auto relative z-50">
-            <span className="material-icons !text-6xl mb-4 text-rose-400">error_outline</span>
-            <p className="text-lg mb-2 font-semibold">No se pudo previsualizar</p>
-            <a href={currentFile.url} download target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-colors shadow-lg cursor-pointer mt-4" onClick={(e) => e.stopPropagation()}>
+        <div className="text-white text-center p-8 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl max-w-md mx-auto relative z-50 animate-fade-in">
+            <span className="material-icons !text-6xl mb-4 text-rose-400">description</span>
+            <p className="text-lg mb-2 font-semibold">Vista previa no disponible</p>
+            <p className="text-sm text-slate-400 mb-6">Este tipo de archivo no se puede visualizar aquí o hubo un error al cargarlo.</p>
+            <a href={currentFile.url} download target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-colors shadow-lg cursor-pointer" onClick={(e) => e.stopPropagation()}>
                 <span className="material-icons !text-lg">download</span>
                 Descargar Archivo
             </a>
@@ -162,17 +177,50 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
     );
 
     const renderContent = () => {
+        if (hasError) return renderFallback();
+
         const displayUrl = blobUrl || currentFile.url;
+        
         if (fileType === 'image') {
-            if (hasError || !displayUrl) return renderFallback();
-            return <div className="relative w-full h-full flex items-center justify-center"><img src={displayUrl} alt={currentFile.filename} className={`max-w-[90vw] max-h-[85vh] object-contain relative z-10 shadow-2xl transition-opacity duration-300 ${isLoadingPreview ? 'opacity-0' : 'opacity-100'}`} onLoad={() => setIsLoadingPreview(false)} onError={() => { setHasError(true); setIsLoadingPreview(false); }} /></div>;
+            return (
+                <div className="relative w-full h-full flex items-center justify-center">
+                    <img 
+                        src={displayUrl} 
+                        alt={currentFile.filename} 
+                        className={`max-w-[90vw] max-h-[85vh] object-contain relative z-10 shadow-2xl transition-opacity duration-300 ${isLoadingPreview ? 'opacity-0' : 'opacity-100'}`} 
+                        onLoad={() => setIsLoadingPreview(false)} 
+                        onError={() => { setHasError(true); setIsLoadingPreview(false); }} 
+                    />
+                </div>
+            );
         }
         if (fileType === 'pdf') {
-             return <div className="w-[90vw] h-[85vh] bg-slate-700 rounded-lg overflow-hidden relative shadow-2xl flex flex-col">{isLoadingPreview && (<div className="absolute inset-0 flex items-center justify-center z-20 bg-slate-800"><div className="w-10 h-10 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin"></div></div>)}<iframe src={displayUrl} className="w-full h-full" title="PDF Preview" /></div>;
+             return (
+                <div className="w-[90vw] h-[85vh] bg-slate-700 rounded-lg overflow-hidden relative shadow-2xl flex flex-col">
+                    {isLoadingPreview && (
+                        <div className="absolute inset-0 flex items-center justify-center z-20 bg-slate-800">
+                            <div className="w-10 h-10 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin"></div>
+                        </div>
+                    )}
+                    <iframe src={displayUrl} className="w-full h-full" title="PDF Preview" onError={() => setHasError(true)} />
+                </div>
+             );
         }
         if (fileType === 'office') {
-             const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(currentFile.url)}&embedded=true`;
-             return <div className="w-[90vw] h-[85vh] bg-white rounded-lg overflow-hidden relative shadow-2xl"><iframe src={googleDocsUrl} className="w-full h-full" title="Office Preview" /></div>;
+             const encodedUrl = encodeURIComponent(currentFile.url);
+             const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
+             
+             return (
+                <div className="w-[90vw] h-[85vh] bg-white rounded-lg overflow-hidden relative shadow-2xl">
+                    <iframe 
+                        src={officeUrl} 
+                        className="w-full h-full" 
+                        title="Office Preview" 
+                        frameBorder="0"
+                        onError={() => setHasError(true)}
+                    />
+                </div>
+             );
         }
         return renderFallback();
     };
@@ -187,18 +235,77 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
                      </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                    <a href={currentFile.url} download target="_blank" rel="noreferrer" className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center"><span className="material-icons !text-xl text-gray-300 hover:text-white">download</span></a>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center"><span className="material-icons !text-2xl text-gray-300 hover:text-white">close</span></button>
+                    <a href={currentFile.url} download target="_blank" rel="noreferrer" className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center" title="Descargar">
+                        <span className="material-icons !text-xl text-gray-300 hover:text-white">download</span>
+                    </a>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center justify-center" title="Cerrar">
+                        <span className="material-icons !text-2xl text-gray-300 hover:text-white">close</span>
+                    </button>
                 </div>
             </div>
             <div className="flex-grow relative flex items-center justify-center p-2 sm:p-4 w-full h-[calc(100vh-64px)]">
-                 {isLoadingPreview && fileType !== 'office' && fileType !== 'pdf' && (<div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0"><div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div></div>)}
-                 <div className="w-full h-full flex items-center justify-center relative" onClick={e => e.stopPropagation()}>{renderContent()}</div>
+                 {isLoadingPreview && fileType !== 'office' && fileType !== 'pdf' && !hasError && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    </div>
+                 )}
+                 
+                 <div className="w-full h-full flex items-center justify-center relative" onClick={e => e.stopPropagation()}>
+                    {renderContent()}
+                 </div>
+
                  {hasPrev && <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => prev - 1); }} className="absolute left-2 sm:left-8 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all z-50 backdrop-blur-md border border-white/10 group outline-none"><span className="material-icons !text-3xl group-hover:-translate-x-0.5 transition-transform">chevron_left</span></button>}
                  {hasNext && <button onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => prev + 1); }} className="absolute right-2 sm:right-8 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/70 text-white rounded-full transition-all z-50 backdrop-blur-md border border-white/10 group outline-none"><span className="material-icons !text-3xl group-hover:translate-x-0.5 transition-transform">chevron_right</span></button>}
             </div>
         </div>,
         document.body
+    );
+};
+
+// Componente para la fila minimalista "En Proceso SAC"
+const SacProcessRow: React.FC<{
+    request: any;
+    onUpdateStatus: (id: string, status: string) => void;
+    isUpdating: boolean;
+    searchTerm: string;
+}> = ({ request, onUpdateStatus, isUpdating, searchTerm }) => {
+    
+    const Highlight = ({ text }: { text: string }) => {
+        if (!searchTerm.trim()) return <span>{text}</span>;
+        const parts = text.split(new RegExp(`(${searchTerm})`, 'gi'));
+        return <span>{parts.map((part, i) => part.toLowerCase() === searchTerm.toLowerCase() ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-400/50 dark:text-yellow-900 rounded px-0.5">{part}</mark> : part)}</span>;
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-200 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 group">
+            <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
+                 <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
+                    {request.studentName.charAt(0)}
+                </div>
+                <div className="min-w-0">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 truncate"><Highlight text={request.studentName} /></h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono"><Highlight text={request.studentLegajo} /></p>
+                </div>
+            </div>
+            
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <button 
+                    onClick={() => onUpdateStatus(request.id, 'Pendiente')} 
+                    disabled={isUpdating}
+                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium px-3 py-2"
+                >
+                    Volver a Pendiente
+                </button>
+                <button 
+                    onClick={() => onUpdateStatus(request.id, 'Cargado')} 
+                    disabled={isUpdating}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all shadow hover:shadow-md disabled:opacity-50 font-bold text-xs"
+                >
+                    {isUpdating ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span className="material-icons !text-sm">send</span>}
+                    Confirmar Acreditación
+                </button>
+            </div>
+        </div>
     );
 };
 
@@ -208,9 +315,12 @@ const RequestCard: React.FC<{
     isUpdating: boolean;
     searchTerm: string;
     onPreview: (files: Attachment[], initialIndex: number) => void;
-}> = ({ request, onUpdateStatus, isUpdating, searchTerm, onPreview }) => {
+    isArchived?: boolean;
+}> = ({ request, onUpdateStatus, isUpdating, searchTerm, onPreview, isArchived = false }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const isCargado = request[FIELD_ESTADO_FINALIZACION] === 'Cargado';
+    const status = getNormalizationState(request);
+    const isCargado = status === 'cargado';
+    
     let suggestionsText = '';
     const suggestionsRaw = request[FIELD_SUGERENCIAS_MEJORAS_FINALIZACION];
     if (suggestionsRaw) suggestionsText = Array.isArray(suggestionsRaw) ? suggestionsRaw.filter(Boolean).join(' ').trim() : suggestionsRaw.trim();
@@ -234,7 +344,7 @@ const RequestCard: React.FC<{
     };
 
     return (
-        <div className={`bg-white dark:bg-slate-800 rounded-xl border shadow-sm transition-all duration-300 overflow-hidden ${isExpanded ? 'shadow-lg ring-1 ring-blue-200 dark:ring-blue-900 border-blue-300 dark:border-blue-700' : 'border-slate-200 dark:border-slate-700 hover:border-blue-300/50'} ${isCargado ? 'opacity-90' : ''}`}>
+        <div className={`bg-white dark:bg-slate-800 rounded-xl border shadow-sm transition-all duration-300 overflow-hidden ${isExpanded ? 'shadow-lg ring-1 ring-blue-200 dark:ring-blue-900 border-blue-300 dark:border-blue-700' : 'border-slate-200 dark:border-slate-700 hover:border-blue-300/50'} ${isCargado ? 'opacity-80 hover:opacity-100' : ''}`}>
             <div onClick={() => setIsExpanded(!isExpanded)} className="p-4 cursor-pointer flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <div className="flex items-center gap-4 min-w-0">
                     <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${isCargado ? 'bg-slate-400' : 'bg-blue-600'}`}>{request.studentName.charAt(0)}</div>
@@ -246,8 +356,18 @@ const RequestCard: React.FC<{
                     </div>
                 </div>
                 <div className="flex items-center gap-3 w-full lg:w-auto justify-end pl-14 lg:pl-0">
-                    {planillaHoras.length > 0 && (<button onClick={(e) => handlePreview(e, 'horas', 0)} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 rounded-lg transition-colors text-xs font-bold shadow-sm"><span className="material-icons !text-base">table_view</span><span className="hidden sm:inline">Planilla Seguimiento</span></button>)}
-                    {isCargado ? (<span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600"><span className="material-icons !text-sm">check_circle</span><span className="hidden sm:inline">Cargado</span></span>) : (<span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800"><span className="material-icons !text-sm">hourglass_empty</span><span className="hidden sm:inline">Pendiente</span></span>)}
+                    {planillaHoras.length > 0 && (<button onClick={(e) => handlePreview(e, 'horas', 0)} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 rounded-lg transition-colors text-xs font-bold shadow-sm"><span className="material-icons !text-base">table_view</span><span className="hidden sm:inline">Planilla</span></button>)}
+                    
+                    {isCargado ? (
+                        <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
+                            <span className="material-icons !text-sm">check_circle</span><span className="hidden sm:inline">Cargado</span>
+                        </span>
+                    ) : (
+                        <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                            <span className="material-icons !text-sm">hourglass_empty</span><span className="hidden sm:inline">Pendiente</span>
+                        </span>
+                    )}
+                    
                     <div className={`text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}><span className="material-icons">expand_more</span></div>
                 </div>
             </div>
@@ -264,13 +384,15 @@ const RequestCard: React.FC<{
                         </div>
                     </div>
                     {hasSuggestions && (<div className="mt-6"><h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2"><span className="material-icons !text-sm">comment</span> Comentarios del Alumno</h4><div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/50 rounded-lg p-4 text-sm text-slate-700 dark:text-slate-300 italic leading-relaxed">"{suggestionsText}"</div></div>)}
+                    
                     <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-                        {!isCargado ? (
-                            <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(request.id, 'Cargado'); }} disabled={isUpdating} className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all shadow hover:shadow-md disabled:opacity-50 font-bold text-sm">
-                                {isUpdating ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span className="material-icons !text-lg">check</span>} Confirmar Carga en Sistema
-                            </button>
-                        ) : (
+                        {isArchived ? (
                              <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(request.id, 'Pendiente'); }} disabled={isUpdating} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-lg transition-colors font-medium text-sm"><span className="material-icons !text-base">undo</span> Revertir a Pendiente</button>
+                        ) : (
+                            /* Action button for Pending State -> Move to SAC Process */
+                            <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(request.id, 'En Proceso'); }} disabled={isUpdating} className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow hover:shadow-md disabled:opacity-50 font-bold text-sm">
+                                {isUpdating ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span className="material-icons !text-lg">fact_check</span>} Aprobar para SAC
+                            </button>
                         )}
                     </div>
                 </div>
@@ -308,24 +430,21 @@ const FinalizacionReview: React.FC = () => {
                     studentEmail: student?.[FIELD_CORREO_ESTUDIANTES],
                     createdTime: req.createdTime
                 };
-            }).sort((a, b) => {
-                if (a[FIELD_ESTADO_FINALIZACION] === 'Pendiente' && b[FIELD_ESTADO_FINALIZACION] !== 'Pendiente') return -1;
-                if (a[FIELD_ESTADO_FINALIZACION] !== 'Pendiente' && b[FIELD_ESTADO_FINALIZACION] === 'Pendiente') return 1;
-                return new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime();
-            });
+            }).sort((a, b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());
         }
     });
 
     const updateStatusMutation = useMutation({
         mutationFn: async ({ id, newStatus }: { id: string; newStatus: string }) => {
-            // Email automation on confirmation
+            // Email automation only on final confirmation (Cargado/Finalizado)
+            // "Cargado" is the key used in DB for the final state based on migration.
             if (newStatus === 'Cargado') {
                 const request = data?.find(r => r.id === id);
                 if (request && request.studentEmail) {
                     const emailRes = await sendSmartEmail('sac', {
                          studentName: request.studentName,
                          studentEmail: request.studentEmail,
-                         ppsName: 'Práctica Profesional Supervisada' // Generic as it's the whole career closure usually
+                         ppsName: 'Práctica Profesional Supervisada'
                     });
                     if (!emailRes.success && emailRes.message !== 'Automación desactivada') {
                          console.warn("Email send failed:", emailRes.message);
@@ -345,7 +464,7 @@ const FinalizacionReview: React.FC = () => {
     });
 
     const handleUpdateStatus = (id: string, newStatus: string) => {
-        if (newStatus === 'Cargado' && !window.confirm('¿Confirmar que la documentación es correcta y se ha cargado en sistema?')) {
+        if (newStatus === 'Cargado' && !window.confirm('¿Confirmar acreditación final? Se enviará el correo al alumno.')) {
             return;
         }
         setUpdatingId(id);
@@ -358,31 +477,120 @@ const FinalizacionReview: React.FC = () => {
         setIsPreviewOpen(true);
     }, []);
 
-    const filteredData = data?.filter(item => item.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || item.studentLegajo.includes(searchTerm));
+    const filteredData = useMemo(() => {
+        if (!data) return { pending: [], inProcess: [], archived: [] };
+        
+        const searchLower = searchTerm.toLowerCase();
+        const matches = data.filter(item => 
+            item.studentName.toLowerCase().includes(searchLower) || 
+            item.studentLegajo.includes(searchLower)
+        );
+
+        const pending: typeof data = [];
+        const inProcess: typeof data = [];
+        const archived: typeof data = [];
+
+        matches.forEach(item => {
+            const state = getNormalizationState(item);
+            if (state === 'cargado') {
+                archived.push(item);
+            } else if (state === 'en proceso') {
+                inProcess.push(item);
+            } else {
+                pending.push(item); // Default 'pendiente'
+            }
+        });
+
+        return { pending, inProcess, archived };
+    }, [data, searchTerm]);
+
 
     if (isLoading) return <div className="p-8 flex justify-center"><Loader /></div>;
     if (error) return <EmptyState icon="error" title="Error" message="No se pudieron cargar las solicitudes." />;
 
+    const hasAnyData = filteredData.pending.length > 0 || filteredData.inProcess.length > 0 || filteredData.archived.length > 0;
+
     return (
-        <div className="space-y-6 animate-fade-in-up">
+        <div className="space-y-8 animate-fade-in-up">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             <FilePreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} files={previewFiles} initialIndex={previewIndex} />
+            
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                 <div>
                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Revisión de Finalizaciones</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Revisa la documentación final y confirma la carga.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestiona el ciclo de acreditación final.</p>
                 </div>
                 <div className="relative w-full sm:w-72">
                      <input type="text" placeholder="Buscar por nombre o legajo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-shadow shadow-sm"/>
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none">search</span>
                 </div>
             </div>
-            {(!filteredData || filteredData.length === 0) ? (
-                 <EmptyState icon="inbox" title="Bandeja Vacía" message="No hay solicitudes pendientes o que coincidan con tu búsqueda." />
+
+            {!hasAnyData ? (
+                 <EmptyState icon="inbox" title="Bandeja Vacía" message="No hay solicitudes que coincidan con tu búsqueda." />
             ) : (
-                <div className="space-y-4">
-                    {filteredData.map((req) => <RequestCard key={req.id} request={req} onUpdateStatus={handleUpdateStatus} isUpdating={updatingId === req.id} searchTerm={searchTerm} onPreview={handlePreview} />)}
-                </div>
+                <>
+                    {/* ETAPA 1: PENDIENTES DE REVISIÓN */}
+                    <div className="space-y-4">
+                        {filteredData.pending.length > 0 && (
+                             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider px-2">
+                                 1. Revisión de Documentación ({filteredData.pending.length})
+                             </h3>
+                        )}
+                        {filteredData.pending.map((req) => (
+                            <RequestCard key={req.id} request={req} onUpdateStatus={handleUpdateStatus} isUpdating={updatingId === req.id} searchTerm={searchTerm} onPreview={handlePreview} />
+                        ))}
+                    </div>
+
+                    {/* ETAPA 2: EN PROCESO DE CARGA SAC */}
+                    {filteredData.inProcess.length > 0 && (
+                        <div className="space-y-4">
+                             <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider px-2 flex items-center gap-2">
+                                 <span className="material-icons !text-sm">pending_actions</span> 2. Cargar al SAC ({filteredData.inProcess.length})
+                             </h3>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 {filteredData.inProcess.map((req) => (
+                                     <SacProcessRow 
+                                        key={req.id} 
+                                        request={req} 
+                                        onUpdateStatus={handleUpdateStatus} 
+                                        isUpdating={updatingId === req.id}
+                                        searchTerm={searchTerm}
+                                     />
+                                 ))}
+                             </div>
+                        </div>
+                    )}
+
+                    {/* ETAPA 3: HISTORIAL (CARGADOS) */}
+                    {filteredData.archived.length > 0 && (
+                        <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700">
+                             <CollapsibleSection
+                                title="Historial de Finalizadas"
+                                count={filteredData.archived.length}
+                                icon="task_alt"
+                                iconBgColor="bg-slate-100 dark:bg-slate-800"
+                                iconColor="text-emerald-600 dark:text-emerald-400"
+                                borderColor="border-slate-200 dark:border-slate-700"
+                                defaultOpen={false}
+                            >
+                                <div className="space-y-4 mt-4">
+                                     {filteredData.archived.map((req) => (
+                                         <RequestCard 
+                                            key={req.id} 
+                                            request={req} 
+                                            onUpdateStatus={handleUpdateStatus} 
+                                            isUpdating={updatingId === req.id} 
+                                            searchTerm={searchTerm} 
+                                            onPreview={handlePreview}
+                                            isArchived={true} 
+                                        />
+                                     ))}
+                                </div>
+                            </CollapsibleSection>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

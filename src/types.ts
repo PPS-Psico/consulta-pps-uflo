@@ -14,29 +14,19 @@ import {
 } from './schemas';
 
 import {
-    FIELD_PENALIZACION_ESTUDIANTE_LINK,
-    FIELD_PENALIZACION_TIPO,
-    FIELD_PENALIZACION_FECHA,
-    FIELD_PENALIZACION_NOTAS,
-    FIELD_PENALIZACION_PUNTAJE,
-    FIELD_PENALIZACION_CONVOCATORIA_LINK,
     FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
     FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS
 } from './constants';
 
 // --- Base Record Type ---
-// Represents a flat database row
 export interface DBRecord {
   id: string;
   created_at?: string;
-  // Alias alias for compatibility during migration
-  createdTime?: string;
+  createdTime?: string; // Legacy Alias
 }
 
-// Generic App Record Type
 export type AppRecord<T> = T & DBRecord;
-// Deprecated alias for backwards compatibility during refactor
-export type AirtableRecord<T> = AppRecord<T>;
+export type AirtableRecord<T> = AppRecord<T>; // Alias
 
 export interface AppError {
   type: string;
@@ -46,18 +36,9 @@ export interface AppError {
 export interface AppErrorResponse {
   error: AppError | string;
 }
-// Deprecated alias
-export type AirtableErrorResponse = AppErrorResponse;
-
-// --- App-specific Types ---
-
-export interface Attachment {
-  url: string;
-  filename?: string;
-}
 
 export type Orientacion = typeof ALL_ORIENTACIONES[number];
-export { ALL_ORIENTACIONES }; // Re-export
+export { ALL_ORIENTACIONES };
 
 export type TabId = 'inicio' | 'informes' | 'solicitudes' | 'practicas' | 'profile' | 'calendario' | 'finalizacion';
 
@@ -73,11 +54,9 @@ export interface CriteriosCalculados {
   cumpleRotacion: boolean;
 }
 
-// --- Table Fields Interfaces (Inferred from Zod) ---
-
+// --- Table Fields Interfaces ---
 export type EstudianteFields = z.infer<typeof estudianteFieldsSchema>;
 
-// Extend PracticaFields to explicitly allow manual join fields if needed
 export type PracticaFields = z.infer<typeof practicaFieldsSchema> & {
     [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]?: string[] | string;
     [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]?: string | string[];
@@ -94,14 +73,13 @@ export type AuthUserFields = z.infer<typeof authUserFieldsSchema>;
 export type Penalizacion = PenalizacionFields & DBRecord;
 export type FinalizacionPPS = FinalizacionPPSFields & DBRecord;
 
-// Types with ID (Flat)
+// Types with ID
 export type Practica = PracticaFields & DBRecord;
 export type SolicitudPPS = SolicitudPPSFields & DBRecord;
 export type LanzamientoPPS = LanzamientoPPSFields & DBRecord;
 export type Convocatoria = ConvocatoriaFields & DBRecord;
 
-// --- Component-specific & complex types ---
-
+// --- Component-specific Types ---
 export interface InformeTask {
   convocatoriaId: string;
   practicaId?: string;
@@ -123,19 +101,13 @@ export interface EnrichedStudent {
     legajo: string;
     correo: string;
     status: string;
-    
-    // Datos Académicos
     terminoCursar: boolean;
     cursandoElectivas: boolean;
     finalesAdeuda: string;
     notasEstudiante: string;
-    
-    // Datos Calculados
     totalHoras: number;
     penalizacionAcumulada: number;
     puntajeTotal: number;
-    
-    // Gestión
     horarioSeleccionado: string;
 }
 
@@ -174,12 +146,14 @@ export interface CalendarEvent {
     schedule: string;
     orientation: string;
     location: string;
-    colorClasses: {
-        tag: string;
-        dot: string;
-    };
+    colorClasses: { tag: string; dot: string; };
     startDate?: string | null;
     endDate?: string | null;
+}
+
+export interface Attachment {
+  url: string;
+  filename?: string;
 }
 
 export type ReportType = '2024' | '2025' | 'comparative';
@@ -199,10 +173,7 @@ interface KPISnapshot {
 export interface ExecutiveReportData {
     reportType: 'singleYear';
     year: number;
-    period: {
-        current: { start: string; end: string };
-        previous: { start: string; end: string };
-    };
+    period: { current: { start: string; end: string }; previous: { start: string; end: string }; };
     summary: string;
     kpis: {
         activeStudents: KPISnapshot;
@@ -233,14 +204,8 @@ export interface ComparativeExecutiveReportData {
         totalOfferedSpots: KPIComparison;
         newAgreements: KPIComparison;
     };
-    launchesByMonth: {
-        year2024: TimelineMonthData[];
-        year2025: TimelineMonthData[];
-    };
-    newAgreements: {
-        year2024: string[];
-        year2025: string[];
-    };
+    launchesByMonth: { year2024: TimelineMonthData[]; year2025: TimelineMonthData[]; };
+    newAgreements: { year2024: string[]; year2025: string[]; };
 }
 
 export type AnyReportData = ExecutiveReportData | ComparativeExecutiveReportData;
@@ -251,5 +216,5 @@ export interface StudentInfo {
   institucion?: string;
   fechaFin?: string;
   ppsId?: string;
-  [key: string]: any; // Allow other properties
+  [key: string]: any;
 }

@@ -3,6 +3,7 @@ import { useModal } from '../contexts/ModalContext';
 import Modal from './Modal';
 import { EnrollmentForm } from './EnrollmentForm';
 import SeleccionadosModal from './SeleccionadosModal';
+import SolicitudPPSForm from './SolicitudPPSForm'; // Import the new form
 import { FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS, FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS } from '../constants';
 
 const AppModals: React.FC = () => {
@@ -18,6 +19,11 @@ const AppModals: React.FC = () => {
         convocatoriaForModal,
         isSubmittingEnrollment,
         onSubmitEnrollment,
+        
+        // New Solicitud Props
+        isSolicitudPPSModalOpen,
+        closeSolicitudPPSModal,
+        onSubmitSolicitudPPS
     } = useModal();
 
     const horariosStr = selectedLanzamientoForEnrollment?.[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS] || '';
@@ -48,6 +54,12 @@ const AppModals: React.FC = () => {
                 onClose={closeSeleccionadosModal}
                 seleccionados={seleccionadosData}
                 convocatoriaName={convocatoriaForModal}
+            />
+
+            <SolicitudPPSForm
+                isOpen={isSolicitudPPSModalOpen}
+                onClose={closeSolicitudPPSModal}
+                onSubmit={onSubmitSolicitudPPS || (() => Promise.resolve())}
             />
         </>
     );

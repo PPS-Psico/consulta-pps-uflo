@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { schema } from '../lib/dbSchema';
 import type { AppRecord } from '../types';
@@ -312,7 +312,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
             
             return { records, total };
         },
-        placeholderData: keepPreviousData, // Keep showing old data while fetching new page
+        placeholderData: (previousData: any) => previousData, // Keep showing old data while fetching new page
     });
 
     const records = queryResult?.records || [];
@@ -450,9 +450,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
             const visuals = getEspecialidadClasses(String(value));
             return <span className={`${visuals.tag} whitespace-nowrap shadow-none border-0`}>{String(value)}</span>;
         }
-        
-        // Apply cleaning to text fields to remove JSON/Array artifacts
-        return <span className="truncate block max-w-[200px]" title={cleanDisplayValue(value)}>{cleanDisplayValue(value)}</span>;
+
+        return <span className="truncate block max-w-[200px]" title={String(value || '')}>{String(value || '')}</span>;
     };
 
     return (

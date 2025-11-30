@@ -1,24 +1,66 @@
-
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { HORAS_OBJETIVO_TOTAL } from '../constants';
 import ProgressBar from './ProgressBar';
 import RotationTracker from './RotationTracker';
 import ProgressCircle from './ProgressCircle';
 import OrientacionSelector from './OrientacionSelector';
+import ConfirmModal from './ConfirmModal';
 import type { CriteriosCalculados, Orientacion } from '../types';
 
 // Componente mejorado para el botón de certificación
-const CertificationButton: React.FC<{ onClick: () => void }> = React.memo(({ onClick }) => (
-  <button
-    onClick={onClick}
-    className="group relative overflow-hidden inline-flex items-center gap-3 bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-bold text-sm py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800 shadow-lg hover:shadow-xl hover:shadow-primary-500/30 dark:hover:shadow-primary-400/20 hover:-translate-y-1 active:transform active:scale-95 has-shine-effect hover:shine-effect cursor-pointer"
-    aria-label="Solicitar acreditación final"
-  >
-    <span className="material-icons !text-lg transition-transform duration-300 relative z-10 group-hover:rotate-12 group-hover:scale-110">school</span>
-    <span className="relative z-10 tracking-wide">Solicitar Acreditación</span>
-    <span className="material-icons !text-sm opacity-80 transition-transform duration-300 relative z-10 group-hover:translate-x-0.5">arrow_forward</span>
-  </button>
-));
+const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean }> = React.memo(({ onClick, isReady }) => {
+  const [showWarning, setShowWarning] = useState(false);
+
+  const handleClick = () => {
+    if (isReady) {
+      onClick();
+    } else {
+      setShowWarning(true);
+    }
+  };
+
+  return (
+    <>
+        <button
+        onClick={handleClick}
+        type="button"
+        className={`group relative overflow-hidden inline-flex items-center gap-3 py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 shadow-lg hover:-translate-y-1 active:transform active:scale-95 cursor-pointer
+            ${isReady 
+            ? 'bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-bold focus:ring-primary-300 dark:focus:ring-primary-800 hover:shadow-xl hover:shadow-primary-500/30 dark:hover:shadow-primary-400/20 has-shine-effect hover:shine-effect' 
+            : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-semibold focus:ring-slate-300 dark:focus:ring-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600'
+            }`}
+        aria-label="Solicitar acreditación final"
+        >
+        <span className={`material-icons !text-lg transition-transform duration-300 relative z-10 ${isReady ? 'group-hover:rotate-12 group-hover:scale-110' : ''}`}>
+            {isReady ? 'school' : 'lock_clock'}
+        </span>
+        <span className="relative z-10 tracking-wide">Solicitar Acreditación</span>
+        {isReady && <span className="material-icons !text-sm opacity-80 transition-transform duration-300 relative z-10 group-hover:translate-x-0.5">arrow_forward</span>}
+        </button>
+
+        <ConfirmModal
+            isOpen={showWarning}
+            onClose={() => setShowWarning(false)}
+            onConfirm={onClick}
+            title="Requisitos de Acreditación"
+            message={
+                <>
+                    <p className="mb-2">Este trámite está reservado para estudiantes que han cumplido con los 3 criterios obligatorios:</p>
+                    <ul className="list-disc pl-5 mb-4 space-y-1 text-sm">
+                        <li><strong>250 Horas Totales</strong></li>
+                        <li><strong>70 Horas en su Especialidad</strong></li>
+                        <li><strong>Rotación por 3 áreas</strong></li>
+                    </ul>
+                    <p className="font-bold text-amber-600 dark:text-amber-400 mb-2">IMPORTANTE: El plazo administrativo de resolución es de 14 días hábiles.</p>
+                    <p>Según el sistema, aún no cumples estos requisitos. Si crees que es un error y tienes la documentación, puedes avanzar.</p>
+                </>
+            }
+            confirmText="Iniciar Trámite"
+            cancelText="Volver"
+        />
+    </>
+  );
+});
 CertificationButton.displayName = 'CertificationButton';
 
 
@@ -84,11 +126,9 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
               Has completado {todosLosCriteriosCumplidos ? 'exitosamente' : 'un total de'} <strong className="font-black text-primary-600 dark:text-primary-400 text-xl">{Math.round(criterios.horasTotales)}</strong> de <strong className="font-black text-gray-800 dark:text-gray-100 text-xl">{HORAS_OBJETIVO_TOTAL}</strong> horas requeridas.
             </p>
             
-            {todosLosCriteriosCumplidos && (
-              <div className="mt-6 animate-[subtle-bob_2.5s_ease-in-out_infinite]">
-                <CertificationButton onClick={onRequestFinalization} />
-              </div>
-            )}
+            <div className="mt-6">
+              <CertificationButton onClick={onRequestFinalization} isReady={todosLosCriteriosCumplidos} />
+            </div>
           </div>
         </div>
 

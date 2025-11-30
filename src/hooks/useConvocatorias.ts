@@ -35,6 +35,10 @@ import {
     FIELD_TELEFONO_CONVOCATORIAS,
     FIELD_FECHA_NACIMIENTO_ESTUDIANTES,
     FIELD_DNI_ESTUDIANTES,
+    FIELD_FECHA_NACIMIENTO_CONVOCATORIAS,
+    FIELD_DNI_CONVOCATORIAS,
+    FIELD_INFORME_SUBIDO_CONVOCATORIAS,
+    FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS,
 } from '../constants';
 
 export const useConvocatorias = (legajo: string, studentAirtableId: string | null, studentDetails: EstudianteFields | null, isSuperUserMode: boolean) => {
@@ -79,45 +83,44 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
 
             if (!studentAirtableId) throw new Error("No se pudo identificar al estudiante.");
             
-            // Ensure we use the Dev-Friendly keys that map to the DB columns via db.ts -> schema.ts
-            const newRecordFields: { -readonly [key in keyof Omit<typeof schema.convocatorias, '_tableName'>]?: any } = {
-                lanzamientoVinculado: [selectedLanzamiento.id],
-                estudianteInscripto: [studentAirtableId],
-                estadoInscripcion: "Inscripto",
-                terminoCursar: formData.terminoDeCursar ? "Sí" : "No",
-                otraSituacion: formData.otraSituacionAcademica,
-                finalesAdeuda: formData.finalesAdeudados || null,
-                nombrePPS: selectedLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS], // Snapshot for history
-                fechaInicio: selectedLanzamiento[FIELD_FECHA_INICIO_LANZAMIENTOS], // Snapshot
-                fechaFin: selectedLanzamiento[FIELD_FECHA_FIN_LANZAMIENTOS], // Snapshot
-                orientacion: selectedLanzamiento[FIELD_ORIENTACION_LANZAMIENTOS], // Snapshot
-                horasAcreditadas: selectedLanzamiento[FIELD_HORAS_ACREDITADAS_LANZAMIENTOS], // Snapshot
-                direccion: selectedLanzamiento[FIELD_DIRECCION_LANZAMIENTOS], // Snapshot
+            // Use actual DB column names (constants)
+            const newRecordFields: any = {
+                [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: [selectedLanzamiento.id],
+                [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: [studentAirtableId],
+                [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: "Inscripto",
+                [FIELD_TERMINO_CURSAR_CONVOCATORIAS]: formData.terminoDeCursar ? "Sí" : "No",
+                [FIELD_OTRA_SITUACION_CONVOCATORIAS]: formData.otraSituacionAcademica,
+                [FIELD_FINALES_ADEUDA_CONVOCATORIAS]: formData.finalesAdeudados || null,
+                [FIELD_NOMBRE_PPS_CONVOCATORIAS]: selectedLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS], // Snapshot for history
+                [FIELD_FECHA_INICIO_CONVOCATORIAS]: selectedLanzamiento[FIELD_FECHA_INICIO_LANZAMIENTOS], // Snapshot
+                [FIELD_FECHA_FIN_CONVOCATORIAS]: selectedLanzamiento[FIELD_FECHA_FIN_LANZAMIENTOS], // Snapshot
+                [FIELD_ORIENTACION_CONVOCATORIAS]: selectedLanzamiento[FIELD_ORIENTACION_LANZAMIENTOS], // Snapshot
+                [FIELD_HORAS_ACREDITADAS_CONVOCATORIAS]: selectedLanzamiento[FIELD_HORAS_ACREDITADAS_LANZAMIENTOS], // Snapshot
+                [FIELD_DIRECCION_CONVOCATORIAS]: selectedLanzamiento[FIELD_DIRECCION_LANZAMIENTOS], // Snapshot
             };
             
             const legajoAsNumber = parseInt(legajo, 10);
             if (!isNaN(legajoAsNumber)) {
-                newRecordFields.legajo = legajoAsNumber;
+                newRecordFields[FIELD_LEGAJO_CONVOCATORIAS] = legajoAsNumber;
             }
             
             if (studentDetails) {
-                newRecordFields.correo = studentDetails[FIELD_CORREO_ESTUDIANTES];
-                newRecordFields.telefono = studentDetails[FIELD_TELEFONO_ESTUDIANTES];
-                // fechaNacimiento and dni are also useful snapshots if available
-                newRecordFields.fechaNacimiento = studentDetails[FIELD_FECHA_NACIMIENTO_ESTUDIANTES];
-                newRecordFields.dni = studentDetails[FIELD_DNI_ESTUDIANTES];
+                newRecordFields[FIELD_CORREO_CONVOCATORIAS] = studentDetails[FIELD_CORREO_ESTUDIANTES];
+                newRecordFields[FIELD_TELEFONO_CONVOCATORIAS] = studentDetails[FIELD_TELEFONO_ESTUDIANTES];
+                newRecordFields[FIELD_FECHA_NACIMIENTO_CONVOCATORIAS] = studentDetails[FIELD_FECHA_NACIMIENTO_ESTUDIANTES];
+                newRecordFields[FIELD_DNI_CONVOCATORIAS] = studentDetails[FIELD_DNI_ESTUDIANTES];
             }
 
             if (formData.horarios && formData.horarios.length > 0) {
-                newRecordFields.horario = formData.horarios.join('; ');
+                newRecordFields[FIELD_HORARIO_FORMULA_CONVOCATORIAS] = formData.horarios.join('; ');
             }
 
             if (formData.terminoDeCursar === false && formData.cursandoElectivas !== null) {
-                newRecordFields.cursandoElectivas = formData.cursandoElectivas ? "Sí" : "No";
+                newRecordFields[FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS] = formData.cursandoElectivas ? "Sí" : "No";
             }
             
             if (formData.certificadoLink) {
-                newRecordFields.certificado = [{ url: formData.certificadoLink }];
+                newRecordFields[FIELD_CERTIFICADO_CONVOCATORIAS] = [{ url: formData.certificadoLink }];
             }
 
             return db.convocatorias.create(newRecordFields);
@@ -223,8 +226,8 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
             
             // Standard flow: update enrollment
             return db.convocatorias.update(task.convocatoriaId, { 
-                informeSubido: true,
-                fechaEntregaInforme: today 
+                [FIELD_INFORME_SUBIDO_CONVOCATORIAS]: true,
+                [FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS]: today 
             });
         },
         onMutate: async (task: InformeTask) => {
@@ -237,7 +240,7 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
             queryClient.setQueryData(['convocatorias', legajo, studentAirtableId], (old: any) => {
                 if (!old) return old;
                 const newMyEnrollments = old.myEnrollments.map((e: Convocatoria) => 
-                    e.id === task.convocatoriaId ? { ...e, informeSubido: true } : e
+                    e.id === task.convocatoriaId ? { ...e, [FIELD_INFORME_SUBIDO_CONVOCATORIAS]: true } : e
                 );
                 return { ...old, myEnrollments: newMyEnrollments };
             });

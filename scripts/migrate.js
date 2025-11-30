@@ -1,19 +1,20 @@
 
 import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// Cargar variables de entorno si se ejecuta localmente con dotenv
+dotenv.config();
 
 // ==============================================================================
 // ⚙️ CONFIGURACIÓN DE CREDENCIALES
 // ==============================================================================
 
-const AIRTABLE_PAT = "PEGAR_AQUI_TU_AIRTABLE_PAT"; 
-const AIRTABLE_BASE_ID = "PEGAR_AQUI_TU_BASE_ID"; 
+const AIRTABLE_PAT = process.env.VITE_AIRTABLE_PAT || "PEGAR_AQUI_TU_AIRTABLE_PAT"; 
+const AIRTABLE_BASE_ID = process.env.VITE_AIRTABLE_BASE_ID || "PEGAR_AQUI_TU_BASE_ID"; 
 
-const SUPABASE_URL = "PEGAR_AQUI_TU_SUPABASE_URL"; 
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "PEGAR_AQUI_TU_SUPABASE_URL"; 
 // ¡IMPORTANTE! Usar la SERVICE_ROLE_KEY para tener permisos de escritura
-const SUPABASE_SERVICE_KEY = "PEGAR_AQUI_TU_SUPABASE_SERVICE_ROLE_KEY";
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "PEGAR_AQUI_TU_SUPABASE_SERVICE_ROLE_KEY";
 
 // ==============================================================================
 // 🗺️ MAPEO DE TABLAS (Nombre en Supabase -> Nombre en Airtable)
@@ -32,7 +33,7 @@ const TABLE_MAPPING = {
 // ==============================================================================
 
 if (AIRTABLE_PAT.includes("PEGAR_AQUI") || SUPABASE_URL.includes("PEGAR_AQUI")) {
-    console.error("❌ ERROR: Debes editar el archivo scripts/migrate.js y pegar tus credenciales de Airtable y Supabase.");
+    console.error("❌ ERROR: Debes editar el archivo scripts/migrate.js o tener un archivo .env con las credenciales.");
     process.exit(1);
 }
 
@@ -139,13 +140,54 @@ async function pushToSupabase(tableName, records, mapperFn) {
     console.log(`🚀 Procesando '${tableName}' para Supabase...`);
     
     let existingRecordsMap = new Map();
+    
+    // Pre-carga para Finalización (Archivos)
     if (tableName === 'finalizacion_pps') {
         console.log("   🔍 Pre-cargando datos existentes de Supabase para verificar archivos...");
         const { data: existingData } = await supabase.from(tableName).select('airtable_id, informe_final_url, planilla_horas_url, planilla_asistencia_url');
         if (existingData) existingData.forEach(r => existingRecordsMap.set(r.airtable_id, r));
     }
 
-    // Set para deduplicación
+    // Pre-carga para Convocatorias (Evitar conflictos Unique)
+    const dbConflicts = new Map(); // Map<"estId_lanzId", airtableId>
+    
+    if (tableName === 'convocatorias') {
+        console.log("   🔍 Pre-cargando TODAS las convocatorias existentes para evitar duplicados...");
+        
+        let allExisting = [];
+        let from = 0;
+        const limit = 1000;
+        let done = false;
+        
+        while (!done) {
+            const { data, error } = await supabase
+                .from(tableName)
+                .select('id, airtable_id, estudiante_id, lanzamiento_id')
+                .range(from, from + limit - 1);
+            
+            if (error) {
+                 console.error("Error fetching existing convocatorias:", error);
+                 break;
+            }
+            
+            if (data && data.length > 0) {
+                allExisting = [...allExisting, ...data];
+                from += limit;
+                if (data.length < limit) done = true;
+            } else {
+                done = true;
+            }
+        }
+
+        allExisting.forEach(c => {
+            if (c.estudiante_id && c.lanzamiento_id) {
+                dbConflicts.set(`${c.estudiante_id}_${c.lanzamiento_id}`, c.airtable_id);
+            }
+        });
+        console.log(`      -> ${allExisting.length} registros pre-cargados en memoria.`);
+    }
+
+    // Set para deduplicación dentro del mismo lote de migración
     const seenKeys = new Set();
     const mappedRecords = [];
 
@@ -174,14 +216,24 @@ async function pushToSupabase(tableName, records, mapperFn) {
             else if (tableName === 'convocatorias') {
                 const estId = mapped.estudiante_id;
                 const lanzId = mapped.lanzamiento_id;
+                if (!estId || !lanzId) continue;
                 
-                if (estId && lanzId) {
-                    const compositeKey = `${estId}_${lanzId}`;
-                    if (seenKeys.has(compositeKey)) {
-                         console.warn(`   ⚠️ Saltando inscripción duplicada en Airtable (ID: ${rec.id})`);
-                         continue;
-                    }
-                    seenKeys.add(compositeKey);
+                const compositeKey = `${estId}_${lanzId}`;
+                if (seenKeys.has(compositeKey)) continue;
+                
+                if (dbConflicts.has(compositeKey)) {
+                    const existingAirtableId = dbConflicts.get(compositeKey);
+                    if (existingAirtableId !== rec.id) continue;
+                }
+                seenKeys.add(compositeKey);
+            }
+            // VALIDACIÓN DE INTEGRIDAD PARA SOLICITUDES
+            else if (tableName === 'solicitudes_pps') {
+                // Si no pudimos resolver el ID del estudiante, lo insertamos igual pero con estudiante_id NULL
+                // Esto asegura que el registro histórico se guarde (usando nombre_alumno y legajo como texto)
+                if (!mapped.estudiante_id) {
+                    console.warn(`   ⚠️ Solicitud huérfana (Estudiante no encontrado): ${rec.id}. Se importará sin vínculo.`);
+                    // No hacemos 'continue', permitimos que pase.
                 }
             }
 
@@ -212,8 +264,7 @@ async function pushToSupabase(tableName, records, mapperFn) {
     }
     
     if (batchHasFailed) {
-        console.error(`   ⚠️ Hubo errores al subir datos a '${tableName}'. No todos los registros pueden haber sido sincronizados.`);
-        throw new Error(`Falló la subida de datos para la tabla ${tableName}.`);
+        console.error(`   ⚠️ Hubo errores al subir datos a '${tableName}'.`);
     } else {
         console.log(`   ✨ ${tableName} sincronizada (${mappedRecords.length} registros).`);
     }
@@ -269,7 +320,6 @@ const mapConvocatoria = (f) => {
     return {
         lanzamiento_id: idMap.get(lanzAirtableId),
         estudiante_id: idMap.get(estAirtableId),
-        
         estado_inscripcion: f['Estado'],
         termino_cursar: f['¿Terminó de cursar?'],
         cursando_electivas: f['Cursando Materias Electivas'], 
@@ -280,27 +330,24 @@ const mapConvocatoria = (f) => {
         horario_seleccionado: f['Horario'],
         certificado_url: f['Certificado'] ? JSON.stringify(f['Certificado']) : null,
 
-        // --- SNAPSHOT FIELDS (Datos copiados para optimización de lectura) ---
+        // Snapshots
         nombre_pps: lanzamientoData.nombre_pps || null,
         fecha_inicio: lanzamientoData.fecha_inicio || null,
         fecha_finalizacion: lanzamientoData.fecha_finalizacion || null,
         direccion: lanzamientoData.direccion || null,
         orientacion: lanzamientoData.orientacion || null,
         horas_acreditadas: lanzamientoData.horas_acreditadas || null,
-        
         legajo: estudianteData.legajo || null,
         dni: estudianteData.dni || null,
         correo: estudianteData.correo || null,
         fecha_nacimiento: estudianteData.fecha_nacimiento || null,
         telefono: estudianteData.telefono || null,
-        // -------------------------------------------------------------------
     };
 };
 
 const mapPractica = (f) => ({
     estudiante_id: idMap.get(cleanArray(f['Estudiante Inscripto'])),
     lanzamiento_id: idMap.get(cleanArray(f['Lanzamiento Vinculado'])),
-    // Intentamos usar el nombre del lanzamiento si existe, sino el texto crudo de la práctica
     nombre_institucion: cleanArray(f['Nombre (de Institución)']), 
     horas_realizadas: cleanNum(f['Horas Realizadas']), 
     fecha_inicio: cleanDate(f['Fecha de Inicio']),
@@ -310,32 +357,46 @@ const mapPractica = (f) => ({
     nota: f['Nota']
 });
 
-const mapSolicitud = (f) => ({
-    estudiante_id: idMap.get(cleanArray(f['Legajo Link'])),
-    nombre_institucion: f['Nombre de la Institución'],
-    estado_seguimiento: f['Estado de seguimiento'],
-    actualizacion: cleanDate(f['Actualización']),
-    notas: f['Notas'],
-    email: f['Email'],
-    nombre: f['Nombre'],
-    legajo: String(f['Legajo'] || ''),
-    orientacion_sugerida: f['Orientación Sugerida'],
-    localidad: f['Localidad'],
-    direccion_completa: f['Dirección completa'],
-    email_institucion: f['Correo electrónico de contacto de la institución'],
-    telefono_institucion: f['Teléfono de contacto de la institución'],
-    referente_institucion: f['Nombre del referente de la institución'],
-    convenio_uflo: f['¿La institución tiene convenio firmado con UFLO?'],
-    tutor_disponible: f['¿La institución cuenta con un psicólogo/a que pueda actuar como tutor/a de la práctica?'],
-    contacto_tutor: f['Contacto del tutor (Teléfono o Email)'],
-    tipo_practica: f['Práctica para uno o más estudiantes'],
-    descripcion_institucion: f['Breve descripción de la institución y de sus actividades principales'],
-});
+const mapSolicitud = (f) => {
+    // Resolvemos el estudiante ID usando el mapa creado en el paso 'estudiantes'
+    const estAirtableId = cleanArray(f['Legajo Link']);
+    const supabaseEstId = idMap.get(estAirtableId);
+
+    return {
+        estudiante_id: supabaseEstId, // Puede ser null si no se migró el estudiante (Orphan)
+        
+        // Mapeo directo a columnas snake_case
+        nombre_institucion: f['Nombre de la Institución'],
+        estado_seguimiento: f['Estado de seguimiento'],
+        actualizacion: cleanDate(f['Actualización']),
+        notas: f['Notas'],
+        
+        // Snapshots importantes (por si se borra el estudiante o es huérfano)
+        nombre_alumno: f['Nombre'],
+        legajo: String(f['Legajo'] || ''),
+        email: f['Email'],
+        
+        // Campos detallados del formulario
+        orientacion_sugerida: f['Orientación Sugerida'],
+        localidad: f['Localidad'],
+        direccion_completa: f['Dirección completa'],
+        email_institucion: f['Correo electrónico de contacto de la institución'],
+        telefono_institucion: f['Teléfono de contacto de la institución'],
+        referente_institucion: f['Nombre del referente de la institución'],
+        convenio_uflo: f['¿La institución tiene convenio firmado con UFLO?'],
+        tutor_disponible: f['¿La institución cuenta con un psicólogo/a que pueda actuar como tutor/a de la práctica?'],
+        contacto_tutor: f['Contacto del tutor (Teléfono o Email)'],
+        tipo_practica: f['Práctica para uno o más estudiantes'],
+        descripcion_institucion: f['Breve descripción de la institución y de sus actividades principales'],
+    };
+};
 
 const mapPenalizacion = (f) => ({
     estudiante_id: idMap.get(cleanArray(f['Estudiante'])),
-    tipo_incumplimiento: f['Tipo de Incumplimiento'], fecha_incidente: cleanDate(f['Fecha del Incidente']),
-    notas: f['Notas'], puntaje_penalizacion: cleanNum(f['Puntaje Penalización']),
+    tipo_incumplimiento: f['Tipo de Incumplimiento'], 
+    fecha_incidente: cleanDate(f['Fecha del Incidente']),
+    notas: f['Notas'], 
+    puntaje_penalizacion: cleanNum(f['Puntaje Penalización']),
     convocatoria_afectada: idMap.get(cleanArray(f['Convocatoria Afectada']))
 });
 
@@ -352,10 +413,15 @@ const mapFinalizacionAsync = async (rec, existingMap) => {
     if (!horasFiles && f['Excel de Seguimiento']) horasFiles = await processAttachments(f['Excel de Seguimiento'], rec.id, 'horas');
     if (!asistenciaFiles && f['Planillas de asistencias ']) asistenciaFiles = await processAttachments(f['Planillas de asistencias '], rec.id, 'asistencia');
     
+    const rawCargado = f['Cargado'];
+    let isCargado = false;
+    if (rawCargado === true) isCargado = true;
+    else if (typeof rawCargado === 'string' && ['si','sí','cargado','done'].includes(rawCargado.toLowerCase())) isCargado = true;
+
     return {
         estudiante_id: idMap.get(cleanArray(f['Nombre'])),
         fecha_solicitud: f['Created Time'] || rec.createdTime,
-        estado: (Array.isArray(f['Cargado']) && f['Cargado'].includes('Si')) ? 'Cargado' : 'Pendiente',
+        estado: isCargado ? 'Cargado' : 'Pendiente',
         informe_final_url: informeFiles, 
         planilla_horas_url: horasFiles,
         planilla_asistencia_url: asistenciaFiles,
@@ -387,7 +453,7 @@ async function main() {
             } catch (e) {
                 console.error(`\n❌ ERROR CRÍTICO procesando la tabla '${table}':`, e.message);
                 hasFailed = true;
-                continue; // Skip to the next table on critical failure
+                continue; 
             }
         }
 

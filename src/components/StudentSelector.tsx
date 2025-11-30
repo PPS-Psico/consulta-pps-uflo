@@ -19,6 +19,7 @@ import {
     FIELD_HORARIO_FORMULA_CONVOCATORIAS,
     FIELD_NOMBRE_ESTUDIANTES,
     FIELD_LEGAJO_ESTUDIANTES,
+    FIELD_CORREO_ESTUDIANTES,
     FIELD_ESTUDIANTE_LINK_PRACTICAS,
     FIELD_HORAS_PRACTICAS,
     FIELD_PENALIZACION_ESTUDIANTE_LINK,
@@ -30,6 +31,7 @@ import Loader from './Loader';
 import EmptyState from './EmptyState';
 import Toast from './Toast';
 import Card from './Card';
+import { sendSmartEmail } from '../utils/emailService';
 
 // --- Tipos y Constantes Auxiliares ---
 
@@ -38,6 +40,7 @@ interface EnrichedStudent {
     studentId: string;
     nombre: string;
     legajo: string;
+    correo: string;
     status: string;
     
     // Datos Académicos
@@ -68,8 +71,8 @@ const calculateScore = (
     penalties: number
 ): number => {
     let academicScore = 0;
-    const termino = enrollment.fields[FIELD_TERMINO_CURSAR_CONVOCATORIAS] === 'Sí';
-    const electivas = enrollment.fields[FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS] === 'Sí';
+    const termino = enrollment[FIELD_TERMINO_CURSAR_CONVOCATORIAS] === 'Sí';
+    const electivas = enrollment[FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS] === 'Sí';
     
     if (termino) {
         academicScore = SCORE_WEIGHTS.TERMINO_CURSAR;
@@ -207,7 +210,7 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
                 filterByFormula: `OR({${FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS}} = 'Abierta', {${FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS}} = 'Abierto')`
             });
             
-            return records.map(r => ({ ...r.fields, id: r.id } as LanzamientoPPS))
+            return records.map(r => ({ ...r, id: r.id } as LanzamientoPPS))
                 .filter(l => {
                     const status = normalizeStringForComparison(l[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
                     return status === 'abierta' || status === 'abierto';
@@ -230,7 +233,10 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
             
             if (enrollments.length === 0) return [];
 
-            const studentIds = enrollments.map(e => (e.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] || [])[0]).filter(Boolean) as string[];
+            const studentIds = enrollments.map(e => {
+                const raw = e[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+                return Array.isArray(raw) ? raw[0] : raw;
+            }).filter(Boolean) as string[];
             
             // Parallel fetch for details
             const [studentsRes, practicasRes, penaltiesRes] = await Promise.all([
@@ -245,42 +251,50 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
                 })
             ]);
 
-            const studentMap = new Map(studentsRes.map(s => [s.id, s.fields]));
+            const studentMap = new Map(studentsRes.map(s => [s.id, s]));
             
             // Aggregate Data
             const enrichedList: EnrichedStudent[] = enrollments.map(enrollment => {
-                const sId = (enrollment.fields[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] || [])[0];
-                const studentDetails = sId ? studentMap.get(sId) : null;
+                const sIdRaw = enrollment[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+                const sId = Array.isArray(sIdRaw) ? sIdRaw[0] : sIdRaw;
+                const studentDetails = sId ? studentMap.get(String(sId)) : null;
                 
                 if (!studentDetails) return null;
 
                 // Calc total hours
-                const studentPractices = practicasRes.filter(p => (p.fields[FIELD_ESTUDIANTE_LINK_PRACTICAS] || []).includes(sId));
-                const totalHoras = studentPractices.reduce((sum, p) => sum + (p.fields[FIELD_HORAS_PRACTICAS] || 0), 0);
+                const studentPractices = practicasRes.filter(p => {
+                     const links = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                     return Array.isArray(links) ? links.includes(String(sId)) : links === String(sId);
+                });
+                const totalHoras = studentPractices.reduce((sum, p) => sum + (p[FIELD_HORAS_PRACTICAS] || 0), 0);
 
                 // Calc penalties
-                const studentPenalties = penaltiesRes.filter(p => (p.fields[FIELD_PENALIZACION_ESTUDIANTE_LINK] || []).includes(sId));
-                const penalizacionAcumulada = studentPenalties.reduce((sum, p) => sum + (p.fields[FIELD_PENALIZACION_PUNTAJE] || 0), 0);
+                const studentPenalties = penaltiesRes.filter(p => {
+                    const links = p[FIELD_PENALIZACION_ESTUDIANTE_LINK];
+                    return Array.isArray(links) ? links.includes(String(sId)) : links === String(sId);
+                });
+                const penalizacionAcumulada = studentPenalties.reduce((sum, p) => sum + (p[FIELD_PENALIZACION_PUNTAJE] || 0), 0);
 
                 // Score
                 const puntajeTotal = calculateScore(enrollment, totalHoras, penalizacionAcumulada);
 
                 return {
                     enrollmentId: enrollment.id,
-                    studentId: sId,
+                    studentId: String(sId),
                     nombre: studentDetails[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido',
-                    legajo: studentDetails[FIELD_LEGAJO_ESTUDIANTES] || '',
-                    status: enrollment.fields[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] || 'Inscripto',
-                    terminoCursar: enrollment.fields[FIELD_TERMINO_CURSAR_CONVOCATORIAS] === 'Sí',
-                    cursandoElectivas: enrollment.fields[FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS] === 'Sí',
-                    finalesAdeuda: enrollment.fields[FIELD_FINALES_ADEUDA_CONVOCATORIAS] || '',
-                    notasEstudiante: enrollment.fields[FIELD_OTRA_SITUACION_CONVOCATORIAS] || '',
-                    horarioSeleccionado: enrollment.fields[FIELD_HORARIO_FORMULA_CONVOCATORIAS] || '',
+                    legajo: String(studentDetails[FIELD_LEGAJO_ESTUDIANTES] || ''),
+                    correo: studentDetails[FIELD_CORREO_ESTUDIANTES] || '',
+                    status: enrollment[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] || 'Inscripto',
+                    terminoCursar: enrollment[FIELD_TERMINO_CURSAR_CONVOCATORIAS] === 'Sí',
+                    cursandoElectivas: enrollment[FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS] === 'Sí',
+                    finalesAdeuda: enrollment[FIELD_FINALES_ADEUDA_CONVOCATORIAS] || '',
+                    notasEstudiante: enrollment[FIELD_OTRA_SITUACION_CONVOCATORIAS] || '',
+                    horarioSeleccionado: enrollment[FIELD_HORARIO_FORMULA_CONVOCATORIAS] || '',
                     totalHoras,
                     penalizacionAcumulada,
                     puntajeTotal
                 };
-            }).filter(Boolean) as EnrichedStudent[];
+            }).filter((item): item is EnrichedStudent => item !== null);
 
             return enrichedList.sort((a, b) => b.puntajeTotal - a.puntajeTotal);
         },
@@ -291,36 +305,31 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
         mutationFn: async (student: EnrichedStudent) => {
             if (!selectedLanzamiento) return;
             const isCurrentlySelected = normalizeStringForComparison(student.status) === 'seleccionado';
-            return toggleStudentSelection(
+            const result = await toggleStudentSelection(
                 student.enrollmentId, 
                 !isCurrentlySelected, 
                 student.studentId, 
                 selectedLanzamiento
             );
+            return { ...result, student };
         },
         onSuccess: (data) => {
-             if (data.success) {
-                 setToastInfo({ message: 'Estado actualizado.', type: 'success' });
-                 refetchCandidates();
-             } else {
-                 setToastInfo({ message: `Error: ${data.error}`, type: 'error' });
+             if (!data?.success) {
+                 setToastInfo({ message: `Error: ${data?.error}`, type: 'error' });
                  refetchCandidates(); 
              }
         },
-        onError: (err) => {
-             setToastInfo({ message: `Error de conexión: ${err.message}`, type: 'error' });
-             refetchCandidates();
-        },
+        onError: (err) => setToastInfo({ message: `Error: ${err.message}`, type: 'error' }),
         onSettled: () => setUpdatingId(null)
     });
 
     const scheduleMutation = useMutation({
         mutationFn: async ({ id, schedule }: { id: string, schedule: string }) => {
-            return db.convocatorias.update(id, { horario: schedule });
+            return db.convocatorias.update(id, { [FIELD_HORARIO_FORMULA_CONVOCATORIAS]: schedule });
         },
         onSuccess: () => {
              setToastInfo({ message: 'Horario actualizado.', type: 'success' });
-             refetchCandidates(); // Refresh to ensure consistency
+             refetchCandidates();
         }
     });
 
@@ -328,14 +337,15 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
     const closeLaunchMutation = useMutation({
         mutationFn: async () => {
             if (!selectedLanzamiento) return;
+            // Uses DB column constant
             return db.lanzamientos.update(selectedLanzamiento.id, {
-                estadoConvocatoria: 'Cerrado'
+                [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Cerrado'
             });
         },
         onSuccess: () => {
-            setToastInfo({ message: 'Convocatoria cerrada exitosamente. Los alumnos ya pueden ver los resultados.', type: 'success' });
+            setToastInfo({ message: 'Convocatoria cerrada exitosamente.', type: 'success' });
             queryClient.invalidateQueries({ queryKey: ['openLaunchesForSelector'] });
-            setSelectedLanzamiento(null); // Return to list
+            setSelectedLanzamiento(null); 
         },
         onError: (err: Error) => {
             setToastInfo({ message: `Error al cerrar: ${err.message}`, type: 'error' });

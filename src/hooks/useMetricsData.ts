@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import {
     TABLE_NAME_ESTUDIANTES,
@@ -180,7 +181,7 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             // METRICAS
             const alumnosActivos = {
                 value: activeStudentRecords.length,
-                list: activeStudentRecords.map(s => ({ legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }))
+                list: activeStudentRecords.map(s => ({ legajo: String(s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A'), nombre: String(s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A') }))
             };
 
             const studentPractices = new Map<string, AirtableRecord<PracticaFields>[]>();
@@ -193,7 +194,7 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
                 });
             });
 
-            const alumnosSinNingunaPPSList = activeStudentRecords.filter(s => !studentPractices.has(s.id)).map(s => ({ legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }));
+            const alumnosSinNingunaPPSList = activeStudentRecords.filter(s => !studentPractices.has(s.id)).map(s => ({ legajo: String(s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A'), nombre: String(s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A') }));
             const alumnosSinNingunaPPS = {
                 value: alumnosSinNingunaPPSList.length,
                 list: alumnosSinNingunaPPSList
@@ -217,8 +218,8 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             const alumnosConPpsEsteAnoList = Array.from(studentIdsConPpsEsteAno).map(id => {
                 const student = estudiantesMap.get(id);
                 return {
-                    legajo: student?.[FIELD_LEGAJO_ESTUDIANTES] || 'N/A',
-                    nombre: student?.[FIELD_NOMBRE_ESTUDIANTES] || 'N/A'
+                    legajo: String(student?.[FIELD_LEGAJO_ESTUDIANTES] || 'N/A'),
+                    nombre: String(student?.[FIELD_NOMBRE_ESTUDIANTES] || 'N/A')
                 };
             }).filter(s => s.nombre !== 'N/A').sort((a, b) => a.nombre.localeCompare(b.nombre));
 
@@ -241,7 +242,7 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             const alumnosFinalizadosList = estudiantes.filter(s => {
                 const finalizationDate = parseToUTCDate(s[FIELD_FECHA_FINALIZACION_ESTUDIANTES]);
                 return s[FIELD_FINALIZARON_ESTUDIANTES] && finalizationDate && finalizationDate.getUTCFullYear() === targetYear;
-            }).map(s => ({ legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A' }));
+            }).map(s => ({ legajo: String(s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A'), nombre: String(s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A') }));
             
             const alumnosFinalizados = {
                 value: alumnosFinalizadosList.length,
@@ -259,8 +260,8 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
                     const institucionRaw = activePractice[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
                     const institucion = Array.isArray(institucionRaw) ? institucionRaw[0] : institucionRaw;
                     alumnosEnPPSList.push({ 
-                        legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A', 
-                        nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A',
+                        legajo: String(s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A'), 
+                        nombre: String(s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A'),
                         institucion: institucion as string || 'N/A',
                         fechaFin: formatDate(activePractice[FIELD_FECHA_FIN_PRACTICAS]),
                         ppsId: activePractice.id,
@@ -276,14 +277,14 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
                 const practices = studentPractices.get(s.id) || [];
                 const totalHoras = practices.reduce((sum, p) => sum + (p[FIELD_HORAS_PRACTICAS] || 0), 0);
                 const orientaciones = [...new Set(practices.map(p => p[FIELD_ESPECIALIDAD_PRACTICAS]).filter(Boolean))];
-                const hasActivePractice = alumnosEnPPS.list.some(p => p.legajo === s[FIELD_LEGAJO_ESTUDIANTES]);
+                const hasActivePractice = alumnosEnPPS.list.some(p => p.legajo === String(s[FIELD_LEGAJO_ESTUDIANTES]));
 
                 const cumpleHoras = totalHoras >= 250;
                 const cumpleRotacion = orientaciones.length >= 3;
 
                 const studentInfo = {
-                    legajo: s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A',
-                    nombre: s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A',
+                    legajo: String(s[FIELD_LEGAJO_ESTUDIANTES] || 'N/A'),
+                    nombre: String(s[FIELD_NOMBRE_ESTUDIANTES] || 'N/A'),
                     totalHoras,
                     orientaciones: orientaciones.join(', '),
                 };
