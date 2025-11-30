@@ -220,6 +220,7 @@ export const createRecord = async <TFields>(
             return { record: null, error: { error: { type: 'CREATE_ERROR', message: error.message } } };
         }
 
+        // Fix: Use data.created_at since we just selected the inserted row
         const record = { ...data, createdTime: data.created_at };
         return { record, error: null };
     } catch (e: any) {
@@ -245,6 +246,7 @@ export const updateRecord = async <TFields>(
             return { record: null, error: { error: { type: 'UPDATE_ERROR', message: error.message } } };
         }
 
+        // Fix: Use data.created_at
         const record = { ...data, createdTime: data.created_at };
         return { record, error: null };
     } catch (e: any) {

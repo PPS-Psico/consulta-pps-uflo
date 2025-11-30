@@ -2,37 +2,36 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
+import { supabase } from '../lib/supabaseClient';
 import { 
-    FIELD_FECHA_FIN_PRACTICAS, 
-    FIELD_ESTADO_PRACTICA, 
-    FIELD_ESTUDIANTE_LINK_PRACTICAS,
-    FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
-    FIELD_ESTADO_FINALIZACION,
-    FIELD_ESTUDIANTE_FINALIZACION,
-    FIELD_FECHA_SOLICITUD_FINALIZACION,
-    FIELD_ESTADO_PPS,
-    FIELD_EMPRESA_PPS_SOLICITUD,
-    FIELD_LEGAJO_PPS,
-    FIELD_ULTIMA_ACTUALIZACION_PPS,
-    FIELD_NOMBRE_ESTUDIANTES,
-    FIELD_TELEFONO_ESTUDIANTES,
-    FIELD_LEGAJO_ESTUDIANTES,
-    FIELD_FECHA_FIN_LANZAMIENTOS,
+    FIELD_FECHA_FIN_LANZAMIENTOS, 
     FIELD_NOMBRE_PPS_LANZAMIENTOS,
     FIELD_ESTADO_GESTION_LANZAMIENTOS,
-    FIELD_NOMBRE_INSTITUCIONES,
     FIELD_TELEFONO_INSTITUCIONES,
+    FIELD_ESTADO_FINALIZACION,
+    FIELD_FECHA_SOLICITUD_FINALIZACION,
+    FIELD_ESTADO_PPS,
+    FIELD_ULTIMA_ACTUALIZACION_PPS,
+    FIELD_EMPRESA_PPS_SOLICITUD,
     FIELD_SOLICITUD_NOMBRE_ALUMNO,
-    FIELD_SOLICITUD_LEGAJO_ALUMNO
+    FIELD_SOLICITUD_LEGAJO_ALUMNO,
+    TABLE_NAME_LANZAMIENTOS_PPS,
+    TABLE_NAME_INSTITUCIONES,
+    TABLE_NAME_FINALIZACION,
+    TABLE_NAME_PPS,
+    TABLE_NAME_ESTUDIANTES,
+    COL_FINALIZACION_ESTADO,
+    COL_SOLICITUD_ESTADO,
+    COL_SOLICITUD_UPDATED_AT,
+    COL_LANZAMIENTO_FECHA_FIN,
+    COL_LANZAMIENTO_ESTADO_GESTION,
 } from '../constants';
 import { parseToUTCDate, formatDate, normalizeStringForComparison } from '../utils/formatters';
 import Loader from './Loader';
 import EmptyState from './EmptyState';
 import Card from './Card';
 import Toast from './Toast';
-import SolicitudesManager from './SolicitudesManager';
 
-// --- Constants ---
 const RELAUNCH_STATUS_OPTIONS = [
     'Pendiente de Gestión', 
     'En Conversación', 
@@ -40,37 +39,6 @@ const RELAUNCH_STATUS_OPTIONS = [
     'Relanzamiento Confirmado', 
     'No se Relanza'
 ];
-
-// --- Helper Functions ---
-
-// Helper to clean Airtable array strings (e.g., '["rec..."]' -> 'rec...') or standard arrays
-const cleanValue = (val: any): string => {
-    if (val === null || val === undefined) return '';
-    
-    // If it's an actual array
-    if (Array.isArray(val)) {
-        return cleanValue(val[0]);
-    }
-    
-    let str = String(val);
-    
-    // If it's a string that LOOKS like a JSON array ["..."], try to parse it
-    if (str.startsWith('["') && str.endsWith('"]')) {
-        try {
-            const parsed = JSON.parse(str);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                return cleanValue(parsed[0]);
-            }
-        } catch (e) {
-            // fallback to regex if parse fails
-        }
-    }
-
-    // Remove brackets and quotes just in case
-    return str.replace(/[\[\]"]/g, '').trim();
-}
-
-// --- Helper Components ---
 
 const SectionHeader: React.FC<{ title: string; icon: string; count?: number; colorClass?: string }> = ({ title, icon, count, colorClass = "text-slate-700 dark:text-slate-200" }) => (
     <div className="flex items-center gap-3 mb-6">
@@ -88,26 +56,6 @@ const SectionHeader: React.FC<{ title: string; icon: string; count?: number; col
     </div>
 );
 
-const ActionButton: React.FC<{ icon: string; label: string; onClick: () => void; variant?: 'primary' | 'secondary' | 'success' }> = ({ icon, label, onClick, variant = 'secondary' }) => {
-    const styles = {
-        primary: "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50",
-        secondary: "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700/50 dark:text-slate-300 dark:hover:bg-slate-700",
-        success: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50",
-    };
-
-    return (
-        <button 
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${styles[variant]}`}
-        >
-            <span className="material-icons !text-sm">{icon}</span>
-            {label}
-        </button>
-    );
-};
-
-// --- Dashboard Component ---
-
 interface AdminDashboardProps {
     isTestingMode?: boolean;
 }
@@ -115,8 +63,6 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }) => {
     const queryClient = useQueryClient();
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-    
-    // State for editing phone numbers inline
     const [editingInstitutionId, setEditingInstitutionId] = useState<string | null>(null);
     const [tempPhone, setTempPhone] = useState('');
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
@@ -125,62 +71,126 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
         queryKey: ['adminDashboardOverview', isTestingMode],
         queryFn: async () => {
             if (isTestingMode) {
-                // Mock data for testing view
-                return {
-                    lanzamientos: [
-                        { id: '1', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date().toISOString(), [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hospital Mock - Clinica' },
-                    ],
-                    instituciones: new Map([['hospital mock', { id: 'inst1', [FIELD_TELEFONO_INSTITUCIONES]: '123456789' }]]),
-                    finalizaciones: [{ id: 'fin1', [FIELD_ESTADO_FINALIZACION]: 'Pendiente', [FIELD_ESTUDIANTE_FINALIZACION]: ['s1'], createdTime: new Date().toISOString() }],
-                    solicitudes: [{ id: 'sol1', [FIELD_ESTADO_PPS]: 'Pendiente', [FIELD_SOLICITUD_NOMBRE_ALUMNO]: 'Estudiante Test', [FIELD_EMPRESA_PPS_SOLICITUD]: 'Empresa X', createdTime: new Date().toISOString() }],
-                    studentsMap: new Map([['s1', { [FIELD_NOMBRE_ESTUDIANTES]: 'Estudiante Test' }]]),
-                    studentsByLegajoMap: new Map(),
-                } as any;
+                 return { endingLaunches: [], pendingFinalizations: [], pendingRequests: [] };
             }
 
-            const [lanzamientosRes, institucionesRes, finalizacionesRes, solicitudesRes, estudiantesRes] = await Promise.all([
-                db.lanzamientos.getAll(),
-                db.instituciones.getAll(),
-                db.finalizacion.getAll(),
-                db.solicitudes.getAll(),
-                db.estudiantes.getAll({ fields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_TELEFONO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES] })
-            ]);
+            // Date filters for Launches
+            const now = new Date();
+            const sixtyDaysFromNow = new Date();
+            sixtyDaysFromNow.setDate(now.getDate() + 60);
+            const ninetyDaysAgo = new Date();
+            ninetyDaysAgo.setDate(now.getDate() - 90);
 
-            // Create maps for quick lookup
-            const studentsMap = new Map(estudiantesRes.map(s => [s.id, s]));
-            // Add map by Legajo for robust fallback
-            const studentsByLegajoMap = new Map(estudiantesRes.map(s => [String(s[FIELD_LEGAJO_ESTUDIANTES] || '').trim(), s]));
-            const institutionsMap = new Map(institucionesRes.map(i => [normalizeStringForComparison(i[FIELD_NOMBRE_INSTITUCIONES]), i]));
+            // 1. Fetch Ending Launches directly filtered from DB
+            // We need to fetch 'instituciones' manually later because there is no FK.
+            const { data: launchesData } = await supabase
+                .from(TABLE_NAME_LANZAMIENTOS_PPS)
+                .select('*')
+                .gte(COL_LANZAMIENTO_FECHA_FIN, ninetyDaysAgo.toISOString())
+                .lte(COL_LANZAMIENTO_FECHA_FIN, sixtyDaysFromNow.toISOString())
+                .not(COL_LANZAMIENTO_ESTADO_GESTION, 'in', '("Archivado","No se Relanza")');
 
-            return {
-                lanzamientos: lanzamientosRes,
-                instituciones: institutionsMap,
-                finalizaciones: finalizacionesRes,
-                solicitudes: solicitudesRes,
-                studentsMap,
-                studentsByLegajoMap
-            };
+            // Fetch needed institutions for these launches to get phone numbers
+            const institutionNames = new Set((launchesData || []).map((l: any) => {
+                const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
+                return name.split(' - ')[0].trim();
+            }));
+            
+            const { data: institutionsData } = await supabase
+                .from(TABLE_NAME_INSTITUCIONES)
+                .select('id, nombre, telefono')
+                .in('nombre', Array.from(institutionNames));
+
+            const institutionsMap = new Map();
+            (institutionsData || []).forEach((i: any) => {
+                institutionsMap.set(normalizeStringForComparison(i.nombre), i);
+            });
+
+            const endingLaunches = (launchesData || []).map((l: any) => {
+                const endDateStr = l[FIELD_FECHA_FIN_LANZAMIENTOS];
+                const endDate = parseToUTCDate(endDateStr);
+                const daysLeft = endDate ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
+                
+                const ppsName = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
+                const groupName = ppsName.split(' - ')[0].trim();
+                const institution = institutionsMap.get(normalizeStringForComparison(groupName));
+
+                return {
+                    id: l.id,
+                    ppsName: ppsName,
+                    institutionName: groupName,
+                    institutionId: institution?.id,
+                    phone: institution?.telefono, // FIELD_TELEFONO_INSTITUCIONES
+                    fechaFin: endDateStr,
+                    daysLeft,
+                    gestionStatus: l[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión',
+                };
+            }).sort((a: any, b: any) => a.daysLeft - b.daysLeft);
+
+
+            // 2. Fetch Pending Finalizations (JOINED)
+            const { data: finalizationsData } = await supabase
+                .from(TABLE_NAME_FINALIZACION)
+                .select(`
+                    id, 
+                    created_at,
+                    fecha_solicitud,
+                    estudiante:estudiantes!fk_finalizacion_estudiante (nombre, legajo)
+                `)
+                .eq(COL_FINALIZACION_ESTADO, 'Pendiente');
+
+            const pendingFinalizations = (finalizationsData || []).map((f: any) => ({
+                id: f.id,
+                studentName: f.estudiante?.nombre || 'Desconocido',
+                fechaSolicitud: f[FIELD_FECHA_SOLICITUD_FINALIZACION] || f.created_at,
+            }));
+
+
+            // 3. Fetch Pending Requests (JOINED)
+            const { data: requestsData } = await supabase
+                .from(TABLE_NAME_PPS)
+                .select(`
+                    id,
+                    created_at,
+                    nombre_institucion,
+                    estado_seguimiento,
+                    actualizacion,
+                    nombre_alumno,
+                    estudiante:estudiantes!fk_solicitud_estudiante (nombre, legajo)
+                `)
+                .not(COL_SOLICITUD_ESTADO, 'in', '("Finalizada","Cancelada","Rechazada","PPS Realizada","Realizada","Solicitud Invalida","No se pudo concretar","Archivado")')
+                .order(COL_SOLICITUD_UPDATED_AT, { ascending: false });
+
+            const pendingRequests = (requestsData || []).map((s: any) => {
+                // Prioritize joined data, fallback to manual fields
+                const studentName = s.estudiante?.nombre || s[FIELD_SOLICITUD_NOMBRE_ALUMNO] || 'Desconocido';
+                return {
+                    id: s.id,
+                    studentName: studentName,
+                    institucion: s[FIELD_EMPRESA_PPS_SOLICITUD] || 'Sin especificar',
+                    estado: s[FIELD_ESTADO_PPS] || 'Pendiente',
+                    updated: s[FIELD_ULTIMA_ACTUALIZACION_PPS] || s.created_at,
+                };
+            });
+
+            return { endingLaunches, pendingFinalizations, pendingRequests };
         },
         refetchInterval: 60000 // Refresh every minute
     });
 
-    // Mutation to update phone number
     const updatePhoneMutation = useMutation({
         mutationFn: async ({ id, phone }: { id: string; phone: string }) => {
             if (isTestingMode) return;
             return db.instituciones.update(id, { [FIELD_TELEFONO_INSTITUCIONES]: phone });
         },
         onSuccess: () => {
-            setToastInfo({ message: 'Teléfono actualizado correctamente.', type: 'success' });
+            setToastInfo({ message: 'Teléfono actualizado.', type: 'success' });
             queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
             setEditingInstitutionId(null);
         },
-        onError: () => {
-            setToastInfo({ message: 'Error al guardar el teléfono.', type: 'error' });
-        }
+        onError: () => setToastInfo({ message: 'Error al guardar.', type: 'error' })
     });
 
-    // Mutation to update launch status (relaunch flow)
     const updateLaunchStatusMutation = useMutation({
         mutationFn: async ({ id, status }: { id: string; status: string }) => {
             setUpdatingStatusId(id);
@@ -188,17 +198,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
             return db.lanzamientos.update(id, { [FIELD_ESTADO_GESTION_LANZAMIENTOS]: status });
         },
         onSuccess: () => {
-            if (isTestingMode) setToastInfo({ message: 'Estado actualizado (Mock).', type: 'success' });
-            else queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
+            queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
             setUpdatingStatusId(null);
         },
         onError: () => {
-            setToastInfo({ message: 'Error al actualizar el estado.', type: 'error' });
+            setToastInfo({ message: 'Error al actualizar.', type: 'error' });
             setUpdatingStatusId(null);
         }
     });
     
-    // Mutation to archive request (direct from dashboard)
     const archiveRequestMutation = useMutation({
         mutationFn: async (id: string) => {
             if (isTestingMode) return;
@@ -206,112 +214,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
         },
         onSuccess: () => {
              setToastInfo({ message: 'Solicitud archivada.', type: 'success' });
-             if (!isTestingMode) queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
-        },
-        onError: () => {
-             setToastInfo({ message: 'Error al archivar.', type: 'error' });
+             queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] });
         }
     });
-
-    const metrics = useMemo(() => {
-        if (!data) return null;
-
-        const now = new Date();
-        const sixtyDaysFromNow = new Date();
-        sixtyDaysFromNow.setDate(now.getDate() + 60);
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(now.getDate() - 90);
-
-        // 1. Instituciones con Lanzamientos por Finalizar (para Relanzamiento)
-        const endingLaunches = data.lanzamientos.filter((l: any) => {
-            const endDateStr = l[FIELD_FECHA_FIN_LANZAMIENTOS];
-            if (!endDateStr) return false;
-
-            const endDate = parseToUTCDate(endDateStr);
-            if (!endDate) return false;
-            
-            const statusGestion = l[FIELD_ESTADO_GESTION_LANZAMIENTOS] || '';
-            // Exclude if already archived or confirmed for relaunch (unless checking specifically)
-            if (['Archivado', 'No se Relanza'].includes(statusGestion)) return false;
-
-            // Include if end date is within next 60 days OR if it ended in the last 90 days (needs follow up)
-            return (endDate <= sixtyDaysFromNow && endDate >= ninetyDaysAgo);
-        }).map((l: any) => {
-            const endDateStr = l[FIELD_FECHA_FIN_LANZAMIENTOS];
-            const endDate = parseToUTCDate(endDateStr);
-            const daysLeft = endDate ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 0;
-            
-            const ppsName = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
-            const groupName = ppsName.split(' - ')[0].trim();
-            const institution = data.instituciones.get(normalizeStringForComparison(groupName));
-
-            return {
-                id: l.id,
-                ppsName: ppsName,
-                institutionName: groupName,
-                institutionId: institution?.id,
-                phone: institution?.[FIELD_TELEFONO_INSTITUCIONES],
-                fechaFin: endDateStr,
-                daysLeft,
-                gestionStatus: l[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión',
-            };
-        }).sort((a: any, b: any) => a.daysLeft - b.daysLeft); // Most urgent first (negative days means overdue)
-
-        // 2. Pending Finalizations (Document Review)
-        const pendingFinalizations = data.finalizaciones.filter((f: any) => {
-            return f[FIELD_ESTADO_FINALIZACION] === 'Pendiente';
-        }).map((f: any) => {
-            const studentId = (f[FIELD_ESTUDIANTE_FINALIZACION] as any)?.[0] || f[FIELD_ESTUDIANTE_FINALIZACION];
-            const student = studentId ? data.studentsMap.get(studentId) : null;
-            return {
-                id: f.id,
-                studentName: student?.[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido',
-                fechaSolicitud: f[FIELD_FECHA_SOLICITUD_FINALIZACION] || f.createdTime,
-            };
-        });
-
-        // 3. Pending Requests (Solicitudes)
-        const pendingRequests = data.solicitudes.filter((s: any) => {
-            const status = normalizeStringForComparison(s[FIELD_ESTADO_PPS]);
-            const excludedStatuses = ['finalizada', 'cancelada', 'rechazada', 'pps realizada', 'realizada', 'solicitud invalida', 'no se pudo concretar', 'archivado'];
-            return !excludedStatuses.includes(status);
-        }).map((s: any) => {
-            // Handle potential array for student link
-            const rawLink = s[FIELD_LEGAJO_PPS];
-            const studentId = cleanValue(rawLink);
-            
-            // Extract Institution Name (handle potential lookup array)
-            const rawInst = s[FIELD_EMPRESA_PPS_SOLICITUD];
-            const institucion = cleanValue(rawInst);
-
-            let student = studentId ? data.studentsMap.get(studentId) : null;
-            
-            const manualName = cleanValue(s[FIELD_SOLICITUD_NOMBRE_ALUMNO]);
-            const manualLegajo = cleanValue(s[FIELD_SOLICITUD_LEGAJO_ALUMNO]);
-
-            // Fallback to lookup by legajo if ID link failed
-            if (!student && manualLegajo) {
-                student = data.studentsByLegajoMap.get(manualLegajo);
-            }
-
-            const studentName = student?.[FIELD_NOMBRE_ESTUDIANTES] || manualName || 'Desconocido';
-
-            return {
-                id: s.id,
-                studentName: studentName,
-                institucion: institucion || 'Sin especificar',
-                estado: s[FIELD_ESTADO_PPS] || 'Pendiente',
-                updated: s[FIELD_ULTIMA_ACTUALIZACION_PPS] || s.createdTime,
-            };
-        }).sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
-
-        return { endingLaunches, pendingFinalizations, pendingRequests };
-    }, [data]);
 
     const handleWhatsApp = (phone: string | undefined, institutionName: string) => {
         if (!phone) return;
         const cleanPhone = phone.replace(/[^0-9]/g, '');
-        const text = `Hola, nos comunicamos desde UFLO por el convenio de prácticas con ${institutionName}. Nos gustaría coordinar la renovación para el próximo ciclo.`;
+        const text = `Hola, nos comunicamos desde UFLO por el convenio de prácticas con ${institutionName}.`;
         window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
     };
 
@@ -329,20 +239,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
     };
 
     if (isLoading) return <Loader />;
-    if (error || !metrics) return <EmptyState icon="error" title="Error" message="No se pudieron cargar los datos del dashboard." />;
+    if (error || !data) return <EmptyState icon="error" title="Error" message="No se pudieron cargar los datos." />;
+
+    const { endingLaunches, pendingFinalizations, pendingRequests } = data;
 
     return (
         <div className="space-y-8 animate-fade-in-up pb-10">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
 
-            {/* --- SUMMARY METRICS ROW --- */}
+            {/* --- SUMMARY METRICS --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1 hover:shadow-md">
                     <div className="p-4 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
                         <span className="material-icons !text-3xl">autorenew</span>
                     </div>
                     <div>
-                        <p className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{metrics.endingLaunches.length}</p>
+                        <p className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{endingLaunches.length}</p>
                         <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">PPS por Relanzar</p>
                     </div>
                 </div>
@@ -352,7 +264,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                         <span className="material-icons !text-3xl">verified_user</span>
                     </div>
                     <div>
-                        <p className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{metrics.pendingFinalizations.length}</p>
+                        <p className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{pendingFinalizations.length}</p>
                         <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Acreditaciones Pendientes</p>
                     </div>
                 </div>
@@ -362,29 +274,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                         <span className="material-icons !text-3xl">assignment_ind</span>
                     </div>
                     <div>
-                        <p className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{metrics.pendingRequests.length}</p>
+                        <p className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{pendingRequests.length}</p>
                         <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Solicitudes Nuevas</p>
                     </div>
                 </div>
             </div>
 
-            {/* --- SECTION 1: RELAUNCH MANAGEMENT (FULL WIDTH) --- */}
+            {/* --- SECTION 1: RELAUNCH MANAGEMENT --- */}
             <Card className="border-amber-200/50 dark:border-amber-800/30 bg-gradient-to-b from-amber-50/30 to-white dark:from-amber-900/10 dark:to-slate-800">
-                <SectionHeader title="Prácticas por Finalizar / Relanzar" icon="next_week" count={metrics.endingLaunches.length} colorClass="text-amber-600 bg-amber-100 dark:bg-amber-900/20" />
+                <SectionHeader title="Prácticas por Finalizar / Relanzar" icon="next_week" count={endingLaunches.length} colorClass="text-amber-600 bg-amber-100 dark:bg-amber-900/20" />
                 
-                {metrics.endingLaunches.length === 0 ? (
+                {endingLaunches.length === 0 ? (
                     <div className="text-center py-8 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
                         <span className="material-icons text-slate-300 !text-5xl mb-2">event_available</span>
                         <p className="text-slate-500 font-medium">No hay convenios próximos a vencer.</p>
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {metrics.endingLaunches.map(launch => (
+                        {endingLaunches.map((launch: any) => (
                             <div key={launch.id} className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700 transition-all group relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-1 h-full bg-amber-400"></div>
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pl-3">
                                     
-                                    {/* Left: Info */}
                                     <div className="flex-grow min-w-0">
                                         <div className="flex items-center gap-3">
                                             <h4 className="font-bold text-base text-slate-800 dark:text-slate-100 truncate" title={launch.institutionName}>
@@ -397,10 +308,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{launch.ppsName}</p>
                                     </div>
                                     
-                                    {/* Right: Actions */}
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                        
-                                        {/* Phone Controls */}
                                         <div className="min-w-[180px] flex justify-end">
                                             {launch.institutionId ? (
                                                 editingInstitutionId === launch.institutionId ? (
@@ -446,7 +354,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                             )}
                                         </div>
 
-                                        {/* Status Dropdown */}
                                         <div className="relative min-w-[200px]">
                                             {updatingStatusId === launch.id && (
                                                 <div className="absolute right-8 top-1/2 -translate-y-1/2 z-10">
@@ -470,7 +377,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                                 <span className="material-icons !text-lg text-slate-400">expand_more</span>
                                             </div>
                                         </div>
-
                                     </div>
                                 </div>
                             </div>
@@ -479,75 +385,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                 )}
             </Card>
 
-            {/* --- SECTION 2 & 3: PENDING REVIEWS & REQUESTS (STACKED) --- */}
-            
-            <Card className="border-emerald-200/50 dark:border-emerald-800/30">
-                <SectionHeader title="Pendientes de Acreditación" icon="task_alt" count={metrics.pendingFinalizations.length} colorClass="text-emerald-600 bg-emerald-100 dark:bg-emerald-900/20" />
-                
-                {metrics.pendingFinalizations.length === 0 ? (
-                    <div className="text-center py-6">
-                        <p className="text-sm text-slate-500 italic">¡Todo al día! No hay revisiones pendientes.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {metrics.pendingFinalizations.map((f: any) => (
-                            <div key={f.id} className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex justify-between items-center group hover:border-emerald-300 transition-all">
-                                <div>
-                                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{f.studentName}</h4>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Solicitado: {formatDate(f.fechaSolicitud)}</p>
-                                </div>
-                                <button className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors">
-                                    Revisar
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </Card>
-
-            <Card className="border-blue-200/50 dark:border-blue-800/30">
-                <SectionHeader title="Solicitudes de Alumnos" icon="inbox" count={metrics.pendingRequests.length} colorClass="text-blue-600 bg-blue-100 dark:bg-blue-900/20" />
-                
-                {metrics.pendingRequests.length === 0 ? (
-                    <div className="text-center py-6">
-                        <p className="text-sm text-slate-500 italic">No hay solicitudes nuevas.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {metrics.pendingRequests.map((req: any) => (
-                            <div key={req.id} className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-base">{req.studentName}</h4>
-                                        <span className="text-xs text-slate-400 font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">{formatDate(req.updated)}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                 <Card className="border-emerald-200/50 dark:border-emerald-800/30">
+                    <SectionHeader title="Pendientes de Acreditación" icon="task_alt" count={pendingFinalizations.length} colorClass="text-emerald-600 bg-emerald-100 dark:bg-emerald-900/20" />
+                    
+                    {pendingFinalizations.length === 0 ? (
+                        <div className="text-center py-6"><p className="text-sm text-slate-500 italic">¡Todo al día!</p></div>
+                    ) : (
+                        <div className="space-y-3">
+                            {pendingFinalizations.map((f: any) => (
+                                <div key={f.id} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                                    <div>
+                                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{f.studentName}</h4>
+                                        <p className="text-xs text-slate-500">Solicitado: {formatDate(f.fechaSolicitud)}</p>
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                                        <span className="material-icons !text-base text-slate-400">business</span>
-                                        <span className="font-medium">{req.institucion}</span>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-3">
-                                    <span className={`text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wide border ${
-                                        req.estado.toLowerCase().includes('conversacion') ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
-                                        req.estado.toLowerCase().includes('contacto') ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                        'bg-slate-50 text-slate-600 border-slate-200'
-                                    }`}>
-                                        {req.estado}
-                                    </span>
-                                    <button 
-                                        onClick={() => archiveRequestMutation.mutate(req.id)}
-                                        className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-colors"
-                                        title="Archivar Solicitud"
-                                    >
-                                        <span className="material-icons !text-xl">archive</span>
+                                    <button className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-md transition-colors">
+                                        Revisar
                                     </button>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </Card>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+
+                <Card className="border-blue-200/50 dark:border-blue-800/30">
+                    <SectionHeader title="Solicitudes de Alumnos" icon="inbox" count={pendingRequests.length} colorClass="text-blue-600 bg-blue-100 dark:bg-blue-900/20" />
+                    
+                    {pendingRequests.length === 0 ? (
+                        <div className="text-center py-6"><p className="text-sm text-slate-500 italic">No hay solicitudes nuevas.</p></div>
+                    ) : (
+                        <div className="space-y-3">
+                            {pendingRequests.map((req: any) => (
+                                <div key={req.id} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 flex justify-between items-center gap-4">
+                                    <div className="min-w-0">
+                                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{req.studentName}</h4>
+                                        <div className="flex items-center gap-1 text-xs text-slate-500">
+                                            <span className="material-icons !text-xs">business</span>
+                                            <span className="truncate">{req.institucion}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">{req.estado}</span>
+                                        <button onClick={() => archiveRequestMutation.mutate(req.id)} className="p-1 text-slate-400 hover:bg-slate-200 rounded" title="Archivar">
+                                            <span className="material-icons !text-lg">archive</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Card>
+            </div>
         </div>
     );
 };

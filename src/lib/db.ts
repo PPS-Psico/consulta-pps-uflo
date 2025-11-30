@@ -45,7 +45,7 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
                  options?.filterByFormula, 
                  options?.maxRecords, 
                  options?.sort
-             );
+            );
             if (error) {
                  console.error(`Error fetching single/limited from ${_tableName}:`, error);
                  return [];

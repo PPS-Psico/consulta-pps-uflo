@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 import { LanzamientoPPS, GroupedSeleccionados } from '../types';
 
 type OnSubmitEnrollment = (formData: any) => Promise<void>;
+type OnSubmitSolicitudPPS = (formData: any) => Promise<void>;
 
 interface ModalContextType {
   // Generic Modal
@@ -24,12 +25,19 @@ interface ModalContextType {
   convocatoriaForModal: string;
   openSeleccionadosModal: (data: GroupedSeleccionados | null, title: string) => void;
   closeSeleccionadosModal: () => void;
+
+  // Solicitud PPS Modal (Autogestión)
+  isSolicitudPPSModalOpen: boolean;
+  openSolicitudPPSModal: (onSubmit: OnSubmitSolicitudPPS) => void;
+  closeSolicitudPPSModal: () => void;
+  onSubmitSolicitudPPS: OnSubmitSolicitudPPS | null;
 }
 
 const ModalContext = createContext<ModalContextType | undefined>(undefined);
 
 export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [modalInfo, setModalInfo] = useState<{ title: string; message: string } | null>(null);
+  
   const [isEnrollmentFormOpen, setIsEnrollmentFormOpen] = useState(false);
   const [selectedLanzamientoForEnrollment, setSelectedLanzamientoForEnrollment] = useState<LanzamientoPPS | null>(null);
   const [onSubmitEnrollment, setOnSubmitEnrollment] = useState<OnSubmitEnrollment | null>(null);
@@ -38,6 +46,9 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isSeleccionadosModalOpen, setIsSeleccionadosModalOpen] = useState(false);
   const [seleccionadosData, setSeleccionadosData] = useState<GroupedSeleccionados | null>(null);
   const [convocatoriaForModal, setConvocatoriaForModal] = useState('');
+
+  const [isSolicitudPPSModalOpen, setIsSolicitudPPSModalOpen] = useState(false);
+  const [onSubmitSolicitudPPS, setOnSubmitSolicitudPPS] = useState<OnSubmitSolicitudPPS | null>(null);
 
   const showModal = useCallback((title: string, message: string) => {
     setModalInfo({ title, message });
@@ -70,6 +81,16 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setSeleccionadosData(null);
     setConvocatoriaForModal('');
   }, []);
+
+  const openSolicitudPPSModal = useCallback((onSubmit: OnSubmitSolicitudPPS) => {
+      setOnSubmitSolicitudPPS(() => onSubmit);
+      setIsSolicitudPPSModalOpen(true);
+  }, []);
+
+  const closeSolicitudPPSModal = useCallback(() => {
+      setIsSolicitudPPSModalOpen(false);
+      setOnSubmitSolicitudPPS(null);
+  }, []);
   
   const value: ModalContextType = {
     modalInfo,
@@ -87,6 +108,10 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     convocatoriaForModal,
     openSeleccionadosModal,
     closeSeleccionadosModal,
+    isSolicitudPPSModalOpen,
+    openSolicitudPPSModal,
+    closeSolicitudPPSModal,
+    onSubmitSolicitudPPS
   };
 
   return (

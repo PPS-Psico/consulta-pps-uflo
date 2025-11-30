@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { schema } from '../lib/airtableSchema';
 import type { AirtableRecord, InstitucionFields, EstudianteFields, LanzamientoPPSFields } from '../types';
@@ -230,7 +230,7 @@ const getLookupName = (fieldValue: any): string | null => {
     return typeof fieldValue === 'string' ? fieldValue : null;
 };
 
-const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }) => {
+const DatabaseEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }) => {
     const [activeTable, setActiveTable] = useState<TableKey>('estudiantes');
     const [editingRecord, setEditingRecord] = useState<AirtableRecord<any> | { isCreating: true } | null>(null);
     const [toastInfo, setToastInfo] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
@@ -257,7 +257,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
     }, [searchTerm]);
 
     const activeTableConfig = EDITABLE_TABLES[activeTable];
-    const queryKey = ['airtableEditor', activeTable, currentPage, itemsPerPage, sortConfig, debouncedSearch, isTestingMode];
+    const queryKey = ['databaseEditor', activeTable, currentPage, itemsPerPage, sortConfig, debouncedSearch, isTestingMode];
 
     const { data: queryResult, isLoading, error } = useQuery({
         queryKey,
@@ -306,7 +306,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             
             return { records, total };
         },
-        placeholderData: keepPreviousData, // Keep showing old data while fetching new page
+        placeholderData: (previousData: any) => previousData, // Keep showing old data while fetching new page
     });
 
     const records = queryResult?.records || [];
@@ -320,7 +320,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         },
         onSuccess: () => {
             setToastInfo({ message: 'Registro actualizado.', type: 'success' });
-            queryClient.invalidateQueries({ queryKey: ['airtableEditor', activeTable] }); // Invalidate all pages for this table
+            queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] }); // Invalidate all pages for this table
             setEditingRecord(null);
         },
         onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
@@ -334,7 +334,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         onSuccess: () => {
              setToastInfo({ message: 'Registro creado.', type: 'success' });
              setEditingRecord(null);
-             queryClient.invalidateQueries({ queryKey: ['airtableEditor', activeTable] }); 
+             queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] }); 
         },
         onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
     });
@@ -348,7 +348,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
             setToastInfo({ message: 'Registro eliminado.', type: 'success' });
             setContextMenu(null);
             setSelectedRowId(null);
-            queryClient.invalidateQueries({ queryKey: ['airtableEditor', activeTable] });
+            queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] });
         },
         onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
     });
@@ -373,7 +373,7 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         onSuccess: () => {
             setToastInfo({ message: 'Registro duplicado.', type: 'success' });
             setContextMenu(null);
-            queryClient.invalidateQueries({ queryKey: ['airtableEditor', activeTable] });
+            queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] });
         },
         onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
     });
@@ -591,4 +591,4 @@ const AirtableEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
     );
 };
 
-export default AirtableEditor;
+export default DatabaseEditor;

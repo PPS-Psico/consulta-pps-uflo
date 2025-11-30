@@ -2,15 +2,14 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
-import type { SolicitudPPS, SolicitudPPSFields, AirtableRecord } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import type { SolicitudPPS, SolicitudPPSFields } from '../types';
 import {
     FIELD_LEGAJO_PPS,
     FIELD_EMPRESA_PPS_SOLICITUD,
     FIELD_ESTADO_PPS,
     FIELD_ULTIMA_ACTUALIZACION_PPS,
     FIELD_NOTAS_PPS,
-    FIELD_NOMBRE_ESTUDIANTES,
-    FIELD_LEGAJO_ESTUDIANTES,
     FIELD_SOLICITUD_NOMBRE_ALUMNO,
     FIELD_SOLICITUD_EMAIL_ALUMNO,
     FIELD_SOLICITUD_LOCALIDAD,
@@ -24,6 +23,12 @@ import {
     FIELD_SOLICITUD_TIPO_PRACTICA,
     FIELD_SOLICITUD_DESCRIPCION,
     FIELD_SOLICITUD_LEGAJO_ALUMNO,
+    TABLE_NAME_PPS,
+    TABLE_NAME_ESTUDIANTES,
+    FIELD_NOMBRE_ESTUDIANTES,
+    FIELD_LEGAJO_ESTUDIANTES,
+    FIELD_CORREO_ESTUDIANTES,
+    COL_SOLICITUD_UPDATED_AT,
 } from '../constants';
 import Loader from './Loader';
 import EmptyState from './EmptyState';
@@ -34,21 +39,12 @@ import SubTabs from './SubTabs';
 import FinalizacionReview from './FinalizacionReview';
 import { sendSmartEmail } from '../utils/emailService';
 
-// Helper function to clean Airtable array strings
 const cleanValue = (val: any): string => {
     if (val === null || val === undefined) return '';
     if (Array.isArray(val)) return cleanValue(val[0]);
-    let str = String(val);
-    if (str.startsWith('["') && str.endsWith('"]')) {
-        try {
-            const parsed = JSON.parse(str);
-            if (Array.isArray(parsed) && parsed.length > 0) return cleanValue(parsed[0]);
-        } catch (e) {}
-    }
-    return str.replace(/[\[\]"]/g, '').trim();
+    return String(val).replace(/[\[\]"]/g, '').trim();
 }
 
-// Helper Component for Data Display
 const InfoField: React.FC<{ label: string; value?: string | null; fullWidth?: boolean }> = ({ label, value, fullWidth }) => (
     <div className={`mb-4 ${fullWidth ? 'col-span-full' : ''}`}>
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</p>
@@ -58,7 +54,6 @@ const InfoField: React.FC<{ label: string; value?: string | null; fullWidth?: bo
     </div>
 );
 
-// Modal for Viewing Details and Editing Status
 const SolicitudDetailModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -71,12 +66,8 @@ const SolicitudDetailModal: React.FC<{
 
     if (!isOpen) return null;
 
-    // Determine student info
     const studentName = (record as any)._studentName || cleanValue(record[FIELD_SOLICITUD_NOMBRE_ALUMNO]) || 'Desconocido';
     const studentLegajo = (record as any)._studentLegajo || cleanValue(record[FIELD_SOLICITUD_LEGAJO_ALUMNO]) || '---';
-    
-    // Try to get email from record directly or from linked object if available (though query flattens it)
-    // We rely on what's passed. Ideally, we should ensure email is available.
     const studentEmail = cleanValue(record[FIELD_SOLICITUD_EMAIL_ALUMNO]) || (record as any)._studentEmail;
 
     const handleSave = () => {
@@ -97,8 +88,6 @@ const SolicitudDetailModal: React.FC<{
     return (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] transform transition-all scale-100" onClick={e => e.stopPropagation()}>
-                
-                {/* Header */}
                 <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-start bg-slate-50/50 dark:bg-slate-900/50 rounded-t-xl">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
@@ -196,7 +185,7 @@ const SolicitudDetailModal: React.FC<{
                                         rows={8}
                                         value={notes}
                                         onChange={(e) => setNotes(e.target.value)}
-                                        placeholder="Escribe notas sobre el avance de la solicitud, contactos realizados, etc..."
+                                        placeholder="Escribe notas sobre el avance de la solicitud..."
                                         className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                                     />
                                 </div>
@@ -238,49 +227,52 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
         { id: 'egreso', label: 'Solicitudes de Finalización', icon: 'logout' },
     ];
 
-    // 1. Fetch Data
-    const { data: requestsData, isLoading, error } = useQuery({
+    // 1. Optimized Fetch Data with SQL Join
+    const { data: requestsData, isLoading, error, refetch } = useQuery({
         queryKey: ['adminSolicitudes', isTestingMode],
         queryFn: async () => {
-            if (isTestingMode) {
-                return [];
+            if (isTestingMode) return [];
+
+            // Perform a JOIN with estudiantes using Supabase and explicit foreign key
+            const { data, error } = await supabase
+                .from(TABLE_NAME_PPS)
+                .select(`
+                    *,
+                    estudiante:${TABLE_NAME_ESTUDIANTES}!fk_solicitud_estudiante (
+                        ${FIELD_NOMBRE_ESTUDIANTES},
+                        ${FIELD_LEGAJO_ESTUDIANTES},
+                        ${FIELD_CORREO_ESTUDIANTES}
+                    )
+                `)
+                // CHANGED: Order by created_at instead of updated_at to ensure consistent order
+                // and avoid issues if updated_at is null from migration
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("Error fetching solicitudes:", error);
+                throw new Error(error.message);
             }
+            
+            if (!data) return [];
 
-            const [solicitudesRes, estudiantesRes] = await Promise.all([
-                db.solicitudes.getAll({ sort: [{ field: FIELD_ULTIMA_ACTUALIZACION_PPS, direction: 'desc' }] }),
-                db.estudiantes.getAll() // Need all fields to get email
-            ]);
-
-            const studentsMap = new Map(estudiantesRes.map(s => [s.id, s]));
-            // Legacy fallback map by legajo if FK is missing
-            const studentsByLegajoMap = new Map(estudiantesRes.map(s => [String(s[FIELD_LEGAJO_ESTUDIANTES] || '').trim(), s]));
-
-            return solicitudesRes.map(req => {
-                const rawLink = req[FIELD_LEGAJO_PPS];
-                const rawId = Array.isArray(rawLink) ? rawLink[0] : rawLink;
-                const studentId = cleanValue(rawId);
-
-                let student = studentId ? studentsMap.get(studentId) : null;
+            return data.map((req: any) => {
+                const student = req.estudiante;
                 
-                const manualName = cleanValue(req[FIELD_SOLICITUD_NOMBRE_ALUMNO]);
-                const manualLegajo = cleanValue(req[FIELD_SOLICITUD_LEGAJO_ALUMNO]);
+                // Fallback to manual fields if linked student data is missing (Orphans)
+                const name = student?.[FIELD_NOMBRE_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_NOMBRE_ALUMNO]) || 'Desconocido';
+                const legajo = student?.[FIELD_LEGAJO_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_LEGAJO_ALUMNO]) || '---';
+                const email = student?.[FIELD_CORREO_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_EMAIL_ALUMNO]);
 
-                if (!student && manualLegajo) {
-                    student = studentsByLegajoMap.get(manualLegajo.trim());
-                }
-
-                const name = student?.[FIELD_NOMBRE_ESTUDIANTES] || manualName || 'Desconocido';
-                const legajo = student?.[FIELD_LEGAJO_ESTUDIANTES] || manualLegajo || '---';
-                
-                // IMPORTANT: Ensure we pass email for notifications
-                const email = (student as any)?.correo || cleanValue(req[FIELD_SOLICITUD_EMAIL_ALUMNO]);
-
+                // Flatten structure for easier UI consumption
                 return {
                     ...req,
+                    // Ensure IDs are strings
+                    id: String(req.id),
+                    createdTime: req.created_at,
                     _studentName: name, 
-                    _studentLegajo: legajo,
+                    _studentLegajo: String(legajo),
                     _studentEmail: email 
-                };
+                } as SolicitudPPS & { _studentName: string, _studentLegajo: string, _studentEmail: string };
             });
         }
     });
@@ -335,8 +327,8 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
         if (!requestsData) return [];
         return requestsData.filter(req => {
             const searchLower = searchTerm.toLowerCase();
-            const studentName = String((req as any)._studentName).toLowerCase();
-            const studentLegajo = String((req as any)._studentLegajo).toLowerCase();
+            const studentName = String(req._studentName || '').toLowerCase();
+            const studentLegajo = String(req._studentLegajo || '').toLowerCase();
             const institution = (req[FIELD_EMPRESA_PPS_SOLICITUD] || '').toLowerCase();
             const status = (req[FIELD_ESTADO_PPS] || '').toLowerCase();
 
@@ -350,7 +342,7 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
     }, [requestsData, searchTerm, statusFilter]);
 
     if (isLoading) return <div className="flex justify-center p-12"><Loader /></div>;
-    if (error) return <EmptyState icon="error" title="Error" message="No se pudieron cargar las solicitudes." />;
+    if (error) return <EmptyState icon="error" title="Error" message={`No se pudieron cargar las solicitudes: ${error.message}`} />;
 
     return (
         <Card title="Gestión de Solicitudes" icon="list_alt" description="Administra las solicitudes de PPS iniciadas por los estudiantes.">
@@ -399,7 +391,19 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
                     <div className="mt-6 overflow-hidden border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
                         {filteredRequests.length === 0 ? (
                             <div className="p-12">
-                                <EmptyState icon="inbox" title="Sin Resultados" message="No se encontraron solicitudes con los filtros actuales." />
+                                <EmptyState 
+                                    icon="inbox" 
+                                    title="Sin Resultados" 
+                                    message="No se encontraron solicitudes con los filtros actuales." 
+                                    action={
+                                        <button 
+                                            onClick={() => refetch()} 
+                                            className="mt-4 flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                        >
+                                            <span className="material-icons !text-sm">refresh</span> Actualizar
+                                        </button>
+                                    }
+                                />
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -423,8 +427,8 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
                                                     className="hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors group cursor-pointer"
                                                 >
                                                     <td className="px-6 py-4">
-                                                        <p className="font-bold text-slate-800 dark:text-slate-100">{(req as any)._studentName}</p>
-                                                        <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{(req as any)._studentLegajo}</p>
+                                                        <p className="font-bold text-slate-800 dark:text-slate-100">{req._studentName}</p>
+                                                        <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{req._studentLegajo}</p>
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <p className="text-slate-700 dark:text-slate-300 font-medium">{cleanValue(req[FIELD_EMPRESA_PPS_SOLICITUD]) || 'Sin especificar'}</p>
@@ -436,7 +440,7 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono text-xs">
-                                                        {formatDate(req[FIELD_ULTIMA_ACTUALIZACION_PPS])}
+                                                        {formatDate(req[FIELD_ULTIMA_ACTUALIZACION_PPS] || req.createdTime)}
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
                                                         <button 

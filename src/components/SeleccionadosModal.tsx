@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { GroupedSeleccionados, SelectedStudent } from '../types';
 import EmptyState from './EmptyState';
@@ -14,7 +15,9 @@ const StudentList: React.FC<{ students: SelectedStudent[] }> = ({ students }) =>
   <ul className="divide-y divide-slate-200/70 dark:divide-slate-700/70">
     {students.map((student) => (
       <li key={student.legajo} className="flex items-center justify-between py-2.5">
-        <span className="font-medium text-slate-700 dark:text-slate-200">{student.nombre}</span>
+        <span className={`font-medium ${student.nombre === 'Nombre Desconocido' ? 'text-slate-400 italic' : 'text-slate-700 dark:text-slate-200'}`}>
+          {student.nombre}
+        </span>
         <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full font-mono">
           {student.legajo}
         </span>

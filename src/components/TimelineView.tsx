@@ -41,21 +41,8 @@ const fetchTimelineData = async (): Promise<LanzamientoPPS[]> => {
     throw new Error(`Error fetching timeline data: ${errorMsg}`);
   }
 
-  // If validation fails, we usually have records anyway due to the 'safe' fetch in supabaseService.
-  // However, for critical type safety in this view, we check if we have valid records.
-  // If records came back but failed strict validation, we might see empty or partial data.
-  // To prevent the whole view crashing from one bad record, we filter valid ones.
-  
-  const validRecords = records.map(r => {
-      const result = lanzamientoPPSArraySchema.element.safeParse(r);
-      if (!result.success) {
-          console.warn(`[TimelineView] Skipping invalid record ${r.id}:`, result.error);
-          return null;
-      }
-      return { ...(r.fields as LanzamientoPPSFields), id: r.id };
-  }).filter((r): r is LanzamientoPPS => r !== null);
-
-  return validRecords;
+  // Records are already flat, containing fields merged with id and createdTime
+  return records as LanzamientoPPS[];
 };
 
 const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
