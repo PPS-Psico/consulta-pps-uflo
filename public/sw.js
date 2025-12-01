@@ -1,6 +1,7 @@
+
 // sw.js para relative base
 
-const CACHE_NAME = 'mi-panel-academico-cache-v15';
+const CACHE_NAME = 'mi-panel-academico-cache-v16';
 const FILES_TO_CACHE = [
   './index.html',
   './manifest.json',
