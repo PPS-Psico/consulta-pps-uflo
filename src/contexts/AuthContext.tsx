@@ -51,6 +51,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, 5000);
 
+    // Robust Initial Session Check
+    const initSession = async () => {
+        try {
+            const { error } = await supabase.auth.getSession();
+            if (error) {
+                console.error("Initial Session Error:", error.message);
+                // If token is invalid, force clear local storage and state to prevent crash loops
+                if (error.message.includes("Refresh Token") || error.message.includes("not found")) {
+                     console.warn("Invalid Refresh Token detected. Performing cleanup...");
+                     const storageKey = 'sb-' + (process.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] || '') + '-auth-token';
+                     localStorage.removeItem(storageKey);
+                     await (supabase.auth as any).signOut().catch(() => {}); 
+                     queryClient.clear();
+                     
+                     if (isMounted) {
+                         setAuthenticatedUser(null);
+                         setIsAuthLoading(false);
+                     }
+                }
+            }
+        } catch (e) {
+            console.error("Unexpected error during session check:", e);
+        }
+    };
+
+    initSession();
+
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(
       async (event: string, session: any) => {
         console.log(`AUTH EVENT: ${event}`);
@@ -140,7 +167,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setAuthenticatedUser(null);
         
         // 4. Limpiar storage local relevante por seguridad
-        localStorage.removeItem('sb-' + process.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] + '-auth-token');
+        const storageKey = 'sb-' + (process.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] || '') + '-auth-token';
+        localStorage.removeItem(storageKey);
         
     } catch (error) {
         console.error("Error signing out:", error);

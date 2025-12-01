@@ -11,7 +11,6 @@ import Tabs from '../components/Tabs';
 import Card from '../components/Card';
 import WelcomeBanner from '../components/WelcomeBanner';
 import CriteriosPanel from '../components/CriteriosPanel';
-import WhatsAppExportButton from '../components/WhatsAppExportButton';
 import { FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES } from '../constants';
 import FinalizacionForm from '../components/FinalizacionForm';
 
@@ -115,15 +114,6 @@ const StudentLayout: React.FC = () => {
 
             <Footer activeTab={activeTab as TabId} />
             <AppModals />
-            <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
-            <button
-                onClick={() => window.print()}
-                className="fixed bottom-6 right-24 z-50 w-14 h-14 bg-slate-700 text-white rounded-full shadow-lg flex items-center justify-center
-                            transition-all duration-300 ease-in-out transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-400 print-hidden"
-                aria-label="Imprimir reporte"
-            >
-                <span className="material-icons !text-2xl">print</span>
-            </button>
 
             <MobileBottomNav 
                 tabs={mobileNavTabs}
