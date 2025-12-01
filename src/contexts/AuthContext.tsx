@@ -24,6 +24,7 @@ interface AuthContextType {
   authenticatedUser: AuthUser | null;
   isSuperUserMode: boolean;
   isJefeMode: boolean;
+
   isDirectivoMode: boolean;
   isAdminTesterMode: boolean;
   isReporteroMode: boolean;
@@ -71,12 +72,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         role: dbRole
                     });
                 } else {
-                    console.warn("Auth session found but no matching student profile or DB error.", error?.message);
+                    console.warn("Auth session found but no matching student profile. Treating as logged out.", error?.message);
                     setAuthenticatedUser(null);
-                    // Force sign out to clear inconsistent state, especially on initial load or sign-in.
-                    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                        await (supabase.auth as any).signOut();
-                    }
+                    // Do NOT call signOut() here to prevent potential loops. 
+                    // The invalid session will be overwritten on next successful login.
                 }
             } else {
                 setAuthenticatedUser(null);
@@ -85,9 +84,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("Critical error in onAuthStateChange:", error);
             setAuthenticatedUser(null);
         } finally {
-            // Unlocks the UI after the first auth event (INITIAL_SESSION) is processed.
-            // Subsequent events (like TOKEN_REFRESHED) will update the user state
-            // without re-enabling the global loading screen.
             setIsAuthLoading(false);
         }
       }
@@ -103,16 +99,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const logout = useCallback(async () => {
-    setIsAuthLoading(true); // Show loading while signing out
-    try {
-        const { error } = await (supabase.auth as any).signOut();
-        if (error) console.error("Error logging out:", error.message);
-    } catch (e) {
-        console.error("Unexpected error logging out:", e);
-    } finally {
-        setAuthenticatedUser(null);
+    setIsAuthLoading(true);
+    const { error } = await (supabase.auth as any).signOut();
+    if (error) {
+        console.error("Error during sign out:", error.message);
+        // If signOut fails, we must stop the loading indicator ourselves,
+        // as the onAuthStateChange listener may not fire.
         setIsAuthLoading(false);
     }
+    // If signOut succeeds, the onAuthStateChange listener will handle setting user to null and loading to false.
   }, []);
 
   const completePasswordChange = useCallback(() => {
