@@ -57,7 +57,7 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
         getPage: async (
             page: number, 
             pageSize: number, 
-            options?: { searchTerm?: string, searchFields?: string[], sort?: { field: string; direction: 'asc' | 'desc' } }
+            options?: { searchTerm?: string, searchFields?: string[], sort?: { field: string; direction: 'asc' | 'desc' }, filters?: Record<string, any> }
         ) => {
             return supabaseService.fetchPaginatedData<TRecordFields>(
                 _tableName,
@@ -67,7 +67,8 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
                 [], // Fetch all fields for editor
                 options?.searchTerm,
                 options?.searchFields,
-                options?.sort
+                options?.sort,
+                options?.filters
             );
         },
 

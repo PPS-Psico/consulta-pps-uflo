@@ -66,7 +66,7 @@ const AppHeader: React.FC = () => {
               {isLoggedIn && (
                   <button
                     onClick={logout}
-                    className="bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/50 text-slate-50 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-semibold p-2.5 rounded-full transition-all duration-200 shadow-sm border border-slate-200/80 dark:border-slate-700 flex items-center justify-center"
+                    className="bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/50 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-semibold p-2.5 rounded-full transition-all duration-200 shadow-sm border border-slate-200/80 dark:border-slate-700 flex items-center justify-center"
                     aria-label="Cerrar sesión"
                   >
                     <span className="material-icons !text-xl sm:!text-2xl">logout</span>

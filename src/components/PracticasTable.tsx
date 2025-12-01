@@ -17,7 +17,6 @@ import {
   normalizeStringForComparison
 } from '../utils/formatters';
 import EmptyState from './EmptyState';
-import Card from './Card';
 
 const NOTA_OPTIONS = ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
 
@@ -199,9 +198,9 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
   }
 
   return (
-    <Card className="overflow-hidden">
+    <div>
       {/* Desktop Table View */}
-      <div className="overflow-x-auto hidden md:block">
+      <div className="overflow-x-auto hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800">
         <table className="w-full min-w-[800px] text-sm">
           <thead className="bg-gray-50 dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800">
             <tr>
@@ -276,7 +275,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
                 </div>
                 <div className="flex-shrink-0 text-right">
                   <p className="text-lg font-black text-blue-600 dark:text-blue-400">{practica[FIELD_HORAS_PRACTICAS] || 0}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase -mt-0.5">horas</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase -mt-0.5">horas</p>
                 </div>
               </div>
               {/* Bottom Row: Details and Grade */}
@@ -298,7 +297,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
           )
         })}
       </div>
-    </Card>
+    </div>
   );
 };
 
