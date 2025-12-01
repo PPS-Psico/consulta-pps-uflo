@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import type { InformeCorreccionPPS, InformeCorreccionStudent } from '../types';
 import NotaSelector from './NotaSelector';
@@ -114,8 +115,8 @@ const InformeCorreccionCard: React.FC<InformeCorreccionCardProps> = ({
   };
 
   return (
-    <details className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-sm transition-all duration-300 open:shadow-lg open:border-blue-200 dark:open:border-blue-700 group" open>
-      <summary className="p-4 cursor-pointer flex justify-between items-center list-none">
+    <details className="bg-white dark:bg-gray-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-all duration-300 open:shadow-lg open:border-blue-200 dark:open:border-blue-900 group" open>
+      <summary className="p-4 cursor-pointer flex justify-between items-center list-none hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-t-xl transition-colors">
         <div className="flex-grow">
           <h4 className="font-bold text-slate-800 dark:text-slate-100 group-open:text-blue-700 dark:group-open:text-blue-300">{ppsName}</h4>
           <p className="text-sm text-slate-500 dark:text-slate-400">{orientacion}</p>
@@ -142,7 +143,7 @@ const InformeCorreccionCard: React.FC<InformeCorreccionCardProps> = ({
               <span>Ir al Campus</span>
             </a>
           )}
-          <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full">
+          <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
             {stats.corregidos} / {stats.totalStudents} Corregidos
           </div>
           <div className="text-slate-400 dark:text-slate-500 transition-transform duration-300 group-open:rotate-180">

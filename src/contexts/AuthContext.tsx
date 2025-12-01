@@ -39,10 +39,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   useEffect(() => {
-    // Optimizacion: Confiamos unicamente en el evento onAuthStateChange.
-    // Supabase dispara 'INITIAL_SESSION' inmediatamente al suscribirse, 
-    // por lo que no necesitamos una llamada manual previa a getSession().
-    
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(
       async (event: string, session: any) => {
         console.log(`AUTH EVENT: ${event}`);
@@ -50,48 +46,55 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const isResetting = sessionStorage.getItem('__password_reset_in_progress');
         if (isResetting) {
             sessionStorage.removeItem('__password_reset_in_progress');
-            // IMPORTANTE: Asegurar que dejamos de cargar incluso si salimos temprano
             setIsAuthLoading(false);
             return;
         }
         
-        // Solo activamos loading si hay un cambio de sesión real que requiera fetch
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-             setIsAuthLoading(true);
-        }
-        
-        if (session?.user) {
-            const { data: profile, error } = await supabase
-                .from('estudiantes')
-                .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}, ${FIELD_ROLE_ESTUDIANTES}`)
-                .eq(FIELD_USER_ID_ESTUDIANTES, session.user.id) 
-                .limit(1)
-                .single();
+        try {
+            if (session?.user) {
+                const { data: profile, error } = await supabase
+                    .from('estudiantes')
+                    .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}, ${FIELD_ROLE_ESTUDIANTES}`)
+                    .eq(FIELD_USER_ID_ESTUDIANTES, session.user.id) 
+                    .maybeSingle();
 
-            if (profile && !error) {
-                const dbRole = profile[FIELD_ROLE_ESTUDIANTES] as AuthUser['role'] | undefined;
+                if (profile && !error) {
+                    const dbRole = profile[FIELD_ROLE_ESTUDIANTES] as AuthUser['role'] | undefined;
 
-                setAuthenticatedUser({
-                    id: session.user.id,
-                    legajo: profile[FIELD_LEGAJO_ESTUDIANTES],
-                    nombre: profile[FIELD_NOMBRE_ESTUDIANTES],
-                    orientaciones: profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
-                    mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES],
-                    role: dbRole
-                });
+                    setAuthenticatedUser({
+                        id: session.user.id,
+                        legajo: profile[FIELD_LEGAJO_ESTUDIANTES],
+                        nombre: profile[FIELD_NOMBRE_ESTUDIANTES],
+                        orientaciones: profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
+                        mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES],
+                        role: dbRole
+                    });
+                } else {
+                    console.warn("Auth session found but no matching student profile or DB error.", error?.message);
+                    setAuthenticatedUser(null);
+                    // Force sign out to clear inconsistent state, especially on initial load or sign-in.
+                    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                        await (supabase.auth as any).signOut();
+                    }
+                }
             } else {
-                // Si hay sesión de Auth pero no perfil en DB (o error), deslogueamos visualmente
-                console.warn("Sesión válida pero sin perfil de estudiante vinculado o error de red.", error);
                 setAuthenticatedUser(null);
             }
-        } else {
+        } catch (error) {
+            console.error("Critical error in onAuthStateChange:", error);
             setAuthenticatedUser(null);
+        } finally {
+            // Unlocks the UI after the first auth event (INITIAL_SESSION) is processed.
+            // Subsequent events (like TOKEN_REFRESHED) will update the user state
+            // without re-enabling the global loading screen.
+            setIsAuthLoading(false);
         }
-        setIsAuthLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+        subscription.unsubscribe();
+    };
   }, []);
 
   const login = useCallback((user: AuthUser) => {
@@ -99,9 +102,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const logout = useCallback(async () => {
-    const { error } = await (supabase.auth as any).signOut();
-    if (error) console.error("Error logging out:", error.message);
-    setAuthenticatedUser(null);
+    setIsAuthLoading(true); // Show loading while signing out
+    try {
+        const { error } = await (supabase.auth as any).signOut();
+        if (error) console.error("Error logging out:", error.message);
+    } catch (e) {
+        console.error("Unexpected error logging out:", e);
+    } finally {
+        setAuthenticatedUser(null);
+        setIsAuthLoading(false);
+    }
   }, []);
 
   const completePasswordChange = useCallback(() => {

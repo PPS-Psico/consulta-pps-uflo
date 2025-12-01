@@ -3,9 +3,10 @@ import React from 'react';
 interface MiPanelLogoProps {
   className?: string;
   variant?: 'light' | 'dark';
+  style?: React.CSSProperties;
 }
 
-const MiPanelLogo: React.FC<MiPanelLogoProps> = ({ className, variant = 'light' }) => {
+const MiPanelLogo: React.FC<MiPanelLogoProps> = ({ className, variant = 'light', style }) => {
   const isDark = variant === 'dark';
 
   // Professional color palette derived from existing theme
@@ -24,6 +25,9 @@ const MiPanelLogo: React.FC<MiPanelLogoProps> = ({ className, variant = 'light' 
   return (
     <svg
       className={className}
+      style={style}
+      width="180"
+      height="70"
       viewBox="0 0 180 70" // Adjusted for better horizontal spacing
       xmlns="http://www.w3.org/2000/svg"
       aria-label="Logo de Mi Panel"

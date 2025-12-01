@@ -3,9 +3,10 @@ import React from 'react';
 interface UfloLogoProps {
   className?: string;
   variant?: 'light' | 'dark';
+  style?: React.CSSProperties;
 }
 
-const UfloLogo: React.FC<UfloLogoProps> = ({ className, variant = 'light' }) => {
+const UfloLogo: React.FC<UfloLogoProps> = ({ className, variant = 'light', style }) => {
   const isDark = variant === 'dark';
   const mainColor = isDark ? '#e2e8f0' : '#1e293b'; // slate-200 : slate-800
   const subColor = isDark ? '#94a3b8' : '#475569';  // slate-400 : slate-600
@@ -13,6 +14,9 @@ const UfloLogo: React.FC<UfloLogoProps> = ({ className, variant = 'light' }) => 
   return (
     <svg 
       className={className} 
+      style={style}
+      width="120"
+      height="70"
       viewBox="0 0 120 70" 
       xmlns="http://www.w3.org/2000/svg" 
       aria-label="UFLO Universidad Logo"

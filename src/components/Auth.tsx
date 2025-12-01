@@ -48,12 +48,12 @@ const Auth: React.FC = () => {
       <div className="flex md:hidden justify-center items-center gap-4 mb-8"><UfloLogo className="h-12 w-auto" variant={resolvedTheme} /><MiPanelLogo className="h-12 w-auto" variant={resolvedTheme} /></div>
       
       <div className="text-left mb-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50 tracking-tight animate-fade-in-up" style={{ animationDelay: '400ms' }}>Acceso de Estudiantes</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight animate-fade-in-up" style={{ animationDelay: '400ms' }}>Acceso de Estudiantes</h2>
         <p className="text-slate-500 dark:text-slate-400 mt-1 animate-fade-in-up" style={{ animationDelay: '500ms' }}>Accede a tu cuenta o regístrate para comenzar.</p>
       </div>
       
-      <div className="p-1 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center mb-8 ring-1 ring-slate-200/50 dark:ring-slate-600/50 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
-        <button onClick={() => handleModeChange('login')} className={`w-full py-2.5 text-sm font-semibold rounded-md transition-all duration-300 ${mode === 'login' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-600/50 hover:text-slate-700 dark:hover:text-slate-200'}`}>Iniciar Sesión</button>
+      <div className="p-1 bg-slate-100 dark:bg-slate-900/50 rounded-lg flex items-center mb-8 ring-1 ring-slate-200/50 dark:ring-slate-700 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
+        <button onClick={() => handleModeChange('login')} className={`w-full py-2.5 text-sm font-semibold rounded-md transition-all duration-300 ${mode === 'login' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-700 dark:hover:text-slate-200'}`}>Iniciar Sesión</button>
         <button disabled className={`w-full py-2.5 text-sm font-semibold rounded-md transition-all duration-300 opacity-50 cursor-not-allowed text-slate-500 dark:text-slate-400`}>Crear Usuario</button>
       </div>
 
@@ -78,14 +78,14 @@ const Auth: React.FC = () => {
         <div className="flex items-center justify-between animate-fade-in-up" style={{ animationDelay: '950ms' }}>
             <label htmlFor="remember-me" className="flex items-center gap-2 cursor-pointer select-none group">
                 <input id="remember-me" name="remember-me" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} disabled={isLoading} className="sr-only"/>
-                <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ease-in-out ${rememberMe ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500' : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-700'} group-hover:border-blue-500`}>
+                <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ease-in-out ${rememberMe ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500' : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800'} group-hover:border-blue-500`}>
                     <span className={`material-icons !text-sm text-white transition-transform duration-200 ease-in-out ${rememberMe ? 'scale-100' : 'scale-0'}`}>check</span>
                 </div>
-                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Recordarme</span>
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-300">Recordarme</span>
             </label>
         </div>
         <div className="pt-4 animate-fade-in-up" style={{ animationDelay: '1000ms' }}>
-          <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white font-bold text-base py-3 px-6 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-800 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 flex items-center justify-center gap-3">
+          <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white font-bold text-base py-3 px-6 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 flex items-center justify-center gap-3">
             {isLoading && <div className="border-2 border-white/50 border-t-white rounded-full w-5 h-5 animate-spin"></div>}
             <span>Ingresar</span>
           </button>
@@ -97,11 +97,11 @@ const Auth: React.FC = () => {
   const renderMigration = () => (
       <form onSubmit={handleFormSubmit} className="space-y-5 animate-fade-in-up">
           <div className="text-left mb-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold mb-3 border border-blue-100 dark:border-blue-800">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-bold mb-3 border border-blue-100 dark:border-blue-500/20">
                   <span className="material-icons !text-sm">person_add</span>
                   Activa tu cuenta
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                   {migrationStep === 1 ? "1. Validar Identidad" : "2. Crear Contraseña"}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm leading-relaxed">
@@ -185,17 +185,17 @@ const Auth: React.FC = () => {
   );
 
   return (
-    <div className="w-full bg-white dark:bg-slate-800 md:grid md:grid-cols-2 min-h-[85vh] rounded-2xl shadow-2xl shadow-slate-200/40 dark:shadow-black/20 overflow-hidden border border-slate-200/60 dark:border-slate-700/80">
-      <div className="hidden md:flex flex-col justify-between p-8 lg:p-12 bg-gradient-to-br from-slate-50 to-slate-200 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-800 text-slate-800 dark:text-white relative overflow-hidden">
-        <div className="absolute -top-1/4 -right-1/4 w-3/4 h-3/4 bg-blue-600/30 dark:bg-blue-500/40 rounded-full filter blur-3xl animate-pulse" style={{animationDuration: '8s'}} />
-        <div className="absolute -bottom-1/4 -left-1/4 w-3/4 h-3/4 bg-indigo-600/30 dark:bg-indigo-500/40 rounded-full filter blur-3xl animate-pulse" style={{animationDuration: '10s', animationDelay: '2s'}} />
+    <div className="w-full bg-white dark:bg-slate-950 md:grid md:grid-cols-2 min-h-[85vh] rounded-2xl shadow-2xl shadow-slate-200/40 dark:shadow-black/50 overflow-hidden border border-slate-200/60 dark:border-slate-800">
+      <div className="hidden md:flex flex-col justify-between p-8 lg:p-12 bg-gradient-to-br from-slate-50 to-slate-200 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-950 text-slate-800 dark:text-white relative overflow-hidden">
+        <div className="absolute -top-1/4 -right-1/4 w-3/4 h-3/4 bg-blue-600/10 dark:bg-blue-500/20 rounded-full filter blur-3xl animate-pulse" style={{animationDuration: '8s'}} />
+        <div className="absolute -bottom-1/4 -left-1/4 w-3/4 h-3/4 bg-indigo-600/10 dark:bg-indigo-500/20 rounded-full filter blur-3xl animate-pulse" style={{animationDuration: '10s', animationDelay: '2s'}} />
         <div className="relative z-10">
           <div className="flex-shrink-0 animate-fade-in-up" style={{ animationDelay: '0ms' }}><MiPanelLogo className="h-16 w-auto" variant={resolvedTheme} /></div>
           <div className="flex-grow flex flex-col justify-center mt-20">
             <h1 className="text-5xl lg:text-6xl font-black tracking-tighter leading-tight animate-fade-in-up" style={{ animationDelay: '100ms' }}>
               Tu Panel<br/>Académico.
             </h1>
-            <p className="mt-4 text-slate-600 dark:text-slate-300 text-lg lg:text-xl max-w-sm animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+            <p className="mt-4 text-slate-600 dark:text-slate-400 text-lg lg:text-xl max-w-sm animate-fade-in-up" style={{ animationDelay: '200ms' }}>
               El portal centralizado para el seguimiento de tus Prácticas Profesionales Supervisadas.
             </p>
           </div>
@@ -203,14 +203,14 @@ const Auth: React.FC = () => {
         <div className="relative z-10 flex-shrink-0 animate-fade-in-up" style={{ animationDelay: '300ms' }}><UfloLogo className="h-16 w-auto" variant={resolvedTheme} /></div>
       </div>
 
-      <div className="flex flex-col items-center justify-center p-6 sm:p-10 min-h-full">
+      <div className="flex flex-col items-center justify-center p-6 sm:p-10 min-h-full dark:bg-[#0B1120]">
         <main className="w-full max-w-md">
             {mode === 'login' ? renderLoginRegister() :
              mode === 'migration' ? renderMigration() :
-             null /* Removed unused renderForgot/renderReset from display logic for simplicity */
+             null
             }
             <div aria-live="assertive" className="mt-4">
-              {error && <p className="text-red-600 dark:text-red-400 text-sm text-center pt-2 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg border border-red-100 dark:border-red-800">{error}</p>}
+              {error && <p className="text-red-600 dark:text-red-400 text-sm text-center pt-2 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg border border-red-100 dark:border-red-800/50">{error}</p>}
             </div>
         </main>
       </div>

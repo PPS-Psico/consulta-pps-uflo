@@ -30,28 +30,30 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon, description
     const cardContent = (
         <>
             <div className="flex justify-between items-start">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 rounded-lg">
-                    <span className="material-icons">{icon}</span>
+                <div className="p-2.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 rounded-xl">
+                    <span className="material-icons !text-2xl">{icon}</span>
                 </div>
                 {onClick && (
-                    <div className="p-1 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 group-hover:text-blue-700 dark:group-hover:text-blue-200 transition-colors">
-                        <span className="material-icons !text-base">open_in_new</span>
+                    <div className="p-1.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 group-hover:text-blue-700 dark:group-hover:text-blue-200 transition-colors">
+                        <span className="material-icons !text-lg">open_in_new</span>
                     </div>
                 )}
             </div>
-            <p className="text-4xl font-black text-slate-800 dark:text-slate-50 mt-4 tracking-tighter">{value}</p>
-            <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mt-1">{title}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{description}</p>
+            <div className="mt-5">
+                <p className="text-5xl font-black text-slate-900 dark:text-slate-50 tracking-tighter">{value}</p>
+                <h3 className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide mt-1">{title}</h3>
+            </div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">{description}</p>
         </>
     );
 
-    const baseClasses = `bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all duration-300 ${className}`;
+    const baseClasses = `bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all duration-300 ${className}`;
     
     if (onClick) {
         return (
             <button 
                 onClick={onClick}
-                className={`${baseClasses} group text-left hover:shadow-lg hover:-translate-y-1 hover:border-blue-300/70 dark:hover:border-blue-600/70 w-full`}
+                className={`${baseClasses} group text-left hover:shadow-xl hover:-translate-y-1 hover:border-blue-300/70 dark:hover:border-blue-600/70 w-full`}
             >
                 {cardContent}
             </button>

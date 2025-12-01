@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface CardProps {
@@ -28,7 +29,7 @@ const Card: React.FC<CardProps> = ({
 
   return (
     <div
-      className={`bg-white dark:bg-slate-800/50 dark:backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/40 dark:shadow-black/20 p-6 sm:p-8 border border-slate-200/60 dark:border-slate-700/80 transition-all duration-300 hover:shadow-xl hover:-translate-y-px ${className}`}
+      className={`bg-white dark:bg-slate-900/50 rounded-2xl shadow-sm shadow-slate-200/50 dark:shadow-black/20 p-6 sm:p-8 border border-slate-200 dark:border-slate-800 transition-all duration-300 ease-out hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700/80 ${className}`}
       style={style}
     >
       {(title || description || actions) && (
@@ -36,18 +37,18 @@ const Card: React.FC<CardProps> = ({
           {(title || description) && (
             <div className="flex items-start gap-4 flex-grow">
               {icon && (
-                <div className="flex-shrink-0 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 rounded-full h-12 w-12 flex items-center justify-center mt-1">
+                <div className="flex-shrink-0 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl h-12 w-12 flex items-center justify-center mt-1">
                   <span className="material-icons !text-3xl">{icon}</span>
                 </div>
               )}
               <div>
                 {title && (
-                  <TitleTag className={`text-slate-900 dark:text-slate-50 text-2xl font-bold tracking-tight ${titleClassName}`}>
+                  <TitleTag className={`text-slate-900 dark:text-slate-100 text-2xl font-extrabold tracking-tight ${titleClassName}`}>
                     {title}
                   </TitleTag>
                 )}
                 {description && (
-                  <p className="text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">{description}</p>
+                  <p className="text-slate-600 dark:text-slate-400 mt-1.5 max-w-2xl font-medium text-sm leading-relaxed">{description}</p>
                 )}
               </div>
             </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -21,7 +22,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         onChange={onChange}
         disabled={disabled}
         ref={ref}
-        className={`w-full rounded-lg border border-slate-300 dark:border-slate-600 py-3 pr-4 text-base text-slate-900 dark:text-slate-50 bg-white/50 dark:bg-slate-700/50 shadow-sm placeholder-slate-500 dark:placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500/50 dark:focus:ring-offset-slate-800 outline-none transition-all disabled:bg-slate-100 dark:disabled:bg-slate-800/50 ${icon ? 'pl-12' : 'pl-4'} ${className}`}
+        className={`w-full rounded-lg border border-slate-300 dark:border-slate-700 py-3 pr-4 text-base text-slate-900 dark:text-slate-100 bg-white/50 dark:bg-slate-900 shadow-sm placeholder-slate-500 dark:placeholder-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500/50 dark:focus:ring-offset-slate-900 outline-none transition-all disabled:bg-slate-100 dark:disabled:bg-slate-800/50 ${icon ? 'pl-12' : 'pl-4'} ${className}`}
         placeholder={placeholder}
         {...props}
       />

@@ -39,23 +39,23 @@ interface HomeViewProps {
 const NextPracticeCard: React.FC<{ event: CalendarEvent; date: Date; isToday: boolean }> = ({ event, date, isToday }) => {
     return (
         <div 
-            className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-800 dark:via-slate-800/80 dark:to-indigo-900/30 border border-slate-200/80 dark:border-slate-700/80 border-l-4 border-l-blue-500 dark:border-l-blue-400 shadow-lg transition-all duration-300 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-500 hover:-translate-y-1"
+            className="group relative p-5 rounded-2xl bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-blue-600 dark:border-l-blue-500 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
         >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-start gap-4 flex-grow">
-                    <div className="flex-shrink-0 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full h-12 w-12 flex items-center justify-center animate-[subtle-bob_2s_ease-in-out_infinite]">
+                    <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl h-12 w-12 flex items-center justify-center border border-blue-100 dark:border-blue-800">
                         <span className="material-icons !text-2xl">{isToday ? "today" : "event"}</span>
                     </div>
                     <div className="flex-grow">
-                        <p className="text-sm font-bold text-blue-600 dark:text-blue-400 tracking-wide">{isToday ? "HOY" : "MAÑANA"} &bull; {new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(date)}</p>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50 mt-1">{event.name}</h2>
-                        <div className="mt-2 space-y-1.5 text-sm">
-                            <p className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                                <span className="material-icons !text-base text-slate-400 dark:text-slate-500">schedule</span>
+                        <p className="text-xs font-bold text-blue-600 dark:text-blue-400 tracking-wider uppercase mb-1">{isToday ? "HOY" : "MAÑANA"} &bull; {new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(date)}</p>
+                        <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">{event.name}</h2>
+                        <div className="mt-3 space-y-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+                            <p className="flex items-center gap-2">
+                                <span className="material-icons !text-lg text-slate-400">schedule</span>
                                 <span>{event.schedule}</span>
                             </p>
-                             <p className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                                <span className="material-icons !text-base text-slate-400 dark:text-slate-500">location_on</span>
+                             <p className="flex items-center gap-2">
+                                <span className="material-icons !text-lg text-slate-400">location_on</span>
                                 <span>{event.location}</span>
                             </p>
                         </div>
@@ -67,7 +67,7 @@ const NextPracticeCard: React.FC<{ event: CalendarEvent; date: Date; isToday: bo
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-xs py-2 px-3 rounded-lg transition-colors"
+                            className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs py-2.5 px-4 rounded-lg transition-colors border border-slate-200 dark:border-slate-700"
                         >
                             <span className="material-icons !text-sm">map</span>
                             Ver Mapa
@@ -81,23 +81,24 @@ const NextPracticeCard: React.FC<{ event: CalendarEvent; date: Date; isToday: bo
 
 const UpcomingPracticeItem: React.FC<{ event: CalendarEvent; date: Date }> = ({ event, date }) => {
     return (
-        <div className="bg-white dark:bg-slate-800/70 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm transition-all duration-300 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600">
-            <div className="flex items-start justify-between gap-3">
+        <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700">
+            <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1">
-                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
                         {new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(date)}
                     </p>
-                    <h4 className="font-bold text-slate-800 dark:text-slate-100 mt-1">{event.name}</h4>
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base">{event.name}</h4>
                 </div>
                 <span className={`${event.colorClasses.tag} mt-1`}>{event.orientation}</span>
             </div>
-            <div className="mt-3 space-y-2 text-sm">
-                <p className="text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 p-2 rounded-md font-medium">{event.schedule}</p>
-                 <div className="text-slate-600 dark:text-slate-400 flex items-start gap-2 pt-1">
-                    <span className="material-icons !text-base mt-0.5 text-slate-400 dark:text-slate-500">location_on</span>
-                    <div>
-                        <span>{event.location}</span>
-                    </div>
+            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg">
+                    <span className="material-icons !text-base text-slate-400">schedule</span>
+                    <span className="font-medium">{event.schedule}</span>
+                </div>
+                 <div className="flex items-start gap-2 px-1">
+                    <span className="material-icons !text-base mt-0.5 text-slate-400">location_on</span>
+                    <span>{event.location}</span>
                 </div>
             </div>
         </div>
@@ -105,25 +106,25 @@ const UpcomingPracticeItem: React.FC<{ event: CalendarEvent; date: Date }> = ({ 
 };
 
 const FinalizationReadyCard: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 p-6 shadow-xl shadow-emerald-500/20 text-white animate-fade-in-up cursor-default mb-6">
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/20 blur-2xl"></div>
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 shadow-xl shadow-emerald-900/20 text-white animate-fade-in-up cursor-default mb-8">
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
         <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
         
         <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-white text-emerald-600 shadow-md animate-bounce">
-                    <span className="material-icons !text-4xl">military_tech</span>
+            <div className="flex items-center gap-5">
+                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white shadow-sm">
+                    <span className="material-icons !text-3xl">military_tech</span>
                 </div>
                 <div>
                     <h2 className="text-2xl font-black tracking-tight">¡Objetivo Cumplido!</h2>
-                    <p className="text-emerald-50 font-medium text-sm mt-1 max-w-md">
-                        Has completado todos los requisitos de horas y rotaciones. Ya estás listo para solicitar tu acreditación final.
+                    <p className="text-emerald-50 font-medium text-sm mt-1 max-w-md leading-relaxed opacity-90">
+                        Has completado todos los requisitos. Ya estás listo para solicitar tu acreditación final.
                     </p>
                 </div>
             </div>
             <button
                 onClick={onClick}
-                className="group flex-shrink-0 flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-emerald-600 shadow-lg transition-all hover:bg-emerald-50 hover:shadow-xl hover:-translate-y-0.5 active:scale-95"
+                className="group flex-shrink-0 flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 font-bold text-emerald-700 shadow-lg transition-all hover:bg-emerald-50 hover:shadow-xl hover:-translate-y-0.5 active:scale-95"
             >
                 <span>Iniciar Trámite</span>
                 <span className="material-icons !text-xl transition-transform group-hover:translate-x-1">arrow_forward</span>
@@ -246,7 +247,7 @@ const HomeView: React.FC<HomeViewProps> = ({
             startFilterDate.setDate(today.getDate() + 1);
         }
 
-        return allPracticeEvents.filter(e => e.date >= startFilterDate).slice(0, 4); // Show up to 4 events now that we have more space
+        return allPracticeEvents.filter(e => e.date >= startFilterDate).slice(0, 4); 
     }, [allPracticeEvents, nextPracticeForTodayOrTomorrow]);
 
     const canFinalize = criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion;
@@ -262,9 +263,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                 <FinalizationReadyCard onClick={onOpenFinalization} />
             )}
 
-            {/* Layout ajustado a columna completa al eliminar alertas */}
             <div className="space-y-6">
-                
                 {/* Próxima Práctica (Hero) */}
                 <div>
                     {nextPracticeForTodayOrTomorrow ? (
@@ -274,24 +273,25 @@ const HomeView: React.FC<HomeViewProps> = ({
                             isToday={isToday} 
                         />
                     ) : (
-                        <Card className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border-dashed border-2">
-                            <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400">
-                                <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full">
-                                    <span className="material-icons">event_available</span>
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-lg text-slate-700 dark:text-slate-300">Sin prácticas próximas</h3>
-                                    <p className="text-sm">Disfruta de tu tiempo libre.</p>
-                                </div>
+                        <div className="p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700/60 flex items-center gap-5 bg-transparent">
+                            <div className="flex-shrink-0 p-3 bg-slate-100 dark:bg-slate-800 rounded-full shadow-sm text-slate-400 dark:text-slate-500">
+                                <span className="material-icons !text-3xl">event_available</span>
                             </div>
-                        </Card>
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200">Sin prácticas próximas</h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">No tienes actividades agendadas para los próximos días.</p>
+                            </div>
+                        </div>
                     )}
                 </div>
 
                 {/* Upcoming Practices List */}
                 {upcomingEvents.length > 0 && (
                     <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 ml-1">Próximas Fechas</h3>
+                        <h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-200 ml-1 flex items-center gap-2">
+                            <span className="material-icons text-slate-400 !text-xl">calendar_today</span>
+                            Próximas Fechas
+                        </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {upcomingEvents.map(({date, event}) => (
                                 <UpcomingPracticeItem key={`${event.id}-${date.toISOString()}`} event={event} date={date} />
@@ -303,14 +303,14 @@ const HomeView: React.FC<HomeViewProps> = ({
 
             {/* SECTION: Open Convocatorias */}
             {lanzamientos.length > 0 && (
-                <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-700">
+                <div className="mt-10 pt-8 border-t border-slate-200/80 dark:border-slate-700">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
-                            <span className="material-icons">campaign</span>
+                        <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl shadow-sm">
+                            <span className="material-icons !text-2xl">campaign</span>
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">Convocatorias Abiertas</h2>
-                            <p className="text-slate-600 dark:text-slate-400 text-sm">Nuevas oportunidades disponibles para postularte.</p>
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight">Convocatorias Abiertas</h2>
+                            <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Nuevas oportunidades disponibles para postularte.</p>
                         </div>
                     </div>
                     <div className="space-y-5">
