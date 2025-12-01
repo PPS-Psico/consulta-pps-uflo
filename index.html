@@ -4,10 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consulta de PPS y Prácticas</title>
-  <link rel="icon" href="data:image/svg+xml,...">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%232563eb%22%3E%3Cpath%20d%3D%22M5%2013.18v4L12%2021l7-3.82v-4L12%2017l-7-3.82zM12%203L1%209l11%206%209-4.91V17h2V9L12%203z%22/%3E%3C/svg%3E">
+
+  <!-- PWA Manifest -->
   <link rel="manifest" href="/consulta-pps-uflo/manifest.json" />
+
+  <!-- Theme color -->
   <meta name="theme-color" content="#2563eb" />
 
+  <!-- Dark mode script -->
   <script>
     if (
       localStorage.getItem('theme') === 'dark' ||
@@ -19,6 +26,7 @@
     }
   </script>
 
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -26,6 +34,7 @@
 </head>
 <body>
   <div id="root"></div>
+  <!-- Entry point -->
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
