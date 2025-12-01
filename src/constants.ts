@@ -3,7 +3,6 @@
 export const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "";
 export const SUPABASE_ANON_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";
 
-
 // Table Names (Mapped to Supabase SQL Tables)
 export const TABLE_NAME_PPS = 'solicitudes_pps';
 export const TABLE_NAME_PRACTICAS = 'practicas';
@@ -39,6 +38,7 @@ export const FIELD_FECHA_FINALIZACION_ESTUDIANTES = 'fecha_finalizacion';
 export const FIELD_FINALIZARON_ESTUDIANTES = 'finalizaron';
 export const FIELD_USER_ID_ESTUDIANTES = 'user_id';
 export const FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES = 'must_change_password';
+export const FIELD_ROLE_ESTUDIANTES = 'role'; // Nuevo campo
 
 // Prácticas
 export const FIELD_NOMBRE_BUSQUEDA_PRACTICAS = 'legajo_busqueda'; // Legacy/Aux field kept for search if needed

@@ -36,6 +36,7 @@ export const estudianteFieldsSchema = z.object({
     [C.FIELD_FINALIZARON_ESTUDIANTES]: z.boolean().optional().nullable(),
     [C.FIELD_USER_ID_ESTUDIANTES]: z.string().uuid().optional().nullable(),
     [C.FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES]: z.boolean().optional().nullable(),
+    [C.FIELD_ROLE_ESTUDIANTES]: z.string().optional().nullable(), // Nuevo campo
 });
 
 export const practicaFieldsSchema = z.object({

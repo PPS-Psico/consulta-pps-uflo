@@ -42,7 +42,22 @@ import { sendSmartEmail } from '../utils/emailService';
 const cleanValue = (val: any): string => {
     if (val === null || val === undefined) return '';
     if (Array.isArray(val)) return cleanValue(val[0]);
-    return String(val).replace(/[\[\]"]/g, '').trim();
+    
+    const str = String(val);
+    
+    // Robust check for Airtable stringified arrays '["value"]'
+    if (str.startsWith('["') && str.endsWith('"]')) {
+        try {
+            const parsed = JSON.parse(str);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return cleanValue(parsed[0]);
+            }
+        } catch (e) {
+            // Fallback to regex if parse fails
+        }
+    }
+    
+    return str.replace(/[\[\]"]/g, '').trim();
 }
 
 const InfoField: React.FC<{ label: string; value?: string | null; fullWidth?: boolean }> = ({ label, value, fullWidth }) => (
@@ -227,7 +242,8 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
         { id: 'egreso', label: 'Solicitudes de Finalización', icon: 'logout' },
     ];
 
-    // 1. Optimized Fetch Data with SQL Join
+    // 1. Optimized Fetch Data with SQL Join.
+    // Simplified to rely on the DB source of truth rather than manual mapping.
     const { data: requestsData, isLoading, error, refetch } = useQuery({
         queryKey: ['adminSolicitudes', isTestingMode],
         queryFn: async () => {
@@ -244,8 +260,6 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
                         ${FIELD_CORREO_ESTUDIANTES}
                     )
                 `)
-                // CHANGED: Order by created_at instead of updated_at to ensure consistent order
-                // and avoid issues if updated_at is null from migration
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -256,9 +270,10 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
             if (!data) return [];
 
             return data.map((req: any) => {
-                const student = req.estudiante;
+                // Priority 1: Joined Data from DB
+                // Priority 2: Snapshot Data stored in the Request record itself (Robust Fallback)
                 
-                // Fallback to manual fields if linked student data is missing (Orphans)
+                const student = req.estudiante;
                 const name = student?.[FIELD_NOMBRE_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_NOMBRE_ALUMNO]) || 'Desconocido';
                 const legajo = student?.[FIELD_LEGAJO_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_LEGAJO_ALUMNO]) || '---';
                 const email = student?.[FIELD_CORREO_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_EMAIL_ALUMNO]);
