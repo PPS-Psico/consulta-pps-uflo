@@ -1,4 +1,6 @@
+
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { 
     FIELD_LEGAJO_ESTUDIANTES, 
@@ -36,6 +38,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let isMounted = true;
@@ -65,14 +68,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (isMounted) {
                 setAuthenticatedUser(null);
                 setIsAuthLoading(false);
+                // Limpiar caché al detectar cierre de sesión externo
+                queryClient.clear(); 
             }
             clearTimeout(safetyTimeout);
             return;
         }
 
         // Si hay sesión, buscamos el perfil
-        try {
-            if (session?.user) {
+        if (session?.user) {
+            try {
                 const { data: profile, error } = await supabase
                     .from('estudiantes')
                     .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}, ${FIELD_ROLE_ESTUDIANTES}`)
@@ -92,19 +97,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             role: dbRole
                         });
                     } else {
-                        console.warn("Sesión huérfana detectada. Limpiando estado local.");
-                        // IMPORTANTE: No llamar a signOut() aquí directamente para evitar bucles.
-                        // Simplemente ponemos el usuario en null y dejamos que la sesión muera o el usuario intente de nuevo.
+                        console.warn("Sesión huérfana detectada (Usuario autenticado pero sin perfil en 'estudiantes').");
+                        // No hacemos signOut aquí para evitar bucles infinitos si la DB falla,
+                        // pero dejamos al usuario como null para que la UI lo maneje (redirija a login).
                         setAuthenticatedUser(null);
                     }
                 }
+            } catch (error) {
+                console.error("Critical error in onAuthStateChange:", error);
+                if (isMounted) setAuthenticatedUser(null);
+            } finally {
+                if (isMounted) setIsAuthLoading(false);
+                clearTimeout(safetyTimeout);
             }
-        } catch (error) {
-            console.error("Critical error in onAuthStateChange:", error);
-            if (isMounted) setAuthenticatedUser(null);
-        } finally {
-            if (isMounted) setIsAuthLoading(false);
-            clearTimeout(safetyTimeout);
         }
       }
     );
@@ -114,7 +119,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         clearTimeout(safetyTimeout);
         subscription.unsubscribe();
     };
-  }, []);
+  }, [queryClient]);
 
   const login = useCallback((user: AuthUser) => {
     setAuthenticatedUser(user);
@@ -123,12 +128,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = useCallback(async () => {
     try {
+        // 1. Limpiar estado global de React Query para evitar mezclar datos de usuarios
+        queryClient.removeQueries();
+        queryClient.clear();
+        
+        // 2. Cerrar sesión en Supabase
         await (supabase.auth as any).signOut();
+        
+        // 3. Limpiar estado local
         setAuthenticatedUser(null);
+        
+        // 4. Limpiar storage local relevante (opcional pero recomendado)
+        localStorage.removeItem('sb-' + process.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] + '-auth-token');
+        
     } catch (error) {
         console.error("Error signing out:", error);
+        // Forzar limpieza local incluso si falla la red
+        setAuthenticatedUser(null);
+        queryClient.clear();
     }
-  }, []);
+  }, [queryClient]);
 
   const completePasswordChange = useCallback(() => {
     setAuthenticatedUser(prev => prev ? { ...prev, mustChangePassword: false } : null);

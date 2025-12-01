@@ -8,7 +8,7 @@ import Tabs from '../components/Tabs';
 import Card from '../components/Card';
 import WelcomeBanner from '../components/WelcomeBanner';
 import InformesList from '../components/InformesList';
-import WhatsAppExportButton from '../components/WhatsAppExportButton';
+// WhatsAppExportButton removed
 import { useAuth } from '../contexts/AuthContext';
 import type { AuthUser } from '../contexts/AuthContext';
 import type { TabId, Orientacion, SolicitudPPSFields } from '../types';
@@ -298,13 +298,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
             <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={false} />
             <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
             <Card className="border-slate-300/50 bg-slate-50/30 dark:bg-slate-800/30 dark:border-slate-700">
-              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontraron registros de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
+              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontrar información de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
             </Card>
           </div>
-          <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
-           <button onClick={() => window.print()} className="fixed bottom-6 right-24 z-50 w-14 h-14 bg-slate-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ease-in-out transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-400" aria-label="Imprimir reporte">
-             <span className="material-icons !text-2xl">print</span>
-           </button>
         </div>
         {isFinalizationModalOpen && (
             <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
@@ -422,20 +418,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
               </Card>
           )}
       </div>
-      
-      {showExportButton && (
-        <>
-          <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
-            <button
-            onClick={() => window.print()}
-            className="fixed bottom-6 right-24 z-50 w-14 h-14 bg-slate-700 text-white rounded-full shadow-lg flex items-center justify-center
-                        transition-all duration-300 ease-in-out transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-400"
-            aria-label="Imprimir reporte"
-          >
-            <span className="material-icons !text-2xl">print</span>
-          </button>
-        </>
-      )}
     </>
   );
 };

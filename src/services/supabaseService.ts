@@ -28,7 +28,8 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
     fields?: string[],
     searchTerm?: string,
     searchFields?: string[], // Campos donde buscar el searchTerm
-    sort?: { field: string; direction: 'asc' | 'desc' }
+    sort?: { field: string; direction: 'asc' | 'desc' },
+    filters?: Record<string, any> // Nuevos filtros específicos
 ): Promise<{ records: AppRecord<TFields>[], total: number, error: AppErrorResponse | null }> => {
     try {
         const from = (page - 1) * pageSize;
@@ -39,7 +40,26 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
             .from(tableName)
             .select(selectQuery, { count: 'exact' });
 
-        // --- SERVER SIDE FILTERING ---
+        // --- SPECIFIC FILTERS (AND logic) ---
+        if (filters) {
+             Object.entries(filters).forEach(([key, value]) => {
+                 if (value !== undefined && value !== null && value !== '') {
+                     if (key === 'startDate') {
+                         query = query.gte('fecha_inicio', value);
+                     } else if (key === 'endDate') {
+                         query = query.lte('fecha_inicio', value);
+                     } else if (key === 'institucion') {
+                         query = query.ilike('nombre_institucion', `%${value}%`);
+                     } else {
+                         // Generic equality for other fields if needed
+                         // Caution: Ensure field names match DB columns
+                         query = query.eq(key, value);
+                     }
+                 }
+             });
+        }
+
+        // --- SERVER SIDE FILTERING (OR logic for search) ---
         if (searchTerm && searchFields && searchFields.length > 0) {
              const orQuery = buildSearchFilter(tableName, searchTerm, searchFields);
              if (orQuery) {

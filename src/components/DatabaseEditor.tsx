@@ -36,6 +36,7 @@ import {
     FIELD_CONVENIO_NUEVO_INSTITUCIONES,
     FIELD_TUTOR_INSTITUCIONES
 } from '../constants';
+import Input from './Input';
 
 interface FieldConfig {
     key: string;
@@ -246,6 +247,11 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
     
+    // Practicas Filters
+    const [practiceDateStart, setPracticeDateStart] = useState('');
+    const [practiceDateEnd, setPracticeDateEnd] = useState('');
+    const [practiceInstitution, setPracticeInstitution] = useState('');
+
     const queryClient = useQueryClient();
 
     // Debounce search to avoid too many requests
@@ -256,9 +262,40 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         }, 500);
         return () => clearTimeout(timer);
     }, [searchTerm]);
+    
+    // Optimized separate queries for lookup data. StaleTime Infinity ensures they load only once per session unless manually invalidated.
+    const { data: studentsMap } = useQuery({
+        queryKey: ['lookupStudents'],
+        queryFn: async () => {
+            if (isTestingMode) return new Map();
+            const res = await db.estudiantes.getAll({ fields: [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES] });
+            return new Map(res.map(r => [r.id, r]));
+        },
+        enabled: !isTestingMode,
+        staleTime: Infinity,
+    });
+
+    const { data: launchesMap } = useQuery({
+        queryKey: ['lookupLaunches'],
+        queryFn: async () => {
+            if (isTestingMode) return new Map();
+            const res = await db.lanzamientos.getAll({ fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS] });
+            return new Map(res.map(r => [r.id, r]));
+        },
+        enabled: !isTestingMode,
+        staleTime: Infinity,
+    });
 
     const activeTableConfig = EDITABLE_TABLES[activeTable];
-    const queryKey = ['databaseEditor', activeTable, currentPage, itemsPerPage, sortConfig, debouncedSearch, isTestingMode];
+    
+    // Prepare filters object for the query
+    const queryFilters = activeTable === 'practicas' ? {
+        startDate: practiceDateStart,
+        endDate: practiceDateEnd,
+        institucion: practiceInstitution
+    } : undefined;
+
+    const queryKey = ['databaseEditor', activeTable, currentPage, itemsPerPage, sortConfig, debouncedSearch, isTestingMode, queryFilters];
 
     const { data: queryResult, isLoading, error } = useQuery({
         queryKey,
@@ -271,7 +308,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 {
                     searchTerm: debouncedSearch,
                     searchFields: activeTableConfig.searchFields,
-                    sort: sortConfig.key ? { field: sortConfig.key, direction: sortConfig.direction } : undefined
+                    sort: sortConfig.key ? { field: sortConfig.key, direction: sortConfig.direction } : undefined,
+                    filters: queryFilters
                 }
             );
 
@@ -279,15 +317,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
             // Special handling for "practicas" which needs joined data for display
             if (activeTable === 'practicas' && records.length > 0) {
-                // We only fetch related data for the current page to be efficient
-                const [estudiantesRes, lanzamientosRes] = await Promise.all([
-                    db.estudiantes.getAll({ fields: [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES] }),
-                    db.lanzamientos.getAll({ fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS] })
-                ]);
-    
-                const estudiantesMap = new Map(estudiantesRes.map(r => [r.id, r]));
-                const lanzamientosMap = new Map(lanzamientosRes.map(r => [r.id, r]));
-    
+                // Use pre-fetched lookup maps if available to avoid re-fetching
                 const enrichedRecords = records.map(p => {
                     const rawStudentId = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
                     const studentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
@@ -295,11 +325,11 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     const rawLanzamientoId = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
                     const lanzamientoId = Array.isArray(rawLanzamientoId) ? rawLanzamientoId[0] : rawLanzamientoId;
                     
-                    const student = estudiantesMap.get(studentId as string);
+                    const student = studentsMap?.get(studentId as string);
                     const studentName = student?.[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido';
                     const studentLegajo = student?.[FIELD_LEGAJO_ESTUDIANTES] || '---';
                     
-                    const lanzamientoName = lanzamientosMap.get(lanzamientoId as string)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || cleanDisplayValue(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A';
+                    const lanzamientoName = launchesMap?.get(lanzamientoId as string)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || cleanDisplayValue(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A';
     
                     return {
                         ...p,
@@ -389,6 +419,11 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     useEffect(() => {
         setCurrentPage(1);
         setSearchTerm('');
+        // Reset filters on table switch
+        setPracticeDateStart('');
+        setPracticeDateEnd('');
+        setPracticeInstitution('');
+        
         setContextMenu(null);
         setSelectedRowId(null);
     }, [activeTable]);
@@ -478,10 +513,9 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
             </div>
 
             <div className="mt-6 border-t border-slate-200/60 dark:border-slate-700/60 pt-6">
-                <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-wrap">
-                        
-                        {/* Search */}
+                <div className="space-y-4 mb-6">
+                    {/* General Actions Row */}
+                    <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                         <div className="relative w-full md:w-72 group">
                             <input 
                                 type="search" 
@@ -497,23 +531,56 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                 </div>
                             )}
                         </div>
+                        
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <button 
+                                onClick={() => selectedRowId && handleDelete(selectedRowId)} 
+                                disabled={!selectedRowId}
+                                className={`w-full md:w-auto bg-white border border-rose-300 text-rose-600 font-bold py-2.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all shrink-0 ${!selectedRowId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-50 shadow-sm'}`}
+                            >
+                                <span className="material-icons !text-lg">delete</span>
+                                Eliminar
+                            </button>
+
+                            <button onClick={() => setEditingRecord({ isCreating: true })} className="w-full md:w-auto bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shrink-0">
+                                <span className="material-icons !text-lg">add_circle</span>
+                                Nuevo Registro
+                            </button>
+                        </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                        <button 
-                            onClick={() => selectedRowId && handleDelete(selectedRowId)} 
-                            disabled={!selectedRowId}
-                            className={`w-full md:w-auto bg-white border border-rose-300 text-rose-600 font-bold py-2.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all shrink-0 ${!selectedRowId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-50 shadow-sm'}`}
-                        >
-                            <span className="material-icons !text-lg">delete</span>
-                            Eliminar
-                        </button>
-
-                        <button onClick={() => setEditingRecord({ isCreating: true })} className="w-full md:w-auto bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shrink-0">
-                            <span className="material-icons !text-lg">add_circle</span>
-                            Nuevo Registro
-                        </button>
-                    </div>
+                    {/* Specific Filters for Practicas */}
+                    {activeTable === 'practicas' && (
+                         <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
+                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Institución (PPS)</label>
+                                <Input 
+                                    placeholder="Filtrar por nombre..." 
+                                    value={practiceInstitution} 
+                                    onChange={(e) => { setPracticeInstitution(e.target.value); setCurrentPage(1); }} 
+                                    className="text-sm py-2"
+                                />
+                             </div>
+                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha Inicio (Desde)</label>
+                                <Input 
+                                    type="date" 
+                                    value={practiceDateStart} 
+                                    onChange={(e) => { setPracticeDateStart(e.target.value); setCurrentPage(1); }} 
+                                    className="text-sm py-2"
+                                />
+                             </div>
+                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha Inicio (Hasta)</label>
+                                <Input 
+                                    type="date" 
+                                    value={practiceDateEnd} 
+                                    onChange={(e) => { setPracticeDateEnd(e.target.value); setCurrentPage(1); }} 
+                                    className="text-sm py-2"
+                                />
+                             </div>
+                         </div>
+                    )}
                 </div>
                 
                 {isLoading && records.length === 0 && <div className="py-10"><Loader /></div>}
