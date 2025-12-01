@@ -1,9 +1,7 @@
 
-// --- Airtable Configuration ---
-// These keys are ONLY used in PREVIEW_MODE.
-// In production (Vercel), the serverless proxy uses environment variables directly.
-export const AIRTABLE_PAT = (viteEnv && viteEnv.VITE_AIRTABLE_PAT) || '';
-export const AIRTABLE_BASE_ID = (viteEnv && viteEnv.VITE_AIRTABLE_BASE_ID) || '';
+// --- Supabase Configuration ---
+export const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "";
+export const SUPABASE_ANON_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";
 
 // Table Names (Mapped to Supabase SQL Tables)
 export const TABLE_NAME_PPS = 'solicitudes_pps';
