@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { 
@@ -39,64 +39,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const queryClient = useQueryClient();
+  const refreshLoopCounter = useRef(0);
 
   const logout = useCallback(async () => {
     try {
-        // 1. IMPORTANTE: Limpiar estado global de React Query para evitar mezclar datos de usuarios
+        console.log("🧹 Performing aggressive logout cleanup...");
+        // 1. Clean React Query state
+        queryClient.cancelQueries();
         queryClient.removeQueries();
         queryClient.clear();
         
-        // 2. Cerrar sesión en Supabase
+        // 2. Sign out from Supabase
         await (supabase.auth as any).signOut();
         
-        // 3. Limpiar estado local
+        // 3. Clear local state
         setAuthenticatedUser(null);
         
-        // 4. Limpiar storage local relevante por seguridad
-        const storageKey = 'sb-' + (import.meta.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] || '') + '-auth-token';
-        localStorage.removeItem(storageKey);
+        // 4. Aggressively clear all local storage to prevent stuck sessions
+        // This fixes the "works in incognito but not normal" issue
+        localStorage.clear();
+        sessionStorage.clear();
         
     } catch (error) {
         console.error("Error signing out:", error);
         setAuthenticatedUser(null);
-        queryClient.clear();
+        localStorage.clear();
+        sessionStorage.clear();
     }
   }, [queryClient]);
 
   useEffect(() => {
     let isMounted = true;
 
-    // Safety Timeout: Force app to load if Supabase hangs for more than 5 seconds
+    // Safety Timeout: Force app to load (or logout) if Supabase hangs
     const safetyTimeout = setTimeout(() => {
         if (isMounted && isAuthLoading) {
-            console.warn("Auth check timed out - forcing app load state.");
-            setIsAuthLoading(false);
+            console.warn("⚠️ Auth check timed out - forcing reset.");
+            // If we timed out and have no user, force a cleanup to ensure login screen works
+            if (!authenticatedUser) {
+                 logout().then(() => {
+                     if(isMounted) setIsAuthLoading(false);
+                 });
+            } else {
+                 if(isMounted) setIsAuthLoading(false);
+            }
         }
     }, 5000);
 
-    // Robust Initial Session Check
     const initSession = async () => {
         try {
             const { data, error } = await supabase.auth.getSession();
-            
             if (error) {
                 console.warn("Initial Session Error - Clearing state:", error.message);
-                // If any error occurs (Invalid Token, Network, etc), we clear everything to be safe
-                // and let the user log in again.
                 await logout();
                 if (isMounted) setIsAuthLoading(false);
                 return;
             }
-
-            // If no session exists, we are logged out. Stop loading.
             if (!data.session) {
                  if (isMounted) {
                      setAuthenticatedUser(null);
                      setIsAuthLoading(false);
                  }
             }
-            // If session exists, onAuthStateChange will fire shortly to set the user.
-            
         } catch (e) {
             console.error("Unexpected error during session check:", e);
             if (isMounted) setIsAuthLoading(false);
@@ -109,7 +113,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       async (event: string, session: any) => {
         console.log(`AUTH EVENT: ${event}`);
         
-        // Si estamos reseteando pass, no bloqueamos
+        if (event === 'TOKEN_REFRESHED') {
+            refreshLoopCounter.current += 1;
+            if (refreshLoopCounter.current > 3) {
+                console.error("🔄 Refresh loop detected. Forcing logout.");
+                await logout();
+                if (isMounted) setIsAuthLoading(false);
+                return;
+            }
+        } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+            refreshLoopCounter.current = 0;
+        }
+        
+        // Bypass blocking for password reset flow
         const isResetting = sessionStorage.getItem('__password_reset_in_progress');
         if (isResetting) {
             sessionStorage.removeItem('__password_reset_in_progress');
@@ -128,9 +144,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
         }
 
-        // Si hay sesión, buscamos el perfil
         if (session?.user) {
             try {
+                // Fetch profile
                 const { data: profile, error } = await supabase
                     .from('estudiantes')
                     .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}, ${FIELD_ROLE_ESTUDIANTES}`)
@@ -151,7 +167,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         });
                     } else {
                         console.warn("Sesión huérfana detectada (Usuario autenticado pero sin perfil en 'estudiantes').");
-                        // Logout to clean up orphan state
                         await logout(); 
                     }
                 }
