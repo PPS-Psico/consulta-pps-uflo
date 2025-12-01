@@ -29,7 +29,7 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
     searchTerm?: string,
     searchFields?: string[], // Campos donde buscar el searchTerm
     sort?: { field: string; direction: 'asc' | 'desc' },
-    filters?: Record<string, any> // Nuevos filtros específicos
+    filters?: Record<string, any> // Nuevos filtros específicos (AND)
 ): Promise<{ records: AppRecord<TFields>[], total: number, error: AppErrorResponse | null }> => {
     try {
         const from = (page - 1) * pageSize;

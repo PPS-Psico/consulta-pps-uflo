@@ -200,7 +200,8 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
   return (
     <div>
       {/* Desktop Table View */}
-      <div className="overflow-x-auto hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800">
+      {/* Rounded corners applied here to the container */}
+      <div className="overflow-x-auto hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         <table className="w-full min-w-[800px] text-sm">
           <thead className="bg-gray-50 dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800">
             <tr>
