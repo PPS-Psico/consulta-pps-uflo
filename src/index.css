@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: 37 99 235; /* primary-600 */
-  --color-gray-50: 248 250 252;
-  --color-gray-100: 241 245 249;
-  --color-gray-200: 226 232 240;
-  --color-gray-800: 30 41 59;
-  --color-gray-900: 15 23 42;
+  --color-primary: 37, 99, 235; /* primary-600 */
+  --color-gray-50: 248, 250, 252;
+  --color-gray-100: 241, 245, 249;
+  --color-gray-200: 226, 232, 240;
+  --color-gray-800: 30, 41, 59;
+  --color-gray-900: 15, 23, 42;
 
   /* Vibrant Gradients */
   --gradient-progress-from: #60a5fa;   /* primary-400 */

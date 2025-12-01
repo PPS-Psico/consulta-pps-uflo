@@ -7,7 +7,7 @@ interface FieldConfig {
     key: string;
     label: string;
     type: 'text' | 'textarea' | 'number' | 'date' | 'email' | 'tel' | 'select' | 'checkbox';
-    options?: readonly string[];
+    options?: readonly string[] | { value: string; label: string }[];
 }
 
 interface TableConfig {
@@ -82,7 +82,12 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
                     <div className="relative">
                         <select name={field.key} value={value} onChange={handleChange} className={`${inputClasses} appearance-none`}>
                             <option value="">Seleccionar...</option>
-                            {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                            {field.options?.map((opt) => {
+                                if (typeof opt === 'string') {
+                                    return <option key={opt} value={opt}>{opt}</option>;
+                                }
+                                return <option key={opt.value} value={opt.value}>{opt.label}</option>;
+                            })}
                         </select>
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 pointer-events-none !text-base">expand_more</span>
                     </div>

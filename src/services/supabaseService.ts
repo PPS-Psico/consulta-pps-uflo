@@ -2,7 +2,7 @@
 import { supabase } from '../lib/supabaseClient';
 import type { AppRecord, AppErrorResponse } from '../types';
 import { z } from 'zod';
-import { FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, TABLE_NAME_ESTUDIANTES } from '../constants';
+import { FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, TABLE_NAME_ESTUDIANTES, FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS } from '../constants';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -50,9 +50,32 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
                          query = query.lte('fecha_inicio', value);
                      } else if (key === 'institucion') {
                          query = query.ilike('nombre_institucion', `%${value}%`);
+                     } else if (key === FIELD_LANZAMIENTO_VINCULADO_PRACTICAS) {
+                         // HYBRID LAUNCH FILTER LOGIC
+                         // Check if value is in "ID|Name|Date" format
+                         if (typeof value === 'string' && value.includes('|')) {
+                             const [launchId, instName, startDate] = value.split('|');
+                             // Construct OR query: (lanzamiento_id = ID) OR (nombre_institucion ILIKE Name% AND fecha_inicio = Date)
+                             // Note: Using ILIKE and wildcard for name to be safe with variations
+                             if (launchId && instName && startDate) {
+                                 const legacyCondition = `and(nombre_institucion.ilike."${instName}%",fecha_inicio.eq.${startDate})`;
+                                 const linkedCondition = `${key}.eq.${launchId}`;
+                                 query = query.or(`${linkedCondition},${legacyCondition}`);
+                             } else {
+                                 // Fallback to ID if parse fails
+                                 query = query.eq(key, launchId || value);
+                             }
+                         } else {
+                             // Standard Strict ID Filter
+                             query = query.eq(key, value);
+                         }
+                     } else if (key === FIELD_ESTUDIANTE_LINK_PRACTICAS) {
+                         query = query.eq(key, value);
+                     } else if (key === FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS) {
+                         // Special case for institution name filter to allow partial/case-insensitive matching
+                         query = query.ilike(key, `%${value}%`);
                      } else {
                          // Generic equality for other fields if needed
-                         // Caution: Ensure field names match DB columns
                          query = query.eq(key, value);
                      }
                  }
