@@ -144,23 +144,24 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
     });
   }
   
-  // Fix: Specify the exact foreign key 'fk_convocatoria_lanzamiento' to avoid ambiguity
-  const [enrollmentsRes, activeLaunchesRes, institutionsRes] = await Promise.all([
+  // OPTIMIZACIÓN SQL: 
+  // Ya no descargamos todo el historial ('allHistoryRes') ni todas las instituciones ('institutionsRes').
+  // Usamos solo lo que el alumno necesita ver (inscripciones propias y oferta activa).
+  // Las validaciones históricas se hacen contra el historial de PRÁCTICAS del alumno, no contra todo el historial de lanzamientos.
+
+  const [enrollmentsRes, activeLaunchesRes] = await Promise.all([
       studentAirtableId ? supabase
           .from(C.TABLE_NAME_CONVOCATORIAS)
           .select(`*, lanzamiento:lanzamientos_pps!fk_convocatoria_lanzamiento(*)`)
           .eq(C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS, studentAirtableId) 
           : { data: [], error: null },
       
+      // Active Launches for the catalog
       supabase
           .from(C.TABLE_NAME_LANZAMIENTOS_PPS)
           .select('*')
           .neq(C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS, 'Oculto')
           .order(C.FIELD_FECHA_INICIO_LANZAMIENTOS, { ascending: false }),
-
-      supabase
-          .from(C.TABLE_NAME_INSTITUCIONES)
-          .select('nombre, direccion')
   ]);
 
   const myEnrollments: Convocatoria[] = (enrollmentsRes.data || []).map((row: any) => {
@@ -171,7 +172,7 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
           createdTime: row.created_at,
           [C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: [row.lanzamiento_id],
           [C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: [row.estudiante_id],
-          // Ensure snapshot fields or fallbacks use the correct keys
+          // Snapshot fallback from joined launch data
           [C.FIELD_NOMBRE_PPS_CONVOCATORIAS]: row.nombre_pps || launch.nombre_pps,
           [C.FIELD_FECHA_INICIO_CONVOCATORIAS]: row.fecha_inicio || launch.fecha_inicio,
           [C.FIELD_FECHA_FIN_CONVOCATORIAS]: row.fecha_finalizacion || launch.fecha_finalizacion,
@@ -181,21 +182,26 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       } as Convocatoria;
   });
 
-  const allLanzamientos = (activeLaunchesRes.data || []).map((l: any) => ({
+  // Visible Launches for the student
+  const lanzamientos = (activeLaunchesRes.data || []).map((l: any) => ({
       ...l,
       id: l.id,
       createdTime: l.created_at
   } as LanzamientoPPS));
   
-  const lanzamientos = allLanzamientos.filter(l => {
-      const estado = normalizeStringForComparison(l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
-      return estado !== 'oculto';
-  });
+  // En el "allLanzamientos" devolvemos solo los relevantes (activos + los que el alumno ya tiene inscripcion)
+  // Ya no necesitamos "todo el historial" para calcular duplicados, usamos la tabla de Prácticas del alumno en `dataLinker`.
+  const myLinkedLaunches = (enrollmentsRes.data || []).map((row: any) => row.lanzamiento).filter(Boolean).map((l: any) => ({...l, id: l.id, createdTime: l.created_at} as LanzamientoPPS));
+  const allLanzamientos = [...lanzamientos, ...myLinkedLaunches];
 
+  // Map addresses directly from the Launches table (assuming snapshot exists there)
+  // This saves an entire table fetch.
   const institutionAddressMap = new Map<string, string>();
-  (institutionsRes.data || []).forEach((record: any) => {
-      if (record.nombre && record.direccion) {
-          institutionAddressMap.set(normalizeStringForComparison(record.nombre), record.direccion);
+  lanzamientos.forEach(l => {
+      const name = l[C.FIELD_NOMBRE_PPS_LANZAMIENTOS];
+      const address = l[C.FIELD_DIRECCION_LANZAMIENTOS];
+      if (name && address) {
+          institutionAddressMap.set(normalizeStringForComparison(name), address);
       }
   });
 

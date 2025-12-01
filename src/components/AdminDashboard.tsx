@@ -129,6 +129,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
 
             // 2. Fetch Pending Finalizations (JOINED)
+            // Explicit FK used to prevent ambiguity
             const { data: finalizationsData } = await supabase
                 .from(TABLE_NAME_FINALIZACION)
                 .select(`
@@ -147,6 +148,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
 
             // 3. Fetch Pending Requests (JOINED)
+            // Explicit FK used to prevent ambiguity
             const { data: requestsData } = await supabase
                 .from(TABLE_NAME_PPS)
                 .select(`
@@ -159,7 +161,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                     estudiante:estudiantes!fk_solicitud_estudiante (nombre, legajo)
                 `)
                 .not(COL_SOLICITUD_ESTADO, 'in', '("Finalizada","Cancelada","Rechazada","PPS Realizada","Realizada","Solicitud Invalida","No se pudo concretar","Archivado")')
-                .order(COL_SOLICITUD_UPDATED_AT, { ascending: false });
+                .order('created_at', { ascending: false });
 
             const pendingRequests = (requestsData || []).map((s: any) => {
                 // Prioritize joined data, fallback to manual fields
@@ -175,7 +177,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
             return { endingLaunches, pendingFinalizations, pendingRequests };
         },
-        refetchInterval: 60000 // Refresh every minute
+        refetchInterval: 60000, // Refresh every minute
+        staleTime: 1000 * 60 * 5, // Cache data for 5 minutes to make navigation instant
     });
 
     const updatePhoneMutation = useMutation({

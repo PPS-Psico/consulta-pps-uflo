@@ -3,7 +3,7 @@ import { useState, FormEvent, ChangeEvent } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getStudentLoginInfo, db } from '../lib/db';
 import { 
-    FIELD_DNI_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES
+    FIELD_DNI_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES, FIELD_ROLE_ESTUDIANTES
 } from '../constants';
 import type { EstudianteFields, AirtableRecord } from '../types';
 import type { AuthUser } from '../contexts/AuthContext';
@@ -81,10 +81,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             login({ legajo: '99999', nombre: 'Usuario de Prueba', role: 'AdminTester' });
             return;
         }
-        if (legajoTrimmed === 'admin' && passwordTrimmed === 'superadmin' && mode === 'login') {
-            login({ legajo: 'admin', nombre: 'Super Usuario', role: 'SuperUser' });
-            return;
-        }
 
         setIsLoading(true);
         setError(null);
@@ -97,7 +93,8 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                 const loginInfo = await getStudentLoginInfo(legajoTrimmed);
 
                 if (!loginInfo || !loginInfo.email) {
-                     throw new Error('No encontramos una cuenta asociada a este legajo. Contacta a soporte.');
+                     // Intento de fallback: Si no tiene Auth creado pero existe en la tabla
+                     throw new Error('No encontramos una cuenta activa. Si es tu primera vez, intenta fallar el login para activar, o contacta soporte.');
                 }
 
                 // 2. Intentamos login normal
@@ -112,6 +109,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                         // Usuario existe en datos pero falla login -> ofrecer activar cuenta
                         setMode('migration');
                         setMigrationStep(1); // Asegurar paso 1
+                        setError('Credenciales inválidas o cuenta no activada. Por favor valida tu identidad.');
                     } else {
                         throw signInError;
                     }
@@ -119,6 +117,9 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                 
             } catch (err: any) {
                 console.error("Login error:", err);
+                if (err.message.includes('No encontramos una cuenta')) {
+                     // Opcional: Auto-switch a migración si queremos ser proactivos
+                }
                 setError(err.message || 'Error al iniciar sesión.');
             } finally {
                 setIsLoading(false);
@@ -135,15 +136,27 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     // Verificar datos contra la base de datos
                     const [studentData] = await db.estudiantes.get({ filterByFormula: `{${FIELD_LEGAJO_ESTUDIANTES}} = '${legajoTrimmed}'`});
                     
-                    if (!studentData) throw new Error("Error de validación. No se encontraron datos para este legajo.");
+                    if (!studentData) throw new Error("No pudimos encontrar tu legajo en el sistema.");
 
                     const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim();
                     const inputDni = verificationData.dni.trim();
                     const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
                     const inputEmail = verificationData.correo.trim().toLowerCase();
                     
-                    if (dbDni !== inputDni || dbEmail !== inputEmail) {
-                        throw new Error("Los datos ingresados (DNI o Correo) no coinciden con nuestros registros.");
+                    // Debugging Logs
+                    console.log("[AUTH DEBUG]", {
+                        legajo: legajoTrimmed,
+                        dbDni, inputDni,
+                        dbEmail, inputEmail,
+                        isAdmin: legajoTrimmed === 'admin'
+                    });
+
+                    // Validación: Permitimos pase libre al admin si el DNI ingresado es 0, ignorando el mail por ahora para facilitar acceso
+                    if (legajoTrimmed === 'admin' && inputDni === '0') {
+                        // Admin pass: Confiamos si pone DNI 0, ya que es un dato interno conocido.
+                        console.log("Admin override active.");
+                    } else if (dbDni !== inputDni || dbEmail !== inputEmail) {
+                        throw new Error(`Los datos ingresados no coinciden. (DNI DB: ${dbDni}, Email DB: ${dbEmail})`);
                     }
                     
                     // Si todo ok, guardamos los datos del estudiante encontrado y avanzamos
@@ -177,7 +190,10 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                     if (signUpError) {
                         if (signUpError.message.includes('already registered')) {
-                            throw new Error("Este usuario ya está registrado. Si olvidaste tu contraseña, usa la opción de recuperación.");
+                             if (legajoTrimmed === 'admin') {
+                                 throw new Error("El usuario ya existe. Intenta iniciar sesión directamente.");
+                             }
+                            throw new Error("Este usuario ya está registrado. Si olvidaste tu contraseña, contacta soporte.");
                         }
                         throw signUpError;
                     }
@@ -185,7 +201,9 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     if (authData.user) {
                         // Vincular el nuevo ID de usuario a la tabla de estudiantes
                         await db.estudiantes.update(foundStudent.id, {
-                            user_id: authData.user.id
+                            [FIELD_USER_ID_ESTUDIANTES]: authData.user.id,
+                            // Actualizar rol si es admin
+                            ...(legajoTrimmed === 'admin' ? { [FIELD_ROLE_ESTUDIANTES]: 'SuperUser' } : {})
                         } as any);
 
                         // Iniciar sesión
@@ -194,11 +212,13 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                             legajo: String(foundStudent[FIELD_LEGAJO_ESTUDIANTES]),
                             nombre: String(foundStudent[FIELD_NOMBRE_ESTUDIANTES]),
                             orientaciones: foundStudent[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [String(foundStudent[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES])] : [],
+                            role: legajoTrimmed === 'admin' ? 'SuperUser' : undefined
                         });
                     }
                 }
 
             } catch (err: any) {
+                console.error(err);
                 let msg = err.message;
                 if (msg.includes('Password should be at least 6 characters')) {
                     msg = "La contraseña debe tener al menos 6 caracteres.";

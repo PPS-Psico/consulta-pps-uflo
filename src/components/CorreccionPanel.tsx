@@ -1,14 +1,14 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../lib/db';
-import type { InformeCorreccionPPS, InformeCorreccionStudent, PracticaFields, EstudianteFields, LanzamientoPPSFields, FlatCorreccionStudent, AirtableRecord } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import type { InformeCorreccionPPS, InformeCorreccionStudent, PracticaFields, FlatCorreccionStudent } from '../types';
 import {
   FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
   FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
   FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
   FIELD_INFORME_SUBIDO_CONVOCATORIAS,
-  FIELD_NOMBRE_BUSQUEDA_PRACTICAS,
   FIELD_NOTA_PRACTICAS,
-  FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
   FIELD_NOMBRE_ESTUDIANTES,
   FIELD_ORIENTACION_LANZAMIENTOS,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
@@ -22,6 +22,8 @@ import {
   FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS,
   FIELD_ESPECIALIDAD_PRACTICAS,
   FIELD_FECHA_FIN_PRACTICAS,
+  TABLE_NAME_CONVOCATORIAS,
+  TABLE_NAME_PRACTICAS
 } from '../constants';
 import Loader from './Loader';
 import EmptyState from './EmptyState';
@@ -71,122 +73,94 @@ const CorreccionPanel: React.FC<CorreccionPanelProps> = ({ isTestingMode = false
     }
 
     try {
-      const [lanzamientosRes, convocatoriasRes, practicasRes, estudiantesRes] = await Promise.all([
-        db.lanzamientos.getAll(),
-        db.convocatorias.getAll(),
-        db.practicas.getAll(),
-        db.estudiantes.getAll()
-      ]);
+      // 1. Fetch ONLY relevant Convocatorias (Status 'Seleccionado')
+      // JOIN with Estudiantes and Lanzamientos to get names and details directly.
+      const { data: convocatoriasData, error: convError } = await supabase
+          .from(TABLE_NAME_CONVOCATORIAS)
+          .select(`
+              *,
+              estudiante:estudiantes!fk_convocatoria_estudiante (
+                  id, nombre, legajo
+              ),
+              lanzamiento:lanzamientos_pps!fk_convocatoria_lanzamiento (
+                  id, nombre_pps, orientacion, informe, fecha_fin, fecha_inicio
+              )
+          `)
+          .ilike(FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS, '%seleccionado%');
 
-      const estudiantesMapById = new Map(estudiantesRes.map(r => [r.id, r]));
-      const legajoToStudentIdMap = new Map<string, string>();
-      estudiantesRes.forEach(r => {
-        if (r[FIELD_LEGAJO_ESTUDIANTES]) {
-          legajoToStudentIdMap.set(String(r[FIELD_LEGAJO_ESTUDIANTES]), r.id);
-        }
+      if (convError) throw convError;
+      if (!convocatoriasData) throw new Error("No se pudieron cargar las convocatorias.");
+
+      // 2. Collect IDs for optimized Practice fetching
+      const studentIds = new Set<string>();
+      const lanzamientoIds = new Set<string>();
+
+      convocatoriasData.forEach((c: any) => {
+          if (c.estudiante_id) studentIds.add(c.estudiante_id);
+          if (c.lanzamiento_id) lanzamientoIds.add(c.lanzamiento_id);
       });
-      
-      const practicasMap = new Map<string, AirtableRecord<PracticaFields>>();
 
-      // First pass: Link practices by explicit IDs
-      for (const p of practicasRes) {
-          const studentId = (p[FIELD_ESTUDIANTE_LINK_PRACTICAS] as any)?.[0] || p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
-          const lanzamientoId = (p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as any)?.[0] || p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+      // 3. Fetch ONLY relevant Practices
+      // Where student_id IN (...) AND lanzamiento_id IN (...)
+      let practicasData: any[] = [];
+      if (studentIds.size > 0 && lanzamientoIds.size > 0) {
+          const { data: pData, error: pError } = await supabase
+              .from(TABLE_NAME_PRACTICAS)
+              .select('*')
+              .in(FIELD_ESTUDIANTE_LINK_PRACTICAS, Array.from(studentIds))
+              .in(FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, Array.from(lanzamientoIds));
           
-          if (studentId && lanzamientoId) {
-              const key = `${studentId}-${lanzamientoId}`;
-              const existing = practicasMap.get(key);
-              if (!existing || (p[FIELD_NOTA_PRACTICAS] && !existing[FIELD_NOTA_PRACTICAS])) {
-                  practicasMap.set(key, p);
-              }
-          }
-      }
-      
-      // Second pass: Link orphan practices by name matching
-      for (const p of practicasRes) {
-          const linkedStudentId = (p[FIELD_ESTUDIANTE_LINK_PRACTICAS] as any)?.[0] || p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
-          const linkedLanzamientoId = (p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as any)?.[0] || p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
-          if (linkedStudentId && linkedLanzamientoId && practicasMap.has(`${linkedStudentId}-${linkedLanzamientoId}`)) {
-              continue; 
-          }
-
-          const legajoArray = p[FIELD_NOMBRE_BUSQUEDA_PRACTICAS] as (string | number)[] | undefined;
-          const legajo = Array.isArray(legajoArray) ? String(legajoArray[0]) : String(legajoArray);
-          if (!legajo) continue;
-          
-          const studentId = legajoToStudentIdMap.get(legajo);
-          if (!studentId) continue;
-
-          const instNameRaw = p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-          const instName = Array.isArray(instNameRaw) ? instNameRaw[0] : instNameRaw;
-          if (!instName) continue;
-
-          const practicaStartDate = parseToUTCDate(p[FIELD_FECHA_INICIO_PRACTICAS]);
-          if (!practicaStartDate) continue;
-
-          const normalizedInstName = normalizeStringForComparison(instName);
-
-          const matchingLanzamiento = lanzamientosRes.find(l => {
-              const lanzamientoName = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-              if (!lanzamientoName || normalizeStringForComparison(lanzamientoName) !== normalizedInstName) return false;
-
-              const lanzamientoStartDate = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
-              if (!lanzamientoStartDate) return false;
-              
-              const timeDiff = Math.abs(practicaStartDate.getTime() - lanzamientoStartDate.getTime());
-              const daysDiff = timeDiff / (1000 * 3600 * 24);
-              return daysDiff <= 31;
-          });
-          if (matchingLanzamiento) {
-              const key = `${studentId}-${matchingLanzamiento.id}`;
-              if (!practicasMap.has(key)) {
-                  practicasMap.set(key, p);
-              }
-          }
+          if (pError) console.error("Error fetching specific practices:", pError);
+          if (pData) practicasData = pData;
       }
 
+      // 4. Map Practices for quick lookup
+      const practicasMap = new Map<string, any>();
+      practicasData.forEach((p: any) => {
+          const sId = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+          const lId = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+          if (sId && lId) {
+              practicasMap.set(`${sId}-${lId}`, p);
+          }
+      });
+
+      // 5. Build PPS Groups
       const ppsGroups = new Map<string, InformeCorreccionPPS>();
-      convocatoriasRes.forEach(conv => {
-        const estado = conv[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS];
-        if (typeof estado !== 'string' || normalizeStringForComparison(estado) !== 'seleccionado') return;
 
-        const rawLanzId = conv[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
-        const lanzamientoId = Array.isArray(rawLanzId) ? rawLanzId[0] : rawLanzId;
-        if (!lanzamientoId) return;
+      convocatoriasData.forEach((conv: any) => {
+          const lanzamiento = conv.lanzamiento;
+          const student = conv.estudiante;
+          
+          // Skip if relations are missing (integrity check)
+          if (!lanzamiento || !student) return;
 
-        if (!ppsGroups.has(lanzamientoId)) {
-            const lanzamiento = lanzamientosRes.find(l => l.id === lanzamientoId);
-            ppsGroups.set(lanzamientoId, {
-                lanzamientoId,
-                ppsName: lanzamiento?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || null,
-                orientacion: lanzamiento?.[FIELD_ORIENTACION_LANZAMIENTOS] || null,
-                informeLink: lanzamiento?.[FIELD_INFORME_LANZAMIENTOS] || null,
-                fechaFinalizacion: lanzamiento?.[FIELD_FECHA_FIN_LANZAMIENTOS] || null,
-                students: [],
-            });
-        }
-        
-        const rawStudentId = conv[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-        const studentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
-        if (!studentId) return;
-        
-        const studentDetails = estudiantesMapById.get(studentId);
-        if (!studentDetails) return;
+          const lanzamientoId = lanzamiento.id;
 
-        const practicaRecord = practicasMap.get(`${studentId}-${lanzamientoId}`);
+          if (!ppsGroups.has(lanzamientoId)) {
+              ppsGroups.set(lanzamientoId, {
+                  lanzamientoId,
+                  ppsName: lanzamiento.nombre_pps,
+                  orientacion: lanzamiento.orientacion,
+                  informeLink: lanzamiento.informe,
+                  fechaFinalizacion: lanzamiento.fecha_fin,
+                  students: [],
+              });
+          }
 
-        ppsGroups.get(lanzamientoId)!.students.push({
-            studentId,
-            studentName: studentDetails[FIELD_NOMBRE_ESTUDIANTES] || 'Nombre no encontrado',
-            convocatoriaId: conv.id,
-            practicaId: practicaRecord?.id || null,
-            informeSubido: conv[FIELD_INFORME_SUBIDO_CONVOCATORIAS] || false,
-            nota: practicaRecord?.[FIELD_NOTA_PRACTICAS] || 'Sin calificar',
-            lanzamientoId,
-            orientacion: ppsGroups.get(lanzamientoId)!.orientacion,
-            fechaFinalizacionPPS: ppsGroups.get(lanzamientoId)!.fechaFinalizacion,
-            fechaEntregaInforme: conv[FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS],
-        });
+          const practicaRecord = practicasMap.get(`${student.id}-${lanzamientoId}`);
+
+          ppsGroups.get(lanzamientoId)!.students.push({
+              studentId: student.id,
+              studentName: student.nombre || 'Nombre desconocido',
+              convocatoriaId: conv.id,
+              practicaId: practicaRecord?.id || null,
+              informeSubido: conv[FIELD_INFORME_SUBIDO_CONVOCATORIAS] || false,
+              nota: practicaRecord?.[FIELD_NOTA_PRACTICAS] || 'Sin calificar',
+              lanzamientoId,
+              orientacion: lanzamiento.orientacion,
+              fechaFinalizacionPPS: lanzamiento.fecha_fin,
+              fechaEntregaInforme: conv[FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS],
+          });
       });
 
       setAllPpsGroups(ppsGroups);
@@ -221,7 +195,7 @@ const CorreccionPanel: React.FC<CorreccionPanelProps> = ({ isTestingMode = false
                 [FIELD_ESTUDIANTE_LINK_PRACTICAS]: [student.studentId],
                 [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: [student.lanzamientoId],
                 [FIELD_ESPECIALIDAD_PRACTICAS]: student.orientacion,
-                [FIELD_FECHA_INICIO_PRACTICAS]: student.fechaInicio || ppsGroup.fechaFinalizacion,
+                [FIELD_FECHA_INICIO_PRACTICAS]: student.fechaInicio || ppsGroup.fechaFinalizacion, // Fallback start date
                 [FIELD_FECHA_FIN_PRACTICAS]: student.fechaFinalizacionPPS,
                 [FIELD_NOTA_PRACTICAS]: newNota
             } as any);

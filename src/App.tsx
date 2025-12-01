@@ -39,7 +39,7 @@ import {
     FIELD_FECHA_INICIO_LANZAMIENTOS,
     FIELD_NOMBRE_PPS_LANZAMIENTOS
 } from './constants';
-import { parseToUTCDate } from './utils/formatters';
+import { parseToUTCDate, normalizeStringForComparison } from './utils/formatters';
 
 // Views
 const StudentView = lazy(() => import('./views/StudentView'));
@@ -72,7 +72,7 @@ const StudentPracticasWrapper = () => {
 };
 
 const StudentSolicitudesWrapper = () => {
-    const { solicitudes, studentDetails, criterios, allLanzamientos } = useStudentPanel();
+    const { solicitudes, studentDetails, criterios, institutionAddressMap, allLanzamientos } = useStudentPanel();
     const { openSolicitudPPSModal, showModal } = useModal();
     const { authenticatedUser } = useAuth();
     const queryClient = useQueryClient();
@@ -84,23 +84,44 @@ const StudentSolicitudesWrapper = () => {
         return authenticatedUser?.id || null;
     };
 
-    // Calculate list of existing institutions for the current year
+    // Use the institution map keys AND current year launches to get ALL existing institutions
+    // to prevent students from requesting already existing agreements.
     const existingInstitutions = useMemo(() => {
-        const currentYear = new Date().getFullYear();
         const namesSet = new Set<string>();
+        const excludedTerms = ["relevamiento", "jornada"];
+        const currentYear = new Date().getFullYear();
 
+        // 1. From Address Map (Static/Cached institutions)
+        Array.from(institutionAddressMap.keys()).forEach(name => {
+             // Normalize check to exclude internal projects
+             const lowerName = name.toLowerCase();
+             if (!excludedTerms.some(term => lowerName.includes(term))) {
+                  // Capitalize first letter for display if needed, or just store raw
+                  namesSet.add(name);
+             }
+        });
+
+        // 2. From Active Launches this year (Dynamic check for very recent additions)
         allLanzamientos.forEach(l => {
             const date = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
-            const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-            if (date && date.getUTCFullYear() === currentYear && name) {
-                // Clean name (remove " - Turno Tarde", etc)
-                const cleanName = name.split(' - ')[0].trim();
-                namesSet.add(cleanName);
+            if (date && date.getUTCFullYear() === currentYear) {
+                const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+                if (name) {
+                    const lowerName = name.toLowerCase();
+                     if (!excludedTerms.some(term => lowerName.includes(term))) {
+                         // Extract base name "Hospital X - Mañana" -> "Hospital X"
+                         const groupName = name.split(' - ')[0].trim();
+                         namesSet.add(groupName);
+                     }
+                }
             }
         });
 
-        return Array.from(namesSet).sort();
-    }, [allLanzamientos]);
+        // Final cleanup and sort
+        return Array.from(namesSet)
+            .map(name => name.charAt(0).toUpperCase() + name.slice(1)) // Capitalize
+            .sort((a, b) => a.localeCompare(b));
+    }, [institutionAddressMap, allLanzamientos]);
 
     const createSolicitudMutation = useMutation({
         mutationFn: async (formData: any) => {

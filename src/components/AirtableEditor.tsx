@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
-import { schema } from '../lib/airtableSchema';
-import type { AirtableRecord, InstitucionFields, EstudianteFields, LanzamientoPPSFields } from '../types';
+import { schema } from '../lib/dbSchema';
+import type { AppRecord } from '../types';
 import SubTabs from './SubTabs';
 import Loader from './Loader';
 import EmptyState from './EmptyState';
@@ -19,7 +19,6 @@ import {
     FIELD_ESTUDIANTE_LINK_PRACTICAS, 
     FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, 
     FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, 
-    FIELD_FECHA_INICIO_LANZAMIENTOS, 
     FIELD_FECHA_INICIO_PRACTICAS,
     FIELD_DNI_ESTUDIANTES,
     FIELD_CORREO_ESTUDIANTES,
@@ -149,7 +148,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onEdit, onDuplicate, on
     );
 };
 
-interface AirtableEditorProps {
+interface DatabaseEditorProps {
   isTestingMode?: boolean;
 }
 
@@ -224,17 +223,19 @@ const PaginationControls: React.FC<{
     </div>
 );
 
-
-const getLookupName = (fieldValue: any): string | null => {
-    if (Array.isArray(fieldValue)) return typeof fieldValue[0] === 'string' ? fieldValue[0] : null;
-    return typeof fieldValue === 'string' ? fieldValue : null;
+const cleanDisplayValue = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    const str = String(val);
+    // Remove brackets, braces, quotes (common in migrated lookup fields)
+    return str.replace(/[\[\]\{\}"]/g, '').trim();
 };
 
-const DatabaseEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }) => {
+
+const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }) => {
     const [activeTable, setActiveTable] = useState<TableKey>('estudiantes');
-    const [editingRecord, setEditingRecord] = useState<AirtableRecord<any> | { isCreating: true } | null>(null);
+    const [editingRecord, setEditingRecord] = useState<AppRecord<any> | { isCreating: true } | null>(null);
     const [toastInfo, setToastInfo] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; record: AirtableRecord<any> } | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; record: AppRecord<any> } | null>(null);
     
     // Server-side state
     const [searchTerm, setSearchTerm] = useState('');
@@ -288,12 +289,17 @@ const DatabaseEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
                 const lanzamientosMap = new Map(lanzamientosRes.map(r => [r.id, r]));
     
                 const enrichedRecords = records.map(p => {
-                    const studentId = (p[FIELD_ESTUDIANTE_LINK_PRACTICAS] as any)?.[0] || p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
-                    const lanzamientoId = (p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as any)?.[0] || p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                    const rawStudentId = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                    const studentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
                     
-                    const studentName = estudiantesMap.get(studentId)?.[FIELD_NOMBRE_ESTUDIANTES] || 'N/A';
-                    const studentLegajo = estudiantesMap.get(studentId)?.[FIELD_LEGAJO_ESTUDIANTES] || '';
-                    const lanzamientoName = lanzamientosMap.get(lanzamientoId)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || getLookupName(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A';
+                    const rawLanzamientoId = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                    const lanzamientoId = Array.isArray(rawLanzamientoId) ? rawLanzamientoId[0] : rawLanzamientoId;
+                    
+                    const student = estudiantesMap.get(studentId as string);
+                    const studentName = student?.[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido';
+                    const studentLegajo = student?.[FIELD_LEGAJO_ESTUDIANTES] || '---';
+                    
+                    const lanzamientoName = lanzamientosMap.get(lanzamientoId as string)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || cleanDisplayValue(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A';
     
                     return {
                         ...p,
@@ -354,7 +360,7 @@ const DatabaseEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
     });
 
     const duplicateMutation = useMutation({
-        mutationFn: (record: AirtableRecord<any>) => {
+        mutationFn: (record: AppRecord<any>) => {
             const { id, createdTime, created_at, ...originalFields } = record;
             const newFields: { [key: string]: any } = { ...originalFields };
 
@@ -411,7 +417,7 @@ const DatabaseEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         setCurrentPage(1); // Reset to first page on sort change
     };
     
-    const handleRowContextMenu = (e: React.MouseEvent, record: AirtableRecord<any>) => {
+    const handleRowContextMenu = (e: React.MouseEvent, record: AppRecord<any>) => {
         e.preventDefault();
         setSelectedRowId(record.id);
         setContextMenu({ x: e.clientX, y: e.clientY, record });
@@ -423,7 +429,7 @@ const DatabaseEditor: React.FC<AirtableEditorProps> = ({ isTestingMode = false }
         }
     };
 
-    const renderCellValue = (record: AirtableRecord<any>, fieldConfig: any) => {
+    const renderCellValue = (record: AppRecord<any>, fieldConfig: any) => {
         const key = fieldConfig.key;
         let value = record[key];
 
