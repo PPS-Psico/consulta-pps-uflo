@@ -40,6 +40,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const queryClient = useQueryClient();
 
+  const logout = useCallback(async () => {
+    try {
+        // 1. IMPORTANTE: Limpiar estado global de React Query para evitar mezclar datos de usuarios
+        queryClient.removeQueries();
+        queryClient.clear();
+        
+        // 2. Cerrar sesión en Supabase
+        await (supabase.auth as any).signOut();
+        
+        // 3. Limpiar estado local
+        setAuthenticatedUser(null);
+        
+        // 4. Limpiar storage local relevante por seguridad
+        const storageKey = 'sb-' + (import.meta.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] || '') + '-auth-token';
+        localStorage.removeItem(storageKey);
+        
+    } catch (error) {
+        console.error("Error signing out:", error);
+        setAuthenticatedUser(null);
+        queryClient.clear();
+    }
+  }, [queryClient]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -54,25 +77,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Robust Initial Session Check
     const initSession = async () => {
         try {
-            const { error } = await supabase.auth.getSession();
+            const { data, error } = await supabase.auth.getSession();
+            
             if (error) {
-                console.error("Initial Session Error:", error.message);
-                // If token is invalid, force clear local storage and state to prevent crash loops
-                if (error.message.includes("Refresh Token") || error.message.includes("not found")) {
-                     console.warn("Invalid Refresh Token detected. Performing cleanup...");
-                     const storageKey = 'sb-' + (process.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] || '') + '-auth-token';
-                     localStorage.removeItem(storageKey);
-                     await (supabase.auth as any).signOut().catch(() => {}); 
-                     queryClient.clear();
-                     
-                     if (isMounted) {
-                         setAuthenticatedUser(null);
-                         setIsAuthLoading(false);
-                     }
-                }
+                console.warn("Initial Session Error - Clearing state:", error.message);
+                // If any error occurs (Invalid Token, Network, etc), we clear everything to be safe
+                // and let the user log in again.
+                await logout();
+                if (isMounted) setIsAuthLoading(false);
+                return;
             }
+
+            // If no session exists, we are logged out. Stop loading.
+            if (!data.session) {
+                 if (isMounted) {
+                     setAuthenticatedUser(null);
+                     setIsAuthLoading(false);
+                 }
+            }
+            // If session exists, onAuthStateChange will fire shortly to set the user.
+            
         } catch (e) {
             console.error("Unexpected error during session check:", e);
+            if (isMounted) setIsAuthLoading(false);
         }
     };
 
@@ -95,7 +122,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (isMounted) {
                 setAuthenticatedUser(null);
                 setIsAuthLoading(false);
-                // CRÍTICO: Limpiar caché al detectar cierre de sesión externo o inicial
                 queryClient.clear(); 
             }
             clearTimeout(safetyTimeout);
@@ -125,9 +151,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         });
                     } else {
                         console.warn("Sesión huérfana detectada (Usuario autenticado pero sin perfil en 'estudiantes').");
-                        // No hacemos signOut aquí para evitar bucles infinitos si la DB falla,
-                        // pero dejamos al usuario como null para que la UI lo maneje (redirija a login).
-                        setAuthenticatedUser(null);
+                        // Logout to clean up orphan state
+                        await logout(); 
                     }
                 }
             } catch (error) {
@@ -146,37 +171,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         clearTimeout(safetyTimeout);
         subscription.unsubscribe();
     };
-  }, [queryClient]);
+  }, [queryClient, logout]);
 
   const login = useCallback((user: AuthUser) => {
     setAuthenticatedUser(user);
     setIsAuthLoading(false);
   }, []);
-
-  const logout = useCallback(async () => {
-    try {
-        // 1. IMPORTANTE: Limpiar estado global de React Query para evitar mezclar datos de usuarios
-        // Esto soluciona el bug de que "no carga nada" al cambiar de cuenta.
-        queryClient.removeQueries();
-        queryClient.clear();
-        
-        // 2. Cerrar sesión en Supabase
-        await (supabase.auth as any).signOut();
-        
-        // 3. Limpiar estado local
-        setAuthenticatedUser(null);
-        
-        // 4. Limpiar storage local relevante por seguridad
-        const storageKey = 'sb-' + (process.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] || '') + '-auth-token';
-        localStorage.removeItem(storageKey);
-        
-    } catch (error) {
-        console.error("Error signing out:", error);
-        // Forzar limpieza local incluso si falla la red
-        setAuthenticatedUser(null);
-        queryClient.clear();
-    }
-  }, [queryClient]);
 
   const completePasswordChange = useCallback(() => {
     setAuthenticatedUser(prev => prev ? { ...prev, mustChangePassword: false } : null);
