@@ -15,7 +15,9 @@ import {
     TABLE_NAME_ESTUDIANTES,
     FIELD_NOMBRE_ESTUDIANTES,
     FIELD_LEGAJO_ESTUDIANTES,
-    FIELD_CORREO_ESTUDIANTES
+    FIELD_CORREO_ESTUDIANTES,
+    FIELD_FINALIZARON_ESTUDIANTES,
+    FIELD_FECHA_FINALIZACION_ESTUDIANTES
 } from '../constants';
 import { fetchAllData } from '../services/supabaseService';
 import { finalizacionPPSArraySchema, estudianteArraySchema } from '../schemas';
@@ -428,6 +430,7 @@ const FinalizacionReview: React.FC = () => {
                     studentName: student?.[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido',
                     studentLegajo: student?.[FIELD_LEGAJO_ESTUDIANTES] || '---',
                     studentEmail: student?.[FIELD_CORREO_ESTUDIANTES],
+                    studentId: studentId, // Ensure studentId is available for mutation logic
                     createdTime: req.createdTime
                 };
             }).sort((a, b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());
@@ -436,25 +439,43 @@ const FinalizacionReview: React.FC = () => {
 
     const updateStatusMutation = useMutation({
         mutationFn: async ({ id, newStatus }: { id: string; newStatus: string }) => {
-            // Email automation only on final confirmation (Cargado/Finalizado)
-            // "Cargado" is the key used in DB for the final state based on migration.
-            if (newStatus === 'Cargado') {
-                const request = data?.find(r => r.id === id);
-                if (request && request.studentEmail) {
-                    const emailRes = await sendSmartEmail('sac', {
-                         studentName: request.studentName,
-                         studentEmail: request.studentEmail,
-                         ppsName: 'Práctica Profesional Supervisada'
-                    });
-                    if (!emailRes.success && emailRes.message !== 'Automación desactivada') {
-                         console.warn("Email send failed:", emailRes.message);
+            const request = data?.find(r => r.id === id);
+            
+            // AUTOMATION: Update student status based on finalization request status
+            if (request && request.studentId) {
+                if (newStatus === 'Cargado') {
+                     // Confirming: Mark student as finished
+                     await db.estudiantes.update(request.studentId, {
+                        [FIELD_FINALIZARON_ESTUDIANTES]: true,
+                        [FIELD_FECHA_FINALIZACION_ESTUDIANTES]: new Date().toISOString().split('T')[0]
+                     });
+
+                     // Email Notification
+                     if (request.studentEmail) {
+                        const emailRes = await sendSmartEmail('sac', {
+                             studentName: request.studentName,
+                             studentEmail: request.studentEmail,
+                             ppsName: 'Práctica Profesional Supervisada'
+                        });
+                        if (!emailRes.success && emailRes.message !== 'Automación desactivada') {
+                             console.warn("Email send failed:", emailRes.message);
+                        }
                     }
+                } else {
+                    // Reverting/Moving back: Unmark student if they were previously marked
+                    // This ensures stats are correct if an admin made a mistake
+                    await db.estudiantes.update(request.studentId, {
+                       [FIELD_FINALIZARON_ESTUDIANTES]: false,
+                       [FIELD_FECHA_FINALIZACION_ESTUDIANTES]: null
+                    });
                 }
             }
-            return db.finalizacion.update(id, { estado: newStatus });
+
+            return db.finalizacion.update(id, { [FIELD_ESTADO_FINALIZACION]: newStatus });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['finalizacionRequests'] });
+            queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] }); // Update dashboard stats
             setToastInfo({ message: 'Estado actualizado correctamente.', type: 'success' });
         },
         onError: (err: Error) => {
@@ -464,7 +485,7 @@ const FinalizacionReview: React.FC = () => {
     });
 
     const handleUpdateStatus = (id: string, newStatus: string) => {
-        if (newStatus === 'Cargado' && !window.confirm('¿Confirmar acreditación final? Se enviará el correo al alumno.')) {
+        if (newStatus === 'Cargado' && !window.confirm('¿Confirmar acreditación final? Se actualizará el estado del alumno y se enviará el correo de confirmación.')) {
             return;
         }
         setUpdatingId(id);

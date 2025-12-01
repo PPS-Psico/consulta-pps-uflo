@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import {
@@ -16,13 +17,13 @@ import type { UseMutationResult } from '@tanstack/react-query';
 const InfoRow: React.FC<{ icon: string; label: string; value?: string | number | null }> = ({ icon, label, value }) => {
   if (!value) return null;
   return (
-    <div className="flex items-start gap-4 py-4">
-      <div className="flex-shrink-0 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 rounded-full h-10 w-10 flex items-center justify-center">
+    <div className="flex items-start gap-4 py-4 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30 rounded-lg px-2 -mx-2">
+      <div className="flex-shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 rounded-xl h-10 w-10 flex items-center justify-center">
         <span className="material-icons !text-xl">{icon}</span>
       </div>
-      <div>
-        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{label}</p>
-        <p className="text-base font-medium text-slate-800 dark:text-slate-100">{value}</p>
+      <div className="min-w-0">
+        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+        <p className="text-base font-semibold text-slate-900 dark:text-slate-100 break-all">{value}</p>
       </div>
     </div>
   );
@@ -84,17 +85,17 @@ const ProfileView: React.FC<ProfileViewProps> = ({ studentDetails, isLoading, up
 
   return (
     <>
-      <div className="border-t border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
+      <div className="divide-y divide-slate-200 dark:divide-slate-800">
           <InfoRow icon="fingerprint" label="DNI" value={dni} />
           <InfoRow icon="email" label="Correo Electrónico" value={correo} />
           <InfoRow icon="phone" label="Teléfono" value={telefono} />
       </div>
-      <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 text-center">
+      <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 text-center">
           <a
             href={mailToLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold text-sm py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-offset-slate-800 shadow-lg hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-1 active:transform active:scale-95"
+            className="group relative overflow-hidden inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold text-sm py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-offset-slate-900 shadow-lg hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-1 active:transform active:scale-95"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
             <span className="material-icons !text-lg transition-transform duration-300 relative z-10">edit</span>
@@ -104,19 +105,19 @@ const ProfileView: React.FC<ProfileViewProps> = ({ studentDetails, isLoading, up
 
       {(isSuperUserMode || isJefeMode) && (
         <Card className="mt-8" icon="edit_note" title="Anotaciones Internas" description="Estas notas son privadas y solo visibles para administradores y jefes de cátedra.">
-           <div className="mt-6 border-t border-slate-200 dark:border-slate-700 pt-6">
+           <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-6">
                 <textarea
                     value={internalNotes}
                     onChange={handleNotesChange}
                     rows={5}
-                    className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-600 p-3 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-50 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:focus:border-blue-500 dark:focus:ring-blue-400 transition"
+                    className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 shadow-inner outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition placeholder-slate-400 dark:placeholder-slate-600"
                     placeholder="Añadir comentarios, recordatorios o información de seguimiento sobre el estudiante..."
                 />
                 <div className="mt-4 flex justify-end">
                     <button
                         onClick={handleSaveNotes}
                         disabled={!isNotesChanged || updateInternalNotes.isPending}
-                        className="bg-blue-600 text-white font-bold py-2.5 px-6 rounded-lg text-sm transition-all duration-200 shadow-md hover:bg-blue-700 hover:-translate-y-px flex items-center gap-2 justify-center disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
+                        className="bg-blue-600 text-white font-bold py-2.5 px-6 rounded-lg text-sm transition-all duration-200 shadow-md hover:bg-blue-700 hover:-translate-y-px flex items-center gap-2 justify-center disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
                     >
                         {updateInternalNotes.isPending ? (
                              <><div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/><span>Guardando...</span></>

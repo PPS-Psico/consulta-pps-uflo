@@ -30,9 +30,6 @@ interface FileState {
     url: string | null;
 }
 
-// Using a dummy link for now, or could be a public URL from supabase storage if uploaded
-const TEMPLATE_URL = "https://qxnxtnhtbpsgzprqtrjl.supabase.co/storage/v1/object/public/documentos_seguros/Modelo_Planilla_Seguimiento.xlsx"; // Assuming this file exists or will exist
-
 const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }) => {
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -127,18 +124,11 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
 
             await db.finalizacion.create(dbRecord);
 
-            // 3. Automation: Update Student Record to set 'Finalizaron' = true
-            const today = new Date().toISOString().split('T')[0];
-            await db.estudiantes.update(studentAirtableId, {
-                finalizaron: true,
-                [FIELD_FECHA_FINALIZACION_ESTUDIANTES]: today
-            });
-
             return true;
         },
         onSuccess: () => {
             setIsSubmitted(true);
-            setToastInfo({ message: 'Solicitud enviada con éxito. Tu estado académico ha sido actualizado.', type: 'success' });
+            setToastInfo({ message: 'Solicitud enviada con éxito. Se procesará tu acreditación.', type: 'success' });
         },
         onError: (error: any) => {
             setToastInfo({ message: `Error al enviar: ${error.message}`, type: 'error' });
@@ -147,11 +137,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
 
     const handleDownloadTemplate = (e: React.MouseEvent) => {
         e.preventDefault();
-        // Here you would ideally trigger a download for the template
-        // For now we can try to open the dummy link or show a toast
-        // Since we don't have a real file hosted, I'll alert for now
         alert("La descarga del modelo estará disponible pronto. Por favor solicítalo por correo si no lo tienes.");
-        // window.open(TEMPLATE_URL, '_blank');
     };
 
     if (isSubmitted) {
@@ -160,7 +146,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
                 <EmptyState
                     icon="mark_email_read"
                     title="¡Documentación Enviada!"
-                    message="Hemos recibido tus archivos correctamente y tu estado ha sido marcado como finalizado. Revisaremos tu solicitud y te notificaremos si necesitamos algo más."
+                    message="Hemos recibido tus archivos correctamente. Tu solicitud está en estado 'Pendiente' y será revisada por la administración. Recibirás un correo cuando la acreditación sea confirmada."
                 />
                 <div className="mt-6 text-center">
                     <Button variant="secondary" onClick={() => window.location.reload()}>Volver al Inicio</Button>

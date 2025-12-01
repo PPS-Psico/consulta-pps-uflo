@@ -252,7 +252,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
             {/* --- SUMMARY METRICS --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1 hover:shadow-md">
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1 hover:shadow-md">
                     <div className="p-4 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
                         <span className="material-icons !text-3xl">autorenew</span>
                     </div>
@@ -262,7 +262,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                     </div>
                 </div>
                 
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1 hover:shadow-md">
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1 hover:shadow-md">
                     <div className="p-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
                         <span className="material-icons !text-3xl">verified_user</span>
                     </div>
@@ -272,7 +272,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1 hover:shadow-md">
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1 hover:shadow-md">
                     <div className="p-4 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                         <span className="material-icons !text-3xl">assignment_ind</span>
                     </div>
@@ -284,7 +284,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
             </div>
 
             {/* --- SECTION 1: RELAUNCH MANAGEMENT --- */}
-            <Card className="border-amber-200/50 dark:border-amber-800/30 bg-gradient-to-b from-amber-50/30 to-white dark:from-amber-900/10 dark:to-slate-800">
+            <Card className="border-amber-200/50 dark:border-amber-900/30 bg-gradient-to-b from-amber-50/30 to-white dark:from-amber-900/10 dark:to-gray-900">
                 <SectionHeader title="Prácticas por Finalizar / Relanzar" icon="next_week" count={endingLaunches.length} colorClass="text-amber-600 bg-amber-100 dark:bg-amber-900/20" />
                 
                 {endingLaunches.length === 0 ? (
@@ -295,7 +295,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                 ) : (
                     <div className="space-y-3">
                         {endingLaunches.map((launch: any) => (
-                            <div key={launch.id} className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700 transition-all group relative overflow-hidden">
+                            <div key={launch.id} className="p-4 rounded-xl bg-white dark:bg-gray-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700/50 transition-all group relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-1 h-full bg-amber-400"></div>
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pl-3">
                                     
@@ -304,7 +304,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                             <h4 className="font-bold text-base text-slate-800 dark:text-slate-100 truncate" title={launch.institutionName}>
                                                 {launch.institutionName}
                                             </h4>
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${launch.daysLeft < 0 ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${launch.daysLeft < 0 ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800' : 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800'}`}>
                                                 {launch.daysLeft < 0 ? `Venció hace ${Math.abs(launch.daysLeft)} días` : `Vence en ${launch.daysLeft} días`}
                                             </span>
                                         </div>
@@ -320,7 +320,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                                             type="tel" 
                                                             value={tempPhone} 
                                                             onChange={e => setTempPhone(e.target.value)}
-                                                            className="w-24 px-2 py-1 text-sm border-none bg-transparent focus:ring-0 outline-none"
+                                                            className="w-24 px-2 py-1 text-sm border-none bg-transparent focus:ring-0 outline-none dark:text-white"
                                                             placeholder="Teléfono"
                                                             autoFocus
                                                         />
@@ -332,7 +332,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                                         {launch.phone ? (
                                                             <button 
                                                                 onClick={() => handleWhatsApp(launch.phone, launch.institutionName)}
-                                                                className="flex items-center gap-2 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                                                                className="flex items-center gap-2 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
                                                             >
                                                                 <span className="material-icons !text-sm">chat</span>
                                                                 WhatsApp
@@ -340,7 +340,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                                         ) : (
                                                             <button 
                                                                 onClick={() => handleEditPhone(launch.institutionId!, '')}
-                                                                className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                                                                className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg transition-colors"
                                                             >
                                                                 <span className="material-icons !text-xs">add_call</span> Agregar Tel
                                                             </button>
@@ -353,7 +353,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                                     </div>
                                                 )
                                             ) : (
-                                                <span className="text-xs text-red-400 italic bg-red-50 px-2 py-1 rounded">Sin Institución</span>
+                                                <span className="text-xs text-red-400 italic bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">Sin Institución</span>
                                             )}
                                         </div>
 
@@ -368,10 +368,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                                 onChange={(e) => updateLaunchStatusMutation.mutate({ id: launch.id, status: e.target.value })}
                                                 disabled={updatingStatusId === launch.id}
                                                 className={`w-full text-xs font-semibold py-2 pl-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer appearance-none
-                                                    ${launch.gestionStatus === 'Relanzamiento Confirmado' ? 'text-emerald-800 bg-emerald-50 border-emerald-200' : 
-                                                      launch.gestionStatus === 'En Conversación' ? 'text-amber-800 bg-amber-50 border-amber-200' :
-                                                      launch.gestionStatus === 'Esperando Respuesta' ? 'text-blue-800 bg-blue-50 border-blue-200' :
-                                                      'text-slate-700 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600'}
+                                                    ${launch.gestionStatus === 'Relanzamiento Confirmado' ? 'text-emerald-800 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800' : 
+                                                      launch.gestionStatus === 'En Conversación' ? 'text-amber-800 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800' :
+                                                      launch.gestionStatus === 'Esperando Respuesta' ? 'text-blue-800 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-800' :
+                                                      'text-slate-700 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 dark:text-slate-200'}
                                                 `}
                                             >
                                                 {RELAUNCH_STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -389,7 +389,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                 <Card className="border-emerald-200/50 dark:border-emerald-800/30">
+                 <Card className="border-emerald-200/50 dark:border-emerald-900/30">
                     <SectionHeader title="Pendientes de Acreditación" icon="task_alt" count={pendingFinalizations.length} colorClass="text-emerald-600 bg-emerald-100 dark:bg-emerald-900/20" />
                     
                     {pendingFinalizations.length === 0 ? (
@@ -397,12 +397,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                     ) : (
                         <div className="space-y-3">
                             {pendingFinalizations.map((f: any) => (
-                                <div key={f.id} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                                <div key={f.id} className="p-3 rounded-lg bg-slate-50 dark:bg-gray-900 border border-slate-100 dark:border-slate-800 flex justify-between items-center">
                                     <div>
                                         <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{f.studentName}</h4>
                                         <p className="text-xs text-slate-500">Solicitado: {formatDate(f.fechaSolicitud)}</p>
                                     </div>
-                                    <button className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-md transition-colors">
+                                    <button className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-md transition-colors">
                                         Revisar
                                     </button>
                                 </div>
@@ -411,7 +411,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                     )}
                 </Card>
 
-                <Card className="border-blue-200/50 dark:border-blue-800/30">
+                <Card className="border-blue-200/50 dark:border-blue-900/30">
                     <SectionHeader title="Solicitudes de Alumnos" icon="inbox" count={pendingRequests.length} colorClass="text-blue-600 bg-blue-100 dark:bg-blue-900/20" />
                     
                     {pendingRequests.length === 0 ? (
@@ -419,7 +419,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                     ) : (
                         <div className="space-y-3">
                             {pendingRequests.map((req: any) => (
-                                <div key={req.id} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 flex justify-between items-center gap-4">
+                                <div key={req.id} className="p-3 rounded-lg bg-slate-50 dark:bg-gray-900 border border-slate-100 dark:border-slate-800 flex justify-between items-center gap-4">
                                     <div className="min-w-0">
                                         <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{req.studentName}</h4>
                                         <div className="flex items-center gap-1 text-xs text-slate-500">
@@ -428,8 +428,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">{req.estado}</span>
-                                        <button onClick={() => archiveRequestMutation.mutate(req.id)} className="p-1 text-slate-400 hover:bg-slate-200 rounded" title="Archivar">
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 dark:text-slate-300">{req.estado}</span>
+                                        <button onClick={() => archiveRequestMutation.mutate(req.id)} className="p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded" title="Archivar">
                                             <span className="material-icons !text-lg">archive</span>
                                         </button>
                                     </div>

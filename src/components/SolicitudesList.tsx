@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import SolicitudCard from './SolicitudCard';
 import EmptyState from './EmptyState';
@@ -16,26 +17,50 @@ const ActionButton: React.FC<{
     title: string;
     description: string;
     onClick?: () => void;
-    colorClass: string;
-}> = ({ icon, title, description, onClick, colorClass }) => (
-    <button 
-        type="button"
-        onClick={onClick}
-        className="flex-1 bg-white dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-4 flex items-center gap-4 hover:border-solid hover:shadow-md transition-all duration-200 group text-left w-full"
-    >
-        <div className={`flex-shrink-0 p-3 rounded-full bg-opacity-10 group-hover:bg-opacity-20 transition-colors ${colorClass}`}>
-            <span className={`material-icons !text-2xl ${colorClass.replace('bg-', 'text-')}`}>{icon}</span>
-        </div>
-        <div>
-            <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                {title}
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {description}
-            </p>
-        </div>
-    </button>
-);
+    // We use a colorScheme prop instead of raw class to handle dark mode variants better
+    colorScheme: 'blue' | 'emerald' | 'slate'; 
+}> = ({ icon, title, description, onClick, colorScheme }) => {
+    
+    const colors = {
+        blue: {
+            containerHover: 'hover:border-blue-400 dark:hover:border-blue-500/50 hover:shadow-blue-500/10',
+            iconBg: 'bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
+            titleHover: 'group-hover:text-blue-700 dark:group-hover:text-blue-400',
+        },
+        emerald: {
+             containerHover: 'hover:border-emerald-400 dark:hover:border-emerald-500/50 hover:shadow-emerald-500/10',
+             iconBg: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
+             titleHover: 'group-hover:text-emerald-700 dark:group-hover:text-emerald-400',
+        },
+        slate: {
+             containerHover: 'hover:border-slate-400 dark:hover:border-slate-500/50',
+             iconBg: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+             titleHover: 'group-hover:text-slate-700 dark:group-hover:text-slate-300',
+        }
+    };
+
+    const theme = colors[colorScheme];
+
+    return (
+        <button 
+            type="button"
+            onClick={onClick}
+            className={`flex-1 bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 flex items-center gap-5 hover:border-solid hover:shadow-lg transition-all duration-300 group text-left w-full hover:-translate-y-0.5 ${theme.containerHover}`}
+        >
+            <div className={`flex-shrink-0 p-3 rounded-xl transition-colors duration-300 group-hover:scale-110 ${theme.iconBg}`}>
+                <span className="material-icons !text-3xl">{icon}</span>
+            </div>
+            <div>
+                <h4 className={`font-bold text-slate-800 dark:text-slate-100 text-base transition-colors ${theme.titleHover}`}>
+                    {title}
+                </h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                    {description}
+                </p>
+            </div>
+        </button>
+    );
+};
 
 const SolicitudesList: React.FC<SolicitudesListProps> = ({ 
     solicitudes, 
@@ -58,17 +83,17 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
         {/* Action Buttons Area */}
         {(onCreateSolicitud || onRequestFinalization) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {onCreateSolicitud && (
                     <ActionButton 
                         icon="add_business" 
                         title="Solicitar Nueva PPS" 
-                        description="Propuesta de autogestión."
+                        description="Inicia un trámite de autogestión."
                         onClick={onCreateSolicitud}
-                        colorClass="bg-blue-500 text-blue-600"
+                        colorScheme="blue"
                     />
                 )}
                 {onRequestFinalization && (
@@ -77,7 +102,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                         title="Solicitar Acreditación" 
                         description={isAccreditationReady ? "Finalización de carrera." : "Revisión de criterios."}
                         onClick={handleAccreditationClick}
-                        colorClass={isAccreditationReady ? "bg-emerald-500 text-emerald-600" : "bg-slate-400 text-slate-500"}
+                        colorScheme={isAccreditationReady ? "emerald" : "slate"}
                     />
                 )}
             </div>
@@ -106,7 +131,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
         {/* List or Empty State */}
         {solicitudes.length === 0 ? (
-            <div className="mt-4">
+            <div className="mt-6">
                 <EmptyState 
                     icon="list_alt"
                     title="No Hay Solicitudes Activas"
@@ -115,8 +140,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                 />
             </div>
         ) : (
-            <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-2 px-1">
+            <div className="space-y-4">
+                <div className="flex items-center gap-3 px-1 pb-2">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historial de Solicitudes</span>
                     <div className="h-px bg-slate-200 dark:bg-slate-700 flex-grow"></div>
                 </div>

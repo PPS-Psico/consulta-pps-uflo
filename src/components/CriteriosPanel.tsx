@@ -81,16 +81,16 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
   return (
     <section className="animate-fade-in-up">
       <div 
-        className={`relative bg-gradient-to-br from-white to-gray-50/70 dark:from-gray-800/60 dark:to-gray-900/50 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border shadow-2xl transition-all duration-700 grid grid-cols-1 lg:grid-cols-5 gap-8 overflow-hidden ${
+        className={`relative bg-gradient-to-br from-white to-gray-50/70 dark:from-gray-900/70 dark:to-black/80 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border shadow-2xl transition-all duration-700 grid grid-cols-1 lg:grid-cols-5 gap-8 overflow-hidden ${
           todosLosCriteriosCumplidos 
-            ? 'border-success-300/50 dark:border-success-500/40 animate-pulse-glow-success' 
-            : 'border-gray-200 dark:border-gray-700 shadow-gray-400/30 dark:shadow-black/50'
+            ? 'border-success-300/50 dark:border-success-500/30 animate-pulse-glow-success' 
+            : 'border-gray-200 dark:border-white/10 shadow-gray-400/30 dark:shadow-black/50'
         }`}
         style={{ willChange: 'border-color, box-shadow' }}
       >
         
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary-100/50 to-transparent dark:from-primary-800/30 rounded-full blur-3xl -z-10" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-secondary-100/50 to-transparent dark:from-secondary-800/30 rounded-full blur-3xl -z-10" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary-100/50 to-transparent dark:from-primary-900/20 rounded-full blur-3xl -z-10" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-secondary-100/50 to-transparent dark:from-secondary-900/20 rounded-full blur-3xl -z-10" />
         
         {todosLosCriteriosCumplidos && (
             <div className="absolute inset-0 pointer-events-none">
@@ -117,12 +117,12 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
           />
           <div className="flex-1 text-center sm:text-left">
             <div className="flex items-center gap-3 mb-4 justify-center sm:justify-start">
-              <h3 className="text-3xl font-black text-gray-900 dark:text-gray-50 tracking-tight">
+              <h3 className="text-3xl font-extrabold text-gray-900 dark:text-gray-50 tracking-tight">
                 Horas Totales
               </h3>
             </div>
             
-            <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed mb-4">
+            <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed font-medium mb-4">
               Has completado {todosLosCriteriosCumplidos ? 'exitosamente' : 'un total de'} <strong className="font-black text-primary-600 dark:text-primary-400 text-xl">{Math.round(criterios.horasTotales)}</strong> de <strong className="font-black text-gray-800 dark:text-gray-100 text-xl">{HORAS_OBJETIVO_TOTAL}</strong> horas requeridas.
             </p>
             
@@ -133,7 +133,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
         </div>
 
         {/* Criterios Secundarios */}
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6 border-t-2 lg:border-t-0 lg:border-l-2 border-gray-200/60 dark:border-gray-700/60 pt-8 lg:pt-0 lg:pl-8 z-10">
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6 border-t-2 lg:border-t-0 lg:border-l-2 border-gray-200/60 dark:border-white/10 pt-8 lg:pt-0 lg:pl-8 z-10">
           <RotationTracker
             count={criterios.orientacionesCursadasCount}
             orientacionesUnicas={criterios.orientacionesUnicas}

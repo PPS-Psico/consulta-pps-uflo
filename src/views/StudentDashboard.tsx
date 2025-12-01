@@ -244,16 +244,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
   const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
-  
-  const solicitudesContent = useMemo(() => (
-    <SolicitudesList 
-        solicitudes={solicitudes} 
-        onCreateSolicitud={handleCreateSolicitud} 
-        onRequestFinalization={handleOpenFinalization}
-        criterios={criterios} 
-    />
-  ), [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios]);
-  
+  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization]);
   const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
   const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
 
@@ -306,8 +297,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           <div className="space-y-8 animate-fade-in-up">
             <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={false} />
             <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
-            <Card className="border-slate-300/50 bg-slate-50/30">
-              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontró información de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
+            <Card className="border-slate-300/50 bg-slate-50/30 dark:bg-slate-800/30 dark:border-slate-700">
+              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontraron registros de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
             </Card>
           </div>
           <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
@@ -375,19 +366,19 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
                          <button 
                             onClick={handleCreateSolicitud}
-                            className="p-6 rounded-xl border border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center text-center group"
+                            className="p-6 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all flex flex-col items-center text-center group"
                          >
-                             <span className="material-icons !text-4xl text-slate-400 group-hover:text-blue-600 mb-3">add_business</span>
-                             <h4 className="font-bold text-slate-700 group-hover:text-blue-700">Solicitar Nueva PPS</h4>
-                             <p className="text-sm text-slate-500 mt-1">Autogestión de práctica</p>
+                             <span className="material-icons !text-4xl text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 mb-3">add_business</span>
+                             <h4 className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-700 dark:group-hover:text-blue-400">Solicitar Nueva PPS</h4>
+                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Autogestión de práctica</p>
                          </button>
                          <button 
                             onClick={handleOpenFinalization}
-                            className="p-6 rounded-xl border border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center text-center group"
+                            className="p-6 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all flex flex-col items-center text-center group"
                          >
-                             <span className="material-icons !text-4xl text-slate-400 group-hover:text-emerald-600 mb-3">school</span>
-                             <h4 className="font-bold text-slate-700 group-hover:text-emerald-700">Solicitar Acreditación</h4>
-                             <p className="text-sm text-slate-500 mt-1">Finalización de carrera</p>
+                             <span className="material-icons !text-4xl text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 mb-3">school</span>
+                             <h4 className="font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">Solicitar Acreditación</h4>
+                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Finalización de carrera</p>
                          </button>
                    </div>
                 </Card>

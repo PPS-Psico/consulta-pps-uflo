@@ -390,22 +390,22 @@ const CorreccionPanel: React.FC<CorreccionPanelProps> = ({ isTestingMode = false
     <div className="animate-fade-in-up space-y-6">
         {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
         
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-slate-50/70 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-700">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-slate-50/70 dark:bg-gray-900 rounded-xl border border-slate-200/60 dark:border-slate-800">
             <div className="relative w-full sm:w-72">
-                <input type="search" placeholder="Buscar por alumno o PPS..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors" />
+                <input type="search" placeholder="Buscar por alumno o PPS..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors" />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 dark:text-slate-500 !text-lg pointer-events-none">search</span>
             </div>
-            <div className="flex items-center gap-2 p-1 bg-slate-200 dark:bg-slate-700 rounded-lg">
-                <button onClick={() => setViewMode('byPps')} className={`px-3 py-1.5 text-sm font-semibold rounded-md flex items-center gap-2 ${viewMode === 'byPps' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-800 dark:text-slate-50' : 'text-slate-600 dark:text-slate-300'}`}>
+            <div className="flex items-center gap-2 p-1 bg-slate-200 dark:bg-slate-800 rounded-lg">
+                <button onClick={() => setViewMode('byPps')} className={`px-3 py-1.5 text-sm font-semibold rounded-md flex items-center gap-2 ${viewMode === 'byPps' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-800 dark:text-slate-50' : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                     <span className="material-icons !text-base">view_agenda</span> Agrupado
                 </button>
-                <button onClick={() => setViewMode('flatList')} className={`px-3 py-1.5 text-sm font-semibold rounded-md flex items-center gap-2 ${viewMode === 'flatList' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-800 dark:text-slate-50' : 'text-slate-600 dark:text-slate-300'}`}>
+                <button onClick={() => setViewMode('flatList')} className={`px-3 py-1.5 text-sm font-semibold rounded-md flex items-center gap-2 ${viewMode === 'flatList' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-800 dark:text-slate-50' : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                     <span className="material-icons !text-base">view_list</span> Lista Rápida
                 </button>
             </div>
             {isJefeMode && (
                 <div className="relative w-full sm:w-64">
-                    <select value={activeManager} onChange={e => setActiveManager(e.target.value as Manager)} className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors appearance-none">
+                    <select value={activeManager} onChange={e => setActiveManager(e.target.value as Manager)} className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors appearance-none">
                         {Object.entries(managerConfig).map(([key, { label }]) => <option key={key} value={key}>{label}</option>)}
                     </select>
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 dark:text-slate-500 !text-lg pointer-events-none">supervisor_account</span>

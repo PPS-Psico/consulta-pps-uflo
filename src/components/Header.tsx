@@ -29,7 +29,7 @@ const AppHeader: React.FC = () => {
   }, []);
 
   return (
-    <header className={`no-print sticky top-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-xl transition-all duration-300 ${hasScrolled ? 'border-b border-slate-200/70 dark:border-slate-800 shadow-sm' : 'border-b border-transparent'}`}>
+    <header className={`no-print sticky top-0 z-50 bg-white/80 dark:bg-gray-950/70 backdrop-blur-xl transition-all duration-300 ${hasScrolled ? 'border-b border-slate-200/70 dark:border-white/10 shadow-sm' : 'border-b border-transparent'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
             {/* Left side */}
@@ -66,7 +66,7 @@ const AppHeader: React.FC = () => {
               {isLoggedIn && (
                   <button
                     onClick={logout}
-                    className="bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/50 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-semibold p-2.5 rounded-full transition-all duration-200 shadow-sm border border-slate-200/80 dark:border-slate-700 flex items-center justify-center"
+                    className="bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/50 text-slate-50 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-semibold p-2.5 rounded-full transition-all duration-200 shadow-sm border border-slate-200/80 dark:border-slate-700 flex items-center justify-center"
                     aria-label="Cerrar sesión"
                   >
                     <span className="material-icons !text-xl sm:!text-2xl">logout</span>

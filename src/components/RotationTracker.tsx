@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ROTACION_OBJETIVO_ORIENTACIONES } from '../constants';
 
@@ -9,50 +10,57 @@ interface RotationTrackerProps {
 const RotationTracker: React.FC<RotationTrackerProps> = ({ count, orientacionesUnicas }) => {
   const total = ROTACION_OBJETIVO_ORIENTACIONES;
   const isComplete = count >= total;
+  
   const activeColor = isComplete ? 'bg-emerald-500' : 'bg-blue-600';
-  const activeTextColor = isComplete ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400';
+  const iconColorClass = isComplete
+    ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+    : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400';
 
   return (
-    <div className="w-full p-5 bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-lg ${isComplete ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
-                <span className={`material-icons !text-lg ${activeTextColor}`}>autorenew</span>
+    <div className="w-full p-5 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm transition-all hover:shadow-md">
+      
+      {/* Header Unificado */}
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex gap-3">
+            <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${iconColorClass}`}>
+                <span className="material-icons !text-xl">autorenew</span>
             </div>
-            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">
-            Rotación
-            </h4>
+            <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Diversidad</p>
+                <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
+                    Rotación de Áreas
+                </h3>
+            </div>
         </div>
-        <div className="flex items-center gap-1 text-sm font-bold">
-          <span className={`text-xl ${activeTextColor}`}>{count}</span>
-          <span className="text-slate-400 dark:text-slate-500">/ {total}</span>
+        <div className="text-right">
+          <span className={`text-2xl font-black tracking-tight ${isComplete ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-white'}`}>
+            {count}
+          </span>
+          <span className="text-xs font-bold text-slate-400 ml-1">/ {total}</span>
         </div>
       </div>
       
       {/* Progress Bars Segmented */}
-      <div className="flex gap-2 h-2.5">
+      <div className="flex gap-2 h-2.5 mb-4">
         {[...Array(total)].map((_, i) => (
-          <div key={i} className="flex-1 bg-white dark:bg-slate-700 rounded-full overflow-hidden border border-slate-200 dark:border-slate-600">
+          <div key={i} className="flex-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
             <div 
-              className={`h-full rounded-full transition-all duration-500 ${i < count ? activeColor : 'opacity-0'}`}
+              className={`h-full rounded-full transition-all duration-500 ease-out ${i < count ? activeColor : 'opacity-0'}`}
               style={{ width: '100%' }}
             />
           </div>
         ))}
       </div>
 
-      <div className="mt-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Áreas Cursadas</p>
+      <div className="flex flex-wrap gap-2">
           {orientacionesUnicas.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                  {orientacionesUnicas.map(o => (
-                      <span key={o} className="text-xs font-medium px-2.5 py-1 rounded-md bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 shadow-sm">
-                          {o}
-                      </span>
-                  ))}
-              </div>
+              orientacionesUnicas.map(o => (
+                  <span key={o} className="text-[10px] uppercase font-bold px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                      {o}
+                  </span>
+              ))
           ) : (
-              <p className="text-xs text-slate-400 italic">Aún no has rotado por ninguna área.</p>
+              <p className="text-xs text-slate-400 italic pl-1">Sin rotaciones iniciadas.</p>
           )}
       </div>
     </div>

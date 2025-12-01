@@ -35,37 +35,47 @@ const SolicitudCard: React.FC<SolicitudCardProps> = ({ solicitud }) => {
   const visuals = getStatusVisuals(status);
 
   return (
-    <div className="group bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg shadow-slate-200/40 dark:shadow-black/20 border border-slate-200/60 dark:border-slate-700/80 flex items-center gap-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-      <div className={visuals.iconContainerClass}>
-        <span className="material-icons !text-3xl">{visuals.icon}</span>
-      </div>
-      
-      <div className="flex-grow flex flex-col sm:flex-row justify-between sm:items-center min-w-0 gap-4">
+    <article className="group bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 overflow-hidden relative">
+        {/* Accent Border */}
+        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${visuals.accentBg}`}></div>
+        
+        <div className="p-5 pl-6 flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between">
+            
+            {/* Left Side: Info */}
+            <div className="flex-grow min-w-0 space-y-2">
+                 <div className="flex items-center gap-2 mb-1">
+                    <span className={`${visuals.labelClass} shadow-sm border border-transparent`}>
+                         <span className="material-icons !text-sm mr-1">{visuals.icon}</span>
+                         {status || 'Pendiente'}
+                    </span>
+                </div>
+                
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-tight tracking-tight truncate" title={institucion}>
+                    {institucion || 'Institución no especificada'}
+                </h3>
 
-        <div className="flex-grow min-w-0">
-          <p className="text-slate-900 dark:text-slate-50 font-bold text-lg leading-tight break-words">
-            {institucion || 'Institución no especificada'}
-          </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    <div className="flex items-center gap-1">
+                         <span className="material-icons !text-base opacity-70">calendar_today</span>
+                         <span>Actualizado: {formatDate(actualizacion)}</span>
+                    </div>
+                </div>
 
-          {notas && (
-            <p className="text-slate-600 dark:text-slate-400 text-sm leading-snug whitespace-normal mt-1 max-w-prose">
-              {notas}
-            </p>
-          )}
-          
-          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mt-2">
-            Actualizado: {formatDate(actualizacion)}
-          </p>
+                {notas && (
+                    <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700/50 text-sm text-slate-600 dark:text-slate-300 leading-relaxed italic">
+                        "{notas}"
+                    </div>
+                )}
+            </div>
+
+             {/* Right Side: Icon Graphic */}
+            <div className="hidden sm:flex flex-shrink-0 items-center justify-center pl-4 border-l border-slate-100 dark:border-slate-800">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors duration-300 ${visuals.iconContainerClass.replace('mr-4', '')} bg-opacity-20 dark:bg-opacity-10`}>
+                     <span className={`material-icons !text-3xl ${visuals.accentBg.replace('bg-', 'text-')}`}>{visuals.icon}</span>
+                </div>
+            </div>
         </div>
-
-        <div className="flex-shrink-0 self-start sm:self-center">
-          <span className={`${visuals.labelClass} transition-transform group-hover:scale-105`}>
-            {status || 'Pendiente'}
-          </span>
-        </div>
-
-      </div>
-    </div>
+    </article>
   );
 };
 

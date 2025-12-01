@@ -24,9 +24,9 @@ const InfoItem: React.FC<{
     <div className="flex items-center gap-3 bg-white/60 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-lg hover:bg-white dark:hover:bg-slate-700/80 hover:border-blue-300/70 dark:hover:border-blue-500/70 transition-all duration-300 transform hover:-translate-y-0.5">
       <span className="material-icons text-blue-500 dark:text-blue-400 !text-2xl">{icon}</span>
       <div className="min-w-0">
-        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{label}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">{label}</p>
         <p
-          className="text-sm text-slate-900 dark:text-slate-100 font-semibold truncate"
+          className="text-sm text-slate-900 dark:text-slate-100 font-bold truncate"
           title={String(value)}
         >
           {value}
@@ -112,21 +112,19 @@ const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
       <div className="relative z-10">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div className="flex-grow">
-                <h1 className="text-4xl md:text-5xl font-black text-slate-800 dark:text-slate-50 tracking-tight">
+                <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
                   {greeting},{' '}
-                  <span className="text-blue-600 dark:text-blue-400">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
                       {studentName?.split(' ')[0] || 'Estudiante'}
-                  </span>
-                  .
+                  </span>.
                 </h1>
-                <p className="mt-2 text-md text-slate-600 dark:text-slate-300 max-w-2xl">
-                  Bienvenido a tu panel de mando. Aquí seguimos tu progreso y te acercamos nuevas
-                  oportunidades.
+                <p className="mt-3 text-lg font-medium text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
+                  Bienvenido a tu panel de mando. Aquí seguimos tu progreso y te acercamos nuevas oportunidades.
                 </p>
             </div>
         </div>
         {hasAnyInfo && (
-          <div className="mt-6 pt-6 border-t border-slate-200/80 dark:border-slate-700/60 animate-scale-in" style={{ animationDelay: '200ms' }}>
+          <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-700/60 animate-scale-in" style={{ animationDelay: '200ms' }}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {infoItems.map(({ key, ...itemProps }) => (
                 <InfoItem key={key} {...itemProps} />

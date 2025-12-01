@@ -1,9 +1,15 @@
-
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { getStudentLoginInfo, db } from '../lib/db';
+import { db } from '../lib/db';
 import { 
-    FIELD_DNI_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES, FIELD_ROLE_ESTUDIANTES
+    FIELD_DNI_ESTUDIANTES, 
+    FIELD_CORREO_ESTUDIANTES, 
+    FIELD_LEGAJO_ESTUDIANTES, 
+    FIELD_NOMBRE_ESTUDIANTES, 
+    FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, 
+    FIELD_USER_ID_ESTUDIANTES, 
+    FIELD_ROLE_ESTUDIANTES,
+    FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES
 } from '../constants';
 import type { EstudianteFields, AirtableRecord } from '../types';
 import type { AuthUser } from '../contexts/AuthContext';
@@ -89,27 +95,46 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             try {
                 if (!legajoTrimmed || !passwordTrimmed) throw new Error('Por favor, completa todos los campos.');
 
-                // 1. Buscamos si el alumno existe en la DB
-                const loginInfo = await getStudentLoginInfo(legajoTrimmed);
+                // 1. Buscamos datos del estudiante directamente para verificar estado
+                const { data: studentData, error: dbError } = await supabase
+                    .from('estudiantes')
+                    .select(`${FIELD_CORREO_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}, ${FIELD_USER_ID_ESTUDIANTES}`)
+                    .eq(FIELD_LEGAJO_ESTUDIANTES, legajoTrimmed)
+                    .maybeSingle();
 
-                if (!loginInfo || !loginInfo.email) {
-                     // Intento de fallback: Si no tiene Auth creado pero existe en la tabla
-                     throw new Error('No encontramos una cuenta activa. Si es tu primera vez, intenta fallar el login para activar, o contacta soporte.');
+                if (dbError || !studentData) {
+                     throw new Error('Legajo no encontrado o error de conexión.');
+                }
+
+                const email = studentData[FIELD_CORREO_ESTUDIANTES];
+                // Si es null, asumimos true (necesita cambio) para forzar migración la primera vez
+                const mustChangePassword = studentData[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES] !== false; 
+                const hasAuthUser = !!studentData[FIELD_USER_ID_ESTUDIANTES];
+
+                if (!email) {
+                     throw new Error('Tu legajo no tiene un correo asociado. Contacta a soporte.');
                 }
 
                 // 2. Intentamos login normal
                 const { error: signInError } = await (supabase.auth as any).signInWithPassword({
-                    email: loginInfo.email,
+                    email: email,
                     password: passwordTrimmed,
                 });
 
                 if (signInError) {
                     if (signInError.message.includes('Invalid login credentials')) {
-                        // 3. DETECCIÓN DE MIGRACIÓN
-                        // Usuario existe en datos pero falla login -> ofrecer activar cuenta
+                        
+                        // LÓGICA INTELIGENTE:
+                        // Si el usuario YA tiene usuario de Auth (hasAuthUser) Y ya cambió su contraseña (mustChangePassword === false),
+                        // entonces es simplemente que se olvidó la contraseña o la puso mal. NO mandarlo a validar identidad.
+                        if (hasAuthUser && !mustChangePassword) {
+                            throw new Error('Contraseña incorrecta.');
+                        }
+
+                        // Si no, asumimos que es un usuario legacy o que necesita migrar/activar
                         setMode('migration');
                         setMigrationStep(1); // Asegurar paso 1
-                        setError('Credenciales inválidas o cuenta no activada. Por favor valida tu identidad.');
+                        setError('Por mejoras de seguridad, es necesario que valides tu identidad y configures una nueva contraseña.');
                     } else {
                         throw signInError;
                     }
@@ -117,9 +142,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                 
             } catch (err: any) {
                 console.error("Login error:", err);
-                if (err.message.includes('No encontramos una cuenta')) {
-                     // Opcional: Auto-switch a migración si queremos ser proactivos
-                }
                 setError(err.message || 'Error al iniciar sesión.');
             } finally {
                 setIsLoading(false);
@@ -177,6 +199,9 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     const inputEmail = verificationData.correo.trim().toLowerCase();
 
                     // Crear Usuario en Supabase (Sign Up)
+                    // Si el usuario ya existe en Auth (pero no estaba vinculado o fallaba), esto podría dar error,
+                    // pero en ese caso solemos usar updateUser si estuviéramos logueados. 
+                    // Como estamos "fuera", asumimos SignUp. Si dice "already registered", intentamos un "recovery" implícito o instruimos al usuario.
                     const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
                         email: inputEmail,
                         password: password,
@@ -189,30 +214,41 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     });
 
                     if (signUpError) {
+                        // Si ya existe, significa que el Auth User está creado.
+                        // Podríamos intentar un 'update' si tuviéramos privilegios, pero no los tenemos anonimamente.
+                        // Lo correcto aquí es decirle al usuario que el usuario ya existe.
+                        // PERO, dado que estamos en el flujo de "Validación de Identidad Exitosa",
+                        // significa que el usuario probó que ES él.
+                        // Podríamos forzar un "Password Reset" trigger aquí si tuviéramos la API, 
+                        // pero por ahora manejamos el error.
                         if (signUpError.message.includes('already registered')) {
+                             // Edge case: Admin user might exist.
                              if (legajoTrimmed === 'admin') {
                                  throw new Error("El usuario ya existe. Intenta iniciar sesión directamente.");
                              }
-                            throw new Error("Este usuario ya está registrado. Si olvidaste tu contraseña, contacta soporte.");
+                            throw new Error("Este usuario ya está registrado en el sistema de autenticación. Contacta a soporte para un blanqueo de clave.");
                         }
                         throw signUpError;
                     }
 
                     if (authData.user) {
                         // Vincular el nuevo ID de usuario a la tabla de estudiantes
+                        // Y MARCAR QUE YA CAMBIÓ LA CONTRASEÑA (must_change_password = false)
                         await db.estudiantes.update(foundStudent.id, {
                             [FIELD_USER_ID_ESTUDIANTES]: authData.user.id,
+                            [FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES]: false, // Importante: Ya la definió aquí
                             // Actualizar rol si es admin
                             ...(legajoTrimmed === 'admin' ? { [FIELD_ROLE_ESTUDIANTES]: 'SuperUser' } : {})
                         } as any);
 
-                        // Iniciar sesión
+                        // Iniciar sesión automáticamente
                         login({
                             id: authData.user.id,
                             legajo: String(foundStudent[FIELD_LEGAJO_ESTUDIANTES]),
                             nombre: String(foundStudent[FIELD_NOMBRE_ESTUDIANTES]),
                             orientaciones: foundStudent[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [String(foundStudent[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES])] : [],
-                            role: legajoTrimmed === 'admin' ? 'SuperUser' : undefined
+                            role: legajoTrimmed === 'admin' ? 'SuperUser' : undefined,
+                            mustChangePassword: false
                         });
                     }
                 }
