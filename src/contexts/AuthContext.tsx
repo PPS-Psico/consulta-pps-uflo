@@ -39,143 +39,132 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const queryClient = useQueryClient();
+  
+  // Refs to track state without triggering re-renders
   const refreshLoopCounter = useRef(0);
+  const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const logout = useCallback(async () => {
     try {
-        console.log("🧹 Performing aggressive logout cleanup...");
-        // 1. Clean React Query state
+        console.log("🧹 Logging out...");
+        
+        // 1. Cancel React Query fetching
         queryClient.cancelQueries();
-        queryClient.removeQueries();
         queryClient.clear();
         
-        // 2. Sign out from Supabase
-        await (supabase.auth as any).signOut();
-        
-        // 3. Clear local state
+        // 2. Clear local state first to update UI immediately
         setAuthenticatedUser(null);
         
-        // 4. Aggressively clear all local storage to prevent stuck sessions
-        // This fixes the "works in incognito but not normal" issue
-        localStorage.clear();
-        sessionStorage.clear();
+        // 3. Sign out from Supabase
+        const { error } = await (supabase.auth as any).signOut();
+        if (error) console.error("Supabase signOut error:", error.message);
+
+        // 4. Clear storage explicitly if needed (optional, Supabase handles its own keys)
+        localStorage.removeItem('sb-qxnxtnhtbpsgzprqtrjl-auth-token'); 
         
     } catch (error) {
-        console.error("Error signing out:", error);
+        console.error("Error during forced logout:", error);
         setAuthenticatedUser(null);
-        localStorage.clear();
-        sessionStorage.clear();
     }
   }, [queryClient]);
 
   useEffect(() => {
     let isMounted = true;
 
-    // Safety Timeout: Force app to load (or logout) if Supabase hangs
-    const safetyTimeout = setTimeout(() => {
-        if (isMounted && isAuthLoading) {
-            console.warn("⚠️ Auth check timed out - forcing reset.");
-            // If we timed out and have no user, force a cleanup to ensure login screen works
-            if (!authenticatedUser) {
-                 logout().then(() => {
-                     if(isMounted) setIsAuthLoading(false);
-                 });
-            } else {
-                 if(isMounted) setIsAuthLoading(false);
-            }
-        }
-    }, 5000);
+    // Clear any existing timeout
+    if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
 
-    const initSession = async () => {
+    // Safety Timeout: If nothing happens in 8 seconds, stop loading.
+    // We do NOT force logout here automatically to avoid loops. We just stop the spinner.
+    safetyTimeoutRef.current = setTimeout(() => {
+        if (isMounted && isAuthLoading) {
+            console.warn("⚠️ Auth check timed out. Stopping spinner.");
+            setIsAuthLoading(false);
+        }
+    }, 8000);
+
+    const processSession = async (session: any) => {
+        // If no session, clear user and stop loading
+        if (!session?.user) {
+            if (isMounted) {
+                setAuthenticatedUser(null);
+                setIsAuthLoading(false);
+            }
+            return;
+        }
+
         try {
-            const { data, error } = await supabase.auth.getSession();
-            if (error) {
-                console.warn("Initial Session Error - Clearing state:", error.message);
-                await logout();
-                if (isMounted) setIsAuthLoading(false);
-                return;
+            // Fetch profile from DB
+            const { data: profile, error } = await supabase
+                .from('estudiantes')
+                .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}, ${FIELD_ROLE_ESTUDIANTES}`)
+                .eq(FIELD_USER_ID_ESTUDIANTES, session.user.id) 
+                .maybeSingle();
+
+            if (isMounted) {
+                if (profile && !error) {
+                    const dbRole = profile[FIELD_ROLE_ESTUDIANTES] as AuthUser['role'] | undefined;
+                    
+                    setAuthenticatedUser({
+                        id: session.user.id,
+                        legajo: profile[FIELD_LEGAJO_ESTUDIANTES],
+                        nombre: profile[FIELD_NOMBRE_ESTUDIANTES],
+                        orientaciones: profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
+                        mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES],
+                        role: dbRole
+                    });
+                } else {
+                    // Orphaned session (User exists in Auth but not in DB)
+                    // Check if it's a special admin account or really an error
+                    console.warn("Profile not found for authenticated user.");
+                    await logout();
+                }
             }
-            if (!data.session) {
-                 if (isMounted) {
-                     setAuthenticatedUser(null);
-                     setIsAuthLoading(false);
-                 }
-            }
-        } catch (e) {
-            console.error("Unexpected error during session check:", e);
+        } catch (err) {
+            console.error("Profile fetch error:", err);
+            if (isMounted) setAuthenticatedUser(null);
+        } finally {
             if (isMounted) setIsAuthLoading(false);
         }
     };
 
-    initSession();
+    // Initialize: Get current session
+    supabase.auth.getSession().then(({ data, error }) => {
+        if (error) {
+            console.error("GetSession Error:", error.message);
+            if (isMounted) setIsAuthLoading(false);
+            // If invalid refresh token, Supabase usually triggers SIGNED_OUT event next
+        } else {
+            processSession(data.session);
+        }
+    });
 
+    // Listen for changes
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(
       async (event: string, session: any) => {
         console.log(`AUTH EVENT: ${event}`);
-        
+
+        // Clear safety timeout on any event, as we are communicating
+        if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
+
         if (event === 'TOKEN_REFRESHED') {
             refreshLoopCounter.current += 1;
-            if (refreshLoopCounter.current > 3) {
+            if (refreshLoopCounter.current > 5) {
                 console.error("🔄 Refresh loop detected. Forcing logout.");
+                refreshLoopCounter.current = 0;
                 await logout();
                 if (isMounted) setIsAuthLoading(false);
                 return;
             }
         } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
             refreshLoopCounter.current = 0;
-        }
-        
-        // Bypass blocking for password reset flow
-        const isResetting = sessionStorage.getItem('__password_reset_in_progress');
-        if (isResetting) {
-            sessionStorage.removeItem('__password_reset_in_progress');
-            if (isMounted) setIsAuthLoading(false);
-            clearTimeout(safetyTimeout);
-            return;
-        }
-        
-        if (event === 'SIGNED_OUT' || !session) {
+            processSession(session);
+        } else if (event === 'SIGNED_OUT') {
+            refreshLoopCounter.current = 0;
             if (isMounted) {
                 setAuthenticatedUser(null);
                 setIsAuthLoading(false);
-                queryClient.clear(); 
-            }
-            clearTimeout(safetyTimeout);
-            return;
-        }
-
-        if (session?.user) {
-            try {
-                // Fetch profile
-                const { data: profile, error } = await supabase
-                    .from('estudiantes')
-                    .select(`${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}, ${FIELD_ROLE_ESTUDIANTES}`)
-                    .eq(FIELD_USER_ID_ESTUDIANTES, session.user.id) 
-                    .maybeSingle();
-
-                if (isMounted) {
-                    if (profile && !error) {
-                        const dbRole = profile[FIELD_ROLE_ESTUDIANTES] as AuthUser['role'] | undefined;
-
-                        setAuthenticatedUser({
-                            id: session.user.id,
-                            legajo: profile[FIELD_LEGAJO_ESTUDIANTES],
-                            nombre: profile[FIELD_NOMBRE_ESTUDIANTES],
-                            orientaciones: profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
-                            mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES],
-                            role: dbRole
-                        });
-                    } else {
-                        console.warn("Sesión huérfana detectada (Usuario autenticado pero sin perfil en 'estudiantes').");
-                        await logout(); 
-                    }
-                }
-            } catch (error) {
-                console.error("Critical error in onAuthStateChange:", error);
-                if (isMounted) setAuthenticatedUser(null);
-            } finally {
-                if (isMounted) setIsAuthLoading(false);
-                clearTimeout(safetyTimeout);
+                queryClient.clear();
             }
         }
       }
@@ -183,7 +172,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return () => {
         isMounted = false;
-        clearTimeout(safetyTimeout);
+        if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
         subscription.unsubscribe();
     };
   }, [queryClient, logout]);
