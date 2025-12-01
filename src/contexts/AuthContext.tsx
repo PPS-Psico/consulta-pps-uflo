@@ -22,7 +22,6 @@ interface AuthContextType {
   authenticatedUser: AuthUser | null;
   isSuperUserMode: boolean;
   isJefeMode: boolean;
-
   isDirectivoMode: boolean;
   isAdminTesterMode: boolean;
   isReporteroMode: boolean;
@@ -39,17 +38,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
+    // Safety Timeout: Force app to load if Supabase hangs for more than 5 seconds
+    const safetyTimeout = setTimeout(() => {
+        if (isMounted && isAuthLoading) {
+            console.warn("Auth check timed out - forcing app load state.");
+            setIsAuthLoading(false);
+        }
+    }, 5000);
+
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(
       async (event: string, session: any) => {
         console.log(`AUTH EVENT: ${event}`);
         
+        // Si estamos reseteando pass, no bloqueamos
         const isResetting = sessionStorage.getItem('__password_reset_in_progress');
         if (isResetting) {
             sessionStorage.removeItem('__password_reset_in_progress');
-            setIsAuthLoading(false);
+            if (isMounted) setIsAuthLoading(false);
+            clearTimeout(safetyTimeout);
             return;
         }
         
+        if (event === 'SIGNED_OUT' || !session) {
+            if (isMounted) {
+                setAuthenticatedUser(null);
+                setIsAuthLoading(false);
+            }
+            clearTimeout(safetyTimeout);
+            return;
+        }
+
+        // Si hay sesión, buscamos el perfil
         try {
             if (session?.user) {
                 const { data: profile, error } = await supabase
@@ -58,53 +79,55 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     .eq(FIELD_USER_ID_ESTUDIANTES, session.user.id) 
                     .maybeSingle();
 
-                if (profile && !error) {
-                    const dbRole = profile[FIELD_ROLE_ESTUDIANTES] as AuthUser['role'] | undefined;
+                if (isMounted) {
+                    if (profile && !error) {
+                        const dbRole = profile[FIELD_ROLE_ESTUDIANTES] as AuthUser['role'] | undefined;
 
-                    setAuthenticatedUser({
-                        id: session.user.id,
-                        legajo: profile[FIELD_LEGAJO_ESTUDIANTES],
-                        nombre: profile[FIELD_NOMBRE_ESTUDIANTES],
-                        orientaciones: profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
-                        mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES],
-                        role: dbRole
-                    });
-                } else {
-                    console.warn("Sesión huérfana detectada (Auth existe, DB no). Limpiando...");
-                    // CRÍTICO: Si existe sesión de Auth pero no perfil, forzamos logout.
-                    // Esto limpia el localStorage corrupto/viejo del navegador.
-                    await supabase.auth.signOut();
-                    setAuthenticatedUser(null);
+                        setAuthenticatedUser({
+                            id: session.user.id,
+                            legajo: profile[FIELD_LEGAJO_ESTUDIANTES],
+                            nombre: profile[FIELD_NOMBRE_ESTUDIANTES],
+                            orientaciones: profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] ? [profile[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]] : [],
+                            mustChangePassword: profile[FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES],
+                            role: dbRole
+                        });
+                    } else {
+                        console.warn("Sesión huérfana detectada. Limpiando estado local.");
+                        // IMPORTANTE: No llamar a signOut() aquí directamente para evitar bucles.
+                        // Simplemente ponemos el usuario en null y dejamos que la sesión muera o el usuario intente de nuevo.
+                        setAuthenticatedUser(null);
+                    }
                 }
-            } else {
-                setAuthenticatedUser(null);
             }
         } catch (error) {
             console.error("Critical error in onAuthStateChange:", error);
-            setAuthenticatedUser(null);
+            if (isMounted) setAuthenticatedUser(null);
         } finally {
-            setIsAuthLoading(false);
+            if (isMounted) setIsAuthLoading(false);
+            clearTimeout(safetyTimeout);
         }
       }
     );
 
     return () => {
+        isMounted = false;
+        clearTimeout(safetyTimeout);
         subscription.unsubscribe();
     };
   }, []);
 
   const login = useCallback((user: AuthUser) => {
     setAuthenticatedUser(user);
+    setIsAuthLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
-    setIsAuthLoading(true);
-    const { error } = await (supabase.auth as any).signOut();
-    if (error) {
-        console.error("Error during sign out:", error.message);
-        setIsAuthLoading(false);
+    try {
+        await (supabase.auth as any).signOut();
+        setAuthenticatedUser(null);
+    } catch (error) {
+        console.error("Error signing out:", error);
     }
-    // El listener onAuthStateChange manejará el estado null y loading false
   }, []);
 
   const completePasswordChange = useCallback(() => {
