@@ -61,14 +61,34 @@ const Auth: React.FC = () => {
         <div className="animate-fade-in-up" style={{ animationDelay: '700ms' }}>
           <label htmlFor="legajo" className="sr-only">Número de Legajo</label>
           <div className="relative">
-            <Input id="legajo" type="text" value={legajo} onChange={(e) => setLegajo(e.target.value)} placeholder="Número de Legajo" icon="badge" disabled={isLoading} autoComplete="username"/>
+            <Input 
+                id="legajo" 
+                type="text" 
+                value={legajo} 
+                onChange={(e) => setLegajo(e.target.value)} 
+                placeholder="Número de Legajo" 
+                icon="badge" 
+                disabled={isLoading} 
+                autoComplete="username"
+                className="bg-white dark:bg-slate-900"
+            />
           </div>
         </div>
 
         <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
           <div className="relative">
             <label htmlFor="password" className="sr-only">Contraseña</label>
-            <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" icon="lock" disabled={isLoading} autoComplete="current-password"/>
+            <Input 
+                id="password" 
+                type={showPassword ? 'text' : 'password'} 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                placeholder="Contraseña" 
+                icon="lock" 
+                disabled={isLoading} 
+                autoComplete="current-password"
+                className="bg-white dark:bg-slate-900"
+            />
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
               <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
             </button>
@@ -125,6 +145,7 @@ const Auth: React.FC = () => {
                       inputMode="numeric" 
                       pattern="[0-9]*"
                       autoFocus
+                      className="bg-white dark:bg-slate-900"
                   />
                   <Input 
                       name="correo" 
@@ -134,6 +155,7 @@ const Auth: React.FC = () => {
                       value={verificationData.correo} 
                       onChange={handleVerificationDataChange} 
                       disabled={isLoading} 
+                      className="bg-white dark:bg-slate-900"
                   />
               </div>
           )}
@@ -150,7 +172,7 @@ const Auth: React.FC = () => {
                         placeholder="Contraseña (Mínimo 6 caracteres)" 
                         icon="lock" 
                         disabled={isLoading}
-                        className={password.length > 0 && password.length < 6 ? "border-red-500 focus:border-red-500" : ""}
+                        className={`bg-white dark:bg-slate-900 ${password.length > 0 && password.length < 6 ? "border-red-500 focus:border-red-500" : ""}`}
                         autoFocus
                     />
                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>

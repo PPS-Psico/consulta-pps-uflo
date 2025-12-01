@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
@@ -72,10 +70,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         role: dbRole
                     });
                 } else {
-                    console.warn("Auth session found but no matching student profile. Treating as logged out.", error?.message);
+                    console.warn("Sesión huérfana detectada (Auth existe, DB no). Limpiando...");
+                    // CRÍTICO: Si existe sesión de Auth pero no perfil, forzamos logout.
+                    // Esto limpia el localStorage corrupto/viejo del navegador.
+                    await supabase.auth.signOut();
                     setAuthenticatedUser(null);
-                    // Do NOT call signOut() here to prevent potential loops. 
-                    // The invalid session will be overwritten on next successful login.
                 }
             } else {
                 setAuthenticatedUser(null);
@@ -103,11 +102,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { error } = await (supabase.auth as any).signOut();
     if (error) {
         console.error("Error during sign out:", error.message);
-        // If signOut fails, we must stop the loading indicator ourselves,
-        // as the onAuthStateChange listener may not fire.
         setIsAuthLoading(false);
     }
-    // If signOut succeeds, the onAuthStateChange listener will handle setting user to null and loading to false.
+    // El listener onAuthStateChange manejará el estado null y loading false
   }, []);
 
   const completePasswordChange = useCallback(() => {
