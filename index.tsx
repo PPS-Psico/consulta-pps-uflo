@@ -1,5 +1,6 @@
+
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from './src/App';
 import { AuthProvider } from './src/contexts/AuthContext';
 // @ts-ignore
@@ -14,7 +15,7 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
+const root = createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
