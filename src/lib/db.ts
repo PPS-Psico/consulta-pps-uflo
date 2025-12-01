@@ -53,7 +53,7 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             return records;
         },
 
-        // New method for Server-Side Pagination
+        // New method for Server-Side Pagination with Filters
         getPage: async (
             page: number, 
             pageSize: number, 

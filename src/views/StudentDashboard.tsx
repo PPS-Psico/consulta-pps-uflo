@@ -8,7 +8,6 @@ import Tabs from '../components/Tabs';
 import Card from '../components/Card';
 import WelcomeBanner from '../components/WelcomeBanner';
 import InformesList from '../components/InformesList';
-// WhatsAppExportButton removed
 import { useAuth } from '../contexts/AuthContext';
 import type { AuthUser } from '../contexts/AuthContext';
 import type { TabId, Orientacion, SolicitudPPSFields } from '../types';

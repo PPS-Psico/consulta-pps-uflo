@@ -68,7 +68,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (isMounted) {
                 setAuthenticatedUser(null);
                 setIsAuthLoading(false);
-                // Limpiar caché al detectar cierre de sesión externo
+                // CRÍTICO: Limpiar caché al detectar cierre de sesión externo o inicial
                 queryClient.clear(); 
             }
             clearTimeout(safetyTimeout);
@@ -128,7 +128,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = useCallback(async () => {
     try {
-        // 1. Limpiar estado global de React Query para evitar mezclar datos de usuarios
+        // 1. IMPORTANTE: Limpiar estado global de React Query para evitar mezclar datos de usuarios
+        // Esto soluciona el bug de que "no carga nada" al cambiar de cuenta.
         queryClient.removeQueries();
         queryClient.clear();
         
@@ -138,7 +139,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // 3. Limpiar estado local
         setAuthenticatedUser(null);
         
-        // 4. Limpiar storage local relevante (opcional pero recomendado)
+        // 4. Limpiar storage local relevante por seguridad
         localStorage.removeItem('sb-' + process.env.VITE_SUPABASE_URL?.split('//')[1].split('.')[0] + '-auth-token');
         
     } catch (error) {
