@@ -1,3 +1,4 @@
+
 {
   "name": "consulta-pps-uflo",
   "private": true,
@@ -12,7 +13,8 @@
     "test": "npx jest",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "generate-schema": "node ./scripts/generate-schema.mjs"
+    "generate-schema": "node ./scripts/generate-schema.mjs",
+    "prep-github": "node ./scripts/prepare-deploy.js"
   },
   "engines": {
     "node": ">=20.x"
