@@ -1,4 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import MiPanelLogo from './MiPanelLogo';
 import UfloLogo from './UfloLogo';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +14,11 @@ const AppHeader: React.FC = () => {
   const { canInstall, triggerInstall } = usePwaInstall();
   const isLoggedIn = !!authenticatedUser;
   const [hasScrolled, setHasScrolled] = useState(false);
+  const location = useLocation();
+
+  // Rutas que deben ocupar todo el ancho de la pantalla
+  const fullWidthRoutes = ['/admin', '/jefe', '/directivo', '/reportero', '/testing'];
+  const isFullWidth = fullWidthRoutes.some(route => location.pathname.startsWith(route));
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,8 +36,8 @@ const AppHeader: React.FC = () => {
   }, []);
 
   return (
-    <header className={`no-print sticky top-0 z-50 bg-white/80 dark:bg-gray-950/70 backdrop-blur-xl transition-all duration-300 ${hasScrolled ? 'border-b border-slate-200/70 dark:border-white/10 shadow-sm' : 'border-b border-transparent'}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className={`no-print sticky top-0 z-50 bg-white dark:bg-gray-950/80 backdrop-blur-xl transition-all duration-300 ${hasScrolled ? 'border-b border-slate-200/70 dark:border-white/10 shadow-sm' : 'border-b border-transparent'}`}>
+      <div className={`px-4 sm:px-6 lg:px-8 ${isFullWidth ? 'w-full' : 'max-w-7xl mx-auto'}`}>
         <div className="flex justify-between items-center h-20">
             {/* Left side */}
             <div className="flex-shrink-0">
@@ -53,7 +60,7 @@ const AppHeader: React.FC = () => {
               {canInstall && (
                  <button
                     onClick={triggerInstall}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2.5 rounded-full transition-all duration-200 shadow-md border border-blue-700 flex items-center justify-center group"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2.5 rounded-full transition-all duration-200 shadow-md border border-blue-700 flex items-center justify-center group animate-pulse"
                     aria-label="Instalar aplicación"
                     title="Instalar aplicación"
                   >

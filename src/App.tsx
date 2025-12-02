@@ -1,6 +1,6 @@
 
 import React, { lazy, Suspense, useState, useCallback, useMemo } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom';
 import Loader from './components/Loader';
 import Auth from './components/Auth';
 import Layout from './components/Layout';
@@ -51,7 +51,7 @@ const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const LanzadorView = lazy(() => import('./views/admin/LanzadorView'));
 const GestionView = lazy(() => import('./views/admin/GestionView'));
 const HerramientasView = lazy(() => import('./views/admin/HerramientasView'));
-const MetricsView = lazy(() => import('./views/admin/MetricsView')); // Added import
+const MetricsView = lazy(() => import('./views/admin/MetricsView')); // Imported
 const SolicitudesManager = lazy(() => import('./components/SolicitudesManager'));
 const JefeView = lazy(() => import('./views/JefeView'));
 const DirectivoView = lazy(() => import('./views/DirectivoView'));
@@ -231,6 +231,7 @@ const AdminStudentWrapper = () => {
 const AppRoutes = () => {
     const { authenticatedUser } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     
     return (
         <>
@@ -255,11 +256,11 @@ const AppRoutes = () => {
                 <Route path="/admin" element={<ProtectedRoute allowedRoles={['SuperUser']}><AdminView /></ProtectedRoute>}>
                     <Route index element={<Navigate to="dashboard" replace />} />
                     <Route path="dashboard" element={<AdminDashboard />} />
-                    <Route path="metrics" element={<MetricsView onStudentSelect={(s) => window.location.href = `#/admin/estudiantes/${s.legajo}`} />} />
+                    <Route path="metrics" element={<MetricsView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} />} />
                     <Route path="lanzador" element={<LanzadorView />} />
                     <Route path="gestion" element={<GestionView />} />
                     <Route path="solicitudes" element={<SolicitudesManager />} />
-                    <Route path="herramientas" element={<HerramientasView onStudentSelect={(s) => window.location.href = `#/admin/estudiantes/${s.legajo}`} />} />
+                    <Route path="herramientas" element={<HerramientasView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} />} />
                     <Route path="estudiantes/:legajo" element={<AdminStudentWrapper />} />
                 </Route>
 

@@ -244,7 +244,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
   const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
-  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization]);
+  
+  // Pass criterios here to fix the logic in SolicitudesList
+  const solicitudesContent = useMemo(() => <SolicitudesList 
+      solicitudes={solicitudes} 
+      onCreateSolicitud={handleCreateSolicitud} 
+      onRequestFinalization={handleOpenFinalization}
+      criterios={criterios}
+  />, [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios]);
+
   const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
   const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
 
@@ -297,19 +305,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           <div className="space-y-8 animate-fade-in-up">
             <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={false} />
             <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
-            <Card className="border-slate-300/50 bg-slate-50/30 dark:bg-slate-800/30 dark:border-slate-700">
+            <Card className="border-slate-300/50 bg-slate-50/30">
               <EmptyState icon="search_off" title="Sin Resultados" message="No se encontró información de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
             </Card>
           </div>
+          <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+           <button onClick={() => window.print()} className="fixed bottom-6 right-24 z-50 w-14 h-14 bg-slate-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ease-in-out transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-400" aria-label="Imprimir reporte">
+             <span className="material-icons !text-2xl">print</span>
+           </button>
         </div>
-        {showExportButton && (
-            <>
-             <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
-             <button onClick={() => window.print()} className="fixed bottom-6 right-24 z-50 w-14 h-14 bg-slate-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ease-in-out transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-400" aria-label="Imprimir reporte">
-                <span className="material-icons !text-2xl">print</span>
-             </button>
-            </>
-        )}
         {isFinalizationModalOpen && (
             <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
             <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">

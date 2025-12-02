@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,38 +11,45 @@
   --color-gray-800: 30, 41, 59;
   --color-gray-900: 15, 23, 42;
 
-  /* Vibrant Gradients */
+  /* Vibrant Gradients - Teal/Blue Harmony for a Professional Look */
   --gradient-progress-from: #60a5fa;   /* primary-400 */
-  --gradient-progress-to: #3b82f6;   /* primary-500 */
-  --gradient-complete-from: #10b981; /* success-500 */
-  --gradient-complete-to: #34d399;   /* success-400 */
+  --gradient-progress-to: #3b82f6;     /* primary-500 */
+  --gradient-complete-from: #2dd4bf;   /* teal-400 */
+  --gradient-complete-to: #0ea5e9;     /* sky-500 */
 }
 
 html.dark {
   color-scheme: dark;
-  --gradient-progress-from: #60a5fa; /* primary-400 */
-  --gradient-progress-to: #818cf8;   /* secondary-400 */
-  --gradient-complete-from: #34d399; /* success-400 */
-  --gradient-complete-to: #6ee7b7;   /* success-300 */
+  /* Dark mode variants */
+  --gradient-progress-from: #60a5fa;   /* primary-400 */
+  --gradient-progress-to: #818cf8;     /* secondary-400 */
+  --gradient-complete-from: #14b8a6;   /* teal-500 */
+  --gradient-complete-to: #06b6d4;     /* cyan-500 */
 }
 
 html {
   scroll-behavior: smooth;
+  background-color: #f8fafc; /* Ensure light background by default */
+}
+
+html.dark {
+  background-color: #020617;
 }
 
 body {
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: rgb(var(--color-gray-50));
-  color: rgb(var(--color-gray-800));
+  /* Explicitly set background and text color for Light Mode to prevent dark fallback */
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
 }
 
 html.dark body {
   background-color: #020617; /* slate-950 */
   background-image: radial-gradient(at 50% 0%, rgba(30, 58, 138, 0.15) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(15, 23, 42, 1) 0px, transparent 50%);
   background-attachment: fixed;
-  color: rgb(var(--color-gray-200));
+  color: #e2e8f0; /* slate-200 */
 }
 
 #root {
@@ -60,6 +68,30 @@ html.dark body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* Visibility Utilities for Print */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  /* Ensure modal overlays don't block print if open */
+  .fixed.inset-0 {
+    position: absolute !important;
+  }
 }
 
 /* Animations */
@@ -106,8 +138,8 @@ html.dark body {
 }
 
 @keyframes pulse-glow-success {
-  0%, 100% { box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.4); }
-  50% { box-shadow: 0 0 35px 8px rgba(16, 185, 129, 0.4); }
+  0%, 100% { box-shadow: 0 0 20px -3px rgba(45, 212, 191, 0.4); } /* teal-400 */
+  50% { box-shadow: 0 0 35px 8px rgba(14, 165, 233, 0.3); } /* sky-500 */
 }
 .animate-pulse-glow-success {
   animation: pulse-glow-success 2.5s infinite ease-in-out;
@@ -116,13 +148,13 @@ html.dark body {
   animation-name: pulse-glow-success-dark;
 }
 @keyframes pulse-glow-success-dark {
-  0%, 100% { box-shadow: 0 0 25px -3px rgba(52, 211, 153, 0.4); }
-  50% { box-shadow: 0 0 45px 8px rgba(52, 211, 153, 0.4); }
+  0%, 100% { box-shadow: 0 0 25px -3px rgba(20, 184, 166, 0.4); } /* teal-500 */
+  50% { box-shadow: 0 0 45px 8px rgba(6, 182, 212, 0.3); } /* cyan-500 */
 }
 
 @keyframes flash-success {
   0% { background-color: transparent; }
-  25% { background-color: rgba(240, 253, 244, 1); }
+  25% { background-color: rgba(204, 251, 241, 1); } /* teal-50 */
   100% { background-color: transparent; }
 }
 .animate-flash-success {
@@ -133,7 +165,7 @@ html.dark body {
 }
 @keyframes flash-success-dark {
   0% { background-color: transparent; }
-  25% { background-color: rgba(22, 163, 74, 0.2); }
+  25% { background-color: rgba(17, 94, 89, 0.3); } /* teal-900 */
   100% { background-color: transparent; }
 }
 

@@ -17,25 +17,27 @@ const ActionButton: React.FC<{
     title: string;
     description: string;
     onClick?: () => void;
-    // We use a colorScheme prop instead of raw class to handle dark mode variants better
-    colorScheme: 'blue' | 'emerald' | 'slate'; 
+    colorScheme: 'blue' | 'teal' | 'slate'; 
 }> = ({ icon, title, description, onClick, colorScheme }) => {
     
     const colors = {
         blue: {
-            containerHover: 'hover:border-blue-400 dark:hover:border-blue-500/50 hover:shadow-blue-500/10',
+            container: 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-blue-500/10',
             iconBg: 'bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
-            titleHover: 'group-hover:text-blue-700 dark:group-hover:text-blue-400',
+            title: 'text-slate-800 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400',
+            desc: 'text-slate-500 dark:text-slate-400'
         },
-        emerald: {
-             containerHover: 'hover:border-emerald-400 dark:hover:border-emerald-500/50 hover:shadow-emerald-500/10',
-             iconBg: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
-             titleHover: 'group-hover:text-emerald-700 dark:group-hover:text-emerald-400',
+        teal: {
+             container: 'bg-gradient-to-br from-teal-50 to-white dark:from-teal-900/20 dark:to-slate-900 border-teal-200 dark:border-teal-800 hover:border-teal-400 dark:hover:border-teal-500 hover:shadow-teal-500/20',
+             iconBg: 'bg-teal-100 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400',
+             title: 'text-teal-900 dark:text-teal-100 group-hover:text-teal-700 dark:group-hover:text-teal-300',
+             desc: 'text-teal-700/70 dark:text-teal-300/70'
         },
         slate: {
-             containerHover: 'hover:border-slate-400 dark:hover:border-slate-500/50',
+             container: 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500',
              iconBg: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
-             titleHover: 'group-hover:text-slate-700 dark:group-hover:text-slate-300',
+             title: 'text-slate-800 dark:text-slate-100 group-hover:text-slate-700 dark:group-hover:text-slate-300',
+             desc: 'text-slate-500 dark:text-slate-400'
         }
     };
 
@@ -45,16 +47,16 @@ const ActionButton: React.FC<{
         <button 
             type="button"
             onClick={onClick}
-            className={`flex-1 bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 flex items-center gap-5 hover:border-solid hover:shadow-lg transition-all duration-300 group text-left w-full hover:-translate-y-0.5 ${theme.containerHover}`}
+            className={`flex-1 border rounded-2xl p-5 flex items-center gap-5 hover:shadow-lg transition-all duration-300 group text-left w-full hover:-translate-y-0.5 ${theme.container}`}
         >
             <div className={`flex-shrink-0 p-3 rounded-xl transition-colors duration-300 group-hover:scale-110 ${theme.iconBg}`}>
                 <span className="material-icons !text-3xl">{icon}</span>
             </div>
             <div>
-                <h4 className={`font-bold text-slate-800 dark:text-slate-100 text-base transition-colors ${theme.titleHover}`}>
+                <h4 className={`font-bold text-base transition-colors ${theme.title}`}>
                     {title}
                 </h4>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                <p className={`text-sm mt-1 leading-snug ${theme.desc}`}>
                     {description}
                 </p>
             </div>
@@ -68,18 +70,24 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     onRequestFinalization,
     criterios
 }) => {
-  const [showWarning, setShowWarning] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [capturedState, setCapturedState] = useState<'ready' | 'incomplete'>('incomplete');
   
-  const isAccreditationReady = criterios ? (criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion) : false;
+  // Calculate readiness directly from criteria props
+  const isAccreditationReady = criterios 
+    ? criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion
+    : false;
 
   const handleAccreditationClick = () => {
     if (!onRequestFinalization) return;
-    
-    if (isAccreditationReady) {
-        onRequestFinalization();
-    } else {
-        setShowWarning(true);
-    }
+    // Capture the state at the moment of clicking to ensure modal content consistency
+    setCapturedState(isAccreditationReady ? 'ready' : 'incomplete');
+    setShowModal(true);
+  };
+
+  const handleConfirm = () => {
+      if (onRequestFinalization) onRequestFinalization();
+      setShowModal(false);
   };
 
   return (
@@ -98,34 +106,49 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                 )}
                 {onRequestFinalization && (
                     <ActionButton 
-                        icon={isAccreditationReady ? "school" : "lock_clock"}
-                        title="Solicitar Acreditación" 
-                        description={isAccreditationReady ? "Finalización de carrera." : "Revisión de criterios."}
+                        icon={isAccreditationReady ? "verified" : "lock_clock"}
+                        title="Solicitar Acreditación"
+                        description={isAccreditationReady ? "¡Objetivos cumplidos! Iniciar cierre." : "Verificar estado y requisitos."}
                         onClick={handleAccreditationClick}
-                        colorScheme={isAccreditationReady ? "emerald" : "slate"}
+                        colorScheme={isAccreditationReady ? "teal" : "slate"}
                     />
                 )}
             </div>
         )}
 
         <ConfirmModal
-            isOpen={showWarning}
-            onClose={() => setShowWarning(false)}
-            onConfirm={() => onRequestFinalization && onRequestFinalization()}
-            title="Requisitos de Acreditación"
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            onConfirm={handleConfirm}
+            type={capturedState === 'ready' ? 'info' : 'warning'}
+            title={capturedState === 'ready' ? "Iniciar Trámite de Acreditación" : "Requisitos Incompletos"}
             message={
-                <>
-                    <p className="mb-2">Este trámite está reservado para estudiantes que han cumplido con los 3 criterios obligatorios:</p>
-                    <ul className="list-disc pl-5 mb-4 space-y-1 text-sm">
-                        <li><strong>250 Horas Totales</strong></li>
-                        <li><strong>70 Horas en su Especialidad</strong></li>
-                        <li><strong>Rotación por 3 áreas</strong></li>
-                    </ul>
-                    <p className="font-bold text-amber-600 dark:text-amber-400 mb-2">IMPORTANTE: El plazo administrativo de resolución es de 14 días hábiles.</p>
-                    <p>Según el sistema, aún no cumples estos requisitos. Si crees que es un error y tienes la documentación, puedes avanzar.</p>
-                </>
+                capturedState === 'ready' ? (
+                    <>
+                        <p className="mb-3">¡Felicitaciones! Has cumplido con todos los objetivos académicos. Antes de continuar, asegúrate de tener listos los siguientes documentos digitales:</p>
+                        <ul className="list-disc pl-5 mb-4 space-y-2 text-sm text-left bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800/50 text-slate-700 dark:text-slate-300">
+                            <li><strong>Planilla de Seguimiento de Horas</strong> (firmada)</li>
+                            <li><strong>Planilla de Asistencia</strong></li>
+                            <li><strong>Informe Final</strong> de la práctica</li>
+                        </ul>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
+                             <span className="material-icons !text-sm mt-0.5">info</span>
+                             <p>El proceso administrativo de revisión y acreditación puede demorar hasta <strong>14 días hábiles</strong> desde el envío de la solicitud.</p>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <p className="mb-2 text-slate-700 dark:text-slate-300">Según el sistema, aún no cumples todos los requisitos obligatorios:</p>
+                        <ul className="list-disc pl-5 mb-4 space-y-1 text-sm text-left text-slate-600 dark:text-slate-400">
+                            <li><strong>250 Horas Totales</strong></li>
+                            <li><strong>70 Horas en tu Especialidad</strong></li>
+                            <li><strong>Rotación por 3 áreas distintas</strong></li>
+                        </ul>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Si crees que es un error y posees la documentación respaldatoria, puedes continuar bajo tu responsabilidad.</p>
+                    </>
+                )
             }
-            confirmText="Iniciar Trámite"
+            confirmText={capturedState === 'ready' ? "Comenzar" : "Continuar de todos modos"}
             cancelText="Volver"
         />
 
