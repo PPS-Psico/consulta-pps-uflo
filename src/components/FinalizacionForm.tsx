@@ -11,7 +11,6 @@ import {
     FIELD_PLANILLA_HORAS_FINALIZACION,
     FIELD_PLANILLA_ASISTENCIA_FINALIZACION,
     FIELD_SUGERENCIAS_MEJORAS_FINALIZACION,
-    FIELD_FECHA_FINALIZACION_ESTUDIANTES
 } from '../constants';
 import Card from './Card';
 import Button from './Button';
@@ -33,6 +32,7 @@ interface FileState {
 const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }) => {
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
     
     const [files, setFiles] = useState<Record<FileUploadType, FileState>>({
         horas: { file: null, uploading: false, url: null }, // 1. Planilla de Seguimiento
@@ -135,14 +135,36 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
         }
     });
 
-    const handleDownloadTemplate = (e: React.MouseEvent) => {
+    const handleDownloadTemplate = async (e: React.MouseEvent) => {
         e.preventDefault();
-        const link = document.createElement('a');
-        link.href = '/documentos/Planilla_Seguimiento.xlsx';
-        link.download = 'Planilla_Seguimiento.xlsx';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        setIsDownloadingTemplate(true);
+        
+        try {
+            const { data, error } = await supabase.storage
+                .from('plantillas')
+                .download('Planilla_Seguimiento.xlsx');
+
+            if (error) throw error;
+
+            const url = window.URL.createObjectURL(data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'Planilla_Seguimiento_PPS.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            setToastInfo({ message: 'Plantilla descargada.', type: 'success' });
+        } catch (error: any) {
+            console.error("Error descargando plantilla", error);
+            setToastInfo({ 
+                message: 'No se pudo descargar la plantilla. Verifica que el archivo "Planilla_Seguimiento.xlsx" exista en el bucket "plantillas".', 
+                type: 'error' 
+            });
+        } finally {
+            setIsDownloadingTemplate(false);
+        }
     };
 
     if (isSubmitted) {
@@ -211,10 +233,15 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
                                 {item.hasTemplate && (
                                     <button 
                                         onClick={handleDownloadTemplate}
-                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-0.5 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded border border-blue-100 dark:border-blue-800"
+                                        disabled={isDownloadingTemplate}
+                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-0.5 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded border border-blue-100 dark:border-blue-800 disabled:opacity-50"
                                     >
-                                        <span className="material-icons !text-xs">download</span>
-                                        Descargar Modelo
+                                        {isDownloadingTemplate ? (
+                                            <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-1"></div>
+                                        ) : (
+                                            <span className="material-icons !text-xs">download</span>
+                                        )}
+                                        {isDownloadingTemplate ? 'Descargando...' : 'Descargar Planilla'}
                                     </button>
                                 )}
                             </div>

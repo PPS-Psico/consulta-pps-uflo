@@ -30,6 +30,7 @@ html.dark {
 html {
   scroll-behavior: smooth;
   background-color: #f8fafc; /* Ensure light background by default */
+  color-scheme: light;
 }
 
 html.dark {

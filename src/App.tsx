@@ -15,6 +15,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from './lib/db';
 import FinalizacionForm from './components/FinalizacionForm';
 import PreSolicitudCheckModal from './components/PreSolicitudCheckModal';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { 
     FIELD_LEGAJO_PPS,
     FIELD_SOLICITUD_LEGAJO_ALUMNO,
@@ -284,13 +285,15 @@ const App: React.FC = () => {
         <PwaInstallProvider>
             <Router>
                 <AuthProvider>
-                    <Layout>
-                        <ErrorBoundary>
-                            <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]"><Loader /></div>}>
-                                <AppRoutes />
-                            </Suspense>
-                        </ErrorBoundary>
-                    </Layout>
+                    <NotificationProvider>
+                        <Layout>
+                            <ErrorBoundary>
+                                <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]"><Loader /></div>}>
+                                    <AppRoutes />
+                                </Suspense>
+                            </ErrorBoundary>
+                        </Layout>
+                    </NotificationProvider>
                 </AuthProvider>
             </Router>
         </PwaInstallProvider>
