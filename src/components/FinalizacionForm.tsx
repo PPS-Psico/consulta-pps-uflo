@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabaseClient';
@@ -23,36 +23,40 @@ interface FinalizacionFormProps {
 
 type FileUploadType = 'informe' | 'horas' | 'asistencia';
 
-interface FileState {
-    file: File | null;
+interface FileCategoryState {
+    files: File[];
     uploading: boolean;
-    url: string | null;
+    uploadedData: { url: string; filename: string }[];
 }
 
 const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }) => {
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+    const [dragActive, setDragActive] = useState<string | null>(null);
     
-    const [files, setFiles] = useState<Record<FileUploadType, FileState>>({
-        horas: { file: null, uploading: false, url: null }, // 1. Planilla de Seguimiento
-        asistencia: { file: null, uploading: false, url: null }, // 2. Asistencia
-        informe: { file: null, uploading: false, url: null }, // 3. Informes
+    const [fileCategories, setFileCategories] = useState<Record<FileUploadType, FileCategoryState>>({
+        horas: { files: [], uploading: false, uploadedData: [] }, // Planilla de Seguimiento
+        asistencia: { files: [], uploading: false, uploadedData: [] }, // Planilla de Asistencia (Múltiple)
+        informe: { files: [], uploading: false, uploadedData: [] }, // Informes (Múltiple)
     });
     
     const [sugerencias, setSugerencias] = useState('');
 
+    // Refs for hidden inputs
     const fileInputRefs = {
         horas: useRef<HTMLInputElement>(null),
         asistencia: useRef<HTMLInputElement>(null),
         informe: useRef<HTMLInputElement>(null),
     };
 
-    const uploadFile = async (file: File, type: FileUploadType): Promise<string> => {
+    const uploadFileToStorage = async (file: File, type: FileUploadType): Promise<string> => {
         if (!studentAirtableId) throw new Error("No se ha identificado al estudiante.");
 
         const fileExt = file.name.split('.').pop();
-        const fileName = `${studentAirtableId}/${type}_${Date.now()}.${fileExt}`;
+        // Add random string to ensure uniqueness even with same timestamps
+        const uniqueSuffix = Math.random().toString(36).substring(2, 8);
+        const fileName = `${studentAirtableId}/${type}_${Date.now()}_${uniqueSuffix}.${fileExt}`;
         const filePath = fileName;
 
         const { error: uploadError } = await supabase.storage
@@ -68,59 +72,117 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
         return data.publicUrl;
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: FileUploadType) => {
-        if (e.target.files && e.target.files[0]) {
-            const selectedFile = e.target.files[0];
-            // Basic validation
-            if (selectedFile.size > 5 * 1024 * 1024) {
-                setToastInfo({ message: `El archivo ${type} es demasiado grande (máx 5MB).`, type: 'error' });
-                return;
+    const handleFilesAdded = (newFiles: FileList | null, type: FileUploadType) => {
+        if (!newFiles || newFiles.length === 0) return;
+
+        const validFiles: File[] = [];
+        for (let i = 0; i < newFiles.length; i++) {
+            const file = newFiles[i];
+            if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                setToastInfo({ message: `El archivo ${file.name} es demasiado grande (máx 10MB).`, type: 'error' });
+                continue;
             }
-            setFiles(prev => ({
+            validFiles.push(file);
+        }
+
+        setFileCategories(prev => {
+            // If it's 'horas', it's a single file, so we replace instead of append
+            const isSingleFile = type === 'horas';
+            const currentFiles = isSingleFile ? [] : [...prev[type].files];
+            
+            return {
                 ...prev,
-                [type]: { ...prev[type], file: selectedFile }
-            }));
+                [type]: {
+                    ...prev[type],
+                    files: [...currentFiles, ...validFiles]
+                }
+            }
+        });
+    };
+
+    const handleFileRemove = (type: FileUploadType, index: number) => {
+        setFileCategories(prev => {
+            const newFiles = [...prev[type].files];
+            newFiles.splice(index, 1);
+            return {
+                ...prev,
+                [type]: { ...prev[type], files: newFiles }
+            };
+        });
+    };
+
+    // Drag and Drop Handlers
+    const handleDrag = (e: React.DragEvent, type: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === 'dragenter' || e.type === 'dragover') {
+            setDragActive(type);
+        } else if (e.type === 'dragleave') {
+            setDragActive(null);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent, type: FileUploadType) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(null);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFilesAdded(e.dataTransfer.files, type);
         }
     };
 
     const submitMutation = useMutation({
         mutationFn: async () => {
             if (!studentAirtableId) throw new Error("ID de estudiante no disponible.");
-            if (!files.informe.file || !files.horas.file || !files.asistencia.file) {
-                throw new Error("Debes subir todos los archivos requeridos.");
-            }
+            
+            const categories = Object.keys(fileCategories) as FileUploadType[];
+            
+            // Validation
+            if (fileCategories.horas.files.length === 0) throw new Error("Falta la Planilla de Seguimiento.");
+            if (fileCategories.asistencia.files.length === 0) throw new Error("Falta la Planilla de Asistencia.");
+            if (fileCategories.informe.files.length === 0) throw new Error("Falta el Informe Final.");
 
-            // 1. Upload all files in parallel
-            const uploadPromises = (Object.keys(files) as FileUploadType[]).map(async (key) => {
-                setFiles(prev => ({ ...prev, [key]: { ...prev[key], uploading: true } }));
+            // 1. Upload Process
+            const uploadedResults: Partial<Record<FileUploadType, { url: string, filename: string }[]>> = {};
+
+            for (const type of categories) {
+                const categoryState = fileCategories[type];
+                if (categoryState.files.length === 0) continue;
+
+                setFileCategories(prev => ({ ...prev, [type]: { ...prev[type], uploading: true } }));
+                
+                const typeUploads = [];
                 try {
-                    const url = await uploadFile(files[key].file!, key);
-                    setFiles(prev => ({ ...prev, [key]: { ...prev[key], uploading: false, url } }));
-                    return { key, url, filename: files[key].file!.name };
+                    for (const file of categoryState.files) {
+                        const url = await uploadFileToStorage(file, type);
+                        typeUploads.push({ url, filename: file.name });
+                    }
+                    uploadedResults[type] = typeUploads;
+                    
+                    setFileCategories(prev => ({ 
+                        ...prev, 
+                        [type]: { ...prev[type], uploading: false, uploadedData: typeUploads } 
+                    }));
                 } catch (e) {
-                    setFiles(prev => ({ ...prev, [key]: { ...prev[key], uploading: false } }));
+                    setFileCategories(prev => ({ ...prev, [type]: { ...prev[type], uploading: false } }));
                     throw e;
                 }
-            });
-
-            const uploadedFiles = await Promise.all(uploadPromises);
+            }
             
-            // 2. Create Finalization Record with status 'Pendiente' (No Cargado)
+            // 2. Create DB Record
             const dbRecord: any = {
                 [FIELD_ESTUDIANTE_FINALIZACION]: [studentAirtableId],
                 [FIELD_FECHA_SOLICITUD_FINALIZACION]: new Date().toISOString(),
-                [FIELD_ESTADO_FINALIZACION]: 'Pendiente', // Estado inicial "No Cargado"
+                [FIELD_ESTADO_FINALIZACION]: 'Pendiente',
             };
             
             if (sugerencias.trim()) {
                 dbRecord[FIELD_SUGERENCIAS_MEJORAS_FINALIZACION] = sugerencias.trim();
             }
 
-            uploadedFiles.forEach(f => {
-                if (f.key === 'informe') dbRecord[FIELD_INFORME_FINAL_FINALIZACION] = [{ url: f.url, filename: f.filename }];
-                if (f.key === 'horas') dbRecord[FIELD_PLANILLA_HORAS_FINALIZACION] = [{ url: f.url, filename: f.filename }];
-                if (f.key === 'asistencia') dbRecord[FIELD_PLANILLA_ASISTENCIA_FINALIZACION] = [{ url: f.url, filename: f.filename }];
-            });
+            if (uploadedResults.informe) dbRecord[FIELD_INFORME_FINAL_FINALIZACION] = JSON.stringify(uploadedResults.informe);
+            if (uploadedResults.horas) dbRecord[FIELD_PLANILLA_HORAS_FINALIZACION] = JSON.stringify(uploadedResults.horas);
+            if (uploadedResults.asistencia) dbRecord[FIELD_PLANILLA_ASISTENCIA_FINALIZACION] = JSON.stringify(uploadedResults.asistencia);
 
             await db.finalizacion.create(dbRecord);
 
@@ -138,7 +200,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
     const handleDownloadTemplate = async (e: React.MouseEvent) => {
         e.preventDefault();
         setIsDownloadingTemplate(true);
-        
         try {
             const { data, error } = await supabase.storage
                 .from('plantillas')
@@ -158,10 +219,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
             setToastInfo({ message: 'Plantilla descargada.', type: 'success' });
         } catch (error: any) {
             console.error("Error descargando plantilla", error);
-            setToastInfo({ 
-                message: 'No se pudo descargar la plantilla. Verifica que el archivo "Planilla_Seguimiento.xlsx" exista en el bucket "plantillas".', 
-                type: 'error' 
-            });
+            setToastInfo({ message: 'No se pudo descargar la plantilla.', type: 'error' });
         } finally {
             setIsDownloadingTemplate(false);
         }
@@ -182,25 +240,28 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
         );
     }
 
-    const uploadItems = [
+    const uploadSections = [
         { 
-            key: 'horas', 
+            key: 'horas' as FileUploadType, 
             label: 'Planilla de Seguimiento', 
-            desc: 'Excel de seguimiento de horas firmado.', 
+            desc: 'Excel de seguimiento de horas firmado por el tutor.', 
             icon: 'schedule',
-            hasTemplate: true 
+            hasTemplate: true,
+            allowsMultiple: false 
         },
         { 
-            key: 'asistencia', 
-            label: 'Planilla de Asistencia', 
-            desc: 'Registro diario de asistencia.', 
-            icon: 'event_available' 
+            key: 'asistencia' as FileUploadType, 
+            label: 'Planillas de Asistencia', 
+            desc: 'Registros diarios de asistencia firmados. Puedes subir múltiples fotos o PDFs.', 
+            icon: 'event_available',
+            allowsMultiple: true
         },
         { 
-            key: 'informe', 
-            label: 'Informes', 
-            desc: 'Informes finales de la práctica.', 
-            icon: 'description' 
+            key: 'informe' as FileUploadType, 
+            label: 'Informes Finales', 
+            desc: 'Informes de la práctica. Puedes subir múltiples archivos si es necesario.', 
+            icon: 'description',
+            allowsMultiple: true
         },
     ];
 
@@ -220,73 +281,130 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
                 </div>
             </div>
 
-            <div className="flex-grow overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/30">
-                {/* Upload Sections */}
-                {uploadItems.map((item) => (
-                    <div key={item.key} className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full border border-blue-100 dark:border-blue-800">
-                            <span className="material-icons">{item.icon}</span>
-                        </div>
-                        <div className="flex-grow">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.label}</h4>
-                                {item.hasTemplate && (
+            <div className="flex-grow overflow-y-auto p-6 space-y-8 bg-slate-50 dark:bg-slate-900/30">
+                
+                {uploadSections.map((section) => {
+                    const categoryState = fileCategories[section.key];
+                    const isActive = dragActive === section.key;
+
+                    return (
+                        <div key={section.key} className="space-y-3">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                        <span className="material-icons text-blue-500 !text-lg">{section.icon}</span>
+                                        {section.label}
+                                    </h4>
+                                    {(section.allowsMultiple || categoryState.files.length > 0) && (
+                                        <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full font-medium">
+                                            {categoryState.files.length} {categoryState.files.length === 1 ? 'archivo' : 'archivos'}
+                                        </span>
+                                    )}
+                                </div>
+                                {section.hasTemplate && (
                                     <button 
                                         onClick={handleDownloadTemplate}
                                         disabled={isDownloadingTemplate}
-                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-0.5 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded border border-blue-100 dark:border-blue-800 disabled:opacity-50"
+                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1"
                                     >
-                                        {isDownloadingTemplate ? (
-                                            <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-1"></div>
-                                        ) : (
-                                            <span className="material-icons !text-xs">download</span>
-                                        )}
-                                        {isDownloadingTemplate ? 'Descargando...' : 'Descargar Planilla'}
+                                        {isDownloadingTemplate ? <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> : <span className="material-icons !text-sm">download</span>}
+                                        Descargar Plantilla
                                     </button>
                                 )}
                             </div>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">{item.desc}</p>
-                        </div>
-                        <div className="flex-shrink-0 w-full sm:w-auto">
-                            <input
-                                type="file"
-                                ref={fileInputRefs[item.key as FileUploadType]}
-                                onChange={(e) => handleFileChange(e, item.key as FileUploadType)}
-                                className="hidden"
-                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => fileInputRefs[item.key as FileUploadType].current?.click()}
-                                className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold border transition-all flex items-center justify-center gap-2 ${
-                                    files[item.key as FileUploadType].file 
-                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400'
-                                        : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 hover:shadow-sm'
-                                }`}
-                            >
-                                {files[item.key as FileUploadType].file ? (
-                                    <>
-                                        <span className="material-icons !text-lg">check</span>
-                                        Listo
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="material-icons !text-lg">upload</span>
-                                        Subir
-                                    </>
-                                )}
-                            </button>
-                            {files[item.key as FileUploadType].file && (
-                                <p className="text-xs text-center mt-1.5 text-emerald-600 dark:text-emerald-400 truncate max-w-[150px] mx-auto font-medium">
-                                    {files[item.key as FileUploadType].file?.name}
-                                </p>
+                            
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{section.desc}</p>
+
+                            {section.allowsMultiple ? (
+                                /* Drag and Drop Zone for Multiple Files */
+                                <div 
+                                    className={`relative border-2 border-dashed rounded-xl p-6 transition-all duration-200 text-center cursor-pointer group
+                                        ${isActive 
+                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                                            : 'border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-white dark:hover:bg-slate-800 bg-slate-100/50 dark:bg-slate-800/50'
+                                        }
+                                    `}
+                                    onDragEnter={(e) => handleDrag(e, section.key)}
+                                    onDragLeave={(e) => handleDrag(e, section.key)}
+                                    onDragOver={(e) => handleDrag(e, section.key)}
+                                    onDrop={(e) => handleDrop(e, section.key)}
+                                    onClick={() => fileInputRefs[section.key].current?.click()}
+                                >
+                                    <input
+                                        type="file"
+                                        ref={fileInputRefs[section.key]}
+                                        onChange={(e) => handleFilesAdded(e.target.files, section.key)}
+                                        className="hidden"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
+                                    />
+                                    
+                                    <div className="pointer-events-none">
+                                        <span className={`material-icons !text-4xl mb-2 transition-colors ${isActive ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-400'}`}>cloud_upload</span>
+                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                            {isActive ? "Suelta los archivos aquí" : "Haz clic o arrastra tus archivos aquí"}
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-1">Soporta PDF, Excel, Word, Imágenes (Máx 10MB)</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* Simple Button for Single File */
+                                <div>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRefs[section.key]}
+                                        onChange={(e) => handleFilesAdded(e.target.files, section.key)}
+                                        className="hidden"
+                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
+                                    />
+                                    
+                                    {categoryState.files.length === 0 ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRefs[section.key].current?.click()}
+                                            className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-blue-400 dark:hover:border-blue-500 transition-all shadow-sm"
+                                        >
+                                            <span className="material-icons text-blue-500 !text-xl">upload_file</span>
+                                            <span>Seleccionar Archivo</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRefs[section.key].current?.click()}
+                                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1"
+                                        >
+                                            <span className="material-icons !text-sm">autorenew</span> Reemplazar archivo
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* File List (Shared logic but different layout if single) */}
+                            {categoryState.files.length > 0 && (
+                                <div className={`grid grid-cols-1 ${section.allowsMultiple ? 'sm:grid-cols-2' : ''} gap-2 mt-3`}>
+                                    {categoryState.files.map((file, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm animate-fade-in">
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <span className="material-icons text-slate-400 !text-xl shrink-0">description</span>
+                                                <span className="text-sm text-slate-700 dark:text-slate-200 truncate" title={file.name}>{file.name}</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleFileRemove(section.key, idx)}
+                                                className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded transition-colors"
+                                                title="Eliminar archivo"
+                                            >
+                                                <span className="material-icons !text-lg">close</span>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {/* Sugerencias Section */}
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/70 dark:border-slate-700 shadow-sm">
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/70 dark:border-slate-700 shadow-sm mt-8">
                     <div className="flex items-center gap-2 mb-3">
                         <span className="material-icons text-amber-500 !text-xl">tips_and_updates</span>
                         <h3 className="text-slate-800 dark:text-slate-100 font-semibold text-base leading-tight">
@@ -306,11 +424,14 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
                 </div>
             </div>
 
-            <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end">
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end items-center gap-4">
+                {submitMutation.isPending && (
+                    <span className="text-sm text-slate-500 animate-pulse">Subiendo archivos, por favor espera...</span>
+                )}
                 <Button
                     onClick={() => submitMutation.mutate()}
                     isLoading={submitMutation.isPending}
-                    disabled={!files.informe.file || !files.horas.file || !files.asistencia.file}
+                    disabled={fileCategories.horas.files.length === 0 || fileCategories.asistencia.files.length === 0 || fileCategories.informe.files.length === 0}
                     icon="send"
                     className="w-full sm:w-auto shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 >
