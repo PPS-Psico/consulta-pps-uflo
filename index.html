@@ -20,15 +20,16 @@
 
   <!-- Dark mode script -->
   <script>
+    // Always configure Tailwind CDN for class-based dark mode if present to avoid 'media' strategy fallback
+    if (typeof tailwind !== 'undefined') {
+      tailwind.config = { darkMode: 'class' };
+    }
+
     if (
       localStorage.getItem('theme') === 'dark' ||
       (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
     ) {
       document.documentElement.classList.add('dark');
-      // Configure Tailwind CDN for dark mode if loaded via CDN
-      if (typeof tailwind !== 'undefined') {
-        tailwind.config = { darkMode: 'class' };
-      }
     } else {
       document.documentElement.classList.remove('dark');
     }
