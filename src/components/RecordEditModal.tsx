@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import type { AirtableRecord } from '../types';
 
@@ -20,28 +19,36 @@ interface RecordEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     record: AirtableRecord<any> | null; // Null for creation mode
+    initialData?: any; // Data to pre-fill when in creation mode (e.g. duplicating)
     tableConfig: TableConfig;
     onSave: (recordId: string | null, fields: any) => void;
     isSaving: boolean;
 }
 
-const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, record, tableConfig, onSave, isSaving }) => {
+const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, record, initialData, tableConfig, onSave, isSaving }) => {
     const [formData, setFormData] = useState<any>({});
     const isCreateMode = !record;
 
     useEffect(() => {
-        const initialData: { [key: string]: any } = {};
+        const data: { [key: string]: any } = {};
+        
         tableConfig.fieldConfig.forEach(field => {
             if (isCreateMode) {
-                // Set default values for new records
-                initialData[field.key] = field.type === 'checkbox' ? false : field.type === 'number' ? 0 : '';
+                // If initialData exists (duplication), use it. Otherwise use defaults.
+                if (initialData && initialData[field.key] !== undefined) {
+                    data[field.key] = initialData[field.key];
+                } else {
+                    // Set default values for new records
+                    data[field.key] = field.type === 'checkbox' ? false : field.type === 'number' ? 0 : '';
+                }
             } else {
+                // Edit mode
                 const airtableKey = tableConfig.schema[field.key] || field.key;
-                initialData[field.key] = record ? record[airtableKey] : '';
+                data[field.key] = record ? record[airtableKey] : '';
             }
         });
-        setFormData(initialData);
-    }, [record, tableConfig, isCreateMode]);
+        setFormData(data);
+    }, [record, tableConfig, isCreateMode, initialData]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -118,10 +125,10 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
                 <header className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 rounded-t-xl">
                     <div className="flex items-center gap-3">
                          <div className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg">
-                            <span className="material-icons !text-xl">{isCreateMode ? 'add' : 'edit'}</span>
+                            <span className="material-icons !text-xl">{isCreateMode ? (initialData ? 'content_copy' : 'add') : 'edit'}</span>
                          </div>
                         <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                            {isCreateMode ? 'Nuevo Registro' : 'Editar Registro'}
+                            {isCreateMode ? (initialData ? 'Duplicar Registro' : 'Nuevo Registro') : 'Editar Registro'}
                             <span className="block text-xs font-normal text-slate-500 dark:text-slate-400 mt-0.5">{tableConfig.label}</span>
                         </h3>
                     </div>
@@ -160,7 +167,7 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
                         ) : (
                             <>
                                 <span className="material-icons !text-base">save</span>
-                                <span>Guardar Cambios</span>
+                                <span>{isCreateMode ? 'Crear Registro' : 'Guardar Cambios'}</span>
                             </>
                         )}
                     </button>

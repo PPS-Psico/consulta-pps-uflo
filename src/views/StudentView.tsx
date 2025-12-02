@@ -35,6 +35,9 @@ const StudentLayout: React.FC = () => {
     if (location.pathname.includes('/practicas')) activeTab = 'practicas';
     else if (location.pathname.includes('/solicitudes')) activeTab = 'solicitudes';
     else if (location.pathname.includes('/perfil')) activeTab = 'profile';
+    else if (location.pathname.includes('/informes')) activeTab = 'informes';
+
+    const isInicio = activeTab === 'inicio';
 
     const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
     const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || authenticatedUser?.nombre || 'Estudiante';
@@ -82,19 +85,31 @@ const StudentLayout: React.FC = () => {
             )}
 
             <div className="flex-grow space-y-8">
-                {/* 1. Welcome Banner */}
-                <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+                {/* 
+                    1. Welcome Banner: 
+                    - Mobile: Only visible on 'inicio'
+                    - Desktop: Always visible
+                */}
+                <div className={!isInicio ? 'hidden md:block' : ''}>
+                    <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+                </div>
                 
-                {/* 2. Criterios Panel */}
-                <CriteriosPanel 
-                    criterios={criterios} 
-                    selectedOrientacion={selectedOrientacion} 
-                    handleOrientacionChange={handleOrientacionChange} 
-                    showSaveConfirmation={showSaveConfirmation} 
-                    onRequestFinalization={handleOpenFinalization} 
-                />
+                {/* 
+                    2. Criterios Panel:
+                    - Mobile: Only visible on 'inicio'
+                    - Desktop: Always visible
+                */}
+                <div className={!isInicio ? 'hidden md:block' : ''}>
+                    <CriteriosPanel 
+                        criterios={criterios} 
+                        selectedOrientacion={selectedOrientacion} 
+                        handleOrientacionChange={handleOrientacionChange} 
+                        showSaveConfirmation={showSaveConfirmation} 
+                        onRequestFinalization={handleOpenFinalization} 
+                    />
+                </div>
 
-                {/* 3. Tabs (Navigation) */}
+                {/* 3. Tabs (Navigation) - Desktop Only */}
                 <div className="hidden md:block">
                     <Card className="py-0 px-0">
                         <Tabs 

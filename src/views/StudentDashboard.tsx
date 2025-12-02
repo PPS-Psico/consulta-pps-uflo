@@ -244,15 +244,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
   const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
-  
-  // Pass criterios here to fix the logic in SolicitudesList
-  const solicitudesContent = useMemo(() => <SolicitudesList 
-      solicitudes={solicitudes} 
-      onCreateSolicitud={handleCreateSolicitud} 
-      onRequestFinalization={handleOpenFinalization}
-      criterios={criterios}
-  />, [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios]);
-
+  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization]);
   const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
   const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
 
@@ -302,11 +294,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           <PrintableReport studentDetails={studentDetails} criterios={criterios} practicas={practicas} />
         </div>
         <div className="no-print">
-          <div className="space-y-8 animate-fade-in-up">
+          <div className="space-y-6 animate-fade-in-up">
             <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={false} />
             <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
             <Card className="border-slate-300/50 bg-slate-50/30">
-              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontró información de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
+              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontraron prácticas o solicitudes." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar</button>} />
             </Card>
           </div>
           <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
@@ -356,7 +348,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       </div>
 
       {/* --- VISTA DE ESCRITORIO --- */}
-      <div className="hidden md:block no-print space-y-8 animate-fade-in-up">
+      <div className="hidden md:block no-print space-y-6 animate-fade-in-up">
         <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
         <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
         
@@ -370,7 +362,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           </Card>
         ) : (
            // Should technically fall into empty state above, but double check here
-           <div className="space-y-8">
+           <div className="space-y-6">
                 <Card icon="list_alt" title="Comenzar">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
                          <button 
@@ -396,7 +388,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       </div>
 
       {/* --- VISTA MÓVIL --- */}
-      <div className="md:hidden no-print space-y-8 animate-fade-in-up">
+      <div className="md:hidden no-print space-y-6 animate-fade-in-up">
           {currentActiveTab === 'inicio' && (
               <>
                   <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />

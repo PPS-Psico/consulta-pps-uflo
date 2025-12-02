@@ -281,6 +281,87 @@ const BatchUpdateModal: React.FC<BatchUpdateModalProps> = ({ isOpen, onClose, on
     );
 };
 
+interface DuplicateTargetModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (studentId: string) => void;
+    students: any[]; // Lightweight student list { value: id, label: name }
+}
+
+const DuplicateTargetModal: React.FC<DuplicateTargetModalProps> = ({ isOpen, onClose, onConfirm, students }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
+
+    const filteredStudents = useMemo(() => {
+        if (!debouncedSearch) return [];
+        const lower = debouncedSearch.toLowerCase();
+        return students.filter(s => s.label.toLowerCase().includes(lower)).slice(0, 20);
+    }, [students, debouncedSearch]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Duplicar Registro</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Busca al alumno para asignar la copia de este registro.</p>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="relative">
+                         <input
+                            type="text"
+                            placeholder="Buscar alumno por nombre o legajo..."
+                            value={searchTerm}
+                            onChange={e => { setSearchTerm(e.target.value); setSelectedStudentId(null); }}
+                            className="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                            autoFocus
+                        />
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg">search</span>
+                    </div>
+                    
+                    {/* Results List */}
+                    <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
+                        {filteredStudents.length > 0 ? (
+                            filteredStudents.map(s => (
+                                <button
+                                    key={s.value}
+                                    onClick={() => setSelectedStudentId(s.value)}
+                                    className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-blue-50 dark:hover:bg-blue-900/20 ${selectedStudentId === s.value ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold' : 'text-slate-700 dark:text-slate-300'}`}
+                                >
+                                    {s.label}
+                                    {selectedStudentId === s.value && <span className="material-icons !text-sm text-blue-600">check</span>}
+                                </button>
+                            ))
+                        ) : (
+                             <div className="p-4 text-center text-xs text-slate-400 italic">
+                                 {searchTerm ? "No se encontraron alumnos." : "Empieza a escribir para buscar."}
+                             </div>
+                        )}
+                    </div>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancelar</button>
+                    <button 
+                        onClick={() => selectedStudentId && onConfirm(selectedStudentId)}
+                        disabled={!selectedStudentId}
+                        className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        <span className="material-icons !text-base">content_copy</span>
+                        Duplicar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 interface DatabaseEditorProps {
   isTestingMode?: boolean;
 }
@@ -368,10 +449,13 @@ const cleanDisplayValue = (val: any): string => {
 
 const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }) => {
     const [activeTable, setActiveTable] = useState<TableKey>('estudiantes');
-    const [editingRecord, setEditingRecord] = useState<AppRecord<any> | { isCreating: true } | null>(null);
+    const [editingRecord, setEditingRecord] = useState<AppRecord<any> | { isCreating: true; initialData?: any } | null>(null);
     const [toastInfo, setToastInfo] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; record: AppRecord<any> } | null>(null);
     
+    // Special state for Practice duplication
+    const [duplicatingRecord, setDuplicatingRecord] = useState<AppRecord<any> | null>(null);
+
     // Server-side state
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -424,6 +508,14 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         enabled: !isTestingMode,
         staleTime: Infinity, 
     });
+    
+    // Prepare student options for duplication modal
+    const studentOptions = useMemo(() => 
+        (lookupData?.students || []).map(s => ({
+            value: s.id,
+            label: `${s[FIELD_NOMBRE_ESTUDIANTES]} (${s[FIELD_LEGAJO_ESTUDIANTES]})`
+        }))
+    , [lookupData?.students]);
 
     // 2. Prepare Dynamic Configuration
     const tableConfig = useMemo(() => {
@@ -603,6 +695,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         onSuccess: () => {
              setToastInfo({ message: 'Registro creado.', type: 'success' });
              setEditingRecord(null);
+             // Close duplicating modal if open
+             setDuplicatingRecord(null);
              queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] }); 
         },
         onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
@@ -622,59 +716,13 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
     });
 
-    const duplicateMutation = useMutation({
-        mutationFn: (record: AppRecord<any>) => {
-            const { id, createdTime, created_at, ...originalFields } = record;
-            const newFields: { [key: string]: any } = { ...originalFields };
-
-            // Append (Copia) to primary field
-            const primaryFieldKey = BASE_TABLE_CONFIGS[activeTable].displayFields[0];
-            if (newFields[primaryFieldKey]) {
-                 newFields[primaryFieldKey] = `${newFields[primaryFieldKey]} (Copia)`;
-            }
-            // Remove computed fields
-             delete newFields['__studentName'];
-             delete newFields['__lanzamientoName'];
-
-            if (isTestingMode) return new Promise(resolve => setTimeout(() => resolve(null), 500));
-            return db[activeTable].create(newFields);
-        },
-        onSuccess: () => {
-            setToastInfo({ message: 'Registro duplicado.', type: 'success' });
-            setContextMenu(null);
-            queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] });
-        },
-        onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
-    });
+    const handleDelete = (recordId: string) => {
+        if (window.confirm('¿Estás seguro de que quieres eliminar este registro? Esta acción no se puede deshacer.')) {
+            deleteMutation.mutate(recordId);
+        }
+    };
 
     const tableTabs = Object.entries(BASE_TABLE_CONFIGS).map(([key, { label, icon }]) => ({ id: key, label, icon }));
-
-    useEffect(() => {
-        setCurrentPage(1);
-        setSearchTerm('');
-        setSelectedLaunchFilter('');
-        setSelectedInstitutionForFilter('');
-        setSelectedStudentFilter('');
-        setStudentSearchText('');
-        setShowStudentOptions(false);
-        setFinalizedFilter('all');
-        setContextMenu(null);
-        setSelectedRowId(null);
-    }, [activeTable]);
-    
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRowId) {
-                const activeTag = document.activeElement?.tagName;
-                if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && activeTag !== 'SELECT') {
-                    handleDelete(selectedRowId);
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedRowId]);
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -682,43 +730,65 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
             direction = 'desc';
         }
         setSortConfig({ key, direction });
-        setCurrentPage(1);
+        setCurrentPage(1); // Reset to first page on sort change
     };
-    
+
     const handleRowContextMenu = (e: React.MouseEvent, record: AppRecord<any>) => {
         e.preventDefault();
         setSelectedRowId(record.id);
         setContextMenu({ x: e.clientX, y: e.clientY, record });
     };
 
-    const handleDelete = (recordId: string) => {
-        if (window.confirm('¿Estás seguro de que quieres eliminar este registro? Esta acción no se puede deshacer.')) {
-            deleteMutation.mutate(recordId);
-        }
-    };
-
     const handleDuplicate = () => {
         if (!contextMenu?.record) return;
         const record = contextMenu.record;
-        const { id, createdTime, created_at, ...fields } = record;
         
+        if (activeTable === 'practicas') {
+            // Open specific modal for Practices to choose a new student
+            setDuplicatingRecord(record);
+            setContextMenu(null);
+            return;
+        }
+
+        // Standard duplication for other tables
+        const { id, createdTime, created_at, ...fields } = record;
         const newFields = JSON.parse(JSON.stringify(fields));
 
-        if (activeTable === 'practicas') {
-            newFields[FIELD_ESTUDIANTE_LINK_PRACTICAS] = ''; 
-            newFields[FIELD_NOTA_PRACTICAS] = 'Sin calificar';
-        } else {
-             const primaryFieldKey = tableConfig.displayFields[0];
-             if (newFields[primaryFieldKey] && typeof newFields[primaryFieldKey] === 'string') {
-                  newFields[primaryFieldKey] = `${newFields[primaryFieldKey]} (Copia)`;
-             }
+        const primaryFieldKey = tableConfig.displayFields[0];
+        if (newFields[primaryFieldKey] && typeof newFields[primaryFieldKey] === 'string') {
+             newFields[primaryFieldKey] = `${newFields[primaryFieldKey]} (Copia)`;
         }
 
         delete newFields['__studentName'];
         delete newFields['__lanzamientoName'];
 
-        setEditingRecord({ ...newFields, isCreating: true });
+        setEditingRecord({ isCreating: true, initialData: newFields });
         setContextMenu(null);
+    };
+    
+    const handleConfirmDuplicate = (studentId: string) => {
+        if (!duplicatingRecord) return;
+        const { id, createdTime, created_at, ...fields } = duplicatingRecord;
+        const newFields = JSON.parse(JSON.stringify(fields));
+        
+        // Remove computed fields
+        delete newFields['__studentName'];
+        delete newFields['__lanzamientoName'];
+        
+        // Assign new student - Fix: Send string UUID, not array
+        newFields[FIELD_ESTUDIANTE_LINK_PRACTICAS] = studentId;
+
+        // Fix: Flatten launch ID if it is an array
+        const launchIdRaw = newFields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+        if (Array.isArray(launchIdRaw) && launchIdRaw.length > 0) {
+             newFields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] = launchIdRaw[0];
+        }
+        
+        // Reset specific fields for a fresh practice copy
+        newFields[FIELD_NOTA_PRACTICAS] = 'Sin calificar'; // Reset note
+        // Keep everything else (Launch ID, Institution Name, Dates, Hours, Status, etc.)
+        
+        createMutation.mutate(newFields);
     };
 
     // GENERIC BATCH UPDATE LOGIC
@@ -922,21 +992,24 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
             <div className="mt-6 border-t border-slate-200/60 dark:border-slate-700/60 pt-6">
                 <div className="space-y-4 mb-6">
                     <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-                        <div className="relative w-full md:w-72 group">
-                            <input 
-                                type="search" 
-                                placeholder="Buscar..." 
-                                value={searchTerm} 
-                                onChange={e => setSearchTerm(e.target.value)} 
-                                className="w-full pl-10 pr-10 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm text-slate-900 dark:text-slate-100" 
-                            />
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none">search</span>
-                            {searchTerm && (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" style={{ opacity: isLoading ? 1 : 0 }} />
-                                </div>
-                            )}
-                        </div>
+                        {/* Search - Hidden for Practices which uses specific filters */}
+                        {activeTable !== 'practicas' && (
+                            <div className="relative w-full md:w-72 group">
+                                <input 
+                                    type="search" 
+                                    placeholder="Buscar..." 
+                                    value={searchTerm} 
+                                    onChange={e => setSearchTerm(e.target.value)} 
+                                    className="w-full pl-10 pr-10 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm text-slate-900 dark:text-slate-100" 
+                                />
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none">search</span>
+                                {searchTerm && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" style={{ opacity: isLoading ? 1 : 0 }} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         
                         <div className="flex items-center gap-2 w-full md:w-auto">
                              {/* Generic Batch Update Button - Visible if records exist */}
@@ -1122,8 +1195,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                                     onContextMenu={(e) => handleRowContextMenu(e, record)}
                                                     className={`transition-colors cursor-pointer ${
                                                         isSelected 
-                                                            ? 'bg-blue-50 dark:bg-blue-900/30 ring-1 ring-inset ring-blue-300 dark:ring-blue-700' 
-                                                            : idx % 2 === 0 ? 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50' : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/70'
+                                                            ? 'bg-blue-100 dark:bg-blue-900/40 ring-1 ring-inset ring-blue-300 dark:ring-blue-700' 
+                                                            : idx % 2 === 0 ? 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50' : 'bg-slate-50/30 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/70'
                                                     }`}
                                                 >
                                                     {tableConfig.displayFields.map(key => {
@@ -1171,7 +1244,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 <RecordEditModal 
                     isOpen={!!editingRecord} 
                     onClose={() => setEditingRecord(null)} 
-                    record={'isCreating' in editingRecord ? null : editingRecord} 
+                    record={'isCreating' in editingRecord ? null : editingRecord}
+                    initialData={'isCreating' in editingRecord ? editingRecord.initialData : undefined}
                     tableConfig={tableConfig} 
                     onSave={(recordId, fields) => {
                         if (recordId) { updateMutation.mutate({ recordId, fields }); } else { createMutation.mutate(fields); }
@@ -1188,6 +1262,15 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     tableConfig={tableConfig}
                     isUpdating={isBulkUpdating}
                     count={totalItems}
+                />
+            )}
+            
+            {duplicatingRecord && (
+                <DuplicateTargetModal
+                    isOpen={!!duplicatingRecord}
+                    onClose={() => setDuplicatingRecord(null)}
+                    onConfirm={handleConfirmDuplicate}
+                    students={studentOptions}
                 />
             )}
         </Card>

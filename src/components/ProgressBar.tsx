@@ -7,9 +7,10 @@ interface ProgressBarProps {
   label: string;
   unit?: string;
   isComplete: boolean;
+  compact?: boolean;
 }
 
-const ProgressBar: React.FC<ProgressBarProps> = ({ value, max, label, unit = '', isComplete }) => {
+const ProgressBar: React.FC<ProgressBarProps> = ({ value, max, label, unit = '', isComplete, compact = false }) => {
   const percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   const roundedValue = Math.round(value);
   
@@ -21,6 +22,27 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ value, max, label, unit = '',
   const iconColorClass = isComplete
     ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
     : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
+
+  if (compact) {
+    return (
+      <div className="w-full">
+         <div className="flex justify-between items-center mb-1">
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate max-w-[70%]">
+               {label}
+            </span>
+            <span className={`text-xs font-bold ${isComplete ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}`}>
+               {roundedValue}/{max}{unit}
+            </span>
+         </div>
+         <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+            <div
+              className={`${colorClass} h-full rounded-full transition-all duration-1000 ease-out`}
+              style={{ width: `${percentage}%` }}
+            />
+         </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full p-5 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm transition-all hover:shadow-md">

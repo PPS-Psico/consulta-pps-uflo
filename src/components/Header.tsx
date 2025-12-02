@@ -118,10 +118,10 @@ const AppHeader: React.FC = () => {
   return (
     <header className={`no-print sticky top-0 z-50 bg-white dark:bg-gray-950/80 backdrop-blur-xl transition-all duration-300 ${hasScrolled ? 'border-b border-slate-200/70 dark:border-white/10 shadow-sm' : 'border-b border-transparent'}`}>
       <div className={`px-4 sm:px-6 lg:px-8 ${isFullWidth ? 'w-full' : 'max-w-7xl mx-auto'}`}>
-        <div className="flex justify-between items-center h-20">
+        <div className="flex justify-between items-center h-16 md:h-20">
             {/* Left side */}
             <div className="flex-shrink-0">
-                <MiPanelLogo className="h-14 w-auto" variant={resolvedTheme} />
+                <MiPanelLogo className="h-10 md:h-14 w-auto transition-all duration-300" variant={resolvedTheme} />
             </div>
             
             {/* Right side */}
@@ -132,7 +132,7 @@ const AppHeader: React.FC = () => {
                   </span>
               )}
               <div className="hidden sm:block">
-                  <UfloLogo className="h-14 w-auto" variant={resolvedTheme} />
+                  <UfloLogo className="h-10 md:h-14 w-auto transition-all duration-300" variant={resolvedTheme} />
               </div>
 
               {/* Notifications Bell */}

@@ -6,6 +6,7 @@ interface ProgressCircleProps {
   max: number;
   size?: number;
   strokeWidth?: number;
+  className?: string;
 }
 
 const ProgressCircle: React.FC<ProgressCircleProps> = React.memo(({ 
@@ -13,6 +14,7 @@ const ProgressCircle: React.FC<ProgressCircleProps> = React.memo(({
   max, 
   size = 180, 
   strokeWidth = 16,
+  className = ''
 }) => {
   const percentage = max > 0 ? Math.max(0, Math.min((value / max) * 100, 100)) : 0;
   const isComplete = percentage >= 100;
@@ -30,18 +32,18 @@ const ProgressCircle: React.FC<ProgressCircleProps> = React.memo(({
 
   return (
     <div 
-      className="relative flex flex-col items-center justify-center flex-shrink-0 group select-none mx-auto sm:mx-0" 
-      style={{ width: svgSize, height: svgSize }} 
+      className={`relative flex flex-col items-center justify-center flex-shrink-0 group select-none ${className}`}
+      // We use style for aspect-ratio preservation if needed, but prefer classes for sizing
       role="progressbar"
       aria-valuenow={value}
       aria-valuemin={0}
       aria-valuemax={max}
       aria-label={`Progreso total: ${Math.round(percentage)}% completado`}
     >
-      {/* Glow effect container - positioned absolutely within padding area */}
+      {/* Glow effect container */}
       <div 
         className={`absolute inset-0 rounded-full transition-all duration-700 ${isComplete ? 'animate-pulse-glow-success' : ''}`} 
-        style={{ margin: padding / 2, borderRadius: '50%' }}
+        style={{ margin: '15%', borderRadius: '50%' }}
       />
       
       <svg 
@@ -99,10 +101,11 @@ const ProgressCircle: React.FC<ProgressCircleProps> = React.memo(({
       </svg>
       
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-20 pointer-events-none">
-        <span className={`text-6xl font-black tracking-tighter drop-shadow-sm transition-colors duration-500 ${isComplete ? 'text-teal-600 dark:text-teal-400' : 'text-blue-600 dark:text-blue-400'}`}>
-          {Math.round(percentage)}<span className="text-4xl opacity-60 relative -top-4">%</span>
+        <span className={`font-black tracking-tighter drop-shadow-sm transition-colors duration-500 ${isComplete ? 'text-teal-600 dark:text-teal-400' : 'text-blue-600 dark:text-blue-400'} text-3xl sm:text-6xl`}>
+          {Math.round(percentage)}<span className="text-lg sm:text-4xl opacity-60 relative -top-1 sm:-top-4">%</span>
         </span>
-        <span className="text-sm font-bold text-slate-500 dark:text-slate-400 tracking-wide">
+        {/* Hide text on very small sizes if needed, or scale it */}
+        <span className="text-[10px] sm:text-sm font-bold text-slate-500 dark:text-slate-400 tracking-wide mt-[-2px] sm:mt-0">
           {Math.round(value)} / {max} hs
         </span>
       </div>
