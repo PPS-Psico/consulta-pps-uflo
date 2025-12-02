@@ -59,11 +59,11 @@ const AdminView: React.FC<AdminViewProps> = ({ isTestingMode = false }) => {
 
         switch (localTab) {
             case 'dashboard': return <AdminDashboard isTestingMode={true} />;
-            case 'metrics': return <MetricsView onStudentSelect={() => {}} isTestingMode={true} />;
+            case 'metrics': return <MetricsView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} isTestingMode={true} />;
             case 'lanzador': return <LanzadorView isTestingMode={true} />;
             case 'gestion': return <GestionView isTestingMode={true} />;
             case 'solicitudes': return <SolicitudesManager isTestingMode={true} />;
-            case 'herramientas': return <HerramientasView onStudentSelect={() => {}} isTestingMode={true} />;
+            case 'herramientas': return <HerramientasView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} isTestingMode={true} />;
             default: return <AdminDashboard isTestingMode={true} />;
         }
     }

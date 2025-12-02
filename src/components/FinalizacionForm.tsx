@@ -137,7 +137,12 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
 
     const handleDownloadTemplate = (e: React.MouseEvent) => {
         e.preventDefault();
-        alert("La descarga del modelo estará disponible pronto. Por favor solicítalo por correo si no lo tienes.");
+        const link = document.createElement('a');
+        link.href = '/documentos/Planilla_Seguimiento.xlsx';
+        link.download = 'Planilla_Seguimiento.xlsx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     if (isSubmitted) {
@@ -206,7 +211,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
                                 {item.hasTemplate && (
                                     <button 
                                         onClick={handleDownloadTemplate}
-                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-0.5"
+                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-0.5 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded border border-blue-100 dark:border-blue-800"
                                     >
                                         <span className="material-icons !text-xs">download</span>
                                         Descargar Modelo

@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext, useMemo, ReactNode } from 'react';
 
 type Theme = 'light' | 'dark';
@@ -11,9 +12,12 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const getInitialTheme = (): Theme => {
-  if (typeof window !== 'undefined' && window.localStorage) {
+  if (typeof window !== 'undefined') {
     const storedPrefs = window.localStorage.getItem('theme');
-    if (storedPrefs === 'dark') {
+    if (typeof storedPrefs === 'string') {
+      return storedPrefs === 'dark' ? 'dark' : 'light';
+    }
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark';
     }
   }
@@ -23,29 +27,25 @@ const getInitialTheme = (): Theme => {
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(getInitialTheme);
 
-  // The setTheme function is now the single source of truth for theme changes.
-  const setTheme = (newTheme: Theme) => {
-    try {
-      window.localStorage.setItem('theme', newTheme);
-      const root = window.document.documentElement;
-      
-      if (newTheme === 'dark') {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-      
-      setThemeState(newTheme);
-    } catch (e) {
-      console.error("Could not save theme", e);
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
     }
+    window.localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
   };
   
-  // This effect synchronizes theme changes across browser tabs.
+  // Synchronize across tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'theme' && e.newValue && (e.newValue === 'light' || e.newValue === 'dark')) {
-        setTheme(e.newValue as Theme);
+        setThemeState(e.newValue as Theme);
       }
     };
     window.addEventListener('storage', handleStorageChange);

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { HORAS_OBJETIVO_TOTAL } from '../constants';
 import ProgressBar from './ProgressBar';
@@ -8,15 +9,19 @@ import ConfirmModal from './ConfirmModal';
 import type { CriteriosCalculados, Orientacion } from '../types';
 
 // Componente mejorado para el botón de certificación
-const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean }> = React.memo(({ onClick, isReady }) => {
-  const [showWarning, setShowWarning] = useState(false);
+const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean }> = ({ onClick, isReady }) => {
+  const [showModal, setShowModal] = useState(false);
+  // Estado capturado al hacer clic para evitar cambios visuales si los datos se actualizan en segundo plano
+  const [capturedState, setCapturedState] = useState<'ready' | 'pending'>('pending');
 
   const handleClick = () => {
-    if (isReady) {
+    setCapturedState(isReady ? 'ready' : 'pending');
+    setShowModal(true);
+  };
+
+  const handleConfirm = () => {
       onClick();
-    } else {
-      setShowWarning(true);
-    }
+      setShowModal(false);
   };
 
   return (
@@ -26,7 +31,7 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean }> =
         type="button"
         className={`group relative overflow-hidden inline-flex items-center gap-3 py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 shadow-lg hover:-translate-y-1 active:transform active:scale-95 cursor-pointer
             ${isReady 
-            ? 'bg-gradient-to-r from-primary-600 to-secondary-600 text-white font-bold focus:ring-primary-300 dark:focus:ring-primary-800 hover:shadow-xl hover:shadow-primary-500/30 dark:hover:shadow-primary-400/20 has-shine-effect hover:shine-effect' 
+            ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold shadow-teal-200 dark:shadow-none focus:ring-teal-300 dark:focus:ring-teal-800 hover:shadow-xl hover:shadow-teal-500/30 dark:hover:shadow-teal-400/20' 
             : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-semibold focus:ring-slate-300 dark:focus:ring-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600'
             }`}
         aria-label="Solicitar acreditación final"
@@ -34,35 +39,48 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean }> =
         <span className={`material-icons !text-lg transition-transform duration-300 relative z-10 ${isReady ? 'group-hover:rotate-12 group-hover:scale-110' : ''}`}>
             {isReady ? 'school' : 'lock_clock'}
         </span>
-        <span className="relative z-10 tracking-wide">Solicitar Acreditación</span>
+        <span className="relative z-10 tracking-wide drop-shadow-sm">Solicitar Acreditación</span>
         {isReady && <span className="material-icons !text-sm opacity-80 transition-transform duration-300 relative z-10 group-hover:translate-x-0.5">arrow_forward</span>}
         </button>
 
         <ConfirmModal
-            isOpen={showWarning}
-            onClose={() => setShowWarning(false)}
-            onConfirm={onClick}
-            title="Requisitos de Acreditación"
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            onConfirm={handleConfirm}
+            type={capturedState === 'ready' ? 'info' : 'warning'}
+            title={capturedState === 'ready' ? "Iniciar Trámite de Acreditación" : "Requisitos Incompletos"}
             message={
-                <>
-                    <p className="mb-2">Este trámite está reservado para estudiantes que han cumplido con los 3 criterios obligatorios:</p>
-                    <ul className="list-disc pl-5 mb-4 space-y-1 text-sm">
-                        <li><strong>250 Horas Totales</strong></li>
-                        <li><strong>70 Horas en su Especialidad</strong></li>
-                        <li><strong>Rotación por 3 áreas</strong></li>
-                    </ul>
-                    <p className="font-bold text-amber-600 dark:text-amber-400 mb-2">IMPORTANTE: El plazo administrativo de resolución es de 14 días hábiles.</p>
-                    <p>Según el sistema, aún no cumples estos requisitos. Si crees que es un error y tienes la documentación, puedes avanzar.</p>
-                </>
+                capturedState === 'ready' ? (
+                    <>
+                        <p className="mb-3">¡Felicitaciones! Has cumplido con todos los objetivos académicos. Antes de continuar, asegúrate de tener listos los siguientes documentos digitales:</p>
+                        <ul className="list-disc pl-5 mb-4 space-y-2 text-sm text-left bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800/50">
+                            <li><strong>Planilla de Seguimiento de Horas</strong> (firmada)</li>
+                            <li><strong>Planilla de Asistencia</strong></li>
+                            <li><strong>Informe Final</strong> de la práctica</li>
+                        </ul>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
+                             <span className="material-icons !text-sm mt-0.5">info</span>
+                             <p>El proceso administrativo de revisión y acreditación puede demorar hasta <strong>14 días hábiles</strong> desde el envío de la solicitud.</p>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <p className="mb-2">Según el sistema, aún no cumples todos los requisitos obligatorios:</p>
+                        <ul className="list-disc pl-5 mb-4 space-y-1 text-sm text-left">
+                            <li><strong>250 Horas Totales</strong></li>
+                            <li><strong>70 Horas en tu Especialidad</strong></li>
+                            <li><strong>Rotación por 3 áreas distintas</strong></li>
+                        </ul>
+                        <p className="text-sm">Si crees que es un error (ej: tienes horas antiguas no digitalizadas) y posees la documentación respaldatoria, puedes continuar bajo tu responsabilidad.</p>
+                    </>
+                )
             }
-            confirmText="Iniciar Trámite"
+            confirmText={capturedState === 'ready' ? "Comenzar" : "Continuar de todos modos"}
             cancelText="Volver"
         />
     </>
   );
-});
-CertificationButton.displayName = 'CertificationButton';
-
+};
 
 interface CriteriosPanelProps {
   criterios: CriteriosCalculados;
@@ -83,7 +101,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
       <div 
         className={`relative bg-gradient-to-br from-white to-gray-50/70 dark:from-gray-900/70 dark:to-black/80 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border shadow-2xl transition-all duration-700 grid grid-cols-1 lg:grid-cols-5 gap-8 overflow-hidden ${
           todosLosCriteriosCumplidos 
-            ? 'border-success-300/50 dark:border-success-500/30 animate-pulse-glow-success' 
+            ? 'border-teal-400/50 dark:border-teal-500/30 shadow-teal-500/10 animate-pulse-glow-success' 
             : 'border-gray-200 dark:border-white/10 shadow-gray-400/30 dark:shadow-black/50'
         }`}
         style={{ willChange: 'border-color, box-shadow' }}
@@ -97,7 +115,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
               {[...Array(12)].map((_, i) => (
                 <div
                   key={i}
-                  className="absolute w-1.5 h-1.5 bg-gradient-to-r from-info-400 to-success-400 rounded-full animate-particle-fade"
+                  className="absolute w-1.5 h-1.5 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-full animate-particle-fade"
                   style={{
                     left: `${Math.random() * 100}%`,
                     top: `${Math.random() * 100}%`,
@@ -126,9 +144,11 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
               Has completado {todosLosCriteriosCumplidos ? 'exitosamente' : 'un total de'} <strong className="font-black text-primary-600 dark:text-primary-400 text-xl">{Math.round(criterios.horasTotales)}</strong> de <strong className="font-black text-gray-800 dark:text-gray-100 text-xl">{HORAS_OBJETIVO_TOTAL}</strong> horas requeridas.
             </p>
             
-            <div className="mt-6">
-              <CertificationButton onClick={onRequestFinalization} isReady={todosLosCriteriosCumplidos} />
-            </div>
+            {todosLosCriteriosCumplidos && (
+                <div className="mt-6">
+                  <CertificationButton onClick={onRequestFinalization} isReady={todosLosCriteriosCumplidos} />
+                </div>
+            )}
           </div>
         </div>
 
