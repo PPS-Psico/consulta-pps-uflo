@@ -260,7 +260,9 @@ const HomeView: React.FC<HomeViewProps> = ({
         <div className="space-y-8 animate-fade-in-up">
             
             {canFinalize && (
-                <FinalizationReadyCard onClick={onOpenFinalization} />
+                <div className="hidden md:block">
+                    <FinalizationReadyCard onClick={onOpenFinalization} />
+                </div>
             )}
 
             <div className="space-y-6">

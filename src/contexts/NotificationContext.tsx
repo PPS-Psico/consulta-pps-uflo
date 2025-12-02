@@ -91,6 +91,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_FINALIZACION },
                 async (payload) => {
+                    console.log("Realtime Event Received:", payload);
                     const newRecord = payload.new;
                     let studentName = 'Un estudiante';
 

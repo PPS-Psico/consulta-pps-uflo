@@ -50,7 +50,7 @@ const SolicitudCard: React.FC<SolicitudCardProps> = ({ solicitud }) => {
                     </span>
                 </div>
                 
-                <h3 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-tight tracking-tight truncate" title={institucion}>
+                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 leading-tight tracking-tighter truncate" title={institucion}>
                     {institucion || 'Institución no especificada'}
                 </h3>
 

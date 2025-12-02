@@ -43,7 +43,7 @@ const Card: React.FC<CardProps> = ({
               )}
               <div>
                 {title && (
-                  <TitleTag className={`text-slate-900 dark:text-slate-100 text-2xl font-extrabold tracking-tight ${titleClassName}`}>
+                  <TitleTag className={`text-slate-900 dark:text-slate-100 text-2xl font-black tracking-tighter ${titleClassName}`}>
                     {title}
                   </TitleTag>
                 )}

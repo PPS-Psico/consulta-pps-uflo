@@ -268,9 +268,10 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
 const SacProcessRow: React.FC<{
     request: any;
     onUpdateStatus: (id: string, status: string) => void;
+    onDelete: (id: string) => void;
     isUpdating: boolean;
     searchTerm: string;
-}> = ({ request, onUpdateStatus, isUpdating, searchTerm }) => {
+}> = ({ request, onUpdateStatus, onDelete, isUpdating, searchTerm }) => {
     
     const Highlight = ({ text }: { text: string }) => {
         if (!searchTerm.trim()) return <span>{text}</span>;
@@ -291,6 +292,14 @@ const SacProcessRow: React.FC<{
             </div>
             
             <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                 <button 
+                    onClick={() => onDelete(request.id)} 
+                    disabled={isUpdating}
+                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-full transition-colors"
+                    title="Eliminar Solicitud"
+                >
+                    <span className="material-icons !text-lg">delete</span>
+                </button>
                 <button 
                     onClick={() => onUpdateStatus(request.id, 'Pendiente')} 
                     disabled={isUpdating}
@@ -314,11 +323,12 @@ const SacProcessRow: React.FC<{
 const RequestCard: React.FC<{
     request: any;
     onUpdateStatus: (id: string, status: string) => void;
+    onDelete: (id: string) => void;
     isUpdating: boolean;
     searchTerm: string;
     onPreview: (files: Attachment[], initialIndex: number) => void;
     isArchived?: boolean;
-}> = ({ request, onUpdateStatus, isUpdating, searchTerm, onPreview, isArchived = false }) => {
+}> = ({ request, onUpdateStatus, onDelete, isUpdating, searchTerm, onPreview, isArchived = false }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const status = getNormalizationState(request);
     const isCargado = status === 'cargado';
@@ -369,6 +379,14 @@ const RequestCard: React.FC<{
                             <span className="material-icons !text-sm">hourglass_empty</span><span className="hidden sm:inline">Pendiente</span>
                         </span>
                     )}
+
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onDelete(request.id); }} 
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-full transition-colors"
+                        title="Eliminar Solicitud"
+                    >
+                        <span className="material-icons !text-xl">delete</span>
+                    </button>
                     
                     <div className={`text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}><span className="material-icons">expand_more</span></div>
                 </div>
@@ -484,6 +502,21 @@ const FinalizacionReview: React.FC = () => {
         onSettled: () => setUpdatingId(null)
     });
 
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => db.finalizacion.delete(id),
+        onSuccess: () => {
+             setToastInfo({ message: 'Solicitud eliminada.', type: 'success' });
+             queryClient.invalidateQueries({ queryKey: ['finalizacionRequests'] });
+        },
+        onError: (e: any) => setToastInfo({ message: 'Error al eliminar.', type: 'error' })
+    });
+
+    const handleDelete = (id: string) => {
+        if (window.confirm('¿Eliminar solicitud de acreditación permanentemente?')) {
+            deleteMutation.mutate(id);
+        }
+    }
+
     const handleUpdateStatus = (id: string, newStatus: string) => {
         if (newStatus === 'Cargado' && !window.confirm('¿Confirmar acreditación final? Se actualizará el estado del alumno y se enviará el correo de confirmación.')) {
             return;
@@ -559,7 +592,7 @@ const FinalizacionReview: React.FC = () => {
                              </h3>
                         )}
                         {filteredData.pending.map((req) => (
-                            <RequestCard key={req.id} request={req} onUpdateStatus={handleUpdateStatus} isUpdating={updatingId === req.id} searchTerm={searchTerm} onPreview={handlePreview} />
+                            <RequestCard key={req.id} request={req} onUpdateStatus={handleUpdateStatus} onDelete={handleDelete} isUpdating={updatingId === req.id} searchTerm={searchTerm} onPreview={handlePreview} />
                         ))}
                     </div>
 
@@ -575,6 +608,7 @@ const FinalizacionReview: React.FC = () => {
                                         key={req.id} 
                                         request={req} 
                                         onUpdateStatus={handleUpdateStatus} 
+                                        onDelete={handleDelete}
                                         isUpdating={updatingId === req.id}
                                         searchTerm={searchTerm}
                                      />
@@ -601,6 +635,7 @@ const FinalizacionReview: React.FC = () => {
                                             key={req.id} 
                                             request={req} 
                                             onUpdateStatus={handleUpdateStatus} 
+                                            onDelete={handleDelete}
                                             isUpdating={updatingId === req.id} 
                                             searchTerm={searchTerm} 
                                             onPreview={handlePreview}

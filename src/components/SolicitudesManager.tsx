@@ -28,7 +28,6 @@ import {
     FIELD_NOMBRE_ESTUDIANTES,
     FIELD_LEGAJO_ESTUDIANTES,
     FIELD_CORREO_ESTUDIANTES,
-    COL_SOLICITUD_UPDATED_AT,
 } from '../constants';
 import Loader from './Loader';
 import EmptyState from './EmptyState';
@@ -338,6 +337,28 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
         }
     });
 
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            if (isTestingMode) return;
+            return db.solicitudes.delete(id);
+        },
+        onSuccess: () => {
+            setToastInfo({ message: 'Solicitud eliminada permanentemente.', type: 'success' });
+            queryClient.invalidateQueries({ queryKey: ['adminSolicitudes', isTestingMode] });
+            setSelectedRecord(null); 
+        },
+        onError: (err: any) => {
+             setToastInfo({ message: `Error al eliminar: ${err.message}`, type: 'error' });
+        }
+    });
+
+    const handleDelete = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (window.confirm('¿Estás seguro de eliminar esta solicitud permanentemente? Esta acción no se puede deshacer.')) {
+            deleteMutation.mutate(id);
+        }
+    };
+
     const filteredRequests = useMemo(() => {
         if (!requestsData) return [];
         return requestsData.filter(req => {
@@ -457,7 +478,14 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
                                                     <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono text-xs">
                                                         {formatDate(req[FIELD_ULTIMA_ACTUALIZACION_PPS] || req.createdTime)}
                                                     </td>
-                                                    <td className="px-6 py-4 text-right">
+                                                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                                        <button 
+                                                            onClick={(e) => handleDelete(req.id, e)}
+                                                            className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 p-2 rounded-lg transition-colors"
+                                                            title="Eliminar"
+                                                        >
+                                                            <span className="material-icons !text-lg">delete</span>
+                                                        </button>
                                                         <button 
                                                             className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 p-2 rounded-lg transition-colors"
                                                             title="Ver Detalle"

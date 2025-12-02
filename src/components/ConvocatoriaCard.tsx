@@ -206,7 +206,7 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
                 <div className="flex items-center gap-2 mb-1.5">
                     <StatusBadge />
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight truncate pr-2" title={nombre || 'Convocatoria'}>
+                <h3 className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 leading-tight tracking-tighter truncate pr-2" title={nombre || 'Convocatoria'}>
                     {nombre || 'Convocatoria sin nombre'}
                 </h3>
                 <LocationInfo />
