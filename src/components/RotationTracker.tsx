@@ -5,9 +5,10 @@ import { ROTACION_OBJETIVO_ORIENTACIONES } from '../constants';
 interface RotationTrackerProps {
   count: number;
   orientacionesUnicas: string[];
+  compact?: boolean;
 }
 
-const RotationTracker: React.FC<RotationTrackerProps> = ({ count, orientacionesUnicas }) => {
+const RotationTracker: React.FC<RotationTrackerProps> = ({ count, orientacionesUnicas, compact = false }) => {
   const total = ROTACION_OBJETIVO_ORIENTACIONES;
   const isComplete = count >= total;
   
@@ -15,6 +16,26 @@ const RotationTracker: React.FC<RotationTrackerProps> = ({ count, orientacionesU
   const iconColorClass = isComplete
     ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
     : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400';
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-3">
+          <div className="flex gap-1.5">
+            {[...Array(total)].map((_, i) => (
+              <div key={i} className="w-8 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ease-out ${i < count ? activeColor : 'opacity-0'}`}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            ))}
+          </div>
+          <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
+              Rotación {count}/{total}
+          </span>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full p-5 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm transition-all hover:shadow-md">

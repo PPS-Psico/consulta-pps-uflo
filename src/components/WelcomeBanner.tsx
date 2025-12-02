@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { EstudianteFields } from '../types';
 import {
@@ -40,7 +41,7 @@ const WelcomeBannerSkeleton: React.FC = () => (
   <div className="p-6 sm:p-8 rounded-2xl bg-slate-100 dark:bg-slate-800/50 animate-pulse">
     <SkeletonBox className="h-9 w-3/4 mb-4" />
     <SkeletonBox className="h-5 w-1/2 mb-8" />
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <SkeletonBox className="h-16 w-full" />
       <SkeletonBox className="h-16 w-full" />
       <SkeletonBox className="h-16 w-full" />
@@ -103,7 +104,7 @@ const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
   const hasAnyInfo = infoItems.some((item) => !!item.value);
 
   return (
-    <div className="relative p-6 sm:p-8 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg animate-fade-in-up">
+    <div className="relative p-5 sm:p-8 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg animate-fade-in-up">
       {/* Fondo decorativo */}
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
       <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
@@ -112,19 +113,21 @@ const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
       <div className="relative z-10">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div className="flex-grow">
-                <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
                   {greeting},{' '}
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
                       {studentName?.split(' ')[0] || 'Estudiante'}
                   </span>.
                 </h1>
-                <p className="mt-3 text-lg font-medium text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
-                  Bienvenido a tu panel de mando. Aquí seguimos tu progreso y te acercamos nuevas oportunidades.
+                <p className="mt-2 sm:mt-3 text-sm sm:text-lg font-medium text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
+                  Bienvenido a tu panel. Aquí seguimos tu progreso académico.
                 </p>
             </div>
         </div>
+        
+        {/* Grid de información - OCULTO EN MÓVIL PARA LIMPIEZA */}
         {hasAnyInfo && (
-          <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-700/60 animate-scale-in" style={{ animationDelay: '200ms' }}>
+          <div className="mt-8 pt-6 border-t border-slate-200/80 dark:border-slate-700/60 animate-scale-in hidden md:block" style={{ animationDelay: '200ms' }}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {infoItems.map(({ key, ...itemProps }) => (
                 <InfoItem key={key} {...itemProps} />

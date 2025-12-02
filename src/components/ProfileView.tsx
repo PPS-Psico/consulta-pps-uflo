@@ -86,6 +86,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ studentDetails, isLoading, up
   return (
     <>
       <div className="divide-y divide-slate-200 dark:divide-slate-800">
+          {/* Se muestran Nombre y Legajo explícitamente aquí para compensar su ausencia en el banner móvil */}
+          <InfoRow icon="badge" label="Nombre Completo" value={nombre} />
+          <InfoRow icon="numbers" label="Legajo" value={legajo} />
+          
           <InfoRow icon="fingerprint" label="DNI" value={dni} />
           <InfoRow icon="email" label="Correo Electrónico" value={correo} />
           <InfoRow icon="phone" label="Teléfono" value={telefono} />
