@@ -52,6 +52,31 @@ import { db } from '../lib/db';
 export { default as StudentPracticas } from '../components/PracticasTable';
 export { default as StudentSolicitudes } from '../components/SolicitudesList';
 
+// --- COMPONENT: MobileSectionHeader ---
+const MobileSectionHeader: React.FC<{ title: React.ReactNode; description: string; icon?: string }> = ({ title, description, icon }) => (
+    <div className="relative p-6 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/90 via-white/80 to-slate-50/90 dark:from-blue-900/30 dark:via-slate-900/40 dark:to-black/40 backdrop-blur-xl animate-fade-in-up group">
+      {/* Decoraciones de fondo */}
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-500/10 rounded-full blur-3xl transition-opacity group-hover:opacity-70"></div>
+      <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-500/10 rounded-full blur-3xl transition-opacity group-hover:opacity-70"></div>
+
+      <div className="relative z-10 flex items-start gap-4">
+        {icon && (
+            <div className="flex-shrink-0 p-3 rounded-2xl bg-white/80 dark:bg-white/5 shadow-sm border border-white/50 dark:border-white/10 text-blue-600 dark:text-blue-400">
+                <span className="material-icons !text-2xl">{icon}</span>
+            </div>
+        )}
+        <div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
+              {title}
+            </h2>
+            <p className="mt-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed max-w-md">
+              {description}
+            </p>
+        </div>
+      </div>
+    </div>
+);
+
 // --- COMPONENT: StudentHome (For Router Index) ---
 export const StudentHome: React.FC = () => {
     const navigate = useNavigate();
@@ -59,6 +84,7 @@ export const StudentHome: React.FC = () => {
     
     const {
         studentDetails,
+        studentAirtableId,
         lanzamientos,
         allLanzamientos,
         institutionAddressMap,
@@ -73,12 +99,6 @@ export const StudentHome: React.FC = () => {
         setIsFinalizationModalOpen(true);
     }, []);
 
-    // Helper to get student ID safely
-    const getStudentId = () => {
-        if (!studentDetails) return null;
-        return (studentDetails as any).id || null;
-    };
-
     return (
         <>
              {isFinalizationModalOpen && (
@@ -90,7 +110,7 @@ export const StudentHome: React.FC = () => {
                     >
                         <span className="material-icons">close</span>
                     </button>
-                    <FinalizacionForm studentAirtableId={getStudentId()} />
+                    <FinalizacionForm studentAirtableId={studentAirtableId} />
                 </div>
                 </div>
             )}
@@ -133,6 +153,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
 
   const {
     studentDetails,
+    studentAirtableId,
     practicas,
     solicitudes,
     lanzamientos,
@@ -159,12 +180,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
   const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || currentUser?.nombre || 'Estudiante';
 
-  // Helper to safely get student ID
-  const getStudentId = () => {
-    if (studentDetails && (studentDetails as any).id) return (studentDetails as any).id;
-    return currentUser?.id || null;
-  };
-
   const handleOrientacionChange = useCallback((orientacion: Orientacion | "") => {
     updateOrientation.mutate(orientacion, {
       onSuccess: () => {
@@ -185,11 +200,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   // Create new PPS Request Mutation
   const createSolicitudMutation = useMutation({
       mutationFn: async (formData: any) => {
-          const studentId = getStudentId();
-          if (!studentId) throw new Error("Error identificando al estudiante.");
+          if (!studentAirtableId) throw new Error("Error identificando al estudiante. Intente recargar la página.");
 
           const newRecord: Partial<SolicitudPPSFields> = {
-              [FIELD_LEGAJO_PPS]: [studentId],
+              [FIELD_LEGAJO_PPS]: [studentAirtableId],
               [FIELD_SOLICITUD_LEGAJO_ALUMNO]: studentDetails?.[FIELD_LEGAJO_ESTUDIANTES],
               [FIELD_SOLICITUD_NOMBRE_ALUMNO]: studentDetails?.[FIELD_NOMBRE_ESTUDIANTES],
               [FIELD_SOLICITUD_EMAIL_ALUMNO]: studentDetails?.[FIELD_CORREO_ESTUDIANTES],
@@ -294,11 +308,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           <PrintableReport studentDetails={studentDetails} criterios={criterios} practicas={practicas} />
         </div>
         <div className="no-print">
-          <div className="space-y-6 animate-fade-in-up">
+          <div className="space-y-8 animate-fade-in-up">
             <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={false} />
             <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
             <Card className="border-slate-300/50 bg-slate-50/30">
-              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontraron prácticas o solicitudes." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar</button>} />
+              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontró información de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
             </Card>
           </div>
           <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
@@ -315,7 +329,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                 >
                     <span className="material-icons">close</span>
                 </button>
-                <FinalizacionForm studentAirtableId={getStudentId()} />
+                <FinalizacionForm studentAirtableId={studentAirtableId} />
             </div>
             </div>
         )}
@@ -334,7 +348,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
               >
                   <span className="material-icons">close</span>
               </button>
-              <FinalizacionForm studentAirtableId={getStudentId()} />
+              <FinalizacionForm studentAirtableId={studentAirtableId} />
           </div>
         </div>
       )}
@@ -348,7 +362,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       </div>
 
       {/* --- VISTA DE ESCRITORIO --- */}
-      <div className="hidden md:block no-print space-y-6 animate-fade-in-up">
+      <div className="hidden md:block no-print space-y-8 animate-fade-in-up">
         <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
         <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
         
@@ -362,7 +376,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           </Card>
         ) : (
            // Should technically fall into empty state above, but double check here
-           <div className="space-y-6">
+           <div className="space-y-8">
                 <Card icon="list_alt" title="Comenzar">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
                          <button 
@@ -388,7 +402,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       </div>
 
       {/* --- VISTA MÓVIL --- */}
-      <div className="md:hidden no-print space-y-6 animate-fade-in-up">
+      <div className="md:hidden no-print space-y-8 animate-fade-in-up">
           {currentActiveTab === 'inicio' && (
               <>
                   <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />

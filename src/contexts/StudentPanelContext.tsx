@@ -17,6 +17,7 @@ import type {
 interface StudentPanelContextType {
     // Data
     studentDetails: EstudianteFields | null;
+    studentAirtableId: string | null; // Exposed ID
     practicas: Practica[];
     solicitudes: SolicitudPPS[];
     lanzamientos: LanzamientoPPS[];
@@ -89,6 +90,7 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
 
     const value = {
         studentDetails,
+        studentAirtableId,
         practicas,
         solicitudes,
         lanzamientos,

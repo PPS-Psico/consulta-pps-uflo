@@ -268,7 +268,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
               {/* Top Row: Institution & Hours */}
               <div className="flex justify-between items-start gap-3">
                 <div className="flex-1">
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight">{institucion}</h3>
+                  <h3 className="font-black text-slate-800 dark:text-slate-100 text-base tracking-tight leading-tight">{institucion}</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1.5">
                     <span className="material-icons !text-sm text-slate-400">date_range</span>
                     <span>{formatDate(practica[FIELD_FECHA_INICIO_PRACTICAS])} - {formatDate(practica[FIELD_FECHA_FIN_PRACTICAS])}</span>

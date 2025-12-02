@@ -246,12 +246,8 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
                     />
                 </div>
             )}
-
-            {todosLosCriteriosCumplidos && (
-                <div className="animate-scale-in">
-                     <CertificationButton onClick={onRequestFinalization} isReady={todosLosCriteriosCumplidos} compact />
-                </div>
-            )}
+            
+            {/* NOTA: Se ha ocultado el botón de 'Solicitar Acreditación' en móviles porque requiere PC */}
         </div>
 
       </div>

@@ -170,8 +170,9 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
             }
             
             // 2. Create DB Record
+            // FIX: Send studentAirtableId directly (string), NOT as an array [studentAirtableId]
             const dbRecord: any = {
-                [FIELD_ESTUDIANTE_FINALIZACION]: [studentAirtableId],
+                [FIELD_ESTUDIANTE_FINALIZACION]: studentAirtableId, 
                 [FIELD_FECHA_SOLICITUD_FINALIZACION]: new Date().toISOString(),
                 [FIELD_ESTADO_FINALIZACION]: 'Pendiente',
             };

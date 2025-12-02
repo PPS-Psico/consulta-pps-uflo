@@ -105,13 +105,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     />
                 )}
                 {onRequestFinalization && (
-                    <ActionButton 
-                        icon={isAccreditationReady ? "verified" : "lock_clock"}
-                        title="Solicitar Acreditación"
-                        description={isAccreditationReady ? "¡Objetivos cumplidos! Iniciar cierre." : "Verificar estado y requisitos."}
-                        onClick={handleAccreditationClick}
-                        colorScheme={isAccreditationReady ? "teal" : "slate"}
-                    />
+                    <div className="hidden md:block">
+                        <ActionButton 
+                            icon={isAccreditationReady ? "verified" : "lock_clock"}
+                            title="Solicitar Acreditación"
+                            description={isAccreditationReady ? "¡Objetivos cumplidos! Iniciar cierre." : "Verificar estado y requisitos."}
+                            onClick={handleAccreditationClick}
+                            colorScheme={isAccreditationReady ? "teal" : "slate"}
+                        />
+                    </div>
                 )}
             </div>
         )}
