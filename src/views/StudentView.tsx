@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import AppModals from '../components/AppModals';
@@ -29,6 +29,11 @@ const StudentLayout: React.FC = () => {
         isLoading,
         practicas
     } = useStudentPanel();
+
+    // Scroll to top on route change
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [location.pathname]);
 
     // Determine active tab from URL
     let activeTab = 'inicio';
