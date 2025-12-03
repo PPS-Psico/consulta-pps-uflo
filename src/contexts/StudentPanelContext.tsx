@@ -1,23 +1,26 @@
 
+
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useStudentData } from '../hooks/useStudentData';
 import { useStudentPracticas } from '../hooks/useStudentPracticas';
 import { useStudentSolicitudes } from '../hooks/useStudentSolicitudes';
 import { useConvocatorias } from '../hooks/useConvocatorias';
+import { fetchFinalizacionRequest } from '../services/dataService';
+import { useQuery } from '@tanstack/react-query';
 import { calculateCriterios, initialCriterios } from '../utils/criteriaCalculations';
 import { processAndLinkStudentData } from '../utils/dataLinker';
 import { FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES } from '../constants';
 
 import type { UseMutationResult } from '@tanstack/react-query';
 import type {
-    EstudianteFields, Practica, SolicitudPPS, LanzamientoPPS, Convocatoria, Orientacion, InformeTask, AirtableRecord, CriteriosCalculados
+    EstudianteFields, Practica, SolicitudPPS, LanzamientoPPS, Convocatoria, Orientacion, InformeTask, AirtableRecord, CriteriosCalculados, FinalizacionPPS
 } from '../types';
 
 interface StudentPanelContextType {
     // Data
     studentDetails: EstudianteFields | null;
-    studentAirtableId: string | null; // Exposed ID
+    studentAirtableId: string | null;
     practicas: Practica[];
     solicitudes: SolicitudPPS[];
     lanzamientos: LanzamientoPPS[];
@@ -27,6 +30,7 @@ interface StudentPanelContextType {
     informeTasks: InformeTask[];
     criterios: CriteriosCalculados;
     institutionAddressMap: Map<string, string>;
+    finalizacionRequest: FinalizacionPPS | null;
 
     // Aggregated states
     isLoading: boolean;
@@ -43,14 +47,9 @@ interface StudentPanelContextType {
 
 const StudentPanelContext = createContext<StudentPanelContextType | undefined>(undefined);
 
-/**
- * Provides all data related to a specific student panel.
- * This component acts as a single data-fetching orchestrator for the student dashboard.
- */
 export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNode }> = ({ legajo, children }) => {
     const { isSuperUserMode } = useAuth();
 
-    // Call all the individual data hooks in one central place.
     const { studentDetails, studentAirtableId, isStudentLoading, studentError, updateOrientation, updateInternalNotes, refetchStudent } = useStudentData(legajo);
     const { practicas, isPracticasLoading, practicasError, updateNota, refetchPracticas } = useStudentPracticas(legajo);
     const { solicitudes, isSolicitudesLoading, solicitudesError, refetchSolicitudes } = useStudentSolicitudes(legajo, studentAirtableId);
@@ -59,19 +58,24 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
         enrollStudent, confirmInforme, refetchConvocatorias, institutionAddressMap
     } = useConvocatorias(legajo, studentAirtableId, studentDetails, isSuperUserMode);
 
-    // Aggregate loading and error states into a single source of truth.
-    const isLoading = isStudentLoading || isPracticasLoading || isSolicitudesLoading || isConvocatoriasLoading;
+    // Fetch finalization request separately
+    const { data: finalizacionRequest = null, isLoading: isFinalizationLoading, refetch: refetchFinalizacion } = useQuery({
+        queryKey: ['finalizacionRequest', legajo],
+        queryFn: () => fetchFinalizacionRequest(legajo, studentAirtableId),
+        enabled: !!studentAirtableId
+    });
+
+    const isLoading = isStudentLoading || isPracticasLoading || isSolicitudesLoading || isConvocatoriasLoading || isFinalizationLoading;
     const error = studentError || practicasError || solicitudesError || convocatoriasError;
 
-    // Create a memoized function to refetch all data at once.
     const refetchAll = useCallback(() => {
         refetchStudent();
         refetchPracticas();
         refetchSolicitudes();
         refetchConvocatorias();
-    }, [refetchStudent, refetchPracticas, refetchSolicitudes, refetchConvocatorias]);
+        refetchFinalizacion();
+    }, [refetchStudent, refetchPracticas, refetchSolicitudes, refetchConvocatorias, refetchFinalizacion]);
     
-    // Safely access the orientation field
     const selectedOrientacion = (studentDetails && studentDetails[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] 
         ? studentDetails[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] 
         : "") as Orientacion | "";
@@ -107,7 +111,8 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
         criterios,
         enrollmentMap,
         completedLanzamientoIds,
-        informeTasks
+        informeTasks,
+        finalizacionRequest
     };
 
     return (
@@ -117,10 +122,6 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
     );
 };
 
-/**
- * Custom hook to consume the StudentPanelContext.
- * Components within the StudentPanelProvider tree can use this to access all student data.
- */
 export const useStudentPanel = (): StudentPanelContextType => {
     const context = useContext(StudentPanelContext);
     if (!context) {

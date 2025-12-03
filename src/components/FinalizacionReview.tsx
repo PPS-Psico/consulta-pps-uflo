@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
+import { deleteFinalizationRequest } from '../services/dataService';
 import {
     TABLE_NAME_FINALIZACION,
     FIELD_ESTUDIANTE_FINALIZACION,
@@ -268,7 +269,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
 const SacProcessRow: React.FC<{
     request: any;
     onUpdateStatus: (id: string, status: string) => void;
-    onDelete: (id: string) => void;
+    onDelete: (record: any) => void;
     isUpdating: boolean;
     searchTerm: string;
 }> = ({ request, onUpdateStatus, onDelete, isUpdating, searchTerm }) => {
@@ -293,7 +294,7 @@ const SacProcessRow: React.FC<{
             
             <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                  <button 
-                    onClick={() => onDelete(request.id)} 
+                    onClick={() => onDelete(request)} 
                     disabled={isUpdating}
                     className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-full transition-colors"
                     title="Eliminar Solicitud"
@@ -323,7 +324,7 @@ const SacProcessRow: React.FC<{
 const RequestCard: React.FC<{
     request: any;
     onUpdateStatus: (id: string, status: string) => void;
-    onDelete: (id: string) => void;
+    onDelete: (record: any) => void;
     isUpdating: boolean;
     searchTerm: string;
     onPreview: (files: Attachment[], initialIndex: number) => void;
@@ -381,7 +382,7 @@ const RequestCard: React.FC<{
                     )}
 
                     <button 
-                        onClick={(e) => { e.stopPropagation(); onDelete(request.id); }} 
+                        onClick={(e) => { e.stopPropagation(); onDelete(request); }} 
                         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-full transition-colors"
                         title="Eliminar Solicitud"
                     >
@@ -503,17 +504,17 @@ const FinalizacionReview: React.FC = () => {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id: string) => db.finalizacion.delete(id),
+        mutationFn: (record: any) => deleteFinalizationRequest(record.id, record),
         onSuccess: () => {
-             setToastInfo({ message: 'Solicitud eliminada.', type: 'success' });
+             setToastInfo({ message: 'Solicitud y archivos eliminados.', type: 'success' });
              queryClient.invalidateQueries({ queryKey: ['finalizacionRequests'] });
         },
         onError: (e: any) => setToastInfo({ message: 'Error al eliminar.', type: 'error' })
     });
 
-    const handleDelete = (id: string) => {
-        if (window.confirm('¿Eliminar solicitud de acreditación permanentemente?')) {
-            deleteMutation.mutate(id);
+    const handleDelete = (record: any) => {
+        if (window.confirm('¿Eliminar solicitud de acreditación permanentemente? Esto borrará también los archivos adjuntos.')) {
+            deleteMutation.mutate(record);
         }
     }
 

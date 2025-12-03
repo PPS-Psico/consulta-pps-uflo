@@ -19,10 +19,10 @@ import HomeView from '../components/HomeView';
 import PrintableReport from '../components/PrintableReport';
 import { useStudentPanel } from '../contexts/StudentPanelContext';
 import FinalizacionForm from '../components/FinalizacionForm';
+import FinalizationStatusCard from '../components/FinalizationStatusCard'; // IMPORTADO
 import { 
     FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, 
     FIELD_NOMBRE_ESTUDIANTES, 
-    TABLE_NAME_PPS,
     FIELD_LEGAJO_PPS,
     FIELD_ESTADO_PPS,
     FIELD_ULTIMA_ACTUALIZACION_PPS,
@@ -32,16 +32,18 @@ import {
     FIELD_SOLICITUD_EMAIL_ALUMNO,
     FIELD_SOLICITUD_LOCALIDAD,
     FIELD_SOLICITUD_DIRECCION,
+    FIELD_SOLICITUD_EMAIL_INSTITUCION,
+    FIELD_SOLICITUD_TELEFONO_INSTITUCION,
     FIELD_SOLICITUD_REFERENTE,
     FIELD_SOLICITUD_TIENE_CONVENIO,
     FIELD_SOLICITUD_TIENE_TUTOR,
     FIELD_SOLICITUD_CONTACTO_TUTOR,
     FIELD_SOLICITUD_TIPO_PRACTICA,
     FIELD_SOLICITUD_DESCRIPCION,
-    FIELD_SOLICITUD_EMAIL_INSTITUCION,
-    FIELD_SOLICITUD_TELEFONO_INSTITUCION,
     FIELD_LEGAJO_ESTUDIANTES,
-    FIELD_CORREO_ESTUDIANTES
+    FIELD_CORREO_ESTUDIANTES,
+    FIELD_FECHA_SOLICITUD_FINALIZACION,
+    FIELD_ESTADO_FINALIZACION
 } from '../constants';
 import { useNavigate } from 'react-router-dom';
 import { useModal } from '../contexts/ModalContext';
@@ -52,24 +54,32 @@ import { db } from '../lib/db';
 export { default as StudentPracticas } from '../components/PracticasTable';
 export { default as StudentSolicitudes } from '../components/SolicitudesList';
 
-// --- COMPONENT: MobileSectionHeader ---
-// Diseño Premium idéntico al WelcomeBanner: Gradiente sutil, esquinas redondeadas grandes, sin borde sólido fuerte.
-const MobileSectionHeader: React.FC<{ title: React.ReactNode; description?: string }> = ({ title, description }) => (
-    <div className="relative p-6 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg animate-fade-in-up group">
-      {/* Decoraciones de fondo idénticas al Banner de Bienvenida */}
-      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
-      <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
-
-      <div className="relative z-10 flex flex-col gap-3">
-        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
-            {title}
-        </h2>
-        {description && (
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
-            {description}
-            </p>
-        )}
-      </div>
+// --- COMPONENT: FinalizationReadyCard ---
+const FinalizationReadyCard: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 shadow-xl shadow-emerald-900/20 text-white animate-fade-in-up cursor-default mb-8">
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
+        <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
+        
+        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white shadow-sm">
+                    <span className="material-icons !text-3xl">military_tech</span>
+                </div>
+                <div>
+                    <h2 className="text-2xl font-black tracking-tight">¡Objetivo Cumplido!</h2>
+                    <p className="text-emerald-50 font-medium text-sm mt-1 max-w-md leading-relaxed opacity-90">
+                        Has completado todos los requisitos. Ya estás listo para solicitar tu acreditación final.
+                    </p>
+                </div>
+            </div>
+            <button
+                onClick={onClick}
+                className="group flex-shrink-0 flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 font-bold text-emerald-700 shadow-lg transition-all hover:bg-emerald-50 hover:shadow-xl hover:-translate-y-0.5 active:scale-95"
+            >
+                <span>Iniciar Trámite</span>
+                <span className="material-icons !text-xl transition-transform group-hover:translate-x-1">arrow_forward</span>
+            </button>
+        </div>
     </div>
 );
 
@@ -80,7 +90,7 @@ export const StudentHome: React.FC = () => {
     
     const {
         studentDetails,
-        studentAirtableId, // Retrieved from context
+        studentAirtableId, 
         lanzamientos,
         allLanzamientos,
         institutionAddressMap,
@@ -88,12 +98,15 @@ export const StudentHome: React.FC = () => {
         criterios,
         enrollmentMap,
         completedLanzamientoIds,
-        informeTasks
+        informeTasks,
+        finalizacionRequest
     } = useStudentPanel();
 
     const handleOpenFinalization = useCallback(() => {
         setIsFinalizationModalOpen(true);
     }, []);
+    
+    const canFinalize = criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion;
 
     return (
         <>
@@ -106,7 +119,6 @@ export const StudentHome: React.FC = () => {
                     >
                         <span className="material-icons">close</span>
                     </button>
-                    {/* Use context ID directly */}
                     <FinalizacionForm 
                         studentAirtableId={studentAirtableId} 
                         onClose={() => setIsFinalizationModalOpen(false)}
@@ -114,6 +126,22 @@ export const StudentHome: React.FC = () => {
                 </div>
                 </div>
             )}
+            
+            {/* Mostrar tarjeta de estado SIEMPRE que haya un trámite activo */}
+            {finalizacionRequest && (
+                <FinalizationStatusCard 
+                    status={finalizacionRequest[FIELD_ESTADO_FINALIZACION] || 'Pendiente'} 
+                    requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
+                />
+            )}
+
+            {/* Mostrar CTA de finalización si cumple requisitos Y NO tiene trámite iniciado */}
+            {canFinalize && !finalizacionRequest && (
+                <div className="hidden md:block">
+                    <FinalizationReadyCard onClick={handleOpenFinalization} />
+                </div>
+            )}
+
             <HomeView 
                 myEnrollments={enrollmentMap ? Array.from(enrollmentMap.values()) : []} 
                 allLanzamientos={allLanzamientos} 
@@ -170,7 +198,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
     criterios,
     enrollmentMap,
     completedLanzamientoIds,
-    informeTasks
+    informeTasks,
+    finalizacionRequest
   } = useStudentPanel();
 
   const [internalActiveTab, setInternalActiveTab] = useState<TabId>(showExportButton ? 'practicas' : 'inicio');
@@ -180,7 +209,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
   const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || currentUser?.nombre || 'Estudiante';
 
-  // Helper to safely get student ID - prioritize context ID
   const getStudentId = () => {
       return studentAirtableId || currentUser?.id || null;
   };
@@ -202,7 +230,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       setIsFinalizationModalOpen(true);
   }, []);
 
-  // Create new PPS Request Mutation
   const createSolicitudMutation = useMutation({
       mutationFn: async (formData: any) => {
           const studentId = getStudentId();
@@ -264,7 +291,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
   const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
-  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization]);
+  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} criterios={criterios} finalizacionRequest={finalizacionRequest} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios, finalizacionRequest]);
   const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
   const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
 
@@ -376,7 +403,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       {/* --- VISTA DE ESCRITORIO --- */}
       <div className="hidden md:block no-print space-y-8 animate-fade-in-up">
         <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
-        <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+        
+        {finalizacionRequest ? (
+            <FinalizationStatusCard 
+                status={finalizacionRequest[FIELD_ESTADO_FINALIZACION] || 'Pendiente'} 
+                requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
+            />
+        ) : (
+            <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+        )}
         
         {hasData ? (
           <Card>
@@ -418,6 +453,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           {currentActiveTab === 'inicio' && (
               <>
                   <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+                  {finalizacionRequest && (
+                      <FinalizationStatusCard 
+                          status={finalizacionRequest[FIELD_ESTADO_FINALIZACION] || 'Pendiente'} 
+                          requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
+                      />
+                  )}
                   {homeContent}
               </>
           )}
@@ -436,7 +477,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           
           {currentActiveTab === 'practicas' && (
               <>
-                  <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+                  {!finalizacionRequest && <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />}
                   <Card icon="work_history" title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones.">
                     {practicasContent}
                   </Card>

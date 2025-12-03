@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import {
   Practica, SolicitudPPS, LanzamientoPPS, Convocatoria, InformeTask,
   EstudianteFields,
-  GroupedSeleccionados
+  GroupedSeleccionados,
+  FinalizacionPPS
 } from '../types';
 import * as C from '../constants';
 import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatters';
@@ -117,6 +118,7 @@ export const fetchSolicitudes = async (legajo: string, studentAirtableId: string
     .from(C.TABLE_NAME_PPS)
     .select('*')
     .eq(C.FIELD_LEGAJO_PPS, targetId)
+    .not(C.FIELD_ESTADO_PPS, 'eq', 'Archivado') // Hide archived from active view
     .order(C.COL_SOLICITUD_UPDATED_AT, { ascending: false });
 
   if (error) return [];
@@ -128,6 +130,33 @@ export const fetchSolicitudes = async (legajo: string, studentAirtableId: string
       [C.FIELD_LEGAJO_PPS]: [row.estudiante_id], 
   })) as SolicitudPPS[];
 };
+
+export const fetchFinalizacionRequest = async (legajo: string, studentAirtableId: string | null): Promise<FinalizacionPPS | null> => {
+  if (legajo === '99999') return null;
+  
+  let targetId = studentAirtableId;
+  if (!targetId) {
+       const { studentAirtableId: fetchedId } = await fetchStudentData(legajo);
+       targetId = fetchedId;
+  }
+  if (!targetId) return null;
+
+  const { data, error } = await supabase
+      .from(C.TABLE_NAME_FINALIZACION)
+      .select('*')
+      .eq(C.FIELD_ESTUDIANTE_FINALIZACION, targetId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+      
+  if (error || !data) return null;
+  
+  return {
+      ...data,
+      id: data.id,
+      createdTime: data.created_at
+  } as FinalizacionPPS;
+}
 
 export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: string | null, isSuperUserMode: boolean): Promise<{
     lanzamientos: LanzamientoPPS[],
@@ -144,11 +173,6 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
     });
   }
   
-  // OPTIMIZACIÓN SQL: 
-  // Ya no descargamos todo el historial ('allHistoryRes') ni todas las instituciones ('institutionsRes').
-  // Usamos solo lo que el alumno necesita ver (inscripciones propias y oferta activa).
-  // Las validaciones históricas se hacen contra el historial de PRÁCTICAS del alumno, no contra todo el historial de lanzamientos.
-
   const [enrollmentsRes, activeLaunchesRes] = await Promise.all([
       studentAirtableId ? supabase
           .from(C.TABLE_NAME_CONVOCATORIAS)
@@ -156,7 +180,6 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
           .eq(C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS, studentAirtableId) 
           : { data: [], error: null },
       
-      // Active Launches for the catalog
       supabase
           .from(C.TABLE_NAME_LANZAMIENTOS_PPS)
           .select('*')
@@ -172,7 +195,6 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
           createdTime: row.created_at,
           [C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: [row.lanzamiento_id],
           [C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: [row.estudiante_id],
-          // Snapshot fallback from joined launch data
           [C.FIELD_NOMBRE_PPS_CONVOCATORIAS]: row.nombre_pps || launch.nombre_pps,
           [C.FIELD_FECHA_INICIO_CONVOCATORIAS]: row.fecha_inicio || launch.fecha_inicio,
           [C.FIELD_FECHA_FIN_CONVOCATORIAS]: row.fecha_finalizacion || launch.fecha_finalizacion,
@@ -182,20 +204,15 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       } as Convocatoria;
   });
 
-  // Visible Launches for the student
   const lanzamientos = (activeLaunchesRes.data || []).map((l: any) => ({
       ...l,
       id: l.id,
       createdTime: l.created_at
   } as LanzamientoPPS));
   
-  // En el "allLanzamientos" devolvemos solo los relevantes (activos + los que el alumno ya tiene inscripcion)
-  // Ya no necesitamos "todo el historial" para calcular duplicados, usamos la tabla de Prácticas del alumno en `dataLinker`.
   const myLinkedLaunches = (enrollmentsRes.data || []).map((row: any) => row.lanzamiento).filter(Boolean).map((l: any) => ({...l, id: l.id, createdTime: l.created_at} as LanzamientoPPS));
   const allLanzamientos = [...lanzamientos, ...myLinkedLaunches];
 
-  // Map addresses directly from the Launches table (assuming snapshot exists there)
-  // This saves an entire table fetch.
   const institutionAddressMap = new Map<string, string>();
   lanzamientos.forEach(l => {
       const name = l[C.FIELD_NOMBRE_PPS_LANZAMIENTOS];
@@ -212,7 +229,6 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
     const lanzamientoId = lanzamiento.id;
     if (!lanzamientoId) return null;
 
-    // IMPORTANT: Use explicit FK 'fk_convocatoria_estudiante' to avoid ambiguity and ensure proper join
     const { data, error } = await supabase
         .from(C.TABLE_NAME_CONVOCATORIAS)
         .select(`
@@ -236,10 +252,8 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
     
     data.forEach((row: any) => {
         const horario = row.horario_seleccionado || 'No especificado';
-        // Handle array or single object returned by Supabase join
         const student = Array.isArray(row.estudiante) ? row.estudiante[0] : row.estudiante;
         
-        // Only add if student data is resolved (if RLS blocks it, student might be null)
         if (student) {
             if (!grouped[horario]) grouped[horario] = [];
             grouped[horario].push({ 
@@ -249,7 +263,6 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
         }
     });
     
-    // If all students were filtered out (e.g. due to RLS returning nulls), return null to show empty state
     if (Object.keys(grouped).length === 0) return null;
 
     for (const horario in grouped) {
@@ -298,4 +311,63 @@ export const autoCloseExpiredPractices = async (): Promise<number> => {
         return 0;
     }
     return ids.length;
+};
+
+// --- Funcionalidad de Eliminación de Solicitudes de Finalización y sus Archivos ---
+
+export const deleteFinalizationRequest = async (id: string, record: any): Promise<{ success: boolean, error: any }> => {
+    try {
+        // 1. Collect file paths
+        const filesToDelete: string[] = [];
+        const fileFields = [
+            C.FIELD_INFORME_FINAL_FINALIZACION, 
+            C.FIELD_PLANILLA_HORAS_FINALIZACION, 
+            C.FIELD_PLANILLA_ASISTENCIA_FINALIZACION
+        ];
+
+        fileFields.forEach(field => {
+            const raw = record[field];
+            if (raw) {
+                let attachments = [];
+                try {
+                    attachments = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                } catch (e) {
+                     console.warn("Error parsing attachment JSON for deletion:", e);
+                }
+
+                if (Array.isArray(attachments)) {
+                    attachments.forEach((att: any) => {
+                        // The URL typically looks like: .../storage/v1/object/public/documentos_finalizacion/FOLDER/FILE
+                        // We need the path AFTER the bucket name.
+                        if (att.url) {
+                            const urlParts = att.url.split('/documentos_finalizacion/');
+                            if (urlParts.length > 1) {
+                                filesToDelete.push(urlParts[1]);
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        // 2. Delete files from Storage
+        if (filesToDelete.length > 0) {
+            const { error: storageError } = await supabase.storage
+                .from('documentos_finalizacion')
+                .remove(filesToDelete);
+            
+            if (storageError) {
+                console.error("Error removing files from storage:", storageError);
+                // We continue to delete the record even if storage deletion fails partially
+            }
+        }
+
+        // 3. Delete Record
+        await db.finalizacion.delete(id);
+        return { success: true, error: null };
+
+    } catch (error) {
+        console.error("Error deleting finalization request:", error);
+        return { success: false, error };
+    }
 };

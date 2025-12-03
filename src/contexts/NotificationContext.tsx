@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
@@ -45,6 +46,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const isAdmin = isSuperUserMode || isJefeMode || isDirectivoMode;
 
     const addNotification = useCallback((notif: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>) => {
+        console.log("📢 Agregando notificación:", notif.title);
         const newNotif: AppNotification = {
             ...notif,
             id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
@@ -69,7 +71,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         if (!isAdmin || !authenticatedUser) return;
 
         console.log("🔔 Inicializando sistema de notificaciones Realtime...");
-        console.log("   User:", authenticatedUser.id);
+        console.log("   User ID:", authenticatedUser.id);
 
         // Unique channel per user session to prevent conflicts
         const channelName = `admin-notifications-${authenticatedUser.id}`;
@@ -80,7 +82,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_PPS },
                 async (payload: any) => {
-                    console.log("🔔 Realtime Event (Solicitud PPS):", payload);
+                    console.log("🔔 Realtime Event DETECTADO (Solicitud PPS):", payload);
                     if (!payload || !payload.new) return;
                     
                     const newRecord = payload.new;
@@ -100,7 +102,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                                 .maybeSingle();
                             
                             if (data) studentName = data[FIELD_NOMBRE_ESTUDIANTES];
-                            if (error) console.warn("⚠️ Error buscando nombre estudiante (posible RLS):", error);
+                            if (error) console.warn("⚠️ Error buscando nombre estudiante (posible RLS blocking):", error);
                         } catch (err) {
                             console.error("Error recuperando nombre de estudiante para notificación:", err);
                         }
@@ -119,7 +121,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_FINALIZACION },
                 async (payload: any) => {
-                    console.log("🔔 Realtime Event (Finalización):", payload);
+                    console.log("🔔 Realtime Event DETECTADO (Finalización):", payload);
                     if (!payload || !payload.new) return;
                     
                     const newRecord = payload.new;
@@ -140,8 +142,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                                 studentName = data[FIELD_NOMBRE_ESTUDIANTES];
                             } else if (error) {
                                 // If RLS blocks this, we might get an error, but we still want to notify
-                                console.warn("⚠️ Error fetching student name for notification (possibly RLS blocking SELECT):", error);
-                                studentName = "Un Estudiante (Verificar en Admin)";
+                                console.warn("⚠️ Error buscando nombre (RLS posiblemente bloquea SELECT):", error);
+                                studentName = "Un Estudiante (Ver Admin)";
                             }
                         } catch (err) {
                              console.error("Exception fetching student name:", err);
@@ -158,7 +160,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             )
             .subscribe((status, err) => {
                 if (status === 'SUBSCRIBED') {
-                    console.log(`✅ Notificaciones conectadas (${channelName})`);
+                    console.log(`✅ Conexión Realtime Establecida (${channelName})`);
                 } else if (status === 'CHANNEL_ERROR') {
                     console.error(`❌ Error en canal de notificaciones:`, err);
                 } else if (status === 'TIMED_OUT') {
