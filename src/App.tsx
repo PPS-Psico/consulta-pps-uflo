@@ -124,7 +124,7 @@ const StudentPracticasWrapper = () => {
 };
 
 const StudentSolicitudesWrapper = () => {
-    const { solicitudes, studentDetails, criterios, institutionAddressMap, allLanzamientos } = useStudentPanel();
+    const { solicitudes, studentDetails, criterios, institutionAddressMap, allLanzamientos, finalizacionRequest } = useStudentPanel();
     const { openSolicitudPPSModal, showModal } = useModal();
     const { authenticatedUser } = useAuth();
     const queryClient = useQueryClient();
@@ -236,6 +236,7 @@ const StudentSolicitudesWrapper = () => {
                     onCreateSolicitud={handleStartSolicitud}
                     onRequestFinalization={() => setIsFinalizationModalOpen(true)}
                     criterios={criterios}
+                    finalizacionRequest={finalizacionRequest}
                 />
             </PageWrapper>
             

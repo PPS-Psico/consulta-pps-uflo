@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useCallback } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabaseClient';
 import {
@@ -11,6 +11,9 @@ import {
     FIELD_PLANILLA_HORAS_FINALIZACION,
     FIELD_PLANILLA_ASISTENCIA_FINALIZACION,
     FIELD_SUGERENCIAS_MEJORAS_FINALIZACION,
+    TABLE_NAME_PPS,
+    FIELD_LEGAJO_PPS,
+    FIELD_ESTADO_PPS
 } from '../constants';
 import Card from './Card';
 import Button from './Button';
@@ -35,6 +38,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
     const [dragActive, setDragActive] = useState<string | null>(null);
+    const queryClient = useQueryClient();
     
     const [fileCategories, setFileCategories] = useState<Record<FileUploadType, FileCategoryState>>({
         horas: { files: [], uploading: false, uploadedData: [] }, // Planilla de Seguimiento
@@ -55,12 +59,10 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
         if (!studentAirtableId) throw new Error("No se ha identificado al estudiante para crear la carpeta de archivos.");
 
         const fileExt = file.name.split('.').pop();
-        // Add random string to ensure uniqueness even with same timestamps
         const uniqueSuffix = Math.random().toString(36).substring(2, 8);
         const fileName = `${studentAirtableId}/${type}_${Date.now()}_${uniqueSuffix}.${fileExt}`;
         const filePath = fileName;
 
-        // Explicitly set content type and cache control
         const options = {
             cacheControl: '3600',
             upsert: true,
@@ -97,7 +99,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
         }
 
         setFileCategories(prev => {
-            // If it's 'horas', it's a single file, so we replace instead of append
             const isSingleFile = type === 'horas';
             const currentFiles = isSingleFile ? [] : [...prev[type].files];
             
@@ -122,7 +123,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
         });
     };
 
-    // Drag and Drop Handlers
     const handleDrag = (e: React.DragEvent, type: string) => {
         e.preventDefault();
         e.stopPropagation();
@@ -148,7 +148,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
             
             const categories = Object.keys(fileCategories) as FileUploadType[];
             
-            // Validation
             if (fileCategories.horas.files.length === 0) throw new Error("Falta la Planilla de Seguimiento.");
             if (fileCategories.asistencia.files.length === 0) throw new Error("Falta la Planilla de Asistencia.");
             if (fileCategories.informe.files.length === 0) throw new Error("Falta el Informe Final.");
@@ -197,10 +196,34 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
 
             await db.finalizacion.create(dbRecord);
 
+            // 3. Auto-Archive pending PPS requests logic
+            try {
+                // Fetch all active requests for this student that are NOT already archived or finished
+                const { data: activeRequests } = await supabase
+                    .from(TABLE_NAME_PPS)
+                    .select('id')
+                    .eq(FIELD_LEGAJO_PPS, studentAirtableId)
+                    .not(FIELD_ESTADO_PPS, 'in', '("Archivado","Finalizada","Cancelada","Rechazada")');
+
+                if (activeRequests && activeRequests.length > 0) {
+                    console.log(`Archiving ${activeRequests.length} active PPS requests due to finalization...`);
+                    const updates = activeRequests.map(r => ({
+                        id: r.id,
+                        fields: { [FIELD_ESTADO_PPS]: 'Archivado' }
+                    }));
+                    // Using updateMany from db abstraction
+                    await db.solicitudes.updateMany(updates);
+                }
+            } catch (err) {
+                console.warn("Error auto-archiving requests:", err);
+            }
+
             return true;
         },
         onSuccess: () => {
             setIsSubmitted(true);
+            queryClient.invalidateQueries({ queryKey: ['finalizacionRequest'] });
+            queryClient.invalidateQueries({ queryKey: ['solicitudes'] }); // Refresh requests list to show archived status
             setToastInfo({ message: 'Solicitud enviada con éxito. Se procesará tu acreditación.', type: 'success' });
         },
         onError: (error: any) => {
@@ -244,7 +267,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
                 <EmptyState
                     icon="mark_email_read"
                     title="¡Documentación Enviada!"
-                    message="Hemos recibido tus archivos correctamente. Tu solicitud está en estado 'Pendiente' y será revisada por la administración. Recibirás un correo cuando la acreditación sea confirmada."
+                    message="Hemos recibido tus archivos correctamente. Tu solicitud está en proceso y el contador de acreditación está activo."
                 />
                 <div className="mt-6 text-center">
                     <Button variant="secondary" onClick={() => onClose ? onClose() : window.location.reload()}>Volver al Inicio</Button>
@@ -329,7 +352,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
                             <p className="text-sm text-slate-500 dark:text-slate-400">{section.desc}</p>
 
                             {section.allowsMultiple ? (
-                                /* Drag and Drop Zone for Multiple Files */
                                 <div 
                                     className={`relative border-2 border-dashed rounded-xl p-6 transition-all duration-200 text-center cursor-pointer group
                                         ${isActive 
@@ -361,7 +383,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
                                     </div>
                                 </div>
                             ) : (
-                                /* Simple Button for Single File */
                                 <div>
                                     <input
                                         type="file"
@@ -392,7 +413,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
                                 </div>
                             )}
 
-                            {/* File List (Shared logic but different layout if single) */}
                             {categoryState.files.length > 0 && (
                                 <div className={`grid grid-cols-1 ${section.allowsMultiple ? 'sm:grid-cols-2' : ''} gap-2 mt-3`}>
                                     {categoryState.files.map((file, idx) => (
@@ -416,7 +436,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
                     );
                 })}
 
-                {/* Sugerencias Section */}
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/70 dark:border-slate-700 shadow-sm mt-8">
                     <div className="flex items-center gap-2 mb-3">
                         <span className="material-icons text-amber-500 !text-xl">tips_and_updates</span>

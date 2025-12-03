@@ -3,13 +3,16 @@ import React, { useState } from 'react';
 import SolicitudCard from './SolicitudCard';
 import EmptyState from './EmptyState';
 import ConfirmModal from './ConfirmModal';
-import type { SolicitudPPS, CriteriosCalculados } from '../types';
+import type { SolicitudPPS, CriteriosCalculados, FinalizacionPPS } from '../types';
+import FinalizationStatusCard from './FinalizationStatusCard'; // IMPORTADO
+import { FIELD_ESTADO_FINALIZACION, FIELD_FECHA_SOLICITUD_FINALIZACION } from '../constants';
 
 interface SolicitudesListProps {
   solicitudes: SolicitudPPS[];
   onCreateSolicitud?: () => void;
   onRequestFinalization?: () => void;
   criterios?: CriteriosCalculados;
+  finalizacionRequest?: FinalizacionPPS | null;
 }
 
 const ActionButton: React.FC<{
@@ -68,19 +71,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     solicitudes, 
     onCreateSolicitud, 
     onRequestFinalization,
-    criterios
+    criterios,
+    finalizacionRequest
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [capturedState, setCapturedState] = useState<'ready' | 'incomplete'>('incomplete');
   
-  // Calculate readiness directly from criteria props
   const isAccreditationReady = criterios 
     ? criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion
     : false;
 
   const handleAccreditationClick = () => {
     if (!onRequestFinalization) return;
-    // Capture the state at the moment of clicking to ensure modal content consistency
     setCapturedState(isAccreditationReady ? 'ready' : 'incomplete');
     setShowModal(true);
   };
@@ -92,8 +94,17 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   return (
     <div className="space-y-8">
+        
+        {/* Tarjeta de Estado de Finalización (si existe trámite activo) */}
+        {finalizacionRequest && (
+            <FinalizationStatusCard 
+                status={finalizacionRequest[FIELD_ESTADO_FINALIZACION] || 'Pendiente'} 
+                requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
+            />
+        )}
+
         {/* Action Buttons Area */}
-        {(onCreateSolicitud || onRequestFinalization) && (
+        {(onCreateSolicitud || onRequestFinalization) && !finalizacionRequest && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {onCreateSolicitud && (
                     <ActionButton 
@@ -155,7 +166,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         />
 
         {/* List or Empty State */}
-        {solicitudes.length === 0 ? (
+        {solicitudes.length === 0 && !finalizacionRequest ? (
             <div className="mt-6">
                 <EmptyState 
                     icon="list_alt"
@@ -166,10 +177,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             </div>
         ) : (
             <div className="space-y-4">
-                <div className="flex items-center gap-3 px-1 pb-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historial de Solicitudes</span>
-                    <div className="h-px bg-slate-200 dark:bg-slate-700 flex-grow"></div>
-                </div>
+                {solicitudes.length > 0 && (
+                     <div className="flex items-center gap-3 px-1 pb-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historial de Solicitudes PPS</span>
+                        <div className="h-px bg-slate-200 dark:bg-slate-700 flex-grow"></div>
+                    </div>
+                )}
                 {solicitudes.map((solicitud) => (
                     <SolicitudCard key={solicitud.id} solicitud={solicitud} />
                 ))}
