@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabaseClient';
 import type { SolicitudPPS, SolicitudPPSFields } from '../types';
@@ -228,6 +229,7 @@ interface SolicitudesManagerProps {
 }
 
 const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode = false }) => {
+    const location = useLocation();
     const [activeTabId, setActiveTabId] = useState('ingreso');
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -236,13 +238,22 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
     
     const queryClient = useQueryClient();
 
+    // Handle URL-based tab switching
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab === 'egreso') {
+            setActiveTabId('egreso');
+        } else if (tab === 'ingreso') {
+            setActiveTabId('ingreso');
+        }
+    }, [location.search]);
+
     const tabs = [
         { id: 'ingreso', label: 'Solicitudes de PPS', icon: 'login' },
         { id: 'egreso', label: 'Solicitudes de Finalización', icon: 'logout' },
     ];
 
-    // 1. Optimized Fetch Data with SQL Join.
-    // Simplified to rely on the DB source of truth rather than manual mapping.
     const { data: requestsData, isLoading, error, refetch } = useQuery({
         queryKey: ['adminSolicitudes', isTestingMode],
         queryFn: async () => {
@@ -269,18 +280,13 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
             if (!data) return [];
 
             return data.map((req: any) => {
-                // Priority 1: Joined Data from DB
-                // Priority 2: Snapshot Data stored in the Request record itself (Robust Fallback)
-                
                 const student = req.estudiante;
                 const name = student?.[FIELD_NOMBRE_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_NOMBRE_ALUMNO]) || 'Desconocido';
                 const legajo = student?.[FIELD_LEGAJO_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_LEGAJO_ALUMNO]) || '---';
                 const email = student?.[FIELD_CORREO_ESTUDIANTES] || cleanValue(req[FIELD_SOLICITUD_EMAIL_ALUMNO]);
 
-                // Flatten structure for easier UI consumption
                 return {
                     ...req,
-                    // Ensure IDs are strings
                     id: String(req.id),
                     createdTime: req.created_at,
                     _studentName: name, 

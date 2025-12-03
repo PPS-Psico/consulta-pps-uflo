@@ -255,7 +255,10 @@ const StudentSolicitudesWrapper = () => {
                         >
                             <span className="material-icons">close</span>
                         </button>
-                        <FinalizacionForm studentAirtableId={getStudentId()} />
+                        <FinalizacionForm 
+                            studentAirtableId={getStudentId()} 
+                            onClose={() => setIsFinalizationModalOpen(false)}
+                        />
                     </div>
                 </div>
             )}
@@ -307,70 +310,67 @@ const AppRoutes = () => {
     const navigate = useNavigate();
     
     return (
-        <>
-            <Routes>
-                 {/* Public */}
-                <Route path="/login" element={!authenticatedUser ? <Auth /> : <Navigate to="/" />} />
-                
-                {/* Root Redirect */}
-                <Route path="/" element={<ProtectedRoute><Navigate to={authenticatedUser?.role === 'SuperUser' ? "/admin" : authenticatedUser?.role === 'Jefe' ? "/jefe" : authenticatedUser?.role === 'Directivo' ? "/directivo" : authenticatedUser?.role === 'Reportero' ? "/reportero" : "/student"} /></ProtectedRoute>} />
+        <Routes>
+             {/* Public */}
+            <Route path="/login" element={!authenticatedUser ? <Auth /> : <Navigate to="/" />} />
+            
+            {/* Root Redirect */}
+            <Route path="/" element={<ProtectedRoute><Navigate to={authenticatedUser?.role === 'SuperUser' ? "/admin" : authenticatedUser?.role === 'Jefe' ? "/jefe" : authenticatedUser?.role === 'Directivo' ? "/directivo" : authenticatedUser?.role === 'Reportero' ? "/reportero" : "/student"} replace /></ProtectedRoute>} />
 
-                {/* Student Routes */}
-                <Route path="/student" element={<ProtectedRoute allowedRoles={['Student']}><StudentView /></ProtectedRoute>}>
-                    <Route index element={<StudentHome />} />
-                    <Route path="inicio" element={<Navigate to="/student" replace />} />
-                    <Route path="practicas" element={<StudentPracticasWrapper />} />
-                    <Route path="solicitudes" element={<StudentSolicitudesWrapper />} />
-                    <Route path="informes" element={<StudentInformesWrapper />} />
-                    <Route path="perfil" element={<StudentProfileWrapper />} />
-                </Route>
+            {/* Student Routes */}
+            <Route path="/student" element={<ProtectedRoute allowedRoles={['Student']}><StudentView /></ProtectedRoute>}>
+                <Route index element={<StudentHome />} />
+                <Route path="practicas" element={<StudentPracticasWrapper />} />
+                <Route path="solicitudes" element={<StudentSolicitudesWrapper />} />
+                <Route path="informes" element={<StudentInformesWrapper />} />
+                <Route path="perfil" element={<StudentProfileWrapper />} />
+            </Route>
 
-                {/* Admin Routes */}
-                <Route path="/admin" element={<ProtectedRoute allowedRoles={['SuperUser']}><AdminView /></ProtectedRoute>}>
-                    <Route index element={<Navigate to="dashboard" replace />} />
-                    <Route path="dashboard" element={<AdminDashboard />} />
-                    <Route path="metrics" element={<MetricsView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} />} />
-                    <Route path="lanzador" element={<LanzadorView />} />
-                    <Route path="gestion" element={<GestionView />} />
-                    <Route path="solicitudes" element={<SolicitudesManager />} />
-                    <Route path="herramientas" element={<HerramientasView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} />} />
-                    <Route path="estudiantes/:legajo" element={<AdminStudentWrapper />} />
-                </Route>
+            {/* Admin Routes */}
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={['SuperUser', 'AdminTester']}><AdminView /></ProtectedRoute>}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="metrics" element={<MetricsView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} />} />
+                <Route path="lanzador" element={<LanzadorView />} />
+                <Route path="gestion" element={<GestionView />} />
+                <Route path="solicitudes" element={<SolicitudesManager />} />
+                <Route path="herramientas" element={<HerramientasView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} />} />
+                <Route path="estudiantes/:legajo" element={<AdminStudentWrapper />} />
+            </Route>
 
-                 {/* Other Roles (Simplified for now, can be expanded similarly) */}
-                <Route path="/jefe" element={<ProtectedRoute allowedRoles={['Jefe']}><JefeView /></ProtectedRoute>} />
-                <Route path="/directivo" element={<ProtectedRoute allowedRoles={['Directivo']}><DirectivoView /></ProtectedRoute>} />
-                <Route path="/reportero" element={<ProtectedRoute allowedRoles={['Reportero']}><ReporteroView /></ProtectedRoute>} />
-                <Route path="/testing" element={<ProtectedRoute allowedRoles={['AdminTester']}><AdminTestingView /></ProtectedRoute>} />
-                
-                 {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-        </>
+            {/* Other Roles */}
+            <Route path="/jefe" element={<ProtectedRoute allowedRoles={['Jefe']}><JefeView /></ProtectedRoute>} />
+            <Route path="/directivo" element={<ProtectedRoute allowedRoles={['Directivo']}><DirectivoView /></ProtectedRoute>} />
+            <Route path="/reportero" element={<ProtectedRoute allowedRoles={['Reportero']}><ReporteroView /></ProtectedRoute>} />
+            
+            {/* Testing */}
+            <Route path="/testing" element={<ProtectedRoute allowedRoles={['SuperUser', 'AdminTester']}><AdminTestingView /></ProtectedRoute>} />
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
     );
 };
 
 const App: React.FC = () => {
   return (
-    <ThemeProvider>
-      <ModalProvider>
-        <PwaInstallProvider>
-            <Router>
-                <AuthProvider>
-                    <NotificationProvider>
-                        <Layout>
-                            <ErrorBoundary>
-                                <Suspense fallback={<div className="flex justify-center items-center min-h-[60vh]"><Loader /></div>}>
+    <Router>
+        <NotificationProvider>
+            <PwaInstallProvider>
+                <ThemeProvider>
+                    <ModalProvider>
+                        <ErrorBoundary>
+                            <Layout>
+                                <Suspense fallback={<Loader />}>
                                     <AppRoutes />
                                 </Suspense>
-                            </ErrorBoundary>
-                        </Layout>
-                    </NotificationProvider>
-                </AuthProvider>
-            </Router>
-        </PwaInstallProvider>
-      </ModalProvider>
-    </ThemeProvider>
+                            </Layout>
+                        </ErrorBoundary>
+                    </ModalProvider>
+                </ThemeProvider>
+            </PwaInstallProvider>
+        </NotificationProvider>
+    </Router>
   );
 };
 

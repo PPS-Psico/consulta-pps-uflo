@@ -19,6 +19,7 @@ import {
 import EmptyState from './EmptyState';
 
 const NOTA_OPTIONS = ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
+// Mobile options filtered as requested: Only numbers, Desaprobado, or reset to Sin calificar
 const MOBILE_NOTA_OPTIONS = ['Sin calificar', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
 
 const notaColors: Record<string, string> = {
@@ -90,6 +91,8 @@ const NotaEditor: React.FC<{
 }> = ({ practica, handleNotaChange, savingNotaId, justUpdatedPracticaId, compact = false, mobileLayout = false }) => {
     const nota = practica[FIELD_NOTA_PRACTICAS] || 'Sin calificar';
     const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'Institución no asignada';
+    
+    // Editable if it is "Sin calificar" OR any of the intermediate states ("No Entregado", "Entregado (sin corregir)")
     const isEditable = nota === 'Sin calificar' || nota === 'Entregado (sin corregir)' || nota === 'No Entregado';
     
     // Mobile KPI Layout
@@ -105,6 +108,14 @@ const NotaEditor: React.FC<{
             return 'text-slate-400 dark:text-slate-500';
          };
 
+         // If it's numeric or "Desaprobado", show it. Otherwise show "Sin / Calif."
+         const displayNota = isNumeric ? nota : (
+             <>
+                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 leading-none mb-0.5">Sin</span>
+                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 leading-none">Calif.</span>
+             </>
+         );
+
          return (
              <div className={`relative flex flex-col items-center justify-center rounded-xl w-16 h-14 border shadow-sm overflow-hidden transition-colors ${isEditable ? 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700'}`}>
                   {/* Visual Layer */}
@@ -113,15 +124,10 @@ const NotaEditor: React.FC<{
                            <span className={`font-black text-2xl leading-none ${nota === 'Desaprobado' ? 'text-[10px] break-all leading-tight' : ''} ${getMobileColor(nota)}`}>
                                {nota === 'Desaprobado' ? 'DESAPROBADO' : nota}
                            </span>
-                      ) : (
-                          <>
-                            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 leading-none mb-0.5">Sin</span>
-                            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 leading-none">Calif.</span>
-                          </>
-                      )}
+                      ) : displayNota}
                   </div>
 
-                  {/* Interaction Layer */}
+                  {/* Interaction Layer - Overlay for selecting */}
                   {isEditable && (
                       <select
                         value={(nota === 'No Entregado' || nota === 'Entregado (sin corregir)') ? 'Sin calificar' : nota}

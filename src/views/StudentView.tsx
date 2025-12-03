@@ -24,15 +24,19 @@ const StudentLayout: React.FC = () => {
 
     const {
         studentDetails,
+        studentAirtableId,
         criterios,
         updateOrientation,
         isLoading,
         practicas
     } = useStudentPanel();
 
-    // Scroll to top on route change
+    // Scroll to top on route change ONLY on mobile
     useEffect(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Tailwind 'md' breakpoint is 768px. We only want this behavior on mobile.
+        if (window.innerWidth < 768) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     }, [location.pathname]);
 
     // Determine active tab from URL
@@ -84,7 +88,10 @@ const StudentLayout: React.FC = () => {
                         >
                             <span className="material-icons">close</span>
                         </button>
-                        <FinalizacionForm studentAirtableId={authenticatedUser?.id || null} />
+                        <FinalizacionForm 
+                            studentAirtableId={studentAirtableId} 
+                            onClose={() => setIsFinalizationModalOpen(false)}
+                        />
                     </div>
                 </div>
             )}
