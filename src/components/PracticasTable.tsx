@@ -19,6 +19,7 @@ import {
 import EmptyState from './EmptyState';
 
 const NOTA_OPTIONS = ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
+const MOBILE_NOTA_OPTIONS = ['Sin calificar', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
 
 const notaColors: Record<string, string> = {
   '10': 'bg-gradient-to-r from-emerald-400 to-teal-400 text-white shadow-lg shadow-emerald-500/20 dark:from-emerald-500 dark:to-teal-500',
@@ -84,21 +85,71 @@ const NotaEditor: React.FC<{
   handleNotaChange: (practicaId: string, nota: string) => void;
   savingNotaId: string | null;
   justUpdatedPracticaId: string | null;
-}> = ({ practica, handleNotaChange, savingNotaId, justUpdatedPracticaId }) => {
+  compact?: boolean;
+  mobileLayout?: boolean;
+}> = ({ practica, handleNotaChange, savingNotaId, justUpdatedPracticaId, compact = false, mobileLayout = false }) => {
     const nota = practica[FIELD_NOTA_PRACTICAS] || 'Sin calificar';
     const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'Institución no asignada';
-    const isEditable = nota === 'Sin calificar' || nota === 'Entregado (sin corregir)';
-    const notaClass = `inline-block px-3 py-1 rounded-full text-xs font-bold transition-transform hover:scale-105 cursor-default ${notaColors[nota] || notaColors['Sin calificar']}`;
+    const isEditable = nota === 'Sin calificar' || nota === 'Entregado (sin corregir)' || nota === 'No Entregado';
     
+    // Mobile KPI Layout
+    if (mobileLayout) {
+         const isNumeric = !isNaN(parseInt(nota, 10)) || nota === 'Desaprobado';
+         
+         const getMobileColor = (n: string) => {
+            if (n === 'Desaprobado') return 'text-red-600 dark:text-red-400';
+            const num = parseInt(n, 10);
+            if (!isNaN(num)) {
+                return num >= 4 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+            }
+            return 'text-slate-400 dark:text-slate-500';
+         };
+
+         return (
+             <div className={`relative flex flex-col items-center justify-center rounded-xl w-16 h-14 border shadow-sm overflow-hidden transition-colors ${isEditable ? 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700'}`}>
+                  {/* Visual Layer */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0 p-1">
+                      {isNumeric ? (
+                           <span className={`font-black text-2xl leading-none ${nota === 'Desaprobado' ? 'text-[10px] break-all leading-tight' : ''} ${getMobileColor(nota)}`}>
+                               {nota === 'Desaprobado' ? 'DESAPROBADO' : nota}
+                           </span>
+                      ) : (
+                          <>
+                            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 leading-none mb-0.5">Sin</span>
+                            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 leading-none">Calif.</span>
+                          </>
+                      )}
+                  </div>
+
+                  {/* Interaction Layer */}
+                  {isEditable && (
+                      <select
+                        value={(nota === 'No Entregado' || nota === 'Entregado (sin corregir)') ? 'Sin calificar' : nota}
+                        onChange={(e) => handleNotaChange(practica.id, e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 appearance-none"
+                        aria-label={`Calificación para ${institucion}`}
+                      >
+                         {MOBILE_NOTA_OPTIONS.map(option => (
+                            <option key={option} value={option}>{option}</option>
+                         ))}
+                      </select>
+                  )}
+              </div>
+         );
+    }
+
+    // Desktop / Read-only Standard Layout
     if (!isEditable) {
+        const notaClass = `inline-block px-3 py-1 rounded-full text-xs font-bold transition-transform hover:scale-105 cursor-default ${notaColors[nota] || notaColors['Sin calificar']}`;
         return <div className={notaClass} title={`Nota: ${nota}`}>{nota}</div>;
     }
 
+    // Desktop Editable Layout
     const dynamicSelectClasses = selectNotaColors[nota] || selectNotaColors['Sin calificar'];
 
     return (
-        <div className="flex items-center gap-2 w-full">
-            <div className="relative flex-1">
+        <div className={`flex items-center gap-2 w-full ${compact ? 'justify-end' : ''}`}>
+            <div className={`relative ${compact ? 'w-32' : 'flex-1'}`}>
                 <select
                     value={nota}
                     onChange={(e) => handleNotaChange(practica.id, e.target.value)}
@@ -114,7 +165,7 @@ const NotaEditor: React.FC<{
                     <span className="material-icons !text-base text-gray-500 dark:text-slate-400">expand_more</span>
                 </div>
             </div>
-            {justUpdatedPracticaId === practica.id && (
+            {justUpdatedPracticaId === practica.id && !compact && (
                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-fade-in-up whitespace-nowrap" style={{ animationDuration: '300ms' }}>
                     Guardado ✓
                 </span>
@@ -200,7 +251,6 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
   return (
     <div>
       {/* Desktop Table View */}
-      {/* Rounded corners applied here to the container */}
       <div className="overflow-x-auto hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         <table className="w-full min-w-[800px] text-sm">
           <thead className="bg-gray-50 dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800">
@@ -256,43 +306,62 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
         </table>
       </div>
 
-      {/* Mobile Compact List View */}
-      <div className="md:hidden space-y-4">
+      {/* Mobile Compact List View - REDESIGNED for Metrics focus */}
+      <div className="md:hidden space-y-5">
         {sortedPracticas.map(practica => {
           const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'N/A';
           const status = practica[FIELD_ESTADO_PRACTICA];
           const statusVisuals = getStatusVisuals(status || '');
+          const especialidadVisuals = getEspecialidadClasses(practica[FIELD_ESPECIALIDAD_PRACTICAS] || '');
 
           return (
-            <div key={practica.id} className={`bg-white dark:bg-slate-900/60 rounded-2xl shadow-md border border-slate-200 dark:border-slate-800 p-4 transition-colors duration-300 ${justUpdatedPracticaId === practica.id ? 'animate-flash-success' : ''}`}>
-              {/* Top Row: Institution & Hours */}
-              <div className="flex justify-between items-start gap-3">
-                <div className="flex-1">
-                  <h3 className="font-black text-slate-800 dark:text-slate-100 text-base tracking-tight leading-tight">{institucion}</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1.5">
-                    <span className="material-icons !text-sm text-slate-400">date_range</span>
-                    <span>{formatDate(practica[FIELD_FECHA_INICIO_PRACTICAS])} - {formatDate(practica[FIELD_FECHA_FIN_PRACTICAS])}</span>
-                  </p>
-                </div>
-                <div className="flex-shrink-0 text-right">
-                  <p className="text-lg font-black text-blue-600 dark:text-blue-400">{practica[FIELD_HORAS_PRACTICAS] || 0}</p>
-                  <p className="text-xs font-bold text-slate-400 uppercase -mt-0.5">horas</p>
-                </div>
-              </div>
-              {/* Bottom Row: Details and Grade */}
-              <div className="flex items-center justify-between flex-wrap gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60">
-                <div className="flex items-center gap-2">
-                    <span className={`${getEspecialidadClasses(practica[FIELD_ESPECIALIDAD_PRACTICAS] || '').tag} shadow-sm px-2 py-0.5 text-[10px]`}>
-                        {practica[FIELD_ESPECIALIDAD_PRACTICAS] || 'N/A'}
-                    </span>
-                    <span className={`${statusVisuals.labelClass} gap-1 shadow-sm px-2 py-0.5 text-[10px]`}>
-                        <span className="material-icons !text-sm">{statusVisuals.icon}</span>
-                        <span>{status || 'N/A'}</span>
-                    </span>
-                </div>
-                <div className="w-full sm:w-auto sm:max-w-[160px]">
-                  <NotaEditor practica={practica} handleNotaChange={handleLocalNotaChange} savingNotaId={savingNotaId} justUpdatedPracticaId={justUpdatedPracticaId} />
-                </div>
+            <div key={practica.id} className={`relative bg-white dark:bg-slate-900/80 rounded-3xl shadow-lg shadow-slate-200/50 dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden transition-all duration-300 ${justUpdatedPracticaId === practica.id ? 'animate-flash-success ring-2 ring-emerald-400' : ''}`}>
+              
+              {/* Sutil Decorative Side Bar */}
+              <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${especialidadVisuals.gradient}`}></div>
+
+              <div className="p-5 pl-6 flex gap-4">
+                 {/* Left Column: Info Principal */}
+                 <div className="flex-1 flex flex-col gap-3">
+                     <div>
+                        <span className={`${especialidadVisuals.tag} shadow-none px-2 py-0.5 text-[10px] uppercase tracking-wider border-transparent mb-1.5`}>
+                            {practica[FIELD_ESPECIALIDAD_PRACTICAS] || 'N/A'}
+                        </span>
+                        <h3 className="font-black text-slate-800 dark:text-slate-100 text-base leading-snug">{institucion}</h3>
+                     </div>
+
+                     <div className="flex flex-col gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        <div className="flex items-center gap-1.5">
+                            <span className="material-icons !text-sm opacity-70">date_range</span>
+                            <span>{formatDate(practica[FIELD_FECHA_INICIO_PRACTICAS])} - {formatDate(practica[FIELD_FECHA_FIN_PRACTICAS])}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${statusVisuals.labelClass}`}>
+                                <span className="material-icons !text-xs">{statusVisuals.icon}</span>
+                                {status || 'N/A'}
+                            </span>
+                        </div>
+                     </div>
+                 </div>
+                 
+                 {/* Right Column: Metrics (Hours & Grade) - Aligned Vertically */}
+                 <div className="flex flex-col gap-3 items-end justify-start min-w-[70px]">
+                    {/* Hours Box */}
+                    <div className="flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-xl w-16 h-14 border border-blue-100 dark:border-blue-800/50 shadow-sm">
+                        <span className="font-black text-lg leading-none">{practica[FIELD_HORAS_PRACTICAS] || 0}</span>
+                        <span className="text-[9px] font-bold uppercase mt-0.5 opacity-80">Hs</span>
+                    </div>
+
+                    {/* Grade Box - KPI Style */}
+                    <NotaEditor 
+                        practica={practica} 
+                        handleNotaChange={handleLocalNotaChange} 
+                        savingNotaId={savingNotaId} 
+                        justUpdatedPracticaId={justUpdatedPracticaId} 
+                        compact
+                        mobileLayout
+                    />
+                 </div>
               </div>
             </div>
           )

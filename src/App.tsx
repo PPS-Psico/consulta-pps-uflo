@@ -40,7 +40,7 @@ import {
     FIELD_FECHA_INICIO_LANZAMIENTOS,
     FIELD_NOMBRE_PPS_LANZAMIENTOS
 } from './constants';
-import { parseToUTCDate, normalizeStringForComparison } from './utils/formatters';
+import { parseToUTCDate } from './utils/formatters';
 
 // Views
 const StudentView = lazy(() => import('./views/StudentView'));
@@ -67,9 +67,60 @@ import InformesList from './components/InformesList';
 import ProfileView from './components/ProfileView';
 import Card from './components/Card';
 
+// --- COMPONENTS FOR MOBILE LAYOUT ---
+
+const MobileSectionHeader: React.FC<{ title: React.ReactNode; description?: string }> = ({ title, description }) => (
+    <div className="relative p-6 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg animate-fade-in-up group mb-6">
+      {/* Decoraciones de fondo idénticas al Banner de Bienvenida */}
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
+      <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
+
+      <div className="relative z-10 flex flex-col gap-3">
+        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
+            {title}
+        </h2>
+        {description && (
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
+            {description}
+            </p>
+        )}
+      </div>
+    </div>
+);
+
+const PageWrapper: React.FC<{ title: React.ReactNode; icon: string; children: React.ReactNode; description?: string }> = ({ title, icon, children, description }) => {
+    return (
+        <>
+            {/* Vista Móvil: Header separado del contenido */}
+            <div className="md:hidden animate-fade-in-up">
+                <MobileSectionHeader title={title} description={description} />
+                <div className="mt-4">
+                    {children}
+                </div>
+            </div>
+            {/* Vista Escritorio: Tarjeta unificada */}
+            <div className="hidden md:block animate-fade-in-up">
+                <Card title={title} icon={icon} description={description}>
+                    {children}
+                </Card>
+            </div>
+        </>
+    );
+};
+
+// --- WRAPPERS ---
+
 const StudentPracticasWrapper = () => {
     const { practicas, updateNota } = useStudentPanel();
-    return <Card icon="work_history" title="Historial de Prácticas"><PracticasTable practicas={practicas} handleNotaChange={(pid, n, cid) => updateNota.mutate({ practicaId: pid, nota: n, convocatoriaId: cid })} /></Card>;
+    return (
+        <PageWrapper 
+            icon="work_history" 
+            title={<span>Historial de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Prácticas</span></span>}
+            description="Detalle de todas las prácticas realizadas y sus calificaciones."
+        >
+            <PracticasTable practicas={practicas} handleNotaChange={(pid, n, cid) => updateNota.mutate({ practicaId: pid, nota: n, convocatoriaId: cid })} />
+        </PageWrapper>
+    );
 };
 
 const StudentSolicitudesWrapper = () => {
@@ -175,14 +226,18 @@ const StudentSolicitudesWrapper = () => {
 
     return (
         <>
-            <Card icon="list_alt" title="Mis Solicitudes">
+            <PageWrapper 
+                icon="list_alt" 
+                title={<span>Mis <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Solicitudes</span></span>}
+                description="Seguimiento del estado de las PPS que has solicitado."
+            >
                 <SolicitudesList 
                     solicitudes={solicitudes} 
                     onCreateSolicitud={handleStartSolicitud}
                     onRequestFinalization={() => setIsFinalizationModalOpen(true)}
                     criterios={criterios}
                 />
-            </Card>
+            </PageWrapper>
             
             <PreSolicitudCheckModal 
                 isOpen={isPreCheckModalOpen}
@@ -210,11 +265,28 @@ const StudentSolicitudesWrapper = () => {
 
 const StudentInformesWrapper = () => {
     const { informeTasks, confirmInforme } = useStudentPanel();
-    return <Card icon="assignment_turned_in" title="Informes"><InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} /></Card>;
+    return (
+        <PageWrapper 
+            icon="assignment_turned_in" 
+            title={<span>Entrega de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Informes</span></span>}
+            description="Sube tu informe final al campus y luego confirma la entrega aquí."
+        >
+            <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />
+        </PageWrapper>
+    );
 };
+
 const StudentProfileWrapper = () => {
     const { studentDetails, isLoading, updateInternalNotes } = useStudentPanel();
-    return <Card icon="person" title="Mi Perfil"><ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} /></Card>;
+    return (
+        <PageWrapper 
+            icon="person" 
+            title={<span>Mi <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Perfil</span></span>}
+            description="Datos personales y académicos."
+        >
+            <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />
+        </PageWrapper>
+    );
 };
 
 const AdminStudentWrapper = () => {

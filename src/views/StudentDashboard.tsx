@@ -53,26 +53,22 @@ export { default as StudentPracticas } from '../components/PracticasTable';
 export { default as StudentSolicitudes } from '../components/SolicitudesList';
 
 // --- COMPONENT: MobileSectionHeader ---
-const MobileSectionHeader: React.FC<{ title: React.ReactNode; description: string; icon?: string }> = ({ title, description, icon }) => (
-    <div className="relative p-6 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/90 via-white/80 to-slate-50/90 dark:from-blue-900/30 dark:via-slate-900/40 dark:to-black/40 backdrop-blur-xl animate-fade-in-up group">
-      {/* Decoraciones de fondo */}
-      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-500/10 rounded-full blur-3xl transition-opacity group-hover:opacity-70"></div>
-      <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-500/10 rounded-full blur-3xl transition-opacity group-hover:opacity-70"></div>
+// Diseño Premium idéntico al WelcomeBanner: Gradiente sutil, esquinas redondeadas grandes, sin borde sólido fuerte.
+const MobileSectionHeader: React.FC<{ title: React.ReactNode; description?: string }> = ({ title, description }) => (
+    <div className="relative p-6 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg animate-fade-in-up group">
+      {/* Decoraciones de fondo idénticas al Banner de Bienvenida */}
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
+      <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
 
-      <div className="relative z-10 flex items-start gap-4">
-        {icon && (
-            <div className="flex-shrink-0 p-3 rounded-2xl bg-white/80 dark:bg-white/5 shadow-sm border border-white/50 dark:border-white/10 text-blue-600 dark:text-blue-400">
-                <span className="material-icons !text-2xl">{icon}</span>
-            </div>
-        )}
-        <div>
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
-              {title}
-            </h2>
-            <p className="mt-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed max-w-md">
-              {description}
+      <div className="relative z-10 flex flex-col gap-3">
+        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
+            {title}
+        </h2>
+        {description && (
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
+            {description}
             </p>
-        </div>
+        )}
       </div>
     </div>
 );
@@ -99,6 +95,12 @@ export const StudentHome: React.FC = () => {
         setIsFinalizationModalOpen(true);
     }, []);
 
+    // Helper to get student ID safely
+    const getStudentId = () => {
+        if (!studentDetails) return null;
+        return (studentDetails as any).id || null;
+    };
+
     return (
         <>
              {isFinalizationModalOpen && (
@@ -110,7 +112,7 @@ export const StudentHome: React.FC = () => {
                     >
                         <span className="material-icons">close</span>
                     </button>
-                    <FinalizacionForm studentAirtableId={studentAirtableId} />
+                    <FinalizacionForm studentAirtableId={getStudentId()} />
                 </div>
                 </div>
             )}
@@ -153,7 +155,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
 
   const {
     studentDetails,
-    studentAirtableId,
     practicas,
     solicitudes,
     lanzamientos,
@@ -180,6 +181,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
   const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || currentUser?.nombre || 'Estudiante';
 
+  // Helper to safely get student ID
+  const getStudentId = () => {
+    if (studentDetails && (studentDetails as any).id) return (studentDetails as any).id;
+    return currentUser?.id || null;
+  };
+
   const handleOrientacionChange = useCallback((orientacion: Orientacion | "") => {
     updateOrientation.mutate(orientacion, {
       onSuccess: () => {
@@ -200,10 +207,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   // Create new PPS Request Mutation
   const createSolicitudMutation = useMutation({
       mutationFn: async (formData: any) => {
-          if (!studentAirtableId) throw new Error("Error identificando al estudiante. Intente recargar la página.");
+          const studentId = getStudentId();
+          if (!studentId) throw new Error("Error identificando al estudiante.");
 
           const newRecord: Partial<SolicitudPPSFields> = {
-              [FIELD_LEGAJO_PPS]: [studentAirtableId],
+              [FIELD_LEGAJO_PPS]: [studentId],
               [FIELD_SOLICITUD_LEGAJO_ALUMNO]: studentDetails?.[FIELD_LEGAJO_ESTUDIANTES],
               [FIELD_SOLICITUD_NOMBRE_ALUMNO]: studentDetails?.[FIELD_NOMBRE_ESTUDIANTES],
               [FIELD_SOLICITUD_EMAIL_ALUMNO]: studentDetails?.[FIELD_CORREO_ESTUDIANTES],
@@ -329,7 +337,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                 >
                     <span className="material-icons">close</span>
                 </button>
-                <FinalizacionForm studentAirtableId={studentAirtableId} />
+                <FinalizacionForm studentAirtableId={getStudentId()} />
             </div>
             </div>
         )}
@@ -348,7 +356,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
               >
                   <span className="material-icons">close</span>
               </button>
-              <FinalizacionForm studentAirtableId={studentAirtableId} />
+              <FinalizacionForm studentAirtableId={getStudentId()} />
           </div>
         </div>
       )}
@@ -402,7 +410,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       </div>
 
       {/* --- VISTA MÓVIL --- */}
-      <div className="md:hidden no-print space-y-8 animate-fade-in-up">
+      <div className="md:hidden no-print flex flex-col gap-8 animate-fade-in-up">
           {currentActiveTab === 'inicio' && (
               <>
                   <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
@@ -411,30 +419,54 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           )}
 
           {currentActiveTab === 'informes' && (
-              <Card icon="assignment_turned_in" title="Entrega de Informes Finales" description="Sube tu informe final al campus y luego confirma la entrega aquí.">
-                  {informesContent}
-              </Card>
+              <div>
+                  <MobileSectionHeader 
+                      title={<span>Entrega de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Informes</span></span>}
+                      description="Sube tu informe final al campus y luego confirma la entrega aquí."
+                  />
+                  <div className="mt-4">
+                      {informesContent}
+                  </div>
+              </div>
           )}
 
           {currentActiveTab === 'solicitudes' && (
-              <Card icon="list_alt" title="Mis Solicitudes de PPS" description="Seguimiento del estado de las Prácticas Profesionales Supervisadas que has solicitado.">
-                  {solicitudesContent}
-              </Card>
+              <div>
+                  <MobileSectionHeader 
+                      title={<span>Mis <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Solicitudes</span></span>}
+                      description="Seguimiento del estado de las PPS que has solicitado." 
+                  />
+                  <div className="mt-4">
+                      {solicitudesContent}
+                  </div>
+              </div>
           )}
           
           {currentActiveTab === 'practicas' && (
-              <>
+              <div className="flex flex-col gap-8">
                   <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
-                  <Card icon="work_history" title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones.">
-                    {practicasContent}
-                  </Card>
-              </>
+                  <div>
+                      <MobileSectionHeader 
+                          title={<span>Historial de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Prácticas</span></span>}
+                          description="Detalle de todas las prácticas realizadas y sus calificaciones." 
+                      />
+                      <div className="mt-4">
+                          {practicasContent}
+                      </div>
+                  </div>
+              </div>
           )}
 
           {currentActiveTab === 'profile' && (
-                <Card icon="person" title="Mi Perfil">
-                  {profileContent}
-              </Card>
+                <div>
+                    <MobileSectionHeader 
+                        title={<span>Mi <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Perfil</span></span>}
+                        description="Datos personales y académicos." 
+                    />
+                    <div className="bg-white dark:bg-slate-800/50 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 p-6 shadow-sm mt-4">
+                        {profileContent}
+                    </div>
+                </div>
           )}
       </div>
       
