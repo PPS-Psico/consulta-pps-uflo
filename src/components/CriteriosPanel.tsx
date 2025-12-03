@@ -101,17 +101,18 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
 
   return (
     <section className="animate-fade-in-up">
-      {/* Container Base Styles - Shared */}
+      {/* Container Base Styles - Updated to MATCH WelcomeBanner exactly */}
       <div 
-        className={`relative bg-gradient-to-br from-white to-slate-50/80 dark:from-gray-900/90 dark:to-black/90 backdrop-blur-xl p-0 sm:p-8 rounded-3xl transition-all duration-700 overflow-hidden ${
+        className={`relative p-0 sm:p-8 rounded-3xl transition-all duration-700 overflow-hidden border border-slate-200/80 dark:border-slate-700/80 shadow-lg bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg ${
           todosLosCriteriosCumplidos 
-            ? 'border border-teal-400/50 dark:border-teal-500/30 shadow-lg shadow-teal-500/5' 
-            : 'border border-slate-200 dark:border-slate-800 shadow-sm'
+            ? 'ring-1 ring-teal-400/30 dark:ring-teal-500/10 shadow-teal-500/5' 
+            : ''
         }`}
       >
         {/* Background Effects */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary-100/40 to-transparent dark:from-primary-900/10 rounded-full blur-3xl -z-10" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-secondary-100/40 to-transparent dark:from-secondary-900/10 rounded-full blur-3xl -z-10" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-600/5 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/5 dark:bg-indigo-600/5 rounded-full blur-3xl -z-10 pointer-events-none" />
+        
         {todosLosCriteriosCumplidos && (
             <div className="absolute inset-0 pointer-events-none">
               {[...Array(8)].map((_, i) => (
@@ -130,7 +131,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
         )}
 
         {/* --- DESKTOP LAYOUT (Hidden on Mobile) --- */}
-        <div className="hidden md:grid lg:grid-cols-5 gap-8">
+        <div className="hidden md:grid lg:grid-cols-5 gap-8 relative z-10">
             <div className="lg:col-span-3 flex flex-col sm:flex-row items-center gap-8 z-10">
               <ProgressCircle 
                 value={criterios.horasTotales} 
@@ -138,12 +139,12 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
               />
               <div className="flex-1 text-center sm:text-left">
                 <div className="flex items-center gap-3 mb-4 justify-center sm:justify-start">
-                  <h3 className="text-3xl font-extrabold text-gray-900 dark:text-gray-50 tracking-tight">
+                  <h3 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                     Horas Totales
                   </h3>
                 </div>
-                <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed font-medium mb-4">
-                  Has completado {todosLosCriteriosCumplidos ? 'exitosamente' : 'un total de'} <strong className="font-black text-primary-600 dark:text-primary-400 text-xl">{Math.round(criterios.horasTotales)}</strong> de <strong className="font-black text-gray-800 dark:text-gray-100 text-xl">{HORAS_OBJETIVO_TOTAL}</strong> horas requeridas.
+                <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed font-medium mb-4">
+                  Has completado {todosLosCriteriosCumplidos ? 'exitosamente' : 'un total de'} <strong className="font-black text-blue-600 dark:text-blue-400 text-xl">{Math.round(criterios.horasTotales)}</strong> de <strong className="font-black text-slate-800 dark:text-slate-200 text-xl">{HORAS_OBJETIVO_TOTAL}</strong> horas requeridas.
                 </p>
                 {todosLosCriteriosCumplidos && (
                     <div className="mt-6">
@@ -153,7 +154,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
               </div>
             </div>
 
-            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6 border-t-2 lg:border-t-0 lg:border-l-2 border-gray-200/60 dark:border-white/10 pt-8 lg:pt-0 lg:pl-8 z-10">
+            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6 border-t-2 lg:border-t-0 lg:border-l-2 border-slate-100 dark:border-slate-800/60 pt-8 lg:pt-0 lg:pl-8 z-10">
               <RotationTracker
                 count={criterios.orientacionesCursadasCount}
                 orientacionesUnicas={criterios.orientacionesUnicas}
@@ -177,10 +178,9 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
         </div>
 
         {/* --- MOBILE LAYOUT (Data Widget) --- */}
-        <div className="md:hidden p-6">
+        <div className="md:hidden p-6 relative z-10">
             <div className="flex items-stretch">
                 {/* Izquierda: Protagonista (Número Gigante) */}
-                {/* Usamos w-2/5 para darle un poco menos de la mitad, asegurando que el numero respire */}
                 <div className="w-[38%] flex flex-col items-center justify-center border-r border-slate-200 dark:border-slate-800 pr-2">
                      <span className={`text-6xl xs:text-7xl font-black tracking-tighter leading-none ${todosLosCriteriosCumplidos ? 'text-transparent bg-clip-text bg-gradient-to-br from-teal-500 to-cyan-600' : 'text-slate-900 dark:text-white'}`}>
                          {Math.round(criterios.horasTotales)}
@@ -215,7 +215,6 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
                         ) : (
                             <button 
                                 onClick={() => {
-                                     // Scroll to config or similar (placeholder interaction)
                                      const selector = document.getElementById('orientacion-selector-mobile');
                                      if(selector) selector.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }}
@@ -238,7 +237,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
 
             {/* Botón Full Width si está listo, o selector si falta especialidad */}
             {(!selectedOrientacion) && (
-                <div id="orientacion-selector-mobile" className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/50">
+                <div id="orientacion-selector-mobile" className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                      <OrientacionSelector
                         selectedOrientacion={selectedOrientacion}
                         onOrientacionChange={handleOrientacionChange}
@@ -246,8 +245,6 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
                     />
                 </div>
             )}
-            
-            {/* NOTA: Se ha ocultado el botón de 'Solicitar Acreditación' en móviles porque requiere PC */}
         </div>
 
       </div>
