@@ -10,7 +10,8 @@ import {
     FIELD_EMPRESA_PPS_SOLICITUD,
     TABLE_NAME_ESTUDIANTES,
     FIELD_NOMBRE_ESTUDIANTES,
-    FIELD_ESTUDIANTE_FINALIZACION
+    FIELD_ESTUDIANTE_FINALIZACION,
+    FIELD_LEGAJO_PPS
 } from '../constants';
 import Toast from '../components/Toast';
 
@@ -65,23 +66,49 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     }, []);
 
     useEffect(() => {
-        if (!isAdmin) return;
+        if (!isAdmin || !authenticatedUser) return;
 
         console.log("🔔 Inicializando sistema de notificaciones Realtime...");
+        console.log("   User:", authenticatedUser.id);
 
-        const channel = supabase.channel('admin-notifications')
+        // Unique channel per user session to prevent conflicts
+        const channelName = `admin-notifications-${authenticatedUser.id}`;
+        
+        const channel = supabase.channel(channelName)
             // Listener: Nueva Solicitud de PPS
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_PPS },
-                (payload) => {
+                async (payload: any) => {
+                    console.log("🔔 Realtime Event (Solicitud PPS):", payload);
+                    if (!payload || !payload.new) return;
+                    
                     const newRecord = payload.new;
-                    const studentName = newRecord[FIELD_SOLICITUD_NOMBRE_ALUMNO] || 'Un estudiante';
+                    
+                    // Intentamos obtener los datos del snapshot guardado en la solicitud
+                    let studentName = newRecord[FIELD_SOLICITUD_NOMBRE_ALUMNO];
                     const institution = newRecord[FIELD_EMPRESA_PPS_SOLICITUD] || 'Institución';
+                    
+                    // Fallback de seguridad: Si no viene el nombre (por error de guardado), lo buscamos con el ID
+                    if (!studentName && newRecord[FIELD_LEGAJO_PPS]) {
+                        try {
+                            // Usamos una consulta ligera para obtener solo el nombre
+                            const { data, error } = await supabase
+                                .from(TABLE_NAME_ESTUDIANTES)
+                                .select(FIELD_NOMBRE_ESTUDIANTES)
+                                .eq('id', newRecord[FIELD_LEGAJO_PPS])
+                                .maybeSingle();
+                            
+                            if (data) studentName = data[FIELD_NOMBRE_ESTUDIANTES];
+                            if (error) console.warn("⚠️ Error buscando nombre estudiante (posible RLS):", error);
+                        } catch (err) {
+                            console.error("Error recuperando nombre de estudiante para notificación:", err);
+                        }
+                    }
 
                     addNotification({
                         title: 'Nueva Solicitud de PPS',
-                        message: `${studentName} ha solicitado iniciar PPS en ${institution}.`,
+                        message: `${studentName || 'Un estudiante'} ha solicitado iniciar PPS en ${institution}.`,
                         type: 'solicitud_pps',
                         link: '/admin/solicitudes?tab=ingreso' 
                     });
@@ -91,13 +118,15 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_FINALIZACION },
-                async (payload) => {
-                    console.log("Realtime Event Received for Finalizacion:", payload);
+                async (payload: any) => {
+                    console.log("🔔 Realtime Event (Finalización):", payload);
+                    if (!payload || !payload.new) return;
+                    
                     const newRecord = payload.new;
                     let studentName = 'Un estudiante';
 
                     // Fetch student name using the ID from the payload
-                    const studentId = newRecord[FIELD_ESTUDIANTE_FINALIZACION]; // Should match the column name in DB schema
+                    const studentId = newRecord[FIELD_ESTUDIANTE_FINALIZACION]; 
 
                     if (studentId) {
                         try {
@@ -110,13 +139,13 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                             if (!error && data && data[FIELD_NOMBRE_ESTUDIANTES]) {
                                 studentName = data[FIELD_NOMBRE_ESTUDIANTES];
                             } else if (error) {
-                                console.warn("Error fetching student name for notification:", error);
+                                // If RLS blocks this, we might get an error, but we still want to notify
+                                console.warn("⚠️ Error fetching student name for notification (possibly RLS blocking SELECT):", error);
+                                studentName = "Un Estudiante (Verificar en Admin)";
                             }
                         } catch (err) {
                              console.error("Exception fetching student name:", err);
                         }
-                    } else {
-                        console.warn("No student ID found in payload:", newRecord);
                     }
 
                     addNotification({
@@ -127,12 +156,23 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                     });
                 }
             )
-            .subscribe();
+            .subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log(`✅ Notificaciones conectadas (${channelName})`);
+                } else if (status === 'CHANNEL_ERROR') {
+                    console.error(`❌ Error en canal de notificaciones:`, err);
+                } else if (status === 'TIMED_OUT') {
+                     console.warn(`⚠️ Timeout conectando notificaciones.`);
+                } else {
+                    console.log(`ℹ️ Estado Realtime: ${status}`);
+                }
+            });
 
         return () => {
+            console.log("🔕 Desconectando notificaciones...");
             supabase.removeChannel(channel);
         };
-    }, [isAdmin, addNotification]);
+    }, [isAdmin, authenticatedUser, addNotification]);
 
     const markAsRead = (id: string) => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
