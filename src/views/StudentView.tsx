@@ -84,7 +84,7 @@ const StudentLayout: React.FC = () => {
                 </div>
             )}
 
-            <div className="flex-grow space-y-8">
+            <div className="flex-grow flex flex-col gap-8">
                 {/* 
                     1. Welcome Banner: 
                     - Mobile: Only visible on 'inicio'

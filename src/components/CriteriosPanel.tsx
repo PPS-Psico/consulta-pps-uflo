@@ -103,7 +103,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
     <section className="animate-fade-in-up">
       {/* Container Base Styles - Shared */}
       <div 
-        className={`relative bg-gradient-to-br from-white to-slate-50/80 dark:from-gray-900/90 dark:to-black/90 backdrop-blur-xl p-0 sm:p-8 rounded-[2rem] transition-all duration-700 overflow-hidden ${
+        className={`relative bg-gradient-to-br from-white to-slate-50/80 dark:from-gray-900/90 dark:to-black/90 backdrop-blur-xl p-0 sm:p-8 rounded-3xl transition-all duration-700 overflow-hidden ${
           todosLosCriteriosCumplidos 
             ? 'border border-teal-400/50 dark:border-teal-500/30 shadow-lg shadow-teal-500/5' 
             : 'border border-slate-200 dark:border-slate-800 shadow-sm'
