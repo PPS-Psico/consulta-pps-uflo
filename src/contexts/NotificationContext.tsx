@@ -9,7 +9,8 @@ import {
     FIELD_SOLICITUD_NOMBRE_ALUMNO,
     FIELD_EMPRESA_PPS_SOLICITUD,
     TABLE_NAME_ESTUDIANTES,
-    FIELD_NOMBRE_ESTUDIANTES
+    FIELD_NOMBRE_ESTUDIANTES,
+    FIELD_ESTUDIANTE_FINALIZACION
 } from '../constants';
 import Toast from '../components/Toast';
 
@@ -82,7 +83,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                         title: 'Nueva Solicitud de PPS',
                         message: `${studentName} ha solicitado iniciar PPS en ${institution}.`,
                         type: 'solicitud_pps',
-                        link: '/admin/solicitudes' // Tab: Ingreso
+                        link: '/admin/solicitudes?tab=ingreso' 
                     });
                 }
             )
@@ -91,29 +92,38 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_FINALIZACION },
                 async (payload) => {
-                    console.log("Realtime Event Received:", payload);
+                    console.log("Realtime Event Received for Finalizacion:", payload);
                     const newRecord = payload.new;
                     let studentName = 'Un estudiante';
 
-                    // Fetch student name because finalizacion table only has ID usually
-                    // We use a quick single query here
-                    if (newRecord.estudiante_id) {
-                        const { data } = await supabase
-                            .from(TABLE_NAME_ESTUDIANTES)
-                            .select(FIELD_NOMBRE_ESTUDIANTES)
-                            .eq('id', newRecord.estudiante_id) // Assuming ID matches
-                            .maybeSingle();
-                        
-                        if (data && data[FIELD_NOMBRE_ESTUDIANTES]) {
-                            studentName = data[FIELD_NOMBRE_ESTUDIANTES];
+                    // Fetch student name using the ID from the payload
+                    const studentId = newRecord[FIELD_ESTUDIANTE_FINALIZACION]; // Should match the column name in DB schema
+
+                    if (studentId) {
+                        try {
+                            const { data, error } = await supabase
+                                .from(TABLE_NAME_ESTUDIANTES)
+                                .select(FIELD_NOMBRE_ESTUDIANTES)
+                                .eq('id', studentId) 
+                                .maybeSingle();
+                            
+                            if (!error && data && data[FIELD_NOMBRE_ESTUDIANTES]) {
+                                studentName = data[FIELD_NOMBRE_ESTUDIANTES];
+                            } else if (error) {
+                                console.warn("Error fetching student name for notification:", error);
+                            }
+                        } catch (err) {
+                             console.error("Exception fetching student name:", err);
                         }
+                    } else {
+                        console.warn("No student ID found in payload:", newRecord);
                     }
 
                     addNotification({
                         title: 'Nueva Solicitud de Acreditación',
                         message: `${studentName} ha enviado su documentación final.`,
                         type: 'acreditacion',
-                        link: '/admin/solicitudes' // This view handles both via tabs, user will need to switch manually or we pass state
+                        link: '/admin/solicitudes?tab=egreso'
                     });
                 }
             )

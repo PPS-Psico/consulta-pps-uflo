@@ -19,6 +19,7 @@ import EmptyState from './EmptyState';
 
 interface FinalizacionFormProps {
     studentAirtableId: string | null;
+    onClose?: () => void;
 }
 
 type FileUploadType = 'informe' | 'horas' | 'asistencia';
@@ -29,7 +30,7 @@ interface FileCategoryState {
     uploadedData: { url: string; filename: string }[];
 }
 
-const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }) => {
+const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, onClose }) => {
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
@@ -51,7 +52,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
     };
 
     const uploadFileToStorage = async (file: File, type: FileUploadType): Promise<string> => {
-        if (!studentAirtableId) throw new Error("No se ha identificado al estudiante.");
+        if (!studentAirtableId) throw new Error("No se ha identificado al estudiante para crear la carpeta de archivos.");
 
         const fileExt = file.name.split('.').pop();
         // Add random string to ensure uniqueness even with same timestamps
@@ -59,11 +60,21 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
         const fileName = `${studentAirtableId}/${type}_${Date.now()}_${uniqueSuffix}.${fileExt}`;
         const filePath = fileName;
 
+        // Explicitly set content type and cache control
+        const options = {
+            cacheControl: '3600',
+            upsert: true,
+            contentType: file.type || 'application/octet-stream'
+        };
+
         const { error: uploadError } = await supabase.storage
             .from('documentos_finalizacion')
-            .upload(filePath, file);
+            .upload(filePath, file, options);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+            console.error("Supabase Upload Error:", uploadError);
+            throw new Error(`Fallo al subir ${file.name}: ${uploadError.message}`);
+        }
 
         const { data } = supabase.storage
             .from('documentos_finalizacion')
@@ -170,7 +181,6 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
             }
             
             // 2. Create DB Record
-            // FIX: Send studentAirtableId directly (string), NOT as an array [studentAirtableId]
             const dbRecord: any = {
                 [FIELD_ESTUDIANTE_FINALIZACION]: studentAirtableId, 
                 [FIELD_FECHA_SOLICITUD_FINALIZACION]: new Date().toISOString(),
@@ -194,7 +204,9 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
             setToastInfo({ message: 'Solicitud enviada con éxito. Se procesará tu acreditación.', type: 'success' });
         },
         onError: (error: any) => {
-            setToastInfo({ message: `Error al enviar: ${error.message}`, type: 'error' });
+            console.error("Submission Error:", error);
+            const errorMsg = error.message || "Error desconocido";
+            setToastInfo({ message: `Error al enviar: ${errorMsg}. Revisa tu conexión e intenta nuevamente.`, type: 'error' });
         }
     });
 
@@ -235,7 +247,7 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId }
                     message="Hemos recibido tus archivos correctamente. Tu solicitud está en estado 'Pendiente' y será revisada por la administración. Recibirás un correo cuando la acreditación sea confirmada."
                 />
                 <div className="mt-6 text-center">
-                    <Button variant="secondary" onClick={() => window.location.reload()}>Volver al Inicio</Button>
+                    <Button variant="secondary" onClick={() => onClose ? onClose() : window.location.reload()}>Volver al Inicio</Button>
                 </div>
             </Card>
         );

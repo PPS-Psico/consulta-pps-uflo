@@ -80,7 +80,7 @@ export const StudentHome: React.FC = () => {
     
     const {
         studentDetails,
-        studentAirtableId,
+        studentAirtableId, // Retrieved from context
         lanzamientos,
         allLanzamientos,
         institutionAddressMap,
@@ -95,12 +95,6 @@ export const StudentHome: React.FC = () => {
         setIsFinalizationModalOpen(true);
     }, []);
 
-    // Helper to get student ID safely
-    const getStudentId = () => {
-        if (!studentDetails) return null;
-        return (studentDetails as any).id || null;
-    };
-
     return (
         <>
              {isFinalizationModalOpen && (
@@ -112,7 +106,11 @@ export const StudentHome: React.FC = () => {
                     >
                         <span className="material-icons">close</span>
                     </button>
-                    <FinalizacionForm studentAirtableId={getStudentId()} />
+                    {/* Use context ID directly */}
+                    <FinalizacionForm 
+                        studentAirtableId={studentAirtableId} 
+                        onClose={() => setIsFinalizationModalOpen(false)}
+                    />
                 </div>
                 </div>
             )}
@@ -155,6 +153,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
 
   const {
     studentDetails,
+    studentAirtableId, // Use the ID provided by context
     practicas,
     solicitudes,
     lanzamientos,
@@ -181,10 +180,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
   const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || currentUser?.nombre || 'Estudiante';
 
-  // Helper to safely get student ID
+  // Helper to safely get student ID - prioritize context ID
   const getStudentId = () => {
-    if (studentDetails && (studentDetails as any).id) return (studentDetails as any).id;
-    return currentUser?.id || null;
+      return studentAirtableId || currentUser?.id || null;
   };
 
   const handleOrientacionChange = useCallback((orientacion: Orientacion | "") => {
@@ -337,7 +335,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                 >
                     <span className="material-icons">close</span>
                 </button>
-                <FinalizacionForm studentAirtableId={getStudentId()} />
+                <FinalizacionForm 
+                    studentAirtableId={getStudentId()} 
+                    onClose={() => setIsFinalizationModalOpen(false)}
+                />
             </div>
             </div>
         )}
@@ -356,7 +357,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
               >
                   <span className="material-icons">close</span>
               </button>
-              <FinalizacionForm studentAirtableId={getStudentId()} />
+              <FinalizacionForm 
+                studentAirtableId={getStudentId()} 
+                onClose={() => setIsFinalizationModalOpen(false)}
+              />
           </div>
         </div>
       )}
@@ -410,7 +414,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       </div>
 
       {/* --- VISTA MÓVIL --- */}
-      <div className="md:hidden no-print flex flex-col gap-8 animate-fade-in-up">
+      <div className="md:hidden no-print space-y-8 animate-fade-in-up">
           {currentActiveTab === 'inicio' && (
               <>
                   <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
@@ -419,54 +423,30 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           )}
 
           {currentActiveTab === 'informes' && (
-              <div>
-                  <MobileSectionHeader 
-                      title={<span>Entrega de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Informes</span></span>}
-                      description="Sube tu informe final al campus y luego confirma la entrega aquí."
-                  />
-                  <div className="mt-4">
-                      {informesContent}
-                  </div>
-              </div>
+              <Card icon="assignment_turned_in" title="Entrega de Informes Finales" description="Sube tu informe final al campus y luego confirma la entrega aquí.">
+                  {informesContent}
+              </Card>
           )}
 
           {currentActiveTab === 'solicitudes' && (
-              <div>
-                  <MobileSectionHeader 
-                      title={<span>Mis <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Solicitudes</span></span>}
-                      description="Seguimiento del estado de las PPS que has solicitado." 
-                  />
-                  <div className="mt-4">
-                      {solicitudesContent}
-                  </div>
-              </div>
+              <Card icon="list_alt" title="Mis Solicitudes de PPS" description="Seguimiento del estado de las Prácticas Profesionales Supervisadas que has solicitado.">
+                  {solicitudesContent}
+              </Card>
           )}
           
           {currentActiveTab === 'practicas' && (
-              <div className="flex flex-col gap-8">
+              <>
                   <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
-                  <div>
-                      <MobileSectionHeader 
-                          title={<span>Historial de <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Prácticas</span></span>}
-                          description="Detalle de todas las prácticas realizadas y sus calificaciones." 
-                      />
-                      <div className="mt-4">
-                          {practicasContent}
-                      </div>
-                  </div>
-              </div>
+                  <Card icon="work_history" title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones.">
+                    {practicasContent}
+                  </Card>
+              </>
           )}
 
           {currentActiveTab === 'profile' && (
-                <div>
-                    <MobileSectionHeader 
-                        title={<span>Mi <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Perfil</span></span>}
-                        description="Datos personales y académicos." 
-                    />
-                    <div className="bg-white dark:bg-slate-800/50 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 p-6 shadow-sm mt-4">
-                        {profileContent}
-                    </div>
-                </div>
+                <Card icon="person" title="Mi Perfil">
+                  {profileContent}
+              </Card>
           )}
       </div>
       
