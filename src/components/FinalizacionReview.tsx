@@ -306,8 +306,9 @@ const RequestListItem: React.FC<{
             const fetchPromises = allFiles.map(async (file) => {
                 try {
                     // Use cached blob if available
-                    if (cachedBlobs[file.url]) {
-                         const response = await fetch(cachedBlobs[file.url]);
+                    const cachedUrl = cachedBlobs[file.url];
+                    if (cachedUrl) {
+                         const response = await fetch(cachedUrl);
                          const blob = await response.blob();
                          folder.file(file.filename, blob);
                     } else {
@@ -326,7 +327,7 @@ const RequestListItem: React.FC<{
 
             await Promise.all(fetchPromises);
             const content = await zip.generateAsync({ type: "blob" });
-            FileSaver.saveAs(content, `${folderName}.zip`);
+            FileSaver.saveAs(content as Blob, `${folderName}.zip`);
 
         } catch (err: any) {
             console.error("Zip Error:", err);

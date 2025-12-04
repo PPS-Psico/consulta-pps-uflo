@@ -1,15 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import Input from './Input';
 import Toast from './Toast';
 import Button from './Button';
-import emailjs from '@emailjs/browser';
+import { supabase } from '../lib/supabaseClient';
 import {
     KEY_SELECTION_SUBJECT, KEY_SELECTION_BODY, KEY_SELECTION_ACTIVE,
     KEY_REQUEST_SUBJECT, KEY_REQUEST_BODY, KEY_REQUEST_ACTIVE,
     KEY_SAC_SUBJECT, KEY_SAC_BODY, KEY_SAC_ACTIVE,
-    KEY_SERVICE_ID, KEY_TEMPLATE_ID, KEY_PUBLIC_KEY,
-    KEY_EMAIL_COUNT, KEY_EMAIL_MONTH, MONTHLY_LIMIT
+    KEY_EMAIL_COUNT, KEY_EMAIL_MONTH
 } from '../constants';
 
 interface AutomationScenario {
@@ -95,19 +95,12 @@ Te informamos que tus horas de la PPS "{{nombre_pps}}" ya han sido cargadas y ac
 const EmailAutomationManager: React.FC = () => {
     const [toastInfo, setToastInfo] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     
-    // Credenciales Globales
-    const [serviceId, setServiceId] = useState('');
-    const [templateId, setTemplateId] = useState('');
-    const [publicKey, setPublicKey] = useState('');
-    const [isConfigExpanded, setIsConfigExpanded] = useState(true); 
-
     // Testing state
     const [testEmail, setTestEmail] = useState('');
     const [isSendingTest, setIsSendingTest] = useState(false);
 
     // Contador de Emails
     const [emailCount, setEmailCount] = useState(0);
-    const [isEditingCount, setIsEditingCount] = useState(false);
 
     // Estado de edición de escenarios
     const [editingScenarioId, setEditingScenarioId] = useState<string | null>(null);
@@ -116,20 +109,6 @@ const EmailAutomationManager: React.FC = () => {
     const [activeStates, setActiveStates] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        // Cargar credenciales
-        const sId = localStorage.getItem(KEY_SERVICE_ID) || '';
-        const tId = localStorage.getItem(KEY_TEMPLATE_ID) || '';
-        const pKey = localStorage.getItem(KEY_PUBLIC_KEY) || '';
-
-        setServiceId(sId);
-        setTemplateId(tId);
-        setPublicKey(pKey);
-
-        // Si ya hay credenciales, colapsar el panel por defecto
-        if (sId && tId && pKey) {
-            setIsConfigExpanded(false);
-        }
-
         // Cargar estados activos
         const states: Record<string, boolean> = {};
         SCENARIOS.forEach(s => {
@@ -145,7 +124,6 @@ const EmailAutomationManager: React.FC = () => {
         const storedCount = parseInt(localStorage.getItem(KEY_EMAIL_COUNT) || '0', 10);
 
         if (storedMonthKey !== currentMonthKey) {
-            // Nuevo mes, reiniciar contador
             localStorage.setItem(KEY_EMAIL_MONTH, currentMonthKey);
             localStorage.setItem(KEY_EMAIL_COUNT, '0');
             setEmailCount(0);
@@ -154,66 +132,29 @@ const EmailAutomationManager: React.FC = () => {
         }
     }, []);
 
-    const incrementEmailCount = () => {
-        const newCount = emailCount + 1;
-        setEmailCount(newCount);
-        localStorage.setItem(KEY_EMAIL_COUNT, String(newCount));
-    };
-
-    const handleManualCountUpdate = (newVal: string) => {
-        const val = parseInt(newVal, 10);
-        if (!isNaN(val) && val >= 0) {
-            setEmailCount(val);
-            localStorage.setItem(KEY_EMAIL_COUNT, String(val));
-        }
-    };
-
-    const handleSaveCredentials = () => {
-        if (!serviceId || !templateId || !publicKey) {
-            setToastInfo({ message: 'Por favor completa todos los campos.', type: 'error' });
-            return;
-        }
-        localStorage.setItem(KEY_SERVICE_ID, serviceId.trim());
-        localStorage.setItem(KEY_TEMPLATE_ID, templateId.trim());
-        localStorage.setItem(KEY_PUBLIC_KEY, publicKey.trim());
-        
-        setToastInfo({ message: 'Credenciales guardadas correctamente.', type: 'success' });
-        setIsConfigExpanded(false);
-    };
-
     const handleSendTest = async () => {
         if (!testEmail) {
             setToastInfo({ message: 'Ingresa un correo para la prueba.', type: 'error' });
             return;
         }
-        if (!serviceId || !templateId || !publicKey) {
-            setToastInfo({ message: 'Guarda las credenciales primero.', type: 'error' });
-            return;
-        }
 
         setIsSendingTest(true);
         try {
-            // Usamos la plantilla de "Selección" como ejemplo para la prueba
-            const templateParams = {
-                to_email: testEmail,
-                to_name: "Usuario de Prueba",
-                from_name: "Departamento PPS - UFLO",
-                reply_to: "blas.rivera@uflouniversidad.edu.ar",
-                subject: "Prueba de Conexión EmailJS - Mi Panel",
-                message: "Este es un correo de prueba para verificar que la integración funciona correctamente. \n\nSi lees esto, ¡la configuración es exitosa!",
-            };
+            const { error } = await supabase.functions.invoke('send-email', {
+                body: {
+                    to: testEmail,
+                    subject: "Prueba de Sistema de Correo Interno - UFLO",
+                    text: "Este es un correo de prueba enviado desde tu nueva infraestructura interna en Supabase. \n\nSi lees esto, el sistema funciona correctamente.",
+                    name: "Administrador"
+                }
+            });
 
-            await emailjs.send(serviceId, templateId, templateParams, publicKey);
-            incrementEmailCount();
-            setToastInfo({ message: 'Correo de prueba enviado con éxito. Revisa tu bandeja (y Spam).', type: 'success' });
+            if (error) throw error;
+
+            setToastInfo({ message: 'Correo de prueba enviado. Verifica tu bandeja.', type: 'success' });
         } catch (error: any) {
             console.error("Error sending test:", error);
-            let errorMsg = "Error desconocido";
-            if (error.text) errorMsg = error.text;
-            else if (error.message) errorMsg = error.message;
-            else if (typeof error === 'object') errorMsg = JSON.stringify(error);
-            
-            setToastInfo({ message: `Fallo el envío: ${errorMsg}`, type: 'error' });
+            setToastInfo({ message: `Fallo el envío: ${error.message || 'Error desconocido'}`, type: 'error' });
         } finally {
             setIsSendingTest(false);
         }
@@ -255,136 +196,41 @@ const EmailAutomationManager: React.FC = () => {
         }
     };
 
-    const percentUsed = Math.min((emailCount / MONTHLY_LIMIT) * 100, 100);
-    let progressColor = 'bg-blue-600';
-    if (percentUsed > 75) progressColor = 'bg-amber-500';
-    if (percentUsed > 90) progressColor = 'bg-red-600';
-
     return (
         <div className="space-y-8 animate-fade-in-up pb-10">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             
-            {/* CREDENCIALES GLOBALES */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden transition-all">
-                {/* Header / Resumen Collapsed */}
-                <div className={`p-6 flex flex-col sm:flex-row justify-between items-center gap-4 ${!isConfigExpanded ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50' : ''}`} onClick={() => !isConfigExpanded && setIsConfigExpanded(true)}>
-                    <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-full ${!serviceId ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400'}`}>
-                            <span className="material-icons !text-2xl">settings_suggest</span>
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Configuración Global EmailJS</h3>
-                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                                {!isConfigExpanded && serviceId 
-                                    ? <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1"><span className="material-icons !text-sm">check_circle</span> Credenciales configuradas</span> 
-                                    : "Define las credenciales para el envío automático."}
-                            </p>
-                        </div>
+            {/* PANEL DE CONTROL INTERNO */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
+                        <span className="material-icons !text-2xl">dns</span>
                     </div>
-                    {!isConfigExpanded && (
-                         <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setIsConfigExpanded(true); }} icon="edit">
-                             Editar Credenciales
-                         </Button>
-                    )}
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Servidor de Correo Interno</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            El sistema utiliza una Edge Function de Supabase para enviar correos de forma segura y escalable.
+                        </p>
+                    </div>
                 </div>
 
-                {/* Formulario Expandible */}
-                {isConfigExpanded && (
-                    <div className="px-6 pb-6 animate-fade-in">
-                        <div className="mt-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Service ID</label>
-                                    <Input value={serviceId} onChange={e => setServiceId(e.target.value)} placeholder="service_xxx" className="text-sm" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Template ID (Genérico)</label>
-                                    <Input value={templateId} onChange={e => setTemplateId(e.target.value)} placeholder="template_xxx" className="text-sm" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Public Key</label>
-                                    <Input value={publicKey} onChange={e => setPublicKey(e.target.value)} placeholder="user_xxx" type="password" className="text-sm" />
-                                </div>
-                            </div>
-                            
-                            {/* Test Area */}
-                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-end gap-3">
-                                <div className="flex-grow w-full">
-                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Probar Configuración (Enviar correo de prueba)</label>
-                                     <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="tu_correo@ejemplo.com" className="text-sm" />
-                                </div>
-                                <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
-                                    {isSendingTest ? 'Enviando...' : 'Probar'}
-                                </Button>
-                            </div>
-
-                            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700 pt-4">
-                                {serviceId && (
-                                    <Button variant="secondary" size="sm" onClick={() => setIsConfigExpanded(false)}>Cancelar</Button>
-                                )}
-                                <Button onClick={handleSaveCredentials} size="sm" icon="save">Guardar y Ocultar</Button>
-                            </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">Diagnóstico de Conexión</h4>
+                    <div className="flex flex-col sm:flex-row items-end gap-3">
+                        <div className="flex-grow w-full">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Enviar correo de prueba a:</label>
+                                <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="tu_correo@ejemplo.com" className="text-sm" />
                         </div>
+                        <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
+                            {isSendingTest ? 'Procesando...' : 'Probar Envío'}
+                        </Button>
                     </div>
-                )}
+                </div>
             </div>
-
-            {/* ESTADO DE CUOTA */}
-            <Card title="Estado de Cuota Mensual" icon="analytics" className="border-blue-200 dark:border-blue-800/50 bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-800 dark:to-slate-800">
-                <div className="flex flex-col sm:flex-row items-center gap-6 mt-2">
-                    {/* Progress Circle / Number */}
-                    <div className="flex-shrink-0 text-center">
-                         <div className="text-4xl font-black text-slate-800 dark:text-slate-100">
-                            {isEditingCount ? (
-                                <input 
-                                    type="number" 
-                                    value={emailCount} 
-                                    onChange={e => handleManualCountUpdate(e.target.value)}
-                                    onBlur={() => setIsEditingCount(false)}
-                                    className="w-24 text-center bg-white border border-slate-300 rounded p-1 text-3xl"
-                                    autoFocus
-                                />
-                            ) : (
-                                <span className="cursor-pointer border-b border-dashed border-slate-400" title="Click para corregir manualmente" onClick={() => setIsEditingCount(true)}>
-                                    {emailCount}
-                                </span>
-                            )}
-                             <span className="text-xl text-slate-400 font-medium"> / {MONTHLY_LIMIT}</span>
-                         </div>
-                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Enviados este mes</p>
-                    </div>
-
-                    {/* Bar */}
-                    <div className="flex-grow w-full">
-                        <div className="w-full h-4 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                            <div 
-                                className={`h-full transition-all duration-1000 ease-out ${progressColor}`} 
-                                style={{ width: `${percentUsed}%` }}
-                            ></div>
-                        </div>
-                        <div className="flex justify-between mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-                            <span>0%</span>
-                            <span>{Math.round(percentUsed)}% Utilizado</span>
-                            <span>100%</span>
-                        </div>
-                    </div>
-
-                    {/* Remaining */}
-                     <div className="flex-shrink-0 text-right hidden sm:block">
-                         <p className={`text-2xl font-bold ${MONTHLY_LIMIT - emailCount < 20 ? 'text-red-600' : 'text-emerald-600'}`}>
-                             {Math.max(0, MONTHLY_LIMIT - emailCount)}
-                         </p>
-                         <p className="text-xs text-slate-500">Restantes</p>
-                    </div>
-                </div>
-                <p className="text-xs text-slate-400 mt-4 italic text-center sm:text-left">
-                    * Este contador es una estimación local basada en los envíos realizados desde este navegador.
-                </p>
-            </Card>
 
             {/* ESCENARIOS */}
             <div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">Escenarios de Envío Automático</h3>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">Plantillas de Notificación</h3>
                 <div className="grid grid-cols-1 gap-6">
                     {SCENARIOS.map(scenario => {
                         const isEditing = editingScenarioId === scenario.id;

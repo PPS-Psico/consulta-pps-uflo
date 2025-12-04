@@ -1,9 +1,9 @@
-import emailjs from '@emailjs/browser';
+
+import { supabase } from '../lib/supabaseClient';
 import {
     KEY_SELECTION_SUBJECT, KEY_SELECTION_BODY, KEY_SELECTION_ACTIVE,
     KEY_REQUEST_SUBJECT, KEY_REQUEST_BODY, KEY_REQUEST_ACTIVE,
     KEY_SAC_SUBJECT, KEY_SAC_BODY, KEY_SAC_ACTIVE,
-    KEY_SERVICE_ID, KEY_TEMPLATE_ID, KEY_PUBLIC_KEY,
     KEY_EMAIL_COUNT, KEY_EMAIL_MONTH
 } from '../constants';
 
@@ -37,15 +37,14 @@ interface EmailData {
     studentName: string;
     studentEmail: string;
     ppsName?: string;
-    schedule?: string; // For selection
-    institution?: string; // For requests
-    newState?: string; // For requests
-    notes?: string; // For requests
+    schedule?: string;
+    institution?: string;
+    newState?: string;
+    notes?: string;
 }
 
 /**
- * Incrementa el contador de correos enviados en el mes actual.
- * Se llama automáticamente al enviar un correo con éxito.
+ * Incrementa el contador local de correos (solo para referencia visual en UI).
  */
 const incrementCounter = () => {
     const now = new Date();
@@ -57,7 +56,6 @@ const incrementCounter = () => {
     if (storedMonthKey === currentMonthKey) {
         currentCount = parseInt(localStorage.getItem(KEY_EMAIL_COUNT) || '0', 10);
     } else {
-        // New month, reset count
         localStorage.setItem(KEY_EMAIL_MONTH, currentMonthKey);
     }
 
@@ -65,43 +63,31 @@ const incrementCounter = () => {
 };
 
 /**
- * Envía un correo inteligente basado en el escenario.
- * Verifica credenciales, estado de activación y realiza sustitución de variables.
+ * Envía un correo utilizando la infraestructura interna de Supabase (Edge Function).
+ * Ya no depende de EmailJS en el cliente.
  */
 export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): Promise<{ success: boolean; message?: string }> => {
-    // 1. Check if scenario is active
+    // 1. Verificar si la automatización está activa localmente
     const configKeys = SCENARIO_CONFIG[scenario];
     const isActive = localStorage.getItem(configKeys.active) === 'true';
     
     if (!isActive) {
-        return { success: true, message: 'Automación desactivada' }; // Not an error, just skipped
-    }
-
-    // 2. Check credentials
-    const serviceId = localStorage.getItem(KEY_SERVICE_ID);
-    const templateId = localStorage.getItem(KEY_TEMPLATE_ID);
-    const publicKey = localStorage.getItem(KEY_PUBLIC_KEY);
-
-    if (!serviceId || !templateId || !publicKey) {
-        console.warn(`[EmailService] Credenciales faltantes. No se envió el correo de ${scenario}.`);
-        return { success: false, message: 'Credenciales EmailJS faltantes' };
+        return { success: true, message: 'Automación desactivada' };
     }
 
     if (!data.studentEmail) {
         return { success: false, message: 'El alumno no tiene email registrado.' };
     }
 
-    // 3. Get Template Content
-    // Defaults should ideally be in constants or handled if localstorage is empty, 
-    // but for now we assume setup was done via the manager tool.
+    // 2. Obtener Plantilla (Asunto y Cuerpo)
     const storedSubject = localStorage.getItem(configKeys.subject) || 'Actualización PPS UFLO';
     const storedBody = localStorage.getItem(configKeys.body) || 'Tienes una actualización sobre tu PPS.';
 
-    // 4. Replace Variables
+    // 3. Reemplazar Variables en el Cliente
     let finalSubject = storedSubject;
     let finalBody = storedBody;
     
-    // Common replacements
+    // Reemplazos comunes
     finalSubject = finalSubject.replace(/{{nombre_pps}}/g, data.ppsName || '');
     finalSubject = finalSubject.replace(/{{institucion}}/g, data.institution || '');
     
@@ -113,22 +99,27 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
         .replace(/{{estado_nuevo}}/g, data.newState || '')
         .replace(/{{notas}}/g, data.notes || '');
 
-    // 5. Send
-    const templateParams = {
-        to_name: data.studentName,
-        to_email: data.studentEmail,
-        from_name: "Departamento PPS - UFLO",
-        reply_to: "blas.rivera@uflouniversidad.edu.ar",
-        subject: finalSubject,
-        message: finalBody, 
-    };
-
+    // 4. Invocar Función Interna de Supabase
     try {
-        await emailjs.send(serviceId, templateId, templateParams, publicKey);
+        const { error } = await supabase.functions.invoke('send-email', {
+            body: {
+                to: data.studentEmail,
+                subject: finalSubject,
+                text: finalBody, // Enviamos como texto plano, la función puede envolverlo en HTML si se desea
+                name: data.studentName
+            }
+        });
+
+        if (error) {
+            console.error("Supabase Function Error:", error);
+            throw new Error(error.message || "Error en el servidor de correo");
+        }
+
         incrementCounter();
         return { success: true };
+
     } catch (error: any) {
-        console.error(`[EmailService] Error enviando correo (${scenario}):`, error);
-        return { success: false, message: error.text || error.message || 'Error de envío' };
+        console.error(`[EmailService] Error enviando correo interno (${scenario}):`, error);
+        return { success: false, message: error.message || 'Error de envío' };
     }
 };
