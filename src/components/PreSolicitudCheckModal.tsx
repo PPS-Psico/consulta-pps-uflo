@@ -11,11 +11,6 @@ interface PreSolicitudCheckModalProps {
   existingInstitutions: string[];
 }
 
-const EXCLUDED_INSTITUTIONS = [
-  "III Jornada Universitaria de Salud Mental",
-  "Relevamiento del Ejercicio Profesional en Psicología"
-];
-
 const PreSolicitudCheckModal: React.FC<PreSolicitudCheckModalProps> = ({
   isOpen,
   onClose,
@@ -25,17 +20,12 @@ const PreSolicitudCheckModal: React.FC<PreSolicitudCheckModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredInstitutions = useMemo(() => {
-    // Filter out the specific non-institution items first
-    const cleanList = existingInstitutions.filter(inst => 
-      !EXCLUDED_INSTITUTIONS.some(excluded => 
-        normalizeStringForComparison(inst).includes(normalizeStringForComparison(excluded))
-      )
-    );
-
-    if (!searchTerm) return cleanList;
+    // We trust existingInstitutions to be already cleaned by the parent (App.tsx)
+    // This simplifies the logic and centralizes the exclusion rules.
+    if (!searchTerm) return existingInstitutions;
     
     const lowerSearch = normalizeStringForComparison(searchTerm);
-    return cleanList.filter((inst) =>
+    return existingInstitutions.filter((inst) =>
       normalizeStringForComparison(inst).includes(lowerSearch)
     );
   }, [existingInstitutions, searchTerm]);
@@ -103,13 +93,13 @@ const PreSolicitudCheckModal: React.FC<PreSolicitudCheckModalProps> = ({
                         className="bg-white dark:bg-slate-900"
                     />
                 </div>
-                <div className="max-h-48 overflow-y-auto p-2 bg-slate-50/30 dark:bg-slate-900/30">
+                <div className="max-h-48 overflow-y-auto p-2 bg-slate-50/30 dark:bg-slate-900/30 custom-scrollbar">
                     {filteredInstitutions.length > 0 ? (
                         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {filteredInstitutions.map((inst, idx) => (
-                                <li key={idx} className="text-xs px-3 py-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-2">
-                                    <span className="material-icons !text-sm text-slate-400">apartment</span>
-                                    {inst}
+                                <li key={idx} className="text-xs px-3 py-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-2 truncate" title={inst}>
+                                    <span className="material-icons !text-sm text-slate-400 shrink-0">apartment</span>
+                                    <span className="truncate">{inst}</span>
                                 </li>
                             ))}
                         </ul>

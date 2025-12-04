@@ -72,21 +72,21 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
                     id: `rec_mock_${Date.now()}`,
                     createdTime: new Date().toISOString(),
                     fields: {
-                        [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: [selectedLanzamiento.id],
+                        [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: selectedLanzamiento.id,
                         [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'Inscripto',
                         [FIELD_NOMBRE_PPS_CONVOCATORIAS]: selectedLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS],
                         [FIELD_FECHA_INICIO_CONVOCATORIAS]: selectedLanzamiento[FIELD_FECHA_INICIO_LANZAMIENTOS],
                         [FIELD_LEGAJO_CONVOCATORIAS]: isNaN(legajoAsNumber) ? undefined : legajoAsNumber,
                     }
-                } as AirtableRecord<ConvocatoriaFields>;
+                } as unknown as AirtableRecord<ConvocatoriaFields>;
             }
 
             if (!studentAirtableId) throw new Error("No se pudo identificar al estudiante.");
             
             // Use actual DB column names (constants)
             const newRecordFields: any = {
-                [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: [selectedLanzamiento.id],
-                [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: [studentAirtableId],
+                [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: selectedLanzamiento.id,
+                [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: studentAirtableId,
                 [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: "Inscripto",
                 [FIELD_TERMINO_CURSAR_CONVOCATORIAS]: formData.terminoDeCursar ? "Sí" : "No",
                 [FIELD_OTRA_SITUACION_CONVOCATORIAS]: formData.otraSituacionAcademica,

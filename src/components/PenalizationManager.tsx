@@ -192,12 +192,12 @@ const AddPenaltyModal: React.FC<{
 
     const handleSave = () => {
         const penaltyData: PenalizacionFields = {
-            [FIELD_PENALIZACION_ESTUDIANTE_LINK]: [student.id],
+            [FIELD_PENALIZACION_ESTUDIANTE_LINK]: student.id,
             [FIELD_PENALIZACION_TIPO]: penaltyType,
             [FIELD_PENALIZACION_FECHA]: new Date().toISOString().split('T')[0],
             [FIELD_PENALIZACION_NOTAS]: notes,
         };
-        if (selectedPpsId) penaltyData[FIELD_PENALIZACION_CONVOCATORIA_LINK] = [selectedPpsId];
+        if (selectedPpsId) penaltyData[FIELD_PENALIZACION_CONVOCATORIA_LINK] = selectedPpsId;
         applyPenaltyMutation.mutate(penaltyData);
     };
     

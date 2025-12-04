@@ -170,6 +170,8 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
     });
   }
   
+  // Fetch ALL launches to build a complete history for "Existing Institutions" checks.
+  // We will filter the 'lanzamientos' (displayed in UI) array in memory.
   const [enrollmentsRes, activeLaunchesRes] = await Promise.all([
       studentAirtableId ? supabase
           .from(C.TABLE_NAME_CONVOCATORIAS)
@@ -180,7 +182,6 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       supabase
           .from(C.TABLE_NAME_LANZAMIENTOS_PPS)
           .select('*')
-          .neq(C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS, 'Oculto')
           .order(C.FIELD_FECHA_INICIO_LANZAMIENTOS, { ascending: false }),
   ]);
 
@@ -201,14 +202,21 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       } as Convocatoria;
   });
 
-  const lanzamientos = (activeLaunchesRes.data || []).map((l: any) => ({
+  const allRawLanzamientos = (activeLaunchesRes.data || []).map((l: any) => ({
       ...l,
       id: l.id,
       createdTime: l.created_at
   } as LanzamientoPPS));
   
-  const myLinkedLaunches = (enrollmentsRes.data || []).map((row: any) => row.lanzamiento).filter(Boolean).map((l: any) => ({...l, id: l.id, createdTime: l.created_at} as LanzamientoPPS));
-  const allLanzamientos = [...lanzamientos, ...myLinkedLaunches];
+  // Filter for the Student Dashboard UI (Only show Available)
+  const lanzamientos = allRawLanzamientos.filter(l => 
+      l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] !== 'Oculto' && 
+      l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'Archivado' &&
+      l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'No se Relanza'
+  );
+  
+  // allLanzamientos contains EVERYTHING (for duplicate checks)
+  const allLanzamientos = allRawLanzamientos;
 
   const institutionAddressMap = new Map<string, string>();
   lanzamientos.forEach(l => {

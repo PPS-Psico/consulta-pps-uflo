@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import CriteriosPanel from '../components/CriteriosPanel';
 import PracticasTable from '../components/PracticasTable';
@@ -50,7 +49,6 @@ import { useNavigate } from 'react-router-dom';
 import { useModal } from '../contexts/ModalContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
-import { addBusinessDays } from '../utils/formatters';
 
 // Export individual views for Router
 export { default as StudentPracticas } from '../components/PracticasTable';
@@ -240,7 +238,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           if (!studentId) throw new Error("Error identificando al estudiante.");
 
           const newRecord: Partial<SolicitudPPSFields> = {
-              [FIELD_LEGAJO_PPS]: [studentId],
+              [FIELD_LEGAJO_PPS]: studentId,
               [FIELD_SOLICITUD_LEGAJO_ALUMNO]: studentDetails?.[FIELD_LEGAJO_ESTUDIANTES],
               [FIELD_SOLICITUD_NOMBRE_ALUMNO]: studentDetails?.[FIELD_NOMBRE_ESTUDIANTES],
               [FIELD_SOLICITUD_EMAIL_ALUMNO]: studentDetails?.[FIELD_CORREO_ESTUDIANTES],
@@ -426,6 +424,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
             />
           </Card>
         ) : (
+           // Should technically fall into empty state above, but double check here
            <div className="space-y-8">
                 <Card icon="list_alt" title="Comenzar">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">

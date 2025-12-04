@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import SolicitudCard from './SolicitudCard';
 import EmptyState from './EmptyState';
 import ConfirmModal from './ConfirmModal';
 import type { SolicitudPPS, CriteriosCalculados, FinalizacionPPS } from '../types';
-import FinalizationStatusCard from './FinalizationStatusCard'; // IMPORTADO
-import { FIELD_ESTADO_FINALIZACION, FIELD_FECHA_SOLICITUD_FINALIZACION } from '../constants';
+import FinalizationStatusCard from './FinalizationStatusCard';
+import { FIELD_ESTADO_FINALIZACION, FIELD_FECHA_SOLICITUD_FINALIZACION, FIELD_ESTADO_PPS } from '../constants';
+import { normalizeStringForComparison } from '../utils/formatters';
 
 interface SolicitudesListProps {
   solicitudes: SolicitudPPS[];
@@ -80,6 +81,26 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const isAccreditationReady = criterios 
     ? criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion
     : false;
+
+  // Lógica de Agrupación
+  const { activeRequests, historyRequests } = useMemo(() => {
+      const active: SolicitudPPS[] = [];
+      const history: SolicitudPPS[] = [];
+      
+      const finishedStatuses = ['finalizada', 'cancelada', 'rechazada', 'no se pudo concretar', 'archivado', 'pps realizada', 'solicitud invalida', 'realizada'];
+
+      solicitudes.forEach(sol => {
+          const status = normalizeStringForComparison(sol[FIELD_ESTADO_PPS]);
+          if (finishedStatuses.some(s => status.includes(s))) {
+              history.push(sol);
+          } else {
+              active.push(sol);
+          }
+      });
+      
+      return { activeRequests: active, historyRequests: history };
+  }, [solicitudes]);
+
 
   const handleAccreditationClick = () => {
     if (!onRequestFinalization) return;
@@ -165,27 +186,48 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             cancelText="Volver"
         />
 
-        {/* List or Empty State */}
-        {solicitudes.length === 0 && !finalizacionRequest ? (
+        {/* --- SECCIÓN 1: SOLICITUDES ACTIVAS --- */}
+        {activeRequests.length > 0 && (
+            <div className="space-y-4 animate-fade-in-up">
+                 <div className="flex items-center gap-3 px-1 pb-1">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        Gestiones en Curso
+                    </span>
+                    <div className="h-px bg-slate-200 dark:bg-slate-700 flex-grow"></div>
+                </div>
+                {activeRequests.map((solicitud) => (
+                    <SolicitudCard key={solicitud.id} solicitud={solicitud} />
+                ))}
+            </div>
+        )}
+
+        {/* --- SECCIÓN 2: HISTORIAL (Colapsable) --- */}
+        {historyRequests.length > 0 && (
+            <div className="pt-4">
+                <details className="group">
+                    <summary className="flex items-center gap-2 cursor-pointer list-none text-sm font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/50 w-fit">
+                        <span className="material-icons transition-transform group-open:rotate-90 text-slate-400">chevron_right</span>
+                        Ver Historial y Finalizadas ({historyRequests.length})
+                    </summary>
+                    <div className="mt-4 space-y-4 pl-2 border-l-2 border-slate-200 dark:border-slate-700 ml-3.5">
+                        {historyRequests.map((solicitud) => (
+                            <SolicitudCard key={solicitud.id} solicitud={solicitud} />
+                        ))}
+                    </div>
+                </details>
+            </div>
+        )}
+
+        {/* Empty State General */}
+        {solicitudes.length === 0 && !finalizacionRequest && (
             <div className="mt-6">
                 <EmptyState 
                     icon="list_alt"
                     title="No Hay Solicitudes Activas"
                     message="Utiliza los botones superiores para iniciar una nueva solicitud o trámite."
-                    className="border-none shadow-none bg-transparent"
+                    className="border-none shadow-none bg-transparent dark:bg-transparent"
                 />
-            </div>
-        ) : (
-            <div className="space-y-4">
-                {solicitudes.length > 0 && (
-                     <div className="flex items-center gap-3 px-1 pb-2">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historial de Solicitudes PPS</span>
-                        <div className="h-px bg-slate-200 dark:bg-slate-700 flex-grow"></div>
-                    </div>
-                )}
-                {solicitudes.map((solicitud) => (
-                    <SolicitudCard key={solicitud.id} solicitud={solicitud} />
-                ))}
             </div>
         )}
     </div>

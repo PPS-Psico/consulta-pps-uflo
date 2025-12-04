@@ -40,7 +40,7 @@ import {
     FIELD_FECHA_INICIO_LANZAMIENTOS,
     FIELD_NOMBRE_PPS_LANZAMIENTOS
 } from './constants';
-import { parseToUTCDate } from './utils/formatters';
+import { parseToUTCDate, normalizeStringForComparison } from './utils/formatters';
 
 // Views
 const StudentView = lazy(() => import('./views/StudentView'));
@@ -124,7 +124,7 @@ const StudentPracticasWrapper = () => {
 };
 
 const StudentSolicitudesWrapper = () => {
-    const { solicitudes, studentDetails, criterios, institutionAddressMap, allLanzamientos, finalizacionRequest } = useStudentPanel();
+    const { solicitudes, studentDetails, criterios, allLanzamientos, finalizacionRequest } = useStudentPanel();
     const { openSolicitudPPSModal, showModal } = useModal();
     const { authenticatedUser } = useAuth();
     const queryClient = useQueryClient();
@@ -140,31 +140,29 @@ const StudentSolicitudesWrapper = () => {
     // to prevent students from requesting already existing agreements.
     const existingInstitutions = useMemo(() => {
         const namesSet = new Set<string>();
-        const excludedTerms = ["relevamiento", "jornada"];
         const currentYear = new Date().getFullYear();
-
-        // 1. From Address Map (Static/Cached institutions)
-        Array.from(institutionAddressMap.keys()).forEach(name => {
-             // Normalize check to exclude internal projects
-             const lowerName = name.toLowerCase();
-             if (!excludedTerms.some(term => lowerName.includes(term))) {
-                  // Capitalize first letter for display if needed, or just store raw
-                  namesSet.add(name);
-             }
-        });
-
-        // 2. From Active Launches this year (Dynamic check for very recent additions)
+        const excludedTerms = [
+            "relevamiento del ejercicio profesional", 
+            "jornada universitaria de salud mental"
+        ];
+        
+        // allLanzamientos now includes ALL items (even hidden ones) due to dataService change
         allLanzamientos.forEach(l => {
-            const date = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
-            if (date && date.getUTCFullYear() === currentYear) {
-                const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-                if (name) {
-                    const lowerName = name.toLowerCase();
-                     if (!excludedTerms.some(term => lowerName.includes(term))) {
-                         // Extract base name "Hospital X - Mañana" -> "Hospital X"
+            const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+            const dateStr = l[FIELD_FECHA_INICIO_LANZAMIENTOS];
+            
+            if (name && dateStr) {
+                const date = parseToUTCDate(dateStr);
+                // Filtramos por el año actual para reflejar "Instituciones Activas"
+                if (date && date.getUTCFullYear() === currentYear) {
+                    const lowerName = normalizeStringForComparison(name);
+                    
+                    // Excluir eventos internos específicos
+                    if (!excludedTerms.some(term => lowerName.includes(term))) {
+                         // Extraer nombre base "Hospital X - Mañana" -> "Hospital X"
                          const groupName = name.split(' - ')[0].trim();
                          namesSet.add(groupName);
-                     }
+                    }
                 }
             }
         });
@@ -173,7 +171,7 @@ const StudentSolicitudesWrapper = () => {
         return Array.from(namesSet)
             .map(name => name.charAt(0).toUpperCase() + name.slice(1)) // Capitalize
             .sort((a, b) => a.localeCompare(b));
-    }, [institutionAddressMap, allLanzamientos]);
+    }, [allLanzamientos]);
 
     const createSolicitudMutation = useMutation({
         mutationFn: async (formData: any) => {
@@ -181,7 +179,7 @@ const StudentSolicitudesWrapper = () => {
             if (!studentId) throw new Error("Error identificando al estudiante.");
 
             const newRecord = {
-                [FIELD_LEGAJO_PPS]: [studentId],
+                [FIELD_LEGAJO_PPS]: studentId,
                 [FIELD_SOLICITUD_LEGAJO_ALUMNO]: studentDetails?.[FIELD_LEGAJO_ESTUDIANTES],
                 [FIELD_SOLICITUD_NOMBRE_ALUMNO]: studentDetails?.[FIELD_NOMBRE_ESTUDIANTES],
                 [FIELD_SOLICITUD_EMAIL_ALUMNO]: studentDetails?.[FIELD_CORREO_ESTUDIANTES],

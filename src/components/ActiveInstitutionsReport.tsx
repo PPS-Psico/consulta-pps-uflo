@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -62,10 +63,15 @@ const ActiveInstitutionsReport: React.FC<{ isTestingMode?: boolean }> = ({ isTes
             return date && date.getUTCFullYear() === currentYear;
         });
 
-        const excludedInstitutions = ['relevamiento profesional', 'jornada universitaria en salud mental'];
+        // Updated exclusion list based on user feedback
+        const excludedInstitutions = [
+            "relevamiento del ejercicio profesional", 
+            "jornada universitaria de salud mental"
+        ];
+
         const launchesThisYear = launchesThisYearRaw.filter(launch => {
             const ppsName = launch[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-            if (!ppsName) return true; // Keep launches without a name for now
+            if (!ppsName) return true; // Keep launches without a name for now (integrity issue)
             const normalizedPpsName = normalizeStringForComparison(ppsName);
             return !excludedInstitutions.some(excluded => normalizedPpsName.includes(excluded));
         });
