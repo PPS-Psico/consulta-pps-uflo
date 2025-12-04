@@ -313,3 +313,23 @@ export function isValidLocation(location?: string): boolean {
 
     return true;
 }
+
+/**
+ * Helper seguro para obtener ID de un campo de relación.
+ * Maneja la diferencia entre Airtable (Array de IDs) y Supabase (String UUID).
+ * 
+ * @param val El valor del campo de relación
+ * @returns string | null
+ */
+export const safeGetId = (val: any): string | null => {
+    if (!val) return null;
+    if (Array.isArray(val)) {
+        // Caso Legacy / Mock (Array)
+        return val.length > 0 ? String(val[0]) : null;
+    }
+    // Caso SQL (String UUID)
+    if (typeof val === 'string') {
+        return val.trim() || null;
+    }
+    return null;
+};

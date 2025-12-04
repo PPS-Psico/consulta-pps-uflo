@@ -73,7 +73,7 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
         queryFn: async () => {
             if (isTestingMode) return [];
             
-            // Client-side filtering for better reliability with Supabase filters
+            // Client-side filtering or specific filter
             const records = await db.lanzamientos.getAll();
             
             return records
@@ -95,16 +95,6 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
             
             const launchId = selectedLanzamiento.id;
             
-            // Use simple filter then refine or fetch all convocatorias and filter in JS
-            // Given structure, fetching all convocatorias might be heavy. 
-            // Let's use filterByFormula which supports SEARCH/EQ in supabaseService for simple cases
-            // or fetching all if the formula is too complex.
-            // NOTE: `SEARCH` is not standard Supabase. `supabaseService` implements custom logic for it? 
-            // Actually `supabaseService` implements regex for `SEARCH`.
-            // Let's try fetching all convocatorias for safety or stick to a simpler filter.
-            // Since `supabaseService` implementation of `filterByFormula` is limited, let's fetch all convocatorias
-            // and filter in JS. It's safer.
-            
             const allEnrollments = await db.convocatorias.getAll();
             const enrollments = allEnrollments.filter(c => {
                  const linked = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
@@ -119,11 +109,10 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
                 return Array.isArray(raw) ? raw[0] : raw;
             }).filter(Boolean) as string[];
             
-            // Fetch ALL related data to join in memory (safest with flat Supabase structure)
             const [studentsRes, practicasRes, penaltiesRes] = await Promise.all([
-                db.estudiantes.getAll(),
-                db.practicas.getAll(),
-                db.penalizaciones.getAll()
+                db.estudiantes.getAll({ filters: { id: studentIds } }),
+                db.practicas.getAll({ filters: { [FIELD_ESTUDIANTE_LINK_PRACTICAS]: studentIds } }),
+                db.penalizaciones.getAll({ filters: { [FIELD_PENALIZACION_ESTUDIANTE_LINK]: studentIds } })
             ]);
 
             const studentMap = new Map(studentsRes.map(s => [s.id, s]));
@@ -180,6 +169,8 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
         mutationFn: async (student: EnrichedStudent) => {
             if (!selectedLanzamiento) return;
             const isCurrentlySelected = normalizeStringForComparison(student.status) === 'seleccionado';
+            
+            // Real API call
             const result = await toggleStudentSelection(
                 student.enrollmentId, 
                 !isCurrentlySelected, 
@@ -188,13 +179,41 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
             );
             return { ...result, student };
         },
-        onSuccess: (data) => {
+        onMutate: async (student) => {
+            // OPTIMISTIC UPDATE: Update UI immediately
+            await queryClient.cancelQueries({ queryKey: candidatesQueryKey });
+            const previousCandidates = queryClient.getQueryData<EnrichedStudent[]>(candidatesQueryKey);
+
+            queryClient.setQueryData(candidatesQueryKey, (old: EnrichedStudent[] | undefined) => {
+                if (!old) return [];
+                return old.map(c => {
+                    if (c.enrollmentId === student.enrollmentId) {
+                        const newStatus = normalizeStringForComparison(c.status) === 'seleccionado' ? 'Inscripto' : 'Seleccionado';
+                        return { ...c, status: newStatus };
+                    }
+                    return c;
+                });
+            });
+
+            return { previousCandidates };
+        },
+        onSuccess: (data, vars, context) => {
              if (!data?.success) {
                  setToastInfo({ message: `Error: ${data?.error}`, type: 'error' });
-                 refetchCandidates(); 
+                 // Revert if error
+                 if (context?.previousCandidates) {
+                     queryClient.setQueryData(candidatesQueryKey, context.previousCandidates);
+                 }
              }
+             // Always invalidate to ensure eventual consistency
+             queryClient.invalidateQueries({ queryKey: candidatesQueryKey });
         },
-        onError: (err) => setToastInfo({ message: `Error: ${err.message}`, type: 'error' }),
+        onError: (err, vars, context) => {
+            setToastInfo({ message: `Error: ${err.message}`, type: 'error' });
+            if (context?.previousCandidates) {
+                queryClient.setQueryData(candidatesQueryKey, context.previousCandidates);
+            }
+        },
         onSettled: () => setUpdatingId(null)
     });
 

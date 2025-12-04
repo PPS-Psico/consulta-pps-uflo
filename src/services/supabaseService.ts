@@ -2,13 +2,16 @@
 import { supabase } from '../lib/supabaseClient';
 import type { AppRecord, AppErrorResponse } from '../types';
 import { z } from 'zod';
-import { FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, TABLE_NAME_ESTUDIANTES, FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS } from '../constants';
+import { 
+    FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, 
+    FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS 
+} from '../constants';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Helper para construir filtros de búsqueda dinámicos
+// Helper para construir filtros de búsqueda global (OR)
 const buildSearchFilter = (tableName: string, searchTerm: string, searchFields: string[]) => {
     if (!searchTerm || searchFields.length === 0) return null;
     
@@ -16,8 +19,52 @@ const buildSearchFilter = (tableName: string, searchTerm: string, searchFields: 
     if (!term) return null;
 
     // Construye una query tipo "campo1.ilike.%term%,campo2.ilike.%term%"
-    // Supabase usa sintaxis PostgREST
     return searchFields.map(field => `${field}.ilike.%${term}%`).join(',');
+};
+
+// Helper centralizado para aplicar filtros nativos (AND)
+const applyFilters = (query: any, filters?: Record<string, any>) => {
+    if (!filters) return query;
+
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+
+        // 1. Filtros Especiales
+        if (key === 'startDate') {
+            query = query.gte('fecha_inicio', value);
+        } else if (key === 'endDate') {
+            query = query.lte('fecha_inicio', value);
+        } else if (key === 'institucion') {
+            query = query.ilike('nombre_institucion', `%${value}%`);
+        } else if (key === FIELD_LANZAMIENTO_VINCULADO_PRACTICAS && typeof value === 'string' && value.includes('|')) {
+            // Lógica híbrida para Prácticas: ID exacto O coincidencia por nombre/fecha (Legacy link)
+            const [launchId, instName, startDate] = value.split('|');
+            if (launchId && instName && startDate) {
+                const legacyCondition = `and(nombre_institucion.ilike."${instName}%",fecha_inicio.eq.${startDate})`;
+                const linkedCondition = `${key}.eq.${launchId}`;
+                query = query.or(`${linkedCondition},${legacyCondition}`);
+            } else {
+                query = query.eq(key, launchId || value);
+            }
+        } else if (key === FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS) {
+            // Búsqueda parcial para nombres de instituciones
+            query = query.ilike(key, `%${value}%`);
+        } 
+        // 2. Filtros Estándar
+        else {
+            if (Array.isArray(value)) {
+                // Si es array y tiene elementos, usamos IN
+                if (value.length > 0) query = query.in(key, value);
+            } else if (typeof value === 'string' && value.includes('%')) {
+                // Si el valor tiene %, usamos ILIKE explícito
+                query = query.ilike(key, value);
+            } else {
+                // Igualdad exacta por defecto
+                query = query.eq(key, value);
+            }
+        }
+    });
+    return query;
 };
 
 export const fetchPaginatedData = async <TFields extends Record<string, any>>(
@@ -27,9 +74,9 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
     pageSize: number,
     fields?: string[],
     searchTerm?: string,
-    searchFields?: string[], // Campos donde buscar el searchTerm
+    searchFields?: string[],
     sort?: { field: string; direction: 'asc' | 'desc' },
-    filters?: Record<string, any> // Nuevos filtros específicos (AND)
+    filters?: Record<string, any>
 ): Promise<{ records: AppRecord<TFields>[], total: number, error: AppErrorResponse | null }> => {
     try {
         const from = (page - 1) * pageSize;
@@ -40,49 +87,10 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
             .from(tableName)
             .select(selectQuery, { count: 'exact' });
 
-        // --- SPECIFIC FILTERS (AND logic) ---
-        if (filters) {
-             Object.entries(filters).forEach(([key, value]) => {
-                 if (value !== undefined && value !== null && value !== '') {
-                     if (key === 'startDate') {
-                         query = query.gte('fecha_inicio', value);
-                     } else if (key === 'endDate') {
-                         query = query.lte('fecha_inicio', value);
-                     } else if (key === 'institucion') {
-                         query = query.ilike('nombre_institucion', `%${value}%`);
-                     } else if (key === FIELD_LANZAMIENTO_VINCULADO_PRACTICAS) {
-                         // HYBRID LAUNCH FILTER LOGIC
-                         // Check if value is in "ID|Name|Date" format
-                         if (typeof value === 'string' && value.includes('|')) {
-                             const [launchId, instName, startDate] = value.split('|');
-                             // Construct OR query: (lanzamiento_id = ID) OR (nombre_institucion ILIKE Name% AND fecha_inicio = Date)
-                             // Note: Using ILIKE and wildcard for name to be safe with variations
-                             if (launchId && instName && startDate) {
-                                 const legacyCondition = `and(nombre_institucion.ilike."${instName}%",fecha_inicio.eq.${startDate})`;
-                                 const linkedCondition = `${key}.eq.${launchId}`;
-                                 query = query.or(`${linkedCondition},${legacyCondition}`);
-                             } else {
-                                 // Fallback to ID if parse fails
-                                 query = query.eq(key, launchId || value);
-                             }
-                         } else {
-                             // Standard Strict ID Filter
-                             query = query.eq(key, value);
-                         }
-                     } else if (key === FIELD_ESTUDIANTE_LINK_PRACTICAS) {
-                         query = query.eq(key, value);
-                     } else if (key === FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS) {
-                         // Special case for institution name filter to allow partial/case-insensitive matching
-                         query = query.ilike(key, `%${value}%`);
-                     } else {
-                         // Generic equality for other fields if needed
-                         query = query.eq(key, value);
-                     }
-                 }
-             });
-        }
+        // Aplicar filtros nativos
+        query = applyFilters(query, filters);
 
-        // --- SERVER SIDE FILTERING (OR logic for search) ---
+        // Aplicar búsqueda global (OR)
         if (searchTerm && searchFields && searchFields.length > 0) {
              const orQuery = buildSearchFilter(tableName, searchTerm, searchFields);
              if (orQuery) {
@@ -90,14 +98,13 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
              }
         }
 
-        // --- SORTING ---
+        // Ordenamiento
         if (sort) {
             query = query.order(sort.field, { ascending: sort.direction === 'asc' });
         } else {
             query = query.order('created_at', { ascending: false });
         }
 
-        // --- PAGINATION ---
         const { data, error, count } = await query.range(from, to);
 
         if (error) {
@@ -110,12 +117,9 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
             createdTime: row.created_at // Alias compatibility
         }));
 
-        // Validación "laxa" para no romper la UI si el esquema ha cambiado ligeramente,
-        // pero mantenemos el tipado fuerte.
         const validationResult = zodSchema.safeParse(records);
         if (!validationResult.success) {
             console.warn(`Schema validation warning for ${tableName}:`, validationResult.error.issues);
-            // Return raw records cast to expected type to prevent UI crash
             return { records: records as AppRecord<TFields>[], total: count || 0, error: null };
         }
 
@@ -135,13 +139,13 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
     tableName: string,
     zodSchema: z.ZodSchema<AppRecord<TFields>[]>,
     fields?: string[],
-    filterByFormula?: string, 
+    filters?: Record<string, any>,
     sort?: { field: string; direction: 'asc' | 'desc' }[]
 ): Promise<{ records: AppRecord<TFields>[], error: AppErrorResponse | null }> => {
     try {
         let allRows: any[] = [];
         let from = 0;
-        const PAGE_SIZE = 200; 
+        const PAGE_SIZE = 1000; // Aumentado para reducir round-trips
         let hasMore = true;
 
         const selectQuery = fields && fields.length > 0 ? `id, created_at, ${fields.join(', ')}` : '*';
@@ -155,24 +159,7 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
                 try {
                     let query = supabase.from(tableName).select(selectQuery);
 
-                    // --- FILTERING LOGIC (Legacy/Compatibility for complex queries) ---
-                    if (filterByFormula) {
-                        const equalityMatch = filterByFormula.match(/^\{\s*(.+?)\s*\}\s*=\s*['"](.+?)['"]$/);
-                        const idMatch = filterByFormula.match(/^RECORD_ID\(\)\s*=\s*['"]([^'"]+)['"]$/i);
-                        
-                        const studentSearchMatch = (tableName === TABLE_NAME_ESTUDIANTES) 
-                            ? filterByFormula.match(/OR\(\s*SEARCH\("([^"]+)",\s*LOWER\(\{(.+?)\}\)\),\s*SEARCH\("([^"]+)",\s*\{(.+?)\}\s*&\s*''\)\s*\)/i)
-                            : null;
-
-                        if (equalityMatch) {
-                            query = query.eq(equalityMatch[1], equalityMatch[2]);
-                        } else if (idMatch) {
-                            query = query.eq('id', idMatch[1]);
-                        } else if (studentSearchMatch) {
-                             const term = studentSearchMatch[1];
-                             query = query.or(`${FIELD_NOMBRE_ESTUDIANTES}.ilike.%${term}%,${FIELD_LEGAJO_ESTUDIANTES}.ilike.%${term}%`);
-                        }
-                    }
+                    query = applyFilters(query, filters);
 
                     if (sort && sort.length > 0) {
                         sort.forEach(s => {
@@ -214,13 +201,12 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
 
         const records = allRows.map(row => ({
             ...row,
-            createdTime: row.created_at // Alias compatibility
+            createdTime: row.created_at
         }));
 
         const validationResult = zodSchema.safeParse(records);
         if (!validationResult.success) {
             console.warn(`Schema validation warning for ${tableName}:`, validationResult.error.issues);
-             // Return raw records cast to expected type to prevent UI crash
              return { records: records as AppRecord<TFields>[], error: null };
         }
 
@@ -236,15 +222,36 @@ export const fetchData = async <TFields extends Record<string, any>>(
     tableName: string,
     zodSchema: z.ZodSchema<AppRecord<TFields>[]>,
     fields?: string[],
-    filterByFormula?: string,
+    filters?: Record<string, any>,
     maxRecords?: number,
     sort?: { field: string; direction: 'asc' | 'desc' }[]
 ): Promise<{ records: AppRecord<TFields>[], error: AppErrorResponse | null }> => {
-    const result = await fetchAllData<TFields>(tableName, zodSchema, fields, filterByFormula, sort);
-    if (maxRecords && result.records) {
-        result.records = result.records.slice(0, maxRecords);
+    if (maxRecords && maxRecords > 0) {
+        try {
+            const selectQuery = fields && fields.length > 0 ? `id, created_at, ${fields.join(', ')}` : '*';
+            let query = supabase.from(tableName).select(selectQuery).limit(maxRecords);
+            
+            query = applyFilters(query, filters);
+            
+            if (sort && sort.length > 0) {
+                sort.forEach(s => {
+                    query = query.order(s.field, { ascending: s.direction === 'asc' });
+                });
+            }
+
+            const { data, error } = await query;
+            
+            if (error) throw error;
+
+            const records = (data || []).map(row => ({ ...row, createdTime: row.created_at }));
+            return { records: records as AppRecord<TFields>[], error: null };
+
+        } catch (e: any) {
+            return { records: [], error: { error: { type: 'SUPABASE_ERROR', message: e.message } } };
+        }
     }
-    return result;
+
+    return await fetchAllData<TFields>(tableName, zodSchema, fields, filters, sort);
 };
 
 export const createRecord = async <TFields>(
@@ -263,7 +270,6 @@ export const createRecord = async <TFields>(
             return { record: null, error: { error: { type: 'CREATE_ERROR', message: error.message } } };
         }
 
-        // Fix: Use data.created_at since we just selected the inserted row
         const record = { ...data, createdTime: data.created_at };
         return { record, error: null };
     } catch (e: any) {
@@ -289,7 +295,6 @@ export const updateRecord = async <TFields>(
             return { record: null, error: { error: { type: 'UPDATE_ERROR', message: error.message } } };
         }
 
-        // Fix: Use data.created_at
         const record = { ...data, createdTime: data.created_at };
         return { record, error: null };
     } catch (e: any) {

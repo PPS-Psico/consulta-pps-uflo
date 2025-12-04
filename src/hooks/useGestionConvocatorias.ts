@@ -91,7 +91,7 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
                     FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
                     FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
                 ],
-                undefined,
+                undefined, // No filters needed, processing in memory
                 [{ field: FIELD_FECHA_FIN_LANZAMIENTOS, direction: 'desc' }]
             ),
             fetchAllData<InstitucionFields>(
@@ -290,9 +290,8 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
     
             const currentYear = new Date().getFullYear();
             const lastYearStart = new Date(currentYear - 1, 0, 1).toISOString().split('T')[0];
-            // Note: filterByFormula is limited in Supabase implementation. Fetching larger set and filtering in JS.
-            // const filterFormula = `IS_AFTER({${FIELD_FECHA_INICIO_PRACTICAS}}, DATETIME_PARSE('${lastYearStart}', 'YYYY-MM-DD'))`;
-    
+            
+            // Fetch all practices and filter locally since we need complex date logic
             const { records: recentPracticas, error: practicasError } = await fetchAllData<PracticaFields>(
                 TABLE_NAME_PRACTICAS,
                 practicaArraySchema,

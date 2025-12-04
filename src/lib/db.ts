@@ -22,12 +22,12 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
     const { _tableName } = tableSchema;
 
     return {
-        getAll: async (options?: { filterByFormula?: string; sort?: any[]; fields?: string[] }) => {
+        getAll: async (options?: { filters?: Record<string, any>; sort?: any[]; fields?: string[] }) => {
             const { records, error } = await supabaseService.fetchAllData<TRecordFields>(
                 _tableName, 
                 zodArraySchema, 
                 options?.fields || [], 
-                options?.filterByFormula, 
+                options?.filters, // Updated parameter
                 options?.sort
             );
             if (error) {
@@ -37,12 +37,12 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             return records;
         },
         
-        get: async (options?: { filterByFormula?: string; maxRecords?: number; sort?: any[] }) => {
+        get: async (options?: { filters?: Record<string, any>; maxRecords?: number; sort?: any[] }) => {
              const { records, error } = await supabaseService.fetchData<TRecordFields>(
                  _tableName, 
                  zodArraySchema, 
                  [], 
-                 options?.filterByFormula, 
+                 options?.filters, // Updated parameter
                  options?.maxRecords, 
                  options?.sort
             );
@@ -53,7 +53,7 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             return records;
         },
 
-        // New method for Server-Side Pagination with Filters
+        // Server-Side Pagination with Filters
         getPage: async (
             page: number, 
             pageSize: number, 
@@ -64,7 +64,7 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
                 zodArraySchema,
                 page,
                 pageSize,
-                [], // Fetch all fields for editor
+                [], 
                 options?.searchTerm,
                 options?.searchFields,
                 options?.sort,
@@ -103,8 +103,6 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
 
 export const getStudentLoginInfo = async (legajo: string): Promise<{ email: string } | null> => {
     try {
-        // SECURITY CRITICAL: Use RPC to bypass RLS securely for this specific lookup.
-        // data is the JSON object returned by postgres function: { "email": "user@example.com" }
         const { data, error } = await supabase.rpc('get_student_email_by_legajo', { 
             legajo_input: legajo 
         });
@@ -114,12 +112,10 @@ export const getStudentLoginInfo = async (legajo: string): Promise<{ email: stri
             return null;
         }
         
-        // Validate data structure
         if (!data || typeof data !== 'object' || !('email' in data)) {
              return null;
         }
         
-        // Return exactly { email: "string" }
         return { email: String(data.email) };
     } catch (error) {
         console.error("Error fetching student login info:", error);

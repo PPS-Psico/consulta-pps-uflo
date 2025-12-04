@@ -1,6 +1,6 @@
 
 import type { Convocatoria, LanzamientoPPS, Practica, InformeTask } from '../types';
-import { normalizeStringForComparison, parseToUTCDate } from './formatters';
+import { normalizeStringForComparison, parseToUTCDate, safeGetId } from './formatters';
 import {
     FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
     FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
@@ -35,8 +35,8 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
     const enrollmentsByPpsId = new Map<string, Convocatoria[]>();
     
     myEnrollments.forEach(enrollment => {
-        // In the new structure, this field is an array for legacy compatibility, but usually has 1 ID.
-        const linkedId = (enrollment[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] || [])[0];
+        // SAFE ID ACCESS: Handles both Array (legacy) and String (SQL)
+        const linkedId = safeGetId(enrollment[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]);
         
         if (linkedId) {
             if (!enrollmentsByPpsId.has(linkedId)) {
@@ -75,7 +75,7 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
         const estadoPractica = normalizeStringForComparison(practica[FIELD_ESTADO_PRACTICA]);
         if (finalizadaStatuses.includes(estadoPractica)) {
             // Track via Link ID if available (Current active links)
-            const linkedId = (practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string[] | undefined)?.[0];
+            const linkedId = safeGetId(practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]);
             if (linkedId) {
                 completedLanzamientoIds.add(linkedId);
             }
@@ -102,7 +102,7 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
             // Only if report link exists
             if (pps && pps[FIELD_INFORME_LANZAMIENTOS]) {
                 // Try to find matching practice for Grade
-                const practica = practicas.find(p => (p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string[] | undefined)?.[0] === pps.id);
+                const practica = practicas.find(p => safeGetId(p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]) === pps.id);
                 
                 informeTasks.push({
                     convocatoriaId: enrollment.id,
@@ -124,7 +124,7 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
     // Since we reduced 'allLanzamientos' to mostly active ones + enrolled ones in dataService, 
     // some very old tasks might not appear here if they are not in 'myEnrollments', but that's expected behavior (archived).
     for (const practica of practicas) {
-        const linkedId = (practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string[] | undefined)?.[0];
+        const linkedId = safeGetId(practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]);
         
         if (linkedId && !processedForInforme.has(linkedId)) {
              const pps = lanzamientosMap.get(linkedId);

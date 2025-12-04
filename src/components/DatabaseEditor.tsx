@@ -90,8 +90,8 @@ const BASE_TABLE_CONFIGS: Record<string, TableConfig> = {
         displayFields: ['__studentName', '__lanzamientoName', FIELD_ESPECIALIDAD_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_FECHA_FIN_PRACTICAS, FIELD_ESTADO_PRACTICA],
         searchFields: [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_ESPECIALIDAD_PRACTICAS],
         fieldConfig: [
-            { key: FIELD_ESTUDIANTE_LINK_PRACTICAS, label: 'Estudiante', type: 'select' }, // Dynamic options
-            { key: FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, label: 'Lanzamiento (PPS)', type: 'select' }, // Dynamic options
+            { key: FIELD_ESTUDIANTE_LINK_PRACTICAS, label: 'ID Estudiante (UUID)', type: 'text' }, // Fallback if dynamic fails
+            { key: FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, label: 'ID Lanzamiento (UUID)', type: 'text' }, // Fallback
             { key: FIELD_FECHA_INICIO_PRACTICAS, label: 'Fecha Inicio', type: 'date' },
             { key: FIELD_FECHA_FIN_PRACTICAS, label: 'Fecha Fin', type: 'date' },
             { key: FIELD_HORAS_PRACTICAS, label: 'Horas Acreditadas', type: 'number' },
@@ -285,24 +285,40 @@ interface DuplicateTargetModalProps {
     isOpen: boolean;
     onClose: () => void;
     onConfirm: (studentId: string) => void;
-    students: any[]; // Lightweight student list { value: id, label: name }
+    // We'll use a search component instead of passing ALL students
 }
 
-const DuplicateTargetModal: React.FC<DuplicateTargetModalProps> = ({ isOpen, onClose, onConfirm, students }) => {
+const DuplicateTargetModal: React.FC<DuplicateTargetModalProps> = ({ isOpen, onClose, onConfirm }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState<{id: string, label: string}[]>([]);
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
 
     useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+        const t = setTimeout(async () => {
+            if (searchTerm.length < 2) {
+                setSearchResults([]);
+                return;
+            }
+            setIsSearching(true);
+            try {
+                const { records } = await db.estudiantes.getPage(1, 20, {
+                    searchTerm,
+                    searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES]
+                });
+                setSearchResults(records.map(r => ({
+                    id: r.id,
+                    label: `${r[FIELD_NOMBRE_ESTUDIANTES]} (${r[FIELD_LEGAJO_ESTUDIANTES]})`
+                })));
+            } catch(e) {
+                console.error(e);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 400);
         return () => clearTimeout(t);
     }, [searchTerm]);
 
-    const filteredStudents = useMemo(() => {
-        if (!debouncedSearch) return [];
-        const lower = debouncedSearch.toLowerCase();
-        return students.filter(s => s.label.toLowerCase().includes(lower)).slice(0, 20);
-    }, [students, debouncedSearch]);
 
     if (!isOpen) return null;
 
@@ -310,7 +326,7 @@ const DuplicateTargetModal: React.FC<DuplicateTargetModalProps> = ({ isOpen, onC
         <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Duplicar Registro</h3>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Duplicar Práctica</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Busca al alumno para asignar la copia de este registro.</p>
                 </div>
                 <div className="p-6 space-y-4">
@@ -324,19 +340,22 @@ const DuplicateTargetModal: React.FC<DuplicateTargetModalProps> = ({ isOpen, onC
                             autoFocus
                         />
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg">search</span>
+                        {isSearching && (
+                             <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        )}
                     </div>
                     
                     {/* Results List */}
                     <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900">
-                        {filteredStudents.length > 0 ? (
-                            filteredStudents.map(s => (
+                        {searchResults.length > 0 ? (
+                            searchResults.map(s => (
                                 <button
-                                    key={s.value}
-                                    onClick={() => setSelectedStudentId(s.value)}
-                                    className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-blue-50 dark:hover:bg-blue-900/20 ${selectedStudentId === s.value ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold' : 'text-slate-700 dark:text-slate-300'}`}
+                                    key={s.id}
+                                    onClick={() => setSelectedStudentId(s.id)}
+                                    className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-blue-50 dark:hover:bg-blue-900/20 ${selectedStudentId === s.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold' : 'text-slate-700 dark:text-slate-300'}`}
                                 >
                                     {s.label}
-                                    {selectedStudentId === s.value && <span className="material-icons !text-sm text-blue-600">check</span>}
+                                    {selectedStudentId === s.id && <span className="material-icons !text-sm text-blue-600">check</span>}
                                 </button>
                             ))
                         ) : (
@@ -471,6 +490,9 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     const [selectedStudentFilter, setSelectedStudentFilter] = useState('');
     const [studentSearchText, setStudentSearchText] = useState('');
     const [showStudentOptions, setShowStudentOptions] = useState(false);
+    // Autocomplete lists
+    const [studentOptionsForFilter, setStudentOptionsForFilter] = useState<{id: string, label: string}[]>([]);
+    const [launchOptionsForFilter, setLaunchOptionsForFilter] = useState<{id: string, label: string}[]>([]);
     
     // Estudiantes Filter
     const [finalizedFilter, setFinalizedFilter] = useState('all');
@@ -490,38 +512,11 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         return () => clearTimeout(timer);
     }, [searchTerm]);
     
-    // 1. Fetch Lookup Data (Students & Launches)
-    const { data: lookupData } = useQuery({
-        queryKey: ['lookupData'],
-        queryFn: async () => {
-            if (isTestingMode) return { students: [], launches: [] };
-            const [studentsRes, launchesRes] = await Promise.all([
-                db.estudiantes.getAll({ fields: [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES] }),
-                db.lanzamientos.getAll({ fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS] })
-            ]);
-            
-            return {
-                students: studentsRes.sort((a, b) => (a[FIELD_NOMBRE_ESTUDIANTES] || '').localeCompare(b[FIELD_NOMBRE_ESTUDIANTES] || '')),
-                launches: launchesRes.sort((a, b) => new Date(b[FIELD_FECHA_INICIO_LANZAMIENTOS] || '').getTime() - new Date(a[FIELD_FECHA_INICIO_LANZAMIENTOS] || '').getTime())
-            };
-        },
-        enabled: !isTestingMode,
-        staleTime: Infinity, 
-    });
-    
-    // Prepare student options for duplication modal
-    const studentOptions = useMemo(() => 
-        (lookupData?.students || []).map(s => ({
-            value: s.id,
-            label: `${s[FIELD_NOMBRE_ESTUDIANTES]} (${s[FIELD_LEGAJO_ESTUDIANTES]})`
-        }))
-    , [lookupData?.students]);
-
     // 2. Prepare Dynamic Configuration
     const tableConfig = useMemo(() => {
         const config = { ...BASE_TABLE_CONFIGS[activeTable] } as TableConfig;
         
-        // Inject options dynamically based on fetched data
+        // Inject options dynamically
         if (activeTable === 'estudiantes') {
             const orientacionField = config.fieldConfig.find(f => f.key === FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES);
             if (orientacionField) orientacionField.options = ['', ...ALL_ORIENTACIONES];
@@ -535,72 +530,55 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
             const notaField = config.fieldConfig.find(f => f.key === FIELD_NOTA_PRACTICAS);
             if (notaField) notaField.options = ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
-
-            // Dynamic Options
-            const studentField = config.fieldConfig.find(f => f.key === FIELD_ESTUDIANTE_LINK_PRACTICAS);
-            if (studentField) {
-                studentField.options = (lookupData?.students || []).map(s => ({
-                    value: s.id,
-                    label: `${s[FIELD_NOMBRE_ESTUDIANTES]} (${s[FIELD_LEGAJO_ESTUDIANTES]})`
-                }));
-            }
-
-            const launchField = config.fieldConfig.find(f => f.key === FIELD_LANZAMIENTO_VINCULADO_PRACTICAS);
-            if (launchField) {
-                launchField.options = (lookupData?.launches || []).map(l => ({
-                    value: l.id,
-                    label: `${l[FIELD_NOMBRE_PPS_LANZAMIENTOS]} (${formatDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS])})`
-                }));
-            }
+            
+            // Note: We don't load ALL students/launches here anymore for performance.
+            // The RecordEditModal will need to handle async search or simplified text input for IDs if not using lookupData.
         }
         return config;
-    }, [activeTable, lookupData]);
+    }, [activeTable]);
 
     // --- Filter Logic ---
 
-    const uniqueInstitutions = useMemo(() => {
-        if (!lookupData?.launches) return [];
-        const names = new Set<string>();
-        lookupData.launches.forEach(l => {
-            const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-            if (name) {
-                const baseName = name.split(' - ')[0].trim();
-                names.add(baseName);
-            }
-        });
-        return Array.from(names).sort();
-    }, [lookupData?.launches]);
+    // Fetch available launches for filter dropdown if institution selected
+    useEffect(() => {
+        if (activeTable === 'practicas' && selectedInstitutionForFilter) {
+            db.lanzamientos.getAll({ 
+                filters: { [FIELD_NOMBRE_PPS_LANZAMIENTOS]: selectedInstitutionForFilter }, // Using partial match via service logic or exact if configured
+                sort: [{ field: FIELD_FECHA_INICIO_LANZAMIENTOS, direction: 'desc' }]
+            }).then(records => {
+                 setLaunchOptionsForFilter(records.map(l => ({
+                     id: l.id,
+                     label: `${l[FIELD_NOMBRE_PPS_LANZAMIENTOS]} (${formatDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS])})`
+                 })));
+            });
+        } else {
+            setLaunchOptionsForFilter([]);
+        }
+    }, [activeTable, selectedInstitutionForFilter]);
 
-    const availableLaunches = useMemo(() => {
-        if (!selectedInstitutionForFilter || !lookupData?.launches) return [];
-        return lookupData.launches.filter(l => {
-             const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
-             // Match start of string to allow variations
-             return name.toLowerCase().startsWith(selectedInstitutionForFilter.toLowerCase());
-        }).sort((a, b) => new Date(b[FIELD_FECHA_INICIO_LANZAMIENTOS] || '').getTime() - new Date(a[FIELD_FECHA_INICIO_LANZAMIENTOS] || '').getTime());
-    }, [selectedInstitutionForFilter, lookupData?.launches]);
+    // Fetch student options for autocomplete filter
+    useEffect(() => {
+        if (activeTable === 'practicas' && studentSearchText.length > 2) {
+             db.estudiantes.getPage(1, 10, { searchTerm: studentSearchText, searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES] })
+                .then(({ records }) => {
+                    setStudentOptionsForFilter(records.map(s => ({
+                        id: s.id,
+                        label: `${s[FIELD_NOMBRE_ESTUDIANTES]} (${s[FIELD_LEGAJO_ESTUDIANTES]})`
+                    })));
+                });
+        }
+    }, [activeTable, studentSearchText]);
 
     const queryFilters = useMemo(() => {
         const filters: Record<string, any> = {};
         
         if (activeTable === 'practicas') {
-            // 1. Launch / Institution Filter Logic (HYBRID MODE)
             if (selectedLaunchFilter) {
-                const launch = lookupData?.launches.find(l => l.id === selectedLaunchFilter);
-                if (launch) {
-                    const rawName = launch[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
-                    const instName = rawName.split(' - ')[0].trim();
-                    const date = launch[FIELD_FECHA_INICIO_LANZAMIENTOS] || '';
-                    filters[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] = `${launch.id}|${instName}|${date}`;
-                } else {
-                    filters[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] = selectedLaunchFilter;
-                }
-
+                 filters[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] = selectedLaunchFilter;
             } else if (selectedInstitutionForFilter) {
                 filters[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] = selectedInstitutionForFilter;
             }
 
-            // 2. Student Filter
             if (selectedStudentFilter) {
                 filters[FIELD_ESTUDIANTE_LINK_PRACTICAS] = selectedStudentFilter;
             }
@@ -613,16 +591,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         }
 
         return Object.keys(filters).length > 0 ? filters : undefined;
-    }, [activeTable, selectedLaunchFilter, selectedInstitutionForFilter, selectedStudentFilter, finalizedFilter, lookupData?.launches]);
+    }, [activeTable, selectedLaunchFilter, selectedInstitutionForFilter, selectedStudentFilter, finalizedFilter]);
 
-    const filteredStudents = useMemo(() => {
-        if (!studentSearchText.trim() || !lookupData?.students) return [];
-        const searchLower = studentSearchText.toLowerCase();
-        return lookupData.students.filter(s => 
-            (s[FIELD_NOMBRE_ESTUDIANTES] || '').toLowerCase().includes(searchLower) ||
-            String(s[FIELD_LEGAJO_ESTUDIANTES] || '').toLowerCase().includes(searchLower)
-        ).slice(0, 20); // Limit for performance
-    }, [studentSearchText, lookupData]);
 
     const queryKey = ['databaseEditor', activeTable, currentPage, itemsPerPage, sortConfig, debouncedSearch, isTestingMode, queryFilters];
 
@@ -644,8 +614,34 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
             if (error) throw new Error(error.error as string);
 
-            // Join data for display
+            // Join data for display (HYDRATION OPTIMIZATION)
             if (activeTable === 'practicas' && records.length > 0) {
+                // Extract IDs from the CURRENT PAGE only
+                const studentIds = new Set(records.map(r => {
+                     const val = r[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                     return Array.isArray(val) ? val[0] : val;
+                }).filter(Boolean));
+                
+                const launchIds = new Set(records.map(r => {
+                     const val = r[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                     return Array.isArray(val) ? val[0] : val;
+                }).filter(Boolean));
+
+                // Fetch only what is needed
+                const [estudiantesRes, lanzamientosRes] = await Promise.all([
+                    studentIds.size > 0 ? db.estudiantes.getAll({ 
+                        filters: { id: Array.from(studentIds) },
+                        fields: [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES] 
+                    }) : [],
+                    launchIds.size > 0 ? db.lanzamientos.getAll({ 
+                        filters: { id: Array.from(launchIds) },
+                        fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS] 
+                    }) : []
+                ]);
+    
+                const estudiantesMap = new Map(estudiantesRes.map(r => [r.id, r]));
+                const lanzamientosMap = new Map(lanzamientosRes.map(r => [r.id, r]));
+    
                 const enrichedRecords = records.map(p => {
                     const rawStudentId = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
                     const studentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
@@ -653,13 +649,16 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     const rawLanzamientoId = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
                     const lanzamientoId = Array.isArray(rawLanzamientoId) ? rawLanzamientoId[0] : rawLanzamientoId;
                     
-                    const student = lookupData?.students.find(s => s.id === studentId);
-                    const launch = lookupData?.launches.find(l => l.id === lanzamientoId);
+                    const student = estudiantesMap.get(studentId as string);
+                    const studentName = student?.[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido';
+                    const studentLegajo = student?.[FIELD_LEGAJO_ESTUDIANTES] || '---';
+                    
+                    const lanzamientoName = lanzamientosMap.get(lanzamientoId as string)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || cleanDisplayValue(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A';
     
                     return {
                         ...p,
-                        __studentName: student ? `${student[FIELD_NOMBRE_ESTUDIANTES]} (${student[FIELD_LEGAJO_ESTUDIANTES]})` : 'Desconocido',
-                        __lanzamientoName: launch ? launch[FIELD_NOMBRE_PPS_LANZAMIENTOS] : (cleanDisplayValue(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A')
+                        __studentName: `${studentName} (${studentLegajo})`,
+                        __lanzamientoName: lanzamientoName
                     };
                 });
                 return { records: enrichedRecords, total };
@@ -775,18 +774,16 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         delete newFields['__studentName'];
         delete newFields['__lanzamientoName'];
         
-        // Assign new student - Fix: Send string UUID, not array
+        // Assign new student
         newFields[FIELD_ESTUDIANTE_LINK_PRACTICAS] = studentId;
 
-        // Fix: Flatten launch ID if it is an array
+        // Flatten launch ID if needed
         const launchIdRaw = newFields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
         if (Array.isArray(launchIdRaw) && launchIdRaw.length > 0) {
              newFields[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] = launchIdRaw[0];
         }
         
-        // Reset specific fields for a fresh practice copy
-        newFields[FIELD_NOTA_PRACTICAS] = 'Sin calificar'; // Reset note
-        // Keep everything else (Launch ID, Institution Name, Dates, Hours, Status, etc.)
+        newFields[FIELD_NOTA_PRACTICAS] = 'Sin calificar'; 
         
         createMutation.mutate(newFields);
     };
@@ -802,33 +799,24 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
         try {
             // 1. Reconstruct the query to fetch ALL matching IDs (ignoring pagination)
-            // We duplicate the logic from fetchPaginatedData but only select IDs and remove range/limits
             let query = supabase.from(tableConfig.tableName).select('id');
             
-            // Apply filters (AND)
+            // Apply filters (AND) from the hook state
+            // We manually reconstruct the filter logic here since we can't easily share the query builder
             if (queryFilters) {
                 Object.entries(queryFilters).forEach(([key, value]) => {
-                    if (value !== undefined && value !== null && value !== '') {
-                         if (key === FIELD_LANZAMIENTO_VINCULADO_PRACTICAS && typeof value === 'string' && value.includes('|')) {
-                             // Handle complex launch filter
-                             const [launchId, instName, startDate] = value.split('|');
-                             if (launchId && instName && startDate) {
-                                 const legacyCondition = `and(nombre_institucion.ilike."${instName}%",fecha_inicio.eq.${startDate})`;
-                                 const linkedCondition = `${key}.eq.${launchId}`;
-                                 query = query.or(`${linkedCondition},${legacyCondition}`);
-                             } else {
-                                 query = query.eq(key, launchId || value);
-                             }
-                         } else if (key === FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS) {
-                             query = query.ilike(key, `%${value}%`);
-                         } else {
-                             query = query.eq(key, value);
-                         }
-                    }
+                     // Basic equality or special handling if needed, matching supabaseService logic
+                     if (Array.isArray(value)) {
+                         query = query.in(key, value);
+                     } else if (key === FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS) {
+                         query = query.ilike(key, `%${value}%`);
+                     } else {
+                         query = query.eq(key, value);
+                     }
                 });
             }
 
-            // Apply search (OR) - Simplified construction
+            // Apply search (OR)
             if (debouncedSearch && tableConfig.searchFields.length > 0) {
                  const term = debouncedSearch.replace(/[^\w\s]/gi, '');
                  if (term) {
@@ -853,7 +841,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 fields: { [field]: newValue }
             }));
 
-            // 3. Execute batch update via db service
+            // 3. Execute batch update
             await db[activeTable].updateMany(updates as any);
             
             setToastInfo({ message: `Se actualizaron ${updates.length} registros correctamente.`, type: 'success' });
@@ -963,9 +951,6 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         );
     };
 
-    // Has active filters check
-    const hasActiveFilters = !!(debouncedSearch || queryFilters);
-
     return (
         <Card title="Editor de Base de Datos" icon="storage">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
@@ -985,7 +970,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 <SubTabs 
                     tabs={tableTabs} 
                     activeTabId={activeTable} 
-                    onTabChange={(id) => { setActiveTable(id as TableKey); setSearchTerm(''); setSortConfig({ key: '', direction: 'asc' }); }} 
+                    onTabChange={(id) => { setActiveTable(id as TableKey); setSearchTerm(''); setSortConfig({ key: '', direction: 'asc' }); setSelectedInstitutionForFilter(''); }} 
                 />
             </div>
 
@@ -1044,43 +1029,37 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     {activeTable === 'practicas' && (
                         <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-12 gap-4 animate-fade-in shadow-sm">
                             
-                            {/* 1. Filter by Institution Name */}
+                            {/* 1. Input Text to filter by Institution */}
                             <div className="col-span-1 sm:col-span-4">
                                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Institución</label>
                                 <div className="relative">
-                                    <select 
-                                        value={selectedInstitutionForFilter} 
-                                        onChange={(e) => { 
+                                     <input
+                                        type="text"
+                                        placeholder="Nombre de institución..."
+                                        value={selectedInstitutionForFilter}
+                                        onChange={(e) => {
                                             setSelectedInstitutionForFilter(e.target.value);
-                                            setSelectedLaunchFilter(''); // Reset specific launch when institution changes
-                                            setCurrentPage(1); 
+                                            setSelectedLaunchFilter(''); // Reset launch filter
+                                            setCurrentPage(1);
                                         }}
-                                        className="w-full rounded-lg border border-slate-300 dark:border-slate-600 p-2.5 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer"
-                                    >
-                                        <option value="">Todas las instituciones</option>
-                                        {uniqueInstitutions.map(inst => (
-                                            <option key={inst} value={inst}>{inst}</option>
-                                        ))}
-                                    </select>
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 pointer-events-none !text-base">expand_more</span>
+                                        className="w-full rounded-lg border border-slate-300 dark:border-slate-600 p-2.5 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                                    />
                                 </div>
                             </div>
 
-                            {/* 2. Filter by Launch Date (Dependent on Institution) */}
+                            {/* 2. Filter by Launch (Autocomplete based on Institution Text) */}
                             <div className="col-span-1 sm:col-span-4">
-                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Lanzamiento (Fecha)</label>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Lanzamiento (Específico)</label>
                                 <div className="relative">
                                     <select 
                                         value={selectedLaunchFilter} 
                                         onChange={(e) => { setSelectedLaunchFilter(e.target.value); setCurrentPage(1); }}
                                         className="w-full rounded-lg border border-slate-300 dark:border-slate-600 p-2.5 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400"
-                                        disabled={!selectedInstitutionForFilter}
+                                        disabled={!selectedInstitutionForFilter || launchOptionsForFilter.length === 0}
                                     >
-                                        <option value="">Todas las convocatorias</option>
-                                        {availableLaunches.map(l => (
-                                            <option key={l.id} value={l.id}>
-                                                {formatDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS])} ({l[FIELD_NOMBRE_PPS_LANZAMIENTOS]})
-                                            </option>
+                                        <option value="">Todos los lanzamientos</option>
+                                        {launchOptionsForFilter.map(l => (
+                                            <option key={l.id} value={l.id}>{l.label}</option>
                                         ))}
                                     </select>
                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 pointer-events-none !text-base">expand_more</span>
@@ -1117,20 +1096,19 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                     {/* Dropdown Results */}
                                     {showStudentOptions && studentSearchText && !selectedStudentFilter && (
                                         <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                            {filteredStudents.length > 0 ? (
-                                                filteredStudents.map(s => (
+                                            {studentOptionsForFilter.length > 0 ? (
+                                                studentOptionsForFilter.map(s => (
                                                     <button
                                                         key={s.id}
                                                         onClick={() => {
-                                                            setStudentSearchText(`${s[FIELD_NOMBRE_ESTUDIANTES]} (${s[FIELD_LEGAJO_ESTUDIANTES]})`);
+                                                            setStudentSearchText(s.label);
                                                             setSelectedStudentFilter(s.id);
                                                             setShowStudentOptions(false);
                                                             setCurrentPage(1);
                                                         }}
                                                         className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 block truncate transition-colors"
                                                     >
-                                                        <span className="font-medium">{s[FIELD_NOMBRE_ESTUDIANTES]}</span>
-                                                        <span className="text-slate-400 text-xs ml-2">{s[FIELD_LEGAJO_ESTUDIANTES]}</span>
+                                                        {s.label}
                                                     </button>
                                                 ))
                                             ) : (
@@ -1270,7 +1248,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     isOpen={!!duplicatingRecord}
                     onClose={() => setDuplicatingRecord(null)}
                     onConfirm={handleConfirmDuplicate}
-                    students={studentOptions}
+                    students={studentOptionsForFilter} // Reusing the filter options which are lightweight
                 />
             )}
         </Card>
