@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import CriteriosPanel from '../components/CriteriosPanel';
 import PracticasTable from '../components/PracticasTable';
@@ -19,7 +20,7 @@ import HomeView from '../components/HomeView';
 import PrintableReport from '../components/PrintableReport';
 import { useStudentPanel } from '../contexts/StudentPanelContext';
 import FinalizacionForm from '../components/FinalizacionForm';
-import FinalizationStatusCard from '../components/FinalizationStatusCard'; // IMPORTADO
+import FinalizationStatusCard from '../components/FinalizationStatusCard';
 import { 
     FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, 
     FIELD_NOMBRE_ESTUDIANTES, 
@@ -49,6 +50,7 @@ import { useNavigate } from 'react-router-dom';
 import { useModal } from '../contexts/ModalContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
+import { addBusinessDays } from '../utils/formatters';
 
 // Export individual views for Router
 export { default as StudentPracticas } from '../components/PracticasTable';
@@ -56,25 +58,25 @@ export { default as StudentSolicitudes } from '../components/SolicitudesList';
 
 // --- COMPONENT: FinalizationReadyCard ---
 const FinalizationReadyCard: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 shadow-xl shadow-emerald-900/20 text-white animate-fade-in-up cursor-default mb-8">
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
-        <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-white/10 blur-xl"></div>
+    <div className="relative z-40 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 shadow-xl shadow-emerald-900/20 text-white animate-fade-in-up cursor-default mb-8 group border border-emerald-500/50">
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-white/10 blur-xl pointer-events-none"></div>
         
-        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="relative z-50 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-5">
-                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white shadow-sm">
+                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white shadow-sm ring-1 ring-white/30">
                     <span className="material-icons !text-3xl">military_tech</span>
                 </div>
                 <div>
-                    <h2 className="text-2xl font-black tracking-tight">¡Objetivo Cumplido!</h2>
-                    <p className="text-emerald-50 font-medium text-sm mt-1 max-w-md leading-relaxed opacity-90">
+                    <h2 className="text-2xl font-black tracking-tight text-white">¡Objetivo Cumplido!</h2>
+                    <p className="text-emerald-50 font-medium text-sm mt-1 max-w-md leading-relaxed opacity-95 text-shadow-sm">
                         Has completado todos los requisitos. Ya estás listo para solicitar tu acreditación final.
                     </p>
                 </div>
             </div>
             <button
-                onClick={onClick}
-                className="group flex-shrink-0 flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 font-bold text-emerald-700 shadow-lg transition-all hover:bg-emerald-50 hover:shadow-xl hover:-translate-y-0.5 active:scale-95"
+                onClick={(e) => { e.stopPropagation(); onClick(); }}
+                className="relative z-50 group flex-shrink-0 flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 font-bold text-emerald-700 shadow-lg transition-all hover:bg-emerald-50 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 cursor-pointer ring-2 ring-white/50"
             >
                 <span>Iniciar Trámite</span>
                 <span className="material-icons !text-xl transition-transform group-hover:translate-x-1">arrow_forward</span>
@@ -137,7 +139,7 @@ export const StudentHome: React.FC = () => {
 
             {/* Mostrar CTA de finalización si cumple requisitos Y NO tiene trámite iniciado */}
             {canFinalize && !finalizacionRequest && (
-                <div className="hidden md:block">
+                <div className="hidden md:block relative z-40">
                     <FinalizationReadyCard onClick={handleOpenFinalization} />
                 </div>
             )}
@@ -199,7 +201,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
     enrollmentMap,
     completedLanzamientoIds,
     informeTasks,
-    finalizacionRequest
+    finalizacionRequest // New from context
   } = useStudentPanel();
 
   const [internalActiveTab, setInternalActiveTab] = useState<TabId>(showExportButton ? 'practicas' : 'inicio');
@@ -209,6 +211,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
   const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || currentUser?.nombre || 'Estudiante';
 
+  // Helper to safely get student ID - prioritize context ID
   const getStudentId = () => {
       return studentAirtableId || currentUser?.id || null;
   };
@@ -230,6 +233,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       setIsFinalizationModalOpen(true);
   }, []);
 
+  // Create new PPS Request Mutation
   const createSolicitudMutation = useMutation({
       mutationFn: async (formData: any) => {
           const studentId = getStudentId();
@@ -291,7 +295,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
   const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
-  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} criterios={criterios} finalizacionRequest={finalizacionRequest} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios, finalizacionRequest]);
+  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} criterios={criterios} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios]);
   const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
   const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
 
@@ -422,7 +426,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
             />
           </Card>
         ) : (
-           // Should technically fall into empty state above, but double check here
            <div className="space-y-8">
                 <Card icon="list_alt" title="Comenzar">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">

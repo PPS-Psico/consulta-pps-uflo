@@ -73,7 +73,6 @@ export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
   const { studentAirtableId } = await fetchStudentData(legajo);
   if (!studentAirtableId) return [];
 
-  // Fix: Specify the exact foreign key 'fk_practica_lanzamiento' to avoid ambiguity error PGRST201
   const { data, error } = await supabase
     .from(C.TABLE_NAME_PRACTICAS)
     .select(`
@@ -90,8 +89,6 @@ export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
   }
 
   return data.map((row: any) => {
-      // Populate 'nombre_institucion' from relation if not manually set
-      // The constants now point to snake_case 'nombre_institucion'
       const linkedName = row.lanzamiento?.nombre_pps;
       
       return {
@@ -312,8 +309,6 @@ export const autoCloseExpiredPractices = async (): Promise<number> => {
     }
     return ids.length;
 };
-
-// --- Funcionalidad de Eliminación de Solicitudes de Finalización y sus Archivos ---
 
 export const deleteFinalizationRequest = async (id: string, record: any): Promise<{ success: boolean, error: any }> => {
     try {
