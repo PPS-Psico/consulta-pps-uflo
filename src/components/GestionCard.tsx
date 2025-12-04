@@ -111,7 +111,7 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpd
   const cupos = pps[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS];
 
   return (
-    <div className={`group flex flex-col h-full bg-white dark:bg-slate-800 rounded-2xl border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden ${isEnConversacion ? 'border-sky-400 dark:border-sky-500 ring-1 ring-sky-100 dark:ring-sky-900/30' : 'border-slate-200 dark:border-slate-700'}`}>
+    <div className={`group flex flex-col h-full bg-white dark:bg-gray-900 rounded-2xl border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden ${isEnConversacion ? 'border-sky-400 dark:border-sky-500 ring-1 ring-sky-100 dark:ring-sky-900/30' : 'border-slate-200 dark:border-slate-700'}`}>
         
         {/* Borde superior de color según especialidad */}
         <div className={`h-1.5 w-full bg-gradient-to-r ${especialidadVisuals.gradient}`}></div>
@@ -135,7 +135,7 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpd
                     </span>
                 )}
                 {cupos != null && (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
                         <span className="material-icons !text-xs">groups</span>
                         {cupos}
                     </span>
@@ -152,7 +152,7 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpd
                         id={`status-${pps.id}`} 
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}
-                        className="w-full text-sm font-medium rounded-lg border-0 bg-slate-100 dark:bg-slate-900/60 py-2 pl-3 pr-8 text-slate-700 dark:text-slate-200 shadow-inner focus:ring-2 focus:ring-blue-500 cursor-pointer transition-all"
+                        className="w-full text-sm font-medium rounded-lg border-0 bg-slate-100 dark:bg-slate-800/80 py-2 pl-3 pr-8 text-slate-700 dark:text-slate-200 shadow-inner focus:ring-2 focus:ring-blue-500 cursor-pointer transition-all"
                     >
                         {GESTION_STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                     </select>
@@ -169,14 +169,14 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpd
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3} 
-                    className="w-full text-sm rounded-lg border-0 bg-slate-50 dark:bg-slate-900/40 p-3 text-slate-600 dark:text-slate-300 shadow-inner resize-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all placeholder:text-slate-400 h-full min-h-[80px]" 
+                    className="w-full text-sm rounded-lg border-0 bg-slate-50 dark:bg-slate-800/50 p-3 text-slate-600 dark:text-slate-300 shadow-inner resize-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all placeholder:text-slate-400 h-full min-h-[80px]" 
                     placeholder="Notas de gestión..."
                 />
             </div>
         </div>
 
         {/* Footer - Actions */}
-        <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2">
+        <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-700/80 flex items-center justify-between gap-2">
              {/* Left: Phone Action */}
              <div className="flex-shrink-0">
                  {isEditingPhone ? (
@@ -196,7 +196,7 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpd
                     <button
                         onClick={handleWhatsAppClick}
                         type="button"
-                        className="p-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50 transition-colors flex items-center justify-center"
+                        className="p-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/50 transition-colors flex items-center justify-center"
                         title={`WhatsApp: ${institution.phone}`}
                     >
                         <span className="material-icons !text-lg">chat</span>

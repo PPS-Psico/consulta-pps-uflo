@@ -19,12 +19,15 @@ export function getBusinessDaysDiff(startDate: Date, endDate: Date): number {
     let end = new Date(endDate.getTime());
     end.setHours(0,0,0,0);
 
-    if (start >= end) {
+    if (start.getTime() === end.getTime()) return 0;
+
+    if (start > end) {
         // If start is after end, calculate negative business days
         let count = 0;
-        while (start > end) {
-            start.setDate(start.getDate() - 1);
-            const dayOfWeek = start.getDay();
+        let curr = new Date(start);
+        while (curr > end) {
+            curr.setDate(curr.getDate() - 1);
+            const dayOfWeek = curr.getDay();
             if (dayOfWeek !== 0 && dayOfWeek !== 6) {
                 count++;
             }
@@ -33,9 +36,10 @@ export function getBusinessDaysDiff(startDate: Date, endDate: Date): number {
     }
     
     let count = 0;
-    while (start < end) {
-        start.setDate(start.getDate() + 1);
-        const dayOfWeek = start.getDay();
+    let curr = new Date(start);
+    while (curr < end) {
+        curr.setDate(curr.getDate() + 1);
+        const dayOfWeek = curr.getDay();
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
             count++;
         }

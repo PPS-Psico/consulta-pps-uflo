@@ -58,9 +58,17 @@ const NotificationDropdown: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                       className={`p-4 border-b border-slate-100 dark:border-slate-700/50 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 ${!notif.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                   >
                       <div className="flex gap-3">
-                          <div className={`flex-shrink-0 mt-1 ${notif.type === 'solicitud_pps' ? 'text-blue-500' : notif.type === 'acreditacion' ? 'text-emerald-500' : 'text-slate-500'}`}>
+                          <div className={`flex-shrink-0 mt-1 ${
+                              notif.type === 'solicitud_pps' ? 'text-blue-500' : 
+                              notif.type === 'acreditacion' ? 'text-emerald-500' : 
+                              notif.type === 'recordatorio' ? 'text-amber-500' : 
+                              'text-slate-500'
+                          }`}>
                               <span className="material-icons !text-xl">
-                                  {notif.type === 'solicitud_pps' ? 'assignment_ind' : notif.type === 'acreditacion' ? 'verified' : 'info'}
+                                  {notif.type === 'solicitud_pps' ? 'assignment_ind' : 
+                                   notif.type === 'acreditacion' ? 'verified' : 
+                                   notif.type === 'recordatorio' ? 'alarm' : 
+                                   'info'}
                               </span>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -92,7 +100,7 @@ const AppHeader: React.FC = () => {
   const isLoggedIn = !!authenticatedUser;
   const [hasScrolled, setHasScrolled] = useState(false);
   const location = useLocation();
-  const { unreadCount } = useNotifications(); // Hook now exists
+  const { unreadCount } = useNotifications(); 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   // Rutas que deben ocupar todo el ancho de la pantalla

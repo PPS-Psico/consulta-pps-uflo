@@ -153,7 +153,8 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             
             // --- Calculos ---
             const today = new Date();
-            
+            const excludedTerms = ["relevamiento del ejercicio profesional", "jornada universitaria de salud mental"];
+
             // FILTROS
             const activeStudentRecords = estudiantes.filter(student => {
                 // Un estudiante está activo si NO ha finalizado.
@@ -362,9 +363,19 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
                 const date = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
                 return date && date.getUTCFullYear() === targetYear;
             });
+            
+            // Active Institutions Calculation
             const institutionsData = new Map<string, { cupos: number, orientaciones: Set<string> }>();
+            
             launchesThisYear.forEach(launch => {
-                const groupName = getGroupName(launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
+                const name = launch[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+                if (!name) return;
+                
+                // APPLY EXCLUSION FILTER
+                const lowerName = normalizeStringForComparison(name);
+                if (excludedTerms.some(t => lowerName.includes(t))) return;
+
+                const groupName = getGroupName(name);
                 const data = institutionsData.get(groupName) || { cupos: 0, orientaciones: new Set() };
                 data.cupos += launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0;
                 const orientacion = launch[FIELD_ORIENTACION_LANZAMIENTOS];
@@ -373,6 +384,7 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
                 }
                 institutionsData.set(groupName, data);
             });
+            
             const activeInstitutionsList = Array.from(institutionsData.entries()).map(([name, data]) => ({
                 nombre: name,
                 legajo: Array.from(data.orientaciones).join(', ') || 'N/A',

@@ -68,14 +68,14 @@ const StatusCard: React.FC<StatusCardProps> = React.memo(({ pps, onStatusChange,
   const statusVisuals = getStatusVisuals(status);
 
   return (
-    <div className="bg-white dark:bg-slate-800/50 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-px group">
+    <div className="bg-white dark:bg-gray-900 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-px group">
       <div className={`p-3 border-b border-slate-200/60 dark:border-slate-700 transition-colors duration-300 ${headerBg}`}>
         <h4 className={`font-bold text-sm ${headerTextColor}`}>{pps[FIELD_NOMBRE_PPS_LANZAMIENTOS]}</h4>
         <div className="mt-1">
           <span className={`${especialidadVisuals.tag} shadow-sm`}>{pps[FIELD_ORIENTACION_LANZAMIENTOS]}</span>
         </div>
       </div>
-      <div className="p-3 bg-slate-50/30 dark:bg-slate-800/30">
+      <div className="p-3 bg-slate-50/30 dark:bg-slate-800/20">
         <p className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
           <span className="material-icons !text-sm">date_range</span>
           <span>{formatDate(pps[FIELD_FECHA_INICIO_LANZAMIENTOS])} - {formatDate(pps[FIELD_FECHA_FIN_LANZAMIENTOS])}</span>
@@ -90,7 +90,7 @@ const StatusCard: React.FC<StatusCardProps> = React.memo(({ pps, onStatusChange,
             value={status}
             onChange={handleStatusChange}
             disabled={isUpdating}
-            className={`w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-600 py-2 pl-9 pr-8 text-sm font-semibold shadow-sm transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none disabled:cursor-not-allowed ${justSaved ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 ring-2 ring-emerald-200 dark:ring-emerald-800/50' : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100'}`}
+            className={`w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-600 py-2 pl-9 pr-8 text-sm font-semibold shadow-sm transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none disabled:cursor-not-allowed ${justSaved ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 ring-2 ring-emerald-200 dark:ring-emerald-800/50' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100'}`}
           >
             {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>

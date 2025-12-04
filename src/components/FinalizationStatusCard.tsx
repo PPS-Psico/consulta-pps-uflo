@@ -46,11 +46,9 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
         );
     }
 
-    // Pending Calculation
-    const totalBusinessDays = 14;
+    // Pending Calculation (14 Business Days)
     let daysDisplay = getBusinessDaysDiff(now, targetDate);
-    
-    // Calculate percentage based on business days passed
+    const totalBusinessDays = 14;
     const daysPassed = totalBusinessDays - Math.max(0, daysDisplay);
     let percentage = Math.min(100, Math.max(0, (daysPassed / totalBusinessDays) * 100));
 
@@ -59,12 +57,12 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
     }
 
     return (
-        <div className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-blue-100 dark:border-slate-700/60 p-6 shadow-lg dark:shadow-black/40 animate-fade-in-up mb-6 group">
+        <div className="relative overflow-hidden bg-white dark:bg-[#0B1120] rounded-2xl border border-blue-100 dark:border-indigo-500/30 p-6 shadow-lg dark:shadow-2xl dark:shadow-indigo-900/20 animate-fade-in-up mb-6 group">
             {/* Background Effects for Dark Mode - Enhanced */}
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-50/50 dark:to-blue-900/10 pointer-events-none"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-50/50 dark:to-indigo-900/10 pointer-events-none"></div>
             
             <div className="relative z-10 flex items-start gap-5">
-                 <div className="p-3.5 bg-blue-50 dark:bg-slate-800 border border-blue-100 dark:border-slate-700 text-blue-600 dark:text-blue-400 rounded-2xl shadow-sm dark:shadow-inner">
+                 <div className="p-3.5 bg-blue-50 dark:bg-gray-900 border border-blue-100 dark:border-gray-800 text-blue-600 dark:text-indigo-400 rounded-2xl shadow-sm dark:shadow-inner">
                      <span className="material-icons !text-3xl animate-[spin_4s_linear_infinite]">settings_suggest</span>
                  </div>
                  
@@ -77,7 +75,7 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
                             </p>
                         </div>
                         <div className="hidden sm:block text-right">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-gray-900 px-2.5 py-1 rounded-md border border-slate-200 dark:border-gray-800">
                                 En proceso
                             </span>
                         </div>
@@ -85,13 +83,13 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
                      
                      <div className="mt-6">
                          <div className="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
-                             <span>Progreso estimado</span>
-                             <span className={daysDisplay < 0 ? "text-rose-500 dark:text-rose-400" : "text-blue-600 dark:text-blue-400"}>
+                             <span>Progreso estimado (14 días hábiles)</span>
+                             <span className={daysDisplay < 0 ? "text-rose-500 dark:text-rose-400" : "text-blue-600 dark:text-indigo-400"}>
                                  {daysDisplay > 0 ? `${daysDisplay} días hábiles restantes` : daysDisplay === 0 ? 'Vence hoy' : `Demorado ${Math.abs(daysDisplay)} días`}
                              </span>
                          </div>
                          
-                         <div className="relative w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden shadow-inner border border-slate-200 dark:border-slate-700">
+                         <div className="relative w-full bg-slate-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner border border-slate-200 dark:border-gray-700">
                              <div 
                                  className={`h-full rounded-full transition-all duration-1000 ease-out relative ${daysDisplay < 0 ? 'bg-rose-500' : 'bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-500'}`}
                                  style={{ width: `${percentage}%` }}

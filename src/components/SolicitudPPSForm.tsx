@@ -16,8 +16,8 @@ const solicitudSchema = z.object({
   nombreInstitucion: z.string().min(3, "El nombre de la institución es requerido"),
   localidad: z.string().min(2, "La localidad es requerida"),
   direccion: z.string().min(5, "La dirección es requerida"),
-  emailInstitucion: z.string().email("Email inválido").optional().or(z.literal('')),
-  telefonoInstitucion: z.string().optional(),
+  emailInstitucion: z.string().min(1, "El email es requerido").email("Email inválido"),
+  telefonoInstitucion: z.string().min(5, "El teléfono es requerido"),
   
   referente: z.string().min(3, "El referente institucional es requerido"),
   tieneConvenio: z.enum(['Sí', 'No', 'No sé']),
@@ -164,13 +164,14 @@ const SolicitudPPSForm: React.FC<SolicitudPPSFormProps> = ({ isOpen, onClose, on
                         {errors.direccion && <p className="text-red-500 text-xs mt-1">{errors.direccion}</p>}
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email de Contacto</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email de Contacto <span className="text-red-500">*</span></label>
                         <Input name="emailInstitucion" type="email" value={formData.emailInstitucion} onChange={handleChange} placeholder="contacto@institucion.com" />
                          {errors.emailInstitucion && <p className="text-red-500 text-xs mt-1">{errors.emailInstitucion}</p>}
                     </div>
                     <div>
-                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono <span className="text-red-500">*</span></label>
                         <Input name="telefonoInstitucion" type="tel" value={formData.telefonoInstitucion} onChange={handleChange} placeholder="Cod. Área + Número" />
+                        {errors.telefonoInstitucion && <p className="text-red-500 text-xs mt-1">{errors.telefonoInstitucion}</p>}
                     </div>
                 </div>
             </div>

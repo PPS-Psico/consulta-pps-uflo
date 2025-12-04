@@ -1,5 +1,4 @@
 
-
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
@@ -12,7 +11,14 @@ import {
     TABLE_NAME_ESTUDIANTES,
     FIELD_NOMBRE_ESTUDIANTES,
     FIELD_ESTUDIANTE_FINALIZACION,
-    FIELD_LEGAJO_PPS
+    FIELD_LEGAJO_PPS,
+    FIELD_ESTADO_PPS,
+    FIELD_ESTADO_FINALIZACION,
+    FIELD_ULTIMA_ACTUALIZACION_PPS,
+    TABLE_NAME_LANZAMIENTOS_PPS,
+    FIELD_FECHA_FIN_LANZAMIENTOS,
+    FIELD_NOMBRE_PPS_LANZAMIENTOS,
+    FIELD_ESTADO_GESTION_LANZAMIENTOS
 } from '../constants';
 import Toast from '../components/Toast';
 
@@ -21,7 +27,7 @@ export interface AppNotification {
     title: string;
     message: string;
     timestamp: Date;
-    type: 'solicitud_pps' | 'acreditacion' | 'info';
+    type: 'solicitud_pps' | 'acreditacion' | 'info' | 'recordatorio';
     link: string;
     isRead: boolean;
 }
@@ -40,145 +46,301 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const { authenticatedUser, isSuperUserMode, isJefeMode, isDirectivoMode } = useAuth();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+    
+    // Persistencia Local: Set de IDs leídos
+    const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(new Set());
+
     const navigate = useNavigate();
 
     // Only admins need to listen to these events
     const isAdmin = isSuperUserMode || isJefeMode || isDirectivoMode;
+    const userId = authenticatedUser?.id || 'guest';
+    const STORAGE_KEY = `read_notifications_v2_${userId}`;
 
-    const addNotification = useCallback((notif: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>) => {
-        console.log("📢 Agregando notificación:", notif.title);
-        const newNotif: AppNotification = {
-            ...notif,
-            id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-            timestamp: new Date(),
-            isRead: false,
-        };
-
-        setNotifications(prev => [newNotif, ...prev]);
-        
-        // Play sound (optional, simple beep)
+    // 0. CARGAR LEÍDOS DESDE LOCALSTORAGE
+    useEffect(() => {
+        if (!isAdmin) return;
         try {
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-            audio.volume = 0.5;
-            audio.play().catch(() => {}); // Ignore autoplay errors
-        } catch (e) {}
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) {
+                    setReadNotificationIds(new Set(parsed));
+                }
+            }
+        } catch (e) {
+            console.warn("Error cargando notificaciones leídas del storage", e);
+        }
+    }, [isAdmin, STORAGE_KEY]);
 
-        // Show visual toast
-        setToast({ message: newNotif.title, type: 'success' });
-    }, []);
+    // Helper para guardar en storage
+    const persistReadIds = (newSet: Set<string>) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(newSet)));
+        setReadNotificationIds(newSet);
+    };
 
+    // 1. LOAD PENDING NOTIFICATIONS & GENERATE REMINDERS
     useEffect(() => {
         if (!isAdmin || !authenticatedUser) return;
 
-        console.log("🔔 Inicializando sistema de notificaciones Realtime...");
-        console.log("   User ID:", authenticatedUser.id);
+        const fetchNotificationsAndReminders = async () => {
+            try {
+                const now = new Date();
+                const loadedNotifications: AppNotification[] = [];
 
-        // Unique channel per user session to prevent conflicts
+                // --- A. NOTIFICACIONES DE NUEVOS EVENTOS (Lo que ya tenías) ---
+                
+                // Fetch Pending PPS Requests
+                const { data: pendingPPS } = await supabase
+                    .from(TABLE_NAME_PPS)
+                    .select(`id, created_at, ${FIELD_SOLICITUD_NOMBRE_ALUMNO}, ${FIELD_EMPRESA_PPS_SOLICITUD}`)
+                    .eq(FIELD_ESTADO_PPS, 'Pendiente')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+
+                if (pendingPPS) {
+                    pendingPPS.forEach((req: any) => {
+                        const notifId = `pps-${req.id}`;
+                        loadedNotifications.push({
+                            id: notifId,
+                            title: 'Solicitud PPS Pendiente',
+                            message: `${req[FIELD_SOLICITUD_NOMBRE_ALUMNO] || 'Estudiante'} solicitó iniciar en ${req[FIELD_EMPRESA_PPS_SOLICITUD] || 'Institución'}.`,
+                            timestamp: new Date(req.created_at),
+                            type: 'solicitud_pps',
+                            link: '/admin/solicitudes?tab=ingreso',
+                            isRead: readNotificationIds.has(notifId)
+                        });
+                    });
+                }
+
+                // Fetch Pending Finalizations
+                const { data: pendingFinals } = await supabase
+                    .from(TABLE_NAME_FINALIZACION)
+                    .select(`id, created_at, ${FIELD_ESTUDIANTE_FINALIZACION}`)
+                    .eq(FIELD_ESTADO_FINALIZACION, 'Pendiente')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+
+                if (pendingFinals) {
+                    const studentIds = [...new Set(pendingFinals.map((f: any) => f[FIELD_ESTUDIANTE_FINALIZACION]).filter(Boolean))];
+                    let studentMap: Record<string, string> = {};
+                    
+                    if (studentIds.length > 0) {
+                         const { data: students } = await supabase
+                            .from(TABLE_NAME_ESTUDIANTES)
+                            .select(`id, ${FIELD_NOMBRE_ESTUDIANTES}`)
+                            .in('id', studentIds);
+                         if (students) {
+                             students.forEach((s: any) => {
+                                 studentMap[s.id] = s[FIELD_NOMBRE_ESTUDIANTES];
+                             });
+                         }
+                    }
+
+                    pendingFinals.forEach((req: any) => {
+                        const notifId = `fin-${req.id}`;
+                        const sName = studentMap[req[FIELD_ESTUDIANTE_FINALIZACION]] || 'Un estudiante';
+                        loadedNotifications.push({
+                            id: notifId,
+                            title: 'Acreditación Pendiente',
+                            message: `${sName} espera revisión de documentos.`,
+                            timestamp: new Date(req.created_at),
+                            type: 'acreditacion',
+                            link: '/admin/solicitudes?tab=egreso',
+                            isRead: readNotificationIds.has(notifId)
+                        });
+                    });
+                }
+
+                // --- B. RECORDATORIOS AUTOMÁTICOS (NUEVO) ---
+
+                // 1. Solicitudes "Estancadas" (Sin movimiento > 4 días)
+                // Calculamos la fecha de corte (hace 4 días)
+                const fourDaysAgo = new Date();
+                fourDaysAgo.setDate(now.getDate() - 4);
+                const fourDaysAgoStr = fourDaysAgo.toISOString();
+
+                const { data: stagnantRequests } = await supabase
+                    .from(TABLE_NAME_PPS)
+                    .select(`id, ${FIELD_ULTIMA_ACTUALIZACION_PPS}, ${FIELD_SOLICITUD_NOMBRE_ALUMNO}, ${FIELD_EMPRESA_PPS_SOLICITUD}, ${FIELD_ESTADO_PPS}`)
+                    // Filtramos las que NO están en un estado final
+                    .not(FIELD_ESTADO_PPS, 'in', '("Finalizada","Cancelada","Rechazada","Archivado","Pendiente")') // Pendiente ya sale arriba, buscamos las que están "en gestión" pero colgadas
+                    .lt(FIELD_ULTIMA_ACTUALIZACION_PPS, fourDaysAgoStr) // Menor que hace 4 días = más viejo
+                    .limit(10);
+
+                if (stagnantRequests) {
+                    stagnantRequests.forEach((req: any) => {
+                        // Generamos ID basado en la fecha de actualización para que si se actualiza, salga de nuevo
+                        const lastUpdateRaw = req[FIELD_ULTIMA_ACTUALIZACION_PPS];
+                        const notifId = `stag-${req.id}-${lastUpdateRaw}`; 
+                        
+                        const lastUpdate = new Date(lastUpdateRaw);
+                        const daysDiff = Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 3600 * 24));
+                        
+                        loadedNotifications.push({
+                            id: notifId,
+                            title: 'Seguimiento Demorado',
+                            message: `La solicitud de ${req[FIELD_SOLICITUD_NOMBRE_ALUMNO]} en ${req[FIELD_EMPRESA_PPS_SOLICITUD]} lleva ${daysDiff} días sin actualizarse (${req[FIELD_ESTADO_PPS]}).`,
+                            timestamp: new Date(), // Mostramos con hora actual para que suba
+                            type: 'recordatorio',
+                            link: `/admin/solicitudes?tab=ingreso`,
+                            isRead: readNotificationIds.has(notifId)
+                        });
+                    });
+                }
+
+                // 2. PPS Por Finalizar (Faltan 3 días o menos)
+                const threeDaysFromNow = new Date();
+                threeDaysFromNow.setDate(now.getDate() + 3);
+                
+                // Usamos el inicio del día de hoy para incluir las que vencen hoy
+                const todayStart = new Date();
+                todayStart.setHours(0,0,0,0);
+
+                const { data: endingLaunches } = await supabase
+                    .from(TABLE_NAME_LANZAMIENTOS_PPS)
+                    .select(`id, ${FIELD_NOMBRE_PPS_LANZAMIENTOS}, ${FIELD_FECHA_FIN_LANZAMIENTOS}`)
+                    .gte(FIELD_FECHA_FIN_LANZAMIENTOS, todayStart.toISOString())
+                    .lte(FIELD_FECHA_FIN_LANZAMIENTOS, threeDaysFromNow.toISOString())
+                    .not(FIELD_ESTADO_GESTION_LANZAMIENTOS, 'in', '("Archivado","No se Relanza")') // Solo las activas
+                    .limit(10);
+
+                if (endingLaunches) {
+                    endingLaunches.forEach((lanz: any) => {
+                        // ID basado en la fecha de fin, para que solo se marque leido una vez por fecha de cierre
+                        const notifId = `end-${lanz.id}-${lanz[FIELD_FECHA_FIN_LANZAMIENTOS]}`;
+                        
+                        const endDate = new Date(lanz[FIELD_FECHA_FIN_LANZAMIENTOS]);
+                        const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 3600 * 24));
+                        const dayText = daysLeft <= 0 ? 'HOY' : `${daysLeft} días`;
+
+                        loadedNotifications.push({
+                            id: notifId,
+                            title: 'PPS Finaliza Pronto',
+                            message: `La PPS "${lanz[FIELD_NOMBRE_PPS_LANZAMIENTOS]}" finaliza en ${dayText}. ¿Requiere gestión de cierre o relanzamiento?`,
+                            timestamp: new Date(),
+                            type: 'recordatorio',
+                            link: '/admin/dashboard',
+                            isRead: readNotificationIds.has(notifId)
+                        });
+                    });
+                }
+
+                // Sort merged list by date desc (Reminders at top as they have timestamp = now)
+                loadedNotifications.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+                setNotifications(loadedNotifications);
+
+            } catch (err) {
+                console.error("Error loading notification history:", err);
+            }
+        };
+
+        // Se ejecuta cada vez que cambia readNotificationIds para re-aplicar el estado de lectura
+        // Esto es importante para la carga inicial
+        fetchNotificationsAndReminders();
+
+    }, [isAdmin, authenticatedUser, readNotificationIds]); 
+
+    // 2. LISTEN FOR NEW EVENTS (REALTIME)
+    useEffect(() => {
+        if (!isAdmin || !authenticatedUser) return;
+
         const channelName = `admin-notifications-${authenticatedUser.id}`;
         
         const channel = supabase.channel(channelName)
-            // Listener: Nueva Solicitud de PPS
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_PPS },
                 async (payload: any) => {
-                    console.log("🔔 Realtime Event DETECTADO (Solicitud PPS):", payload);
                     if (!payload || !payload.new) return;
                     
                     const newRecord = payload.new;
-                    
-                    // Intentamos obtener los datos del snapshot guardado en la solicitud
                     let studentName = newRecord[FIELD_SOLICITUD_NOMBRE_ALUMNO];
                     const institution = newRecord[FIELD_EMPRESA_PPS_SOLICITUD] || 'Institución';
                     
-                    // Fallback de seguridad: Si no viene el nombre (por error de guardado), lo buscamos con el ID
                     if (!studentName && newRecord[FIELD_LEGAJO_PPS]) {
                         try {
-                            // Usamos una consulta ligera para obtener solo el nombre
-                            const { data, error } = await supabase
+                            const { data } = await supabase
                                 .from(TABLE_NAME_ESTUDIANTES)
                                 .select(FIELD_NOMBRE_ESTUDIANTES)
                                 .eq('id', newRecord[FIELD_LEGAJO_PPS])
                                 .maybeSingle();
-                            
                             if (data) studentName = data[FIELD_NOMBRE_ESTUDIANTES];
-                            if (error) console.warn("⚠️ Error buscando nombre estudiante (posible RLS blocking):", error);
-                        } catch (err) {
-                            console.error("Error recuperando nombre de estudiante para notificación:", err);
-                        }
+                        } catch (err) {}
                     }
 
-                    addNotification({
-                        title: 'Nueva Solicitud de PPS',
-                        message: `${studentName || 'Un estudiante'} ha solicitado iniciar PPS en ${institution}.`,
-                        type: 'solicitud_pps',
-                        link: '/admin/solicitudes?tab=ingreso' 
+                    setNotifications(prev => {
+                        const notifId = `pps-${newRecord.id}`;
+                        if (prev.some(n => n.id === notifId)) return prev;
+                        const newNotif: AppNotification = {
+                            id: notifId,
+                            title: 'Nueva Solicitud de PPS',
+                            message: `${studentName || 'Un estudiante'} ha solicitado iniciar PPS en ${institution}.`,
+                            timestamp: new Date(),
+                            type: 'solicitud_pps',
+                            link: '/admin/solicitudes?tab=ingreso',
+                            isRead: false
+                        };
+                        setToast({ message: newNotif.title, type: 'success' });
+                        try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {}); } catch (e) {}
+                        return [newNotif, ...prev];
                     });
                 }
             )
-            // Listener: Nueva Solicitud de Finalización
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_FINALIZACION },
                 async (payload: any) => {
-                    console.log("🔔 Realtime Event DETECTADO (Finalización):", payload);
                     if (!payload || !payload.new) return;
-                    
                     const newRecord = payload.new;
                     let studentName = 'Un estudiante';
-
-                    // Fetch student name using the ID from the payload
                     const studentId = newRecord[FIELD_ESTUDIANTE_FINALIZACION]; 
 
                     if (studentId) {
                         try {
-                            const { data, error } = await supabase
+                            const { data } = await supabase
                                 .from(TABLE_NAME_ESTUDIANTES)
                                 .select(FIELD_NOMBRE_ESTUDIANTES)
                                 .eq('id', studentId) 
                                 .maybeSingle();
-                            
-                            if (!error && data && data[FIELD_NOMBRE_ESTUDIANTES]) {
-                                studentName = data[FIELD_NOMBRE_ESTUDIANTES];
-                            } else if (error) {
-                                // If RLS blocks this, we might get an error, but we still want to notify
-                                console.warn("⚠️ Error buscando nombre (RLS posiblemente bloquea SELECT):", error);
-                                studentName = "Un Estudiante (Ver Admin)";
-                            }
-                        } catch (err) {
-                             console.error("Exception fetching student name:", err);
-                        }
+                            if (data && data[FIELD_NOMBRE_ESTUDIANTES]) studentName = data[FIELD_NOMBRE_ESTUDIANTES];
+                        } catch (err) {}
                     }
 
-                    addNotification({
-                        title: 'Nueva Solicitud de Acreditación',
-                        message: `${studentName} ha enviado su documentación final.`,
-                        type: 'acreditacion',
-                        link: '/admin/solicitudes?tab=egreso'
+                     setNotifications(prev => {
+                        const notifId = `fin-${newRecord.id}`;
+                        if (prev.some(n => n.id === notifId)) return prev;
+                        const newNotif: AppNotification = {
+                            id: notifId,
+                            title: 'Nueva Solicitud de Acreditación',
+                            message: `${studentName} ha enviado su documentación final.`,
+                            timestamp: new Date(),
+                            type: 'acreditacion',
+                            link: '/admin/solicitudes?tab=egreso',
+                            isRead: false
+                        };
+                        setToast({ message: newNotif.title, type: 'success' });
+                        try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {}); } catch (e) {}
+                        return [newNotif, ...prev];
                     });
                 }
             )
-            .subscribe((status, err) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log(`✅ Conexión Realtime Establecida (${channelName})`);
-                } else if (status === 'CHANNEL_ERROR') {
-                    console.error(`❌ Error en canal de notificaciones:`, err);
-                } else if (status === 'TIMED_OUT') {
-                     console.warn(`⚠️ Timeout conectando notificaciones.`);
-                } else {
-                    console.log(`ℹ️ Estado Realtime: ${status}`);
-                }
-            });
+            .subscribe();
 
         return () => {
-            console.log("🔕 Desconectando notificaciones...");
             supabase.removeChannel(channel);
         };
-    }, [isAdmin, authenticatedUser, addNotification]);
+    }, [isAdmin, authenticatedUser]);
 
     const markAsRead = (id: string) => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-        // If it has a link, navigate
+        
+        // Persist in storage
+        const newSet = new Set<string>(readNotificationIds);
+        newSet.add(id);
+        persistReadIds(newSet);
+
         const target = notifications.find(n => n.id === id);
         if (target && target.link) {
             navigate(target.link);
@@ -187,9 +349,17 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     const markAllAsRead = () => {
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        
+        const newSet = new Set<string>(readNotificationIds);
+        notifications.forEach(n => newSet.add(n.id));
+        persistReadIds(newSet);
     };
 
     const clearNotifications = () => {
+        // Al limpiar, asumimos que el usuario quiere "descartarlas" todas.
+        // Las marcamos como leídas en el storage para que no reaparezcan como nuevas si recarga,
+        // y vaciamos la lista visual.
+        markAllAsRead();
         setNotifications([]);
     };
 

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface MetricCardProps {
@@ -11,13 +12,13 @@ interface MetricCardProps {
 }
 
 const MetricCardSkeleton: React.FC = () => (
-    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm animate-pulse">
+    <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm animate-pulse">
         <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-700"></div>
-            <div className="w-8 h-4 rounded-md bg-slate-200 dark:bg-slate-700"></div>
+            <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-800"></div>
+            <div className="w-8 h-4 rounded-md bg-slate-200 dark:bg-slate-800"></div>
         </div>
-        <div className="mt-4 h-10 w-1/2 rounded-md bg-slate-200 dark:bg-slate-700"></div>
-        <div className="mt-2 h-4 w-3/4 rounded-md bg-slate-200 dark:bg-slate-700"></div>
+        <div className="mt-4 h-10 w-1/2 rounded-md bg-slate-200 dark:bg-slate-800"></div>
+        <div className="mt-2 h-4 w-3/4 rounded-md bg-slate-200 dark:bg-slate-800"></div>
     </div>
 );
 
@@ -34,7 +35,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon, description
                     <span className="material-icons !text-2xl">{icon}</span>
                 </div>
                 {onClick && (
-                    <div className="p-1.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 group-hover:text-blue-700 dark:group-hover:text-blue-200 transition-colors">
+                    <div className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-full group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 group-hover:text-blue-700 dark:group-hover:text-blue-200 transition-colors">
                         <span className="material-icons !text-lg">open_in_new</span>
                     </div>
                 )}
@@ -47,7 +48,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, icon, description
         </>
     );
 
-    const baseClasses = `bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all duration-300 ${className}`;
+    const baseClasses = `bg-white dark:bg-gray-900 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm transition-all duration-300 ${className}`;
     
     if (onClick) {
         return (
