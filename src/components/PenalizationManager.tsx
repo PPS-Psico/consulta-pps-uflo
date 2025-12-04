@@ -74,46 +74,54 @@ const AddPenaltyModal: React.FC<{
         queryFn: async () => {
             if (isTestingMode) return [];
             
-            // Replaced complex filters with fetching all relevant data and filtering in JS for now
-            // Or rewrite logic to use Supabase filters. For simplicity, we'll rely on filtering after fetch in this refactor
-            // given complex Airtable formula logic.
-            
-            const [convocatoriasRes, practicasRes, lanzamientosRes] = await Promise.all([
-                fetchAllData<ConvocatoriaFields>(TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS, FIELD_LEGAJO_CONVOCATORIAS, FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]),
-                fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_NOMBRE_BUSQUEDA_PRACTICAS, FIELD_ESTADO_PRACTICA]),
-                fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS])
-            ]);
+            // 1. Fetch Convocatorias for this student (Native Filter)
+            const { records: convocatorias } = await fetchAllData<ConvocatoriaFields>(
+                TABLE_NAME_CONVOCATORIAS, 
+                convocatoriaArraySchema, 
+                [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS, FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS],
+                { 
+                    [FIELD_LEGAJO_CONVOCATORIAS]: student.legajo,
+                    [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: ['Seleccionado', 'Inscripto']
+                }
+            );
+
+            // 2. Fetch Practicas for this student (Native Filter)
+            const { records: practicas } = await fetchAllData<PracticaFields>(
+                TABLE_NAME_PRACTICAS,
+                practicaArraySchema,
+                [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, FIELD_ESTADO_PRACTICA],
+                {
+                    [FIELD_NOMBRE_BUSQUEDA_PRACTICAS]: student.legajo, // Or use student.id link if available
+                    [FIELD_ESTADO_PRACTICA]: 'En curso'
+                }
+            );
 
             const lanzamientoIds = new Set<string>();
             
-            // Filter Convocatorias
-            convocatoriasRes.records.forEach(c => {
-                 const legajoMatch = String(c[FIELD_LEGAJO_CONVOCATORIAS] || '').includes(student.legajo);
-                 const status = (c[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] as string)?.toLowerCase();
-                 if (legajoMatch && (status === 'seleccionado' || status === 'inscripto')) {
-                     const ids = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
-                     (Array.isArray(ids) ? ids : [ids]).filter(Boolean).forEach(id => lanzamientoIds.add(id as string));
-                 }
+            convocatorias.forEach(c => {
+                const ids = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+                (Array.isArray(ids) ? ids : [ids]).filter(Boolean).forEach(id => lanzamientoIds.add(id as string));
             });
             
-            // Filter Practicas
-            practicasRes.records.forEach(p => {
-                 const legajoMatch = String(p[FIELD_NOMBRE_BUSQUEDA_PRACTICAS] || '').includes(student.legajo);
-                 const status = (p[FIELD_ESTADO_PRACTICA] as string)?.toLowerCase();
-                 if (legajoMatch && status === 'en curso') {
-                     const ids = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
-                     (Array.isArray(ids) ? ids : [ids]).filter(Boolean).forEach(id => lanzamientoIds.add(id as string));
-                 }
+            practicas.forEach(p => {
+                const ids = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                (Array.isArray(ids) ? ids : [ids]).filter(Boolean).forEach(id => lanzamientoIds.add(id as string));
             });
             
             if (lanzamientoIds.size === 0) return [];
             
-            return lanzamientosRes.records
-                .filter(l => lanzamientoIds.has(l.id))
-                .map(r => ({ 
-                    id: r.id, 
-                    name: `${r[FIELD_NOMBRE_PPS_LANZAMIENTOS]} (${formatDate(r[FIELD_FECHA_INICIO_LANZAMIENTOS])})` 
-                }));
+            // 3. Fetch Launches details (Native Filter)
+            const { records: lanzamientos } = await fetchAllData<LanzamientoPPSFields>(
+                TABLE_NAME_LANZAMIENTOS_PPS,
+                lanzamientoPPSArraySchema,
+                [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS],
+                { id: Array.from(lanzamientoIds) }
+            );
+            
+            return lanzamientos.map(r => ({ 
+                id: r.id, 
+                name: `${r[FIELD_NOMBRE_PPS_LANZAMIENTOS]} (${formatDate(r[FIELD_FECHA_INICIO_LANZAMIENTOS])})` 
+            }));
         },
         enabled: isOpen,
     });
@@ -132,36 +140,26 @@ const AddPenaltyModal: React.FC<{
 
             const triggerTypes = ['Baja Anticipada', 'Baja sobre la Fecha / Ausencia en Inicio', 'Abandono durante la PPS'];
             if (selectedPpsId && triggerTypes.includes(penaltyType)) {
+                // Auto-unsubscribe logic (requires fetching to find exact records to update/delete)
+                // We can keep client-side filtering here for safety on specific records, but fetching is already narrowed down.
                 const ppsId = selectedPpsId;
                 
-                const [convocatoriasRes, practicasRes, lanzamientosRes] = await Promise.all([
-                    fetchAllData<ConvocatoriaFields>(TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema),
-                    fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema),
-                    fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema)
+                const [convocatoriasRes, practicasRes] = await Promise.all([
+                    fetchAllData<ConvocatoriaFields>(TABLE_NAME_CONVOCATORIAS, convocatoriaArraySchema, undefined, { [FIELD_LEGAJO_CONVOCATORIAS]: student.legajo }),
+                    fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, undefined, { [FIELD_NOMBRE_BUSQUEDA_PRACTICAS]: student.legajo }),
                 ]);
-                
-                // Filter in memory
-                const targetLanzamiento = lanzamientosRes.records.find(l => l.id === ppsId);
-                if (!targetLanzamiento) throw new Error('Lanzamiento not found');
-                
-                const ppsName = targetLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-                const ppsStartDate = targetLanzamiento[FIELD_FECHA_INICIO_LANZAMIENTOS];
-                
+
+                // Filter in memory to find the exact match for this Launch ID
                 const targetConv = convocatoriasRes.records.find(c => {
-                    const legajoMatch = String(c[FIELD_LEGAJO_CONVOCATORIAS] || '').includes(student.legajo);
                     const ids = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
                     const linked = (Array.isArray(ids) ? ids : [ids]).includes(ppsId);
-                    return legajoMatch && linked;
+                    return linked;
                 });
                 
                 const targetPractica = practicasRes.records.find(p => {
-                    const legajoMatch = String(p[FIELD_NOMBRE_BUSQUEDA_PRACTICAS] || '').includes(student.legajo);
-                    const practicaNameRaw = p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-                    const practicaName = Array.isArray(practicaNameRaw) ? practicaNameRaw[0] : practicaNameRaw;
-                    const practicaStartDate = p[FIELD_FECHA_INICIO_PRACTICAS];
-                    const isNameMatch = normalizeStringForComparison(practicaName) === normalizeStringForComparison(ppsName);
-                    const isDateMatch = practicaStartDate === ppsStartDate;
-                    return legajoMatch && isNameMatch && isDateMatch;
+                    const ids = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                    const linked = (Array.isArray(ids) ? ids : [ids]).includes(ppsId);
+                    return linked;
                 });
                 
                 const sideEffectPromises = [];

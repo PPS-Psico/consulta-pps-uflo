@@ -135,10 +135,13 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                 }
                 return null;
             }
-            // For DB query, using the constant for column name
+            
+            // Updated query using native filters object
             const records = await db.lanzamientos.get({
-                filterByFormula: `{${FIELD_NOMBRE_PPS_LANZAMIENTOS}} = "${selectedInstitution[FIELD_NOMBRE_INSTITUCIONES]?.replace(/"/g, '\\"')}"`,
-                sort: [{ field: 'fecha_inicio', direction: 'desc' }], // Use DB column name for sort
+                filters: {
+                    [FIELD_NOMBRE_PPS_LANZAMIENTOS]: selectedInstitution[FIELD_NOMBRE_INSTITUCIONES] // Exact match logic implicit in service update
+                },
+                sort: [{ field: 'fecha_inicio', direction: 'desc' }],
                 maxRecords: 1,
             });
             return records[0] || null;

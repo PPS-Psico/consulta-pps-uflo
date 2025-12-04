@@ -29,6 +29,8 @@ import Toast from './Toast';
 import CollapsibleSection from './CollapsibleSection';
 import { formatDate, normalizeStringForComparison } from '../utils/formatters';
 import { sendSmartEmail } from '../utils/emailService';
+import JSZip from 'jszip';
+import FileSaver from 'file-saver';
 
 interface Attachment {
     url: string;
@@ -79,9 +81,10 @@ interface FilePreviewModalProps {
     initialIndex: number;
     isOpen: boolean;
     onClose: () => void;
+    cachedBlobs?: Record<string, string>; // Pass cached blobs
 }
 
-const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex, isOpen, onClose }) => {
+const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex, isOpen, onClose, cachedBlobs }) => {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [isLoadingPreview, setIsLoadingPreview] = useState(true);
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -101,19 +104,29 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
 
     useEffect(() => {
         if (!isOpen || files.length === 0) return;
+        
         const currentFile = files[currentIndex];
+        if (!currentFile) return;
+
         const fileType = getFileType(currentFile.filename);
         
         setIsLoadingPreview(true);
         setHasError(false);
         setBlobUrl(null);
 
+        // Check cache first
+        if (cachedBlobs && cachedBlobs[currentFile.url]) {
+            setBlobUrl(cachedBlobs[currentFile.url]);
+            setIsLoadingPreview(false);
+            return;
+        }
+
         if (activeBlobUrl.current) {
             URL.revokeObjectURL(activeBlobUrl.current);
             activeBlobUrl.current = null;
         }
 
-        // Optimized: Only fetch Blob for PDFs (better embedding). Images use direct URL.
+        // Fetch Blob for PDFs if not cached
         if (fileType === 'pdf') {
             fetch(currentFile.url)
                 .then(response => {
@@ -126,14 +139,12 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
                     setBlobUrl(objectUrl);
                     setIsLoadingPreview(false);
                 })
-                .catch(err => {
+                .catch((err: any) => {
                     console.warn("Fallo carga PDF por Blob, intentando URL directa:", err);
                     setBlobUrl(currentFile.url); 
                     setIsLoadingPreview(false);
                 });
         } else {
-            // For images, let the <img> tag handle loading via src
-            // For other files (office), we use external viewer
             setBlobUrl(currentFile.url);
             if (fileType !== 'image') {
                 setIsLoadingPreview(false);
@@ -146,11 +157,14 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
                 activeBlobUrl.current = null;
             }
         };
-    }, [currentIndex, isOpen, files]);
+    }, [currentIndex, isOpen, files, cachedBlobs]);
 
     if (!isOpen || files.length === 0) return null;
 
     const currentFile = files[currentIndex];
+    
+    if (!currentFile) return null;
+
     const fileType = getFileType(currentFile.filename);
     const hasNext = currentIndex < files.length - 1;
     const hasPrev = currentIndex > 0;
@@ -187,10 +201,14 @@ const RequestListItem: React.FC<{
     onDelete: (record: any) => void;
     isUpdating: boolean;
     searchTerm: string;
-    onPreview: (files: Attachment[], initialIndex: number) => void;
+    onPreview: (files: Attachment[], initialIndex: number, cachedBlobs: Record<string, string>) => void;
     isArchived?: boolean;
 }> = ({ request, onUpdateStatus, onDelete, isUpdating, searchTerm, onPreview, isArchived = false }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isDownloadingZip, setIsDownloadingZip] = useState(false);
+    // Cache for preloaded blobs to speed up preview
+    const [cachedBlobs, setCachedBlobs] = useState<Record<string, string>>({}); 
+    
     const status = getNormalizationState(request);
     const isCargado = status === 'cargado';
     const isEnProceso = status === 'en proceso';
@@ -221,10 +239,101 @@ const RequestListItem: React.FC<{
     const allFiles = [...planillaHoras, ...informes, ...asistencias];
     const totalFiles = allFiles.length;
 
+    // Preload files in background for pending requests to make preview instant
+    useEffect(() => {
+        if (isCargado || allFiles.length === 0) return;
+
+        const preload = async () => {
+            const newCache: Record<string, string> = {};
+            
+            // Prioritize files users likely click first (PDFs/Images)
+            const filesToLoad = allFiles.filter(f => {
+                const type = getFileType(f.filename);
+                return type === 'pdf' || type === 'image';
+            });
+
+            await Promise.all(filesToLoad.map(async (file) => {
+                try {
+                    const response = await fetch(file.url);
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        newCache[file.url] = url;
+                    }
+                } catch (err) {
+                    console.warn("Failed to preload", file.filename);
+                }
+            }));
+
+            setCachedBlobs(prev => ({ ...prev, ...newCache }));
+        };
+        
+        // Slight delay to not block initial UI rendering
+        const timer = setTimeout(preload, 1000);
+        return () => {
+            clearTimeout(timer);
+            // Cleanup object URLs
+            Object.values(cachedBlobs).forEach(url => URL.revokeObjectURL(url));
+        };
+    }, []); // Run once on mount
+
     const handlePreview = (e: React.MouseEvent, fileType: 'horas' | 'informe' | 'asistencia', indexInType: number) => {
         e.stopPropagation();
         const baseIndex = fileType === 'horas' ? 0 : fileType === 'informe' ? planillaHoras.length : planillaHoras.length + informes.length;
-        onPreview(allFiles, baseIndex + indexInType);
+        onPreview(allFiles, baseIndex + indexInType, cachedBlobs);
+    };
+
+    const handleDownloadZip = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (allFiles.length === 0) return;
+
+        setIsDownloadingZip(true);
+        try {
+            const zip = new JSZip();
+            // Safe string conversion for any type with fallbacks
+            const nameVal = request.studentName || 'Estudiante';
+            const sName = typeof nameVal === 'string' ? nameVal : String(nameVal);
+            
+            const legajoVal = request.studentLegajo || 'SinLegajo';
+            const sLegajo = typeof legajoVal === 'string' ? legajoVal : String(legajoVal);
+            
+            const folderName = `Acreditacion_${sName.replace(/\s+/g, '_')}_${sLegajo}`;
+            
+            const folder = zip.folder(folderName);
+
+            if (!folder) throw new Error("Could not create zip folder");
+
+            const fetchPromises = allFiles.map(async (file) => {
+                try {
+                    // Use cached blob if available
+                    if (cachedBlobs[file.url]) {
+                         const response = await fetch(cachedBlobs[file.url]);
+                         const blob = await response.blob();
+                         folder.file(file.filename, blob);
+                    } else {
+                        const response = await fetch(file.url);
+                        if (!response.ok) throw new Error('Network error');
+                        const blob = await response.blob();
+                        folder.file(file.filename, blob);
+                    }
+                } catch (err: any) {
+                    const e = err as Error;
+                    console.error(`Error downloading ${file.filename}`, e);
+                    const msg = e && e.message ? e.message : String(e);
+                    folder.file(`${file.filename}.error.txt`, "Error downloading file: " + msg);
+                }
+            });
+
+            await Promise.all(fetchPromises);
+            const content = await zip.generateAsync({ type: "blob" });
+            FileSaver.saveAs(content, `${folderName}.zip`);
+
+        } catch (err: any) {
+            console.error("Zip Error:", err);
+            alert("Error al generar el archivo ZIP.");
+        } finally {
+            setIsDownloadingZip(false);
+        }
     };
 
     const Highlight = ({ text }: { text: string }) => {
@@ -237,7 +346,7 @@ const RequestListItem: React.FC<{
         <div 
             className={`group relative bg-white dark:bg-gray-900 rounded-xl border transition-all duration-300 ${
                 isExpanded 
-                    ? 'border-blue-400 dark:border-indigo-500 ring-1 ring-blue-100 dark:ring-indigo-500/20 shadow-lg' 
+                    ? 'border-blue-400 dark:border-indigo-500 ring-1 ring-blue-100 dark:ring-indigo-500/30 shadow-lg' 
                     : 'border-slate-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-indigo-500/50 hover:shadow-md'
             }`}
         >
@@ -259,7 +368,7 @@ const RequestListItem: React.FC<{
                             </h4>
                             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                 <span className="font-mono bg-slate-50 dark:bg-slate-800 px-1.5 rounded border border-slate-100 dark:border-slate-700">
-                                    <Highlight text={request.studentLegajo} />
+                                    <Highlight text={String(request.studentLegajo || '---')} />
                                 </span>
                                 <span>•</span>
                                 <span>Solicitado: {formatDate(request.createdTime)}</span>
@@ -269,10 +378,15 @@ const RequestListItem: React.FC<{
 
                     <div className="flex items-center gap-3 self-end sm:self-center">
                         {totalFiles > 0 && (
-                            <div className="flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-gray-800/50 px-2 py-1 rounded-lg border border-slate-100 dark:border-gray-700">
-                                <span className="material-icons !text-sm">attach_file</span>
-                                {totalFiles}
-                            </div>
+                             <button 
+                                onClick={handleDownloadZip}
+                                disabled={isDownloadingZip}
+                                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-3 py-1 rounded-lg border border-blue-100 dark:border-blue-800 transition-colors"
+                                title="Descargar todos los archivos en ZIP"
+                             >
+                                {isDownloadingZip ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"/> : <span className="material-icons !text-sm">download</span>}
+                                ZIP
+                            </button>
                         )}
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wide ${statusBadgeClass}`}>
                             {visualStatus}
@@ -320,7 +434,7 @@ const RequestListItem: React.FC<{
 
                         {request[FIELD_SUGERENCIAS_MEJORAS_FINALIZACION] && (
                             <div className="mb-6 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 rounded-lg">
-                                <p className="text-xs font-bold text-amber-800 dark:text-amber-500 mb-1">Comentarios del Alumno:</p>
+                                <p className="text-xs font-bold text-amber-800 dark:text-amber-50 mb-1">Comentarios del Alumno:</p>
                                 <p className="text-sm text-slate-700 dark:text-slate-300 italic">"{request[FIELD_SUGERENCIAS_MEJORAS_FINALIZACION]}"</p>
                             </div>
                         )}
@@ -335,18 +449,18 @@ const RequestListItem: React.FC<{
 
                             <div className="flex gap-2">
                                 {isArchived ? (
-                                    <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(request.id, 'Pendiente'); }} disabled={isUpdating} className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg shadow-sm transition-all">
+                                    <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(String(request.id), 'Pendiente'); }} disabled={isUpdating} className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg shadow-sm transition-all">
                                         Revertir a Pendiente
                                     </button>
                                 ) : isEnProceso ? (
                                     <>
-                                        <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(request.id, 'Pendiente'); }} disabled={isUpdating} className="px-3 py-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-bold">Volver</button>
-                                        <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(request.id, 'Cargado'); }} disabled={isUpdating} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                                        <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(String(request.id), 'Pendiente'); }} disabled={isUpdating} className="px-3 py-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-bold">Volver</button>
+                                        <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(String(request.id), 'Cargado'); }} disabled={isUpdating} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2">
                                             {isUpdating ? <div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : <span className="material-icons !text-sm">check_circle</span>} Confirmar Carga SAC
                                         </button>
                                     </>
                                 ) : (
-                                    <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(request.id, 'En Proceso'); }} disabled={isUpdating} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                                    <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(String(request.id), 'En Proceso'); }} disabled={isUpdating} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2">
                                         {isUpdating ? <div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : <span className="material-icons !text-sm">arrow_forward</span>} Aprobar para SAC
                                     </button>
                                 )}
@@ -367,6 +481,7 @@ const FinalizacionReview: React.FC = () => {
     const [previewFiles, setPreviewFiles] = useState<Attachment[]>([]);
     const [previewIndex, setPreviewIndex] = useState(0);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [currentCachedBlobs, setCurrentCachedBlobs] = useState<Record<string, string>>({});
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['finalizacionRequests'],
@@ -393,8 +508,8 @@ const FinalizacionReview: React.FC = () => {
         }
     });
 
-    const updateStatusMutation = useMutation({
-        mutationFn: async ({ id, newStatus }: { id: string; newStatus: string }) => {
+    const updateStatusMutation = useMutation<any, Error, { id: string; newStatus: string }>({
+        mutationFn: async ({ id, newStatus }) => {
             const request = data?.find(r => r.id === id);
             if (request && request.studentId) {
                 if (newStatus === 'Cargado') {
@@ -404,8 +519,8 @@ const FinalizacionReview: React.FC = () => {
                      });
                      if (request.studentEmail) {
                         const emailRes = await sendSmartEmail('sac', {
-                             studentName: request.studentName,
-                             studentEmail: request.studentEmail,
+                             studentName: String(request.studentName || ''),
+                             studentEmail: String(request.studentEmail || ''),
                              ppsName: 'Práctica Profesional Supervisada'
                         });
                         if (!emailRes.success && emailRes.message !== 'Automación desactivada') console.warn("Email send failed:", emailRes.message);
@@ -424,12 +539,16 @@ const FinalizacionReview: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] }); 
             setToastInfo({ message: 'Estado actualizado correctamente.', type: 'success' });
         },
-        onError: (err: Error) => setToastInfo({ message: `Error al actualizar: ${err.message}`, type: 'error' }),
+        onError: (err: any) => setToastInfo({ message: `Error al actualizar: ${err?.message || String(err)}`, type: 'error' }),
         onSettled: () => setUpdatingId(null)
     });
 
-    const deleteMutation = useMutation({
-        mutationFn: (record: any) => deleteFinalizationRequest(record.id, record),
+    const deleteMutation = useMutation<any, Error, any>({
+        mutationFn: (record: any) => {
+            const id = record?.id ? String(record.id) : '';
+            if (!id) throw new Error("ID not found");
+            return deleteFinalizationRequest(id, record);
+        },
         onSuccess: () => {
              setToastInfo({ message: 'Solicitud y archivos eliminados.', type: 'success' });
              queryClient.invalidateQueries({ queryKey: ['finalizacionRequests'] });
@@ -447,16 +566,17 @@ const FinalizacionReview: React.FC = () => {
         updateStatusMutation.mutate({ id, newStatus });
     };
 
-    const handlePreview = useCallback((files: Attachment[], initialIndex: number) => {
+    const handlePreview = useCallback((files: Attachment[], initialIndex: number, cachedBlobs: Record<string, string>) => {
         setPreviewFiles(files);
         setPreviewIndex(initialIndex);
+        setCurrentCachedBlobs(cachedBlobs);
         setIsPreviewOpen(true);
     }, []);
 
     const filteredData = useMemo(() => {
         if (!data) return { pending: [], inProcess: [], archived: [] };
         const searchLower = searchTerm.toLowerCase();
-        const matches = data.filter(item => item.studentName.toLowerCase().includes(searchLower) || item.studentLegajo.includes(searchLower));
+        const matches = data.filter(item => item.studentName.toLowerCase().includes(searchLower) || String(item.studentLegajo).includes(searchLower));
         const pending: typeof data = [], inProcess: typeof data = [], archived: typeof data = [];
         matches.forEach(item => {
             const state = getNormalizationState(item);
@@ -473,7 +593,13 @@ const FinalizacionReview: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in-up">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
-            <FilePreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} files={previewFiles} initialIndex={previewIndex} />
+            <FilePreviewModal 
+                isOpen={isPreviewOpen} 
+                onClose={() => setIsPreviewOpen(false)} 
+                files={previewFiles} 
+                initialIndex={previewIndex} 
+                cachedBlobs={currentCachedBlobs}
+            />
             
             <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50 dark:bg-gray-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                  <div className="relative w-full md:w-96">

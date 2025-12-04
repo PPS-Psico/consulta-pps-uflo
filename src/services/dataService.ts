@@ -8,7 +8,7 @@ import {
   FinalizacionPPS
 } from '../types';
 import * as C from '../constants';
-import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatters';
+import { normalizeStringForComparison, parseToUTCDate, safeGetId } from '../utils/formatters';
 
 // --- MOCK DATA (Legacy) ---
 const mockStudentDetails: EstudianteFields = {
@@ -90,13 +90,15 @@ export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
 
   return data.map((row: any) => {
       const linkedName = row.lanzamiento?.nombre_pps;
+      const lanzId = row.lanzamiento_id;
       
       return {
           ...row,
           id: row.id,
           createdTime: row.created_at,
           [C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: row.nombre_institucion || linkedName || 'Institución desconocida',
-          [C.FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: row.lanzamiento_id ? [row.lanzamiento_id] : [], 
+          // Store as ARRAY to maintain compatibility with legacy components, or standardize later
+          [C.FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: lanzId ? [lanzId] : [], 
       } as Practica;
   });
 };
@@ -257,6 +259,7 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
     
     data.forEach((row: any) => {
         const horario = row.horario_seleccionado || 'No especificado';
+        // Handle JOIN response which might be an array if relationship isn't unique, or object if 1:1
         const student = Array.isArray(row.estudiante) ? row.estudiante[0] : row.estudiante;
         
         if (student) {

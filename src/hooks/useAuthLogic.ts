@@ -1,3 +1,4 @@
+
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { db } from '../lib/db';
@@ -156,7 +157,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     }
 
                     // Verificar datos contra la base de datos
-                    const [studentData] = await db.estudiantes.get({ filterByFormula: `{${FIELD_LEGAJO_ESTUDIANTES}} = '${legajoTrimmed}'`});
+                    const [studentData] = await db.estudiantes.get({ filters: { [FIELD_LEGAJO_ESTUDIANTES]: legajoTrimmed } });
                     
                     if (!studentData) throw new Error("No pudimos encontrar tu legajo en el sistema.");
 

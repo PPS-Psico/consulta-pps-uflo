@@ -207,14 +207,10 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
             if (isTestingMode) return [];
             
             const records = await db.lanzamientos.getAll({
-                filterByFormula: `OR({${FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS}} = 'Abierta', {${FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS}} = 'Abierto')`
+                filters: { [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: ['Abierta', 'Abierto'] }
             });
             
-            return records.map(r => ({ ...r, id: r.id } as LanzamientoPPS))
-                .filter(l => {
-                    const status = normalizeStringForComparison(l[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
-                    return status === 'abierta' || status === 'abierto';
-                });
+            return records.map(r => ({ ...r, id: r.id } as LanzamientoPPS));
         }
     });
 
@@ -228,7 +224,7 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
             
             // Fetch Enrollments
             const enrollments = await db.convocatorias.getAll({
-                filterByFormula: `SEARCH('${launchId}', {${FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS}} & '')`
+                filters: { [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: launchId }
             });
             
             if (enrollments.length === 0) return [];
@@ -241,13 +237,13 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
             // Parallel fetch for details
             const [studentsRes, practicasRes, penaltiesRes] = await Promise.all([
                 db.estudiantes.getAll({
-                    filterByFormula: `OR(${studentIds.map(id => `RECORD_ID()='${id}'`).join(',')})`
+                    filters: { id: studentIds }
                 }),
                 db.practicas.getAll({
-                    filterByFormula: `OR(${studentIds.map(id => `SEARCH('${id}', {${FIELD_ESTUDIANTE_LINK_PRACTICAS}} & '')`).join(',')})`
+                    filters: { [FIELD_ESTUDIANTE_LINK_PRACTICAS]: studentIds }
                 }),
                 db.penalizaciones.getAll({
-                    filterByFormula: `OR(${studentIds.map(id => `SEARCH('${id}', {${FIELD_PENALIZACION_ESTUDIANTE_LINK}} & '')`).join(',')})`
+                    filters: { [FIELD_PENALIZACION_ESTUDIANTE_LINK]: studentIds }
                 })
             ]);
 
@@ -300,6 +296,10 @@ const SeleccionadorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isT
         },
         enabled: !!selectedLanzamiento
     });
+
+    const selectedCandidates = useMemo(() => 
+        candidates.filter(c => normalizeStringForComparison(c.status) === 'seleccionado'),
+    [candidates]);
 
     const toggleMutation = useMutation({
         mutationFn: async (student: EnrichedStudent) => {

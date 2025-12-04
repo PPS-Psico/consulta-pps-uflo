@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabaseClient';
-import { formatDate, normalizeStringForComparison, simpleNameSplit } from '../utils/formatters';
+import { formatDate, normalizeStringForComparison, simpleNameSplit, safeGetId } from '../utils/formatters';
 import type { Convocatoria } from '../types';
 import {
     FIELD_NOMBRE_PPS_CONVOCATORIAS,
@@ -110,17 +111,16 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
         }
         
         try {
-            // Traemos los grupos que tienen seleccionados
+            // Filter directly using new filters API (Native Supabase ILIKE/EQ)
             const records = await db.convocatorias.getAll({
-                filterByFormula: `{${FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS}} = 'Seleccionado'`,
+                filters: { [FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'Seleccionado' },
                 sort: [{ field: FIELD_FECHA_INICIO_CONVOCATORIAS, direction: 'desc' }]
             });
 
             const groupedConvocatorias = new Map<string, Convocatoria>();
 
             records.forEach(record => {
-                const lanzIdRaw = record[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
-                const lanzId = Array.isArray(lanzIdRaw) ? lanzIdRaw[0] : lanzIdRaw;
+                const lanzId = safeGetId(record[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]);
                 
                 const name = getTextField(record[FIELD_NOMBRE_PPS_CONVOCATORIAS]);
                 const date = getTextField(record[FIELD_FECHA_INICIO_CONVOCATORIAS]);
@@ -138,9 +138,7 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
                 }
 
                 const group = groupedConvocatorias.get(key)!;
-                const studentId = Array.isArray(record[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]) 
-                    ? record[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS][0] 
-                    : record[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+                const studentId = safeGetId(record[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]);
                 
                 if (studentId) {
                      const currentStudents = group[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] as string[] || [];
@@ -195,15 +193,12 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
         }
 
         // Filter convocatorias based on selection ID
-        // Note: our "id" in state might be the launchID or a composite key
         const selectedGroups = convocatorias.filter(c => selectionToUse.has(c.id));
         
         const studentIds = new Set<string>();
-        const lanzamientoIds = new Set<string>();
-
+        
         selectedGroups.forEach(group => {
             (group[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] as string[] || []).forEach(id => studentIds.add(id));
-            (group[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] as string[] || []).forEach(id => lanzamientoIds.add(id));
         });
 
         if (studentIds.size === 0) {
@@ -214,15 +209,6 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
         }
 
         try {
-            // Replaced complex filters with post-fetch filtering for robustness given API changes
-            // Or we can construct simpler filters. Let's try ID list.
-            // Note: fetchAllAirtableData expects a filter string compatible with PostgREST or Supabase query builder if adjusted.
-            // Since `fetchAllAirtableData` in `supabaseService.ts` handles simple equality or specific formula emulation,
-            // and `studentIds` can be large, best to fetch all and filter in memory OR implement `in()` filter in `supabaseService`.
-            // For now, assuming `fetchAllAirtableData` can handle simple filters or we fetch needed subsets.
-            // Actually, `supabaseService` as implemented currently only supports basic equality or specific complex formulas.
-            // Let's fetch all and filter in memory for reliability in this step, as datasets are relatively small (active students/launches).
-            
             const [estudiantesRes, lanzamientosRes, convocatoriasRes] = await Promise.all([
                 db.estudiantes.getAll(),
                 db.lanzamientos.getAll(),
@@ -235,11 +221,8 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
             // Map studentID-launchID to specific fields like 'Horario'
             const convMap = new Map<string, any>();
             convocatoriasRes.forEach(c => {
-                 const sIdRaw = c[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-                 const sId = Array.isArray(sIdRaw) ? sIdRaw[0] : sIdRaw;
-                 
-                 const lIdRaw = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
-                 const lId = Array.isArray(lIdRaw) ? lIdRaw[0] : lIdRaw;
+                 const sId = safeGetId(c[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]);
+                 const lId = safeGetId(c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]);
                  
                  if(sId && lId) convMap.set(`${sId}-${lId}`, c);
             });
@@ -247,7 +230,7 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
             const compiledList: StudentForReview[] = [];
 
             for (const group of selectedGroups) {
-                const groupLanzamientoId = (group[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] as string[])?.[0];
+                const groupLanzamientoId = safeGetId(group[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]);
                 const ppsData = groupLanzamientoId ? lanzamientoMap.get(groupLanzamientoId) : undefined;
                 const groupStudents = group[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] as string[] || [];
 

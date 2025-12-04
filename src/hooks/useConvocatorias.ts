@@ -4,7 +4,7 @@ import { useModal } from '../contexts/ModalContext';
 import { fetchConvocatoriasData } from '../services/dataService';
 import { db } from '../lib/db';
 import type { LanzamientoPPS, InformeTask, Convocatoria, AirtableRecord, ConvocatoriaFields, EstudianteFields } from '../types';
-import { schema } from '../lib/airtableSchema';
+import { schema } from '../lib/dbSchema';
 import { 
     FIELD_NOMBRE_PPS_LANZAMIENTOS, 
     FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS, 
