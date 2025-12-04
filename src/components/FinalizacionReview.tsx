@@ -103,16 +103,18 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
         if (!isOpen || files.length === 0) return;
         const currentFile = files[currentIndex];
         const fileType = getFileType(currentFile.filename);
+        
         setIsLoadingPreview(true);
         setHasError(false);
+        setBlobUrl(null);
 
         if (activeBlobUrl.current) {
             URL.revokeObjectURL(activeBlobUrl.current);
             activeBlobUrl.current = null;
-            setBlobUrl(null);
         }
 
-        if (fileType === 'image' || fileType === 'pdf') {
+        // Optimized: Only fetch Blob for PDFs (better embedding). Images use direct URL.
+        if (fileType === 'pdf') {
             fetch(currentFile.url)
                 .then(response => {
                     if (!response.ok) throw new Error('Network response was not ok');
@@ -122,16 +124,22 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ files, initialIndex
                     const objectUrl = URL.createObjectURL(blob);
                     activeBlobUrl.current = objectUrl;
                     setBlobUrl(objectUrl);
-                    if (fileType === 'pdf') setIsLoadingPreview(false);
+                    setIsLoadingPreview(false);
                 })
                 .catch(err => {
-                    console.warn("Fallo carga por Blob, intentando URL directa:", err);
+                    console.warn("Fallo carga PDF por Blob, intentando URL directa:", err);
                     setBlobUrl(currentFile.url); 
-                    if (fileType === 'pdf') setIsLoadingPreview(false);
+                    setIsLoadingPreview(false);
                 });
         } else {
-            setIsLoadingPreview(false); 
+            // For images, let the <img> tag handle loading via src
+            // For other files (office), we use external viewer
+            setBlobUrl(currentFile.url);
+            if (fileType !== 'image') {
+                setIsLoadingPreview(false);
+            }
         }
+        
         return () => {
             if (activeBlobUrl.current) {
                 URL.revokeObjectURL(activeBlobUrl.current);
