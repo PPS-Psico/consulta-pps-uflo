@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { GroupedSeleccionados, SelectedStudent } from '../types';
 import EmptyState from './EmptyState';
 
@@ -14,11 +15,16 @@ interface SeleccionadosModalProps {
 const StudentList: React.FC<{ students: SelectedStudent[] }> = ({ students }) => (
   <ul className="divide-y divide-slate-200/70 dark:divide-slate-700/70">
     {students.map((student) => (
-      <li key={student.legajo} className="flex items-center justify-between py-2.5">
-        <span className={`font-medium ${student.nombre === 'Nombre Desconocido' ? 'text-slate-400 italic' : 'text-slate-700 dark:text-slate-200'}`}>
-          {student.nombre}
-        </span>
-        <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full font-mono">
+      <li key={student.legajo} className="flex items-center justify-between py-3 first:pt-1 last:pb-1">
+        <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 text-xs font-bold">
+                {student.nombre.charAt(0)}
+            </div>
+            <span className={`font-medium text-sm ${student.nombre === 'Nombre Desconocido' ? 'text-slate-400 italic' : 'text-slate-700 dark:text-slate-200'}`}>
+            {student.nombre}
+            </span>
+        </div>
+        <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
           {student.legajo}
         </span>
       </li>
@@ -32,7 +38,23 @@ const SeleccionadosModal: React.FC<SeleccionadosModalProps> = ({
   seleccionados,
   convocatoriaName,
 }) => {
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isOpen]);
+
+  if (!isOpen || !mounted) return null;
 
   const hasSeleccionados = seleccionados && Object.keys(seleccionados).length > 0;
   
@@ -54,18 +76,21 @@ const SeleccionadosModal: React.FC<SeleccionadosModalProps> = ({
     if (isSingleUnspecifiedGroup) {
       const students = seleccionados['No especificado'];
       return (
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700">
-          <StudentList students={students} />
+        <div className="bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700 overflow-hidden">
+            <div className="max-h-[60vh] overflow-y-auto p-4 custom-scrollbar">
+                <StudentList students={students} />
+            </div>
         </div>
       );
     }
     
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
         {Object.entries(seleccionados).map(([horario, students]) => (
-          <div key={horario} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700">
-            <h3 className="font-semibold text-blue-800 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/30 px-3 py-2 rounded-md mb-3">
-              Horario: {horario}
+          <div key={horario} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-sm">
+            <h3 className="font-semibold text-xs text-indigo-800 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-2 rounded-lg mb-3 uppercase tracking-wide flex items-center gap-2">
+              <span className="material-icons !text-sm">schedule</span>
+              {horario}
             </h3>
             <StudentList students={students as SelectedStudent[]} />
           </div>
@@ -74,9 +99,9 @@ const SeleccionadosModal: React.FC<SeleccionadosModalProps> = ({
     );
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in-up"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-fade-in"
       aria-labelledby="seleccionados-modal-title"
       role="dialog"
       aria-modal="true"
@@ -84,26 +109,28 @@ const SeleccionadosModal: React.FC<SeleccionadosModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg w-full max-w-2xl transform transition-all duration-300 flex flex-col max-h-[90vh] overflow-hidden border border-slate-200/70 dark:border-slate-700/80"
+        className="bg-slate-50 dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg transform transition-all duration-300 flex flex-col max-h-[90vh] overflow-hidden border border-slate-200/70 dark:border-slate-700/80"
       >
         {/* Header */}
-        <div className="p-6 flex-shrink-0 border-b border-slate-200 dark:border-slate-700">
+        <div className="px-6 py-5 flex-shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300">
-                    <span className="material-icons !text-xl">groups</span>
+            <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 shadow-inner">
+                    <span className="material-icons !text-2xl">groups</span>
                 </div>
                 <div>
-                    <h2 id="seleccionados-modal-title" className="text-xl font-bold text-slate-800 dark:text-slate-50">
+                    <h2 id="seleccionados-modal-title" className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
                         Alumnos Seleccionados
                     </h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{convocatoriaName}</p>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 line-clamp-1" title={convocatoriaName}>
+                        {convocatoriaName}
+                    </p>
                 </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              className="p-2 -mr-2 rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
               aria-label="Cerrar modal"
             >
               <span className="material-icons !text-xl">close</span>
@@ -112,11 +139,18 @@ const SeleccionadosModal: React.FC<SeleccionadosModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-grow bg-slate-50/50 dark:bg-slate-900/40">
+        <div className="p-6 overflow-y-auto flex-grow">
           {renderContent()}
         </div>
+        
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end">
+             <button onClick={onClose} className="px-6 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-lg text-sm transition-colors">
+                 Cerrar
+             </button>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

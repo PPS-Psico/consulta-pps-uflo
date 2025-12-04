@@ -3,14 +3,44 @@ export function addBusinessDays(startDate: Date, days: number): Date {
     let date = new Date(startDate.getTime()); // Creates a copy
     let added = 0;
     while (added < days) {
-        // Use UTC date methods to avoid timezone issues
-        date.setUTCDate(date.getUTCDate() + 1);
-        const dayOfWeek = date.getUTCDay(); // 0 = Sunday, 6 = Saturday
+        date.setDate(date.getDate() + 1);
+        const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
             added++;
         }
     }
     return date;
+}
+
+export function getBusinessDaysDiff(startDate: Date, endDate: Date): number {
+    // Calculate business days between two dates
+    let start = new Date(startDate.getTime());
+    start.setHours(0,0,0,0);
+    let end = new Date(endDate.getTime());
+    end.setHours(0,0,0,0);
+
+    if (start >= end) {
+        // If start is after end, calculate negative business days
+        let count = 0;
+        while (start > end) {
+            start.setDate(start.getDate() - 1);
+            const dayOfWeek = start.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                count++;
+            }
+        }
+        return -count;
+    }
+    
+    let count = 0;
+    while (start < end) {
+        start.setDate(start.getDate() + 1);
+        const dayOfWeek = start.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            count++;
+        }
+    }
+    return count;
 }
 
 export function formatDate(dateString?: string): string {
@@ -138,6 +168,8 @@ export function getStatusVisuals(status?: string): { icon: string; iconContainer
         'cerrado': { icon: 'lock', color: 'gray' },
         'oculto': { icon: 'visibility_off', color: 'gray' },
         'pendiente': { icon: 'hourglass_empty', color: 'gray' },
+        'cargado': { icon: 'verified', color: 'success' },
+        'en proceso': { icon: 'pending_actions', color: 'primary' },
     };
 
     const colorClasses: Record<string, { icon: string, label: string, accentBg: string }> = {
@@ -211,13 +243,6 @@ export function normalizeStringForComparison(str?: any): string {
     .trim();
 }
 
-/**
- * Parses a date string from various formats into a standardized UTC Date object.
- * This ensures that date comparisons are accurate regardless of the source string format.
- * It explicitly handles YYYY-MM-DD and DD/MM/YYYY formats.
- * @param dateString The date string to parse.
- * @returns A Date object in UTC, or null if the string is invalid.
- */
 export function parseToUTCDate(dateString?: string): Date | null {
     if (!dateString || typeof dateString !== 'string') return null;
 
@@ -228,7 +253,6 @@ export function parseToUTCDate(dateString?: string): Date | null {
     let parts = trimmedStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (parts) {
         const [, year, month, day] = parts.map(Number);
-        // Create UTC date and validate it to avoid issues like month 13 or day 32
         const d = new Date(Date.UTC(year, month - 1, day));
         if (d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day) {
             return d;
@@ -239,14 +263,12 @@ export function parseToUTCDate(dateString?: string): Date | null {
     parts = trimmedStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
     if (parts) {
         const [, day, month, year] = parts.map(Number);
-        // Create UTC date and validate it
         const d = new Date(Date.UTC(year, month - 1, day));
         if (d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day) {
             return d;
         }
     }
 
-    console.warn(`[parseToUTCDate] Could not parse date string with known formats: "${dateString}"`);
     return null;
 }
 
@@ -270,11 +292,6 @@ export const simpleNameSplit = (fullName: string): { nombre: string; apellido: s
     return { nombre, apellido };
 };
 
-/**
- * Checks if a location string is likely a valid, physical address.
- * @param location The location string to check.
- * @returns True if the location seems valid, false otherwise.
- */
 export function isValidLocation(location?: string): boolean {
     if (!location) {
         return false;
@@ -282,13 +299,10 @@ export function isValidLocation(location?: string): boolean {
     const normalizedLocation = location.toLowerCase().trim();
     const nonPhysicalKeywords = ['online', 'virtual', 'a distancia', 'remoto', 'no especificada'];
     
-    // Check if it's a known non-physical location
     if (nonPhysicalKeywords.some(keyword => normalizedLocation.includes(keyword))) {
         return false;
     }
 
-    // Heuristic: A valid address usually contains at least one number (street number, zip code).
-    // This helps filter out vague locations like "Hospital Central" without a full address.
     if (!/\d/.test(normalizedLocation)) {
         return false;
     }

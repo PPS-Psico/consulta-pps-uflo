@@ -482,7 +482,6 @@ const FinalizacionReview: React.FC = () => {
                     }
                 } else {
                     // Reverting/Moving back: Unmark student if they were previously marked
-                    // This ensures stats are correct if an admin made a mistake
                     await db.estudiantes.update(request.studentId, {
                        [FIELD_FINALIZARON_ESTUDIANTES]: false,
                        [FIELD_FECHA_FINALIZACION_ESTUDIANTES]: null

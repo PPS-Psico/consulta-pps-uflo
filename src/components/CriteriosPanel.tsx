@@ -13,7 +13,9 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean; com
   const [showModal, setShowModal] = useState(false);
   const [capturedState, setCapturedState] = useState<'ready' | 'pending'>('pending');
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Critical: Prevent click bubbling
     setCapturedState(isReady ? 'ready' : 'pending');
     setShowModal(true);
   };
@@ -24,11 +26,11 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean; com
   };
 
   const btnClasses = compact
-    ? `w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all shadow-sm mt-5 active:scale-95 ${isReady ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-teal-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'}`
-    : `group relative overflow-hidden inline-flex items-center gap-3 py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 shadow-lg hover:-translate-y-1 active:transform active:scale-95 cursor-pointer ${isReady ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold shadow-teal-200 dark:shadow-none focus:ring-teal-300 dark:focus:ring-teal-800 hover:shadow-xl hover:shadow-teal-500/30 dark:hover:shadow-teal-400/20' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-semibold focus:ring-slate-300 dark:focus:ring-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600'}`;
+    ? `w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all shadow-sm mt-5 active:scale-95 ${isReady ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-teal-500/20 cursor-pointer hover:brightness-110' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'}`
+    : `group relative overflow-hidden inline-flex items-center gap-3 py-3 px-6 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 shadow-lg hover:-translate-y-1 active:transform active:scale-95 ${isReady ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold shadow-teal-200 dark:shadow-none focus:ring-teal-300 dark:focus:ring-teal-800 hover:shadow-xl hover:shadow-teal-500/30 dark:hover:shadow-teal-400/20 cursor-pointer z-20' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-semibold focus:ring-slate-300 dark:focus:ring-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600 cursor-default'}`;
 
   return (
-    <>
+    <div className="relative z-20"> {/* Adjusted z-index to be reasonable but clickable */}
         <button onClick={handleClick} type="button" className={btnClasses} aria-label="Solicitar acreditación final">
              {compact ? (
                  <>
@@ -46,6 +48,7 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean; com
              )}
         </button>
 
+        {/* Modal now uses Portal inside ConfirmModal, so it will render at body level */}
         <ConfirmModal
             isOpen={showModal}
             onClose={() => setShowModal(false)}
@@ -56,7 +59,7 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean; com
                 capturedState === 'ready' ? (
                     <>
                         <p className="mb-3">¡Felicitaciones! Has cumplido con todos los objetivos académicos. Antes de continuar, asegúrate de tener listos los siguientes documentos digitales:</p>
-                        <ul className="list-disc pl-5 mb-4 space-y-2 text-sm text-left bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800/50">
+                        <ul className="list-disc pl-5 mb-4 space-y-2 text-sm text-left bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800/50 text-slate-700 dark:text-slate-300">
                             <li><strong>Planilla de Seguimiento de Horas</strong> (firmada)</li>
                             <li><strong>Planilla de Asistencia</strong></li>
                             <li><strong>Informe Final</strong> de la práctica</li>
@@ -68,20 +71,20 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean; com
                     </>
                 ) : (
                     <>
-                        <p className="mb-2">Según el sistema, aún no cumples todos los requisitos obligatorios:</p>
-                        <ul className="list-disc pl-5 mb-4 space-y-1 text-sm text-left">
+                        <p className="mb-2 text-slate-700 dark:text-slate-300">Según el sistema, aún no cumples todos los requisitos obligatorios:</p>
+                        <ul className="list-disc pl-5 mb-4 space-y-1 text-sm text-left text-slate-600 dark:text-slate-400">
                             <li><strong>250 Horas Totales</strong></li>
                             <li><strong>70 Horas en tu Especialidad</strong></li>
                             <li><strong>Rotación por 3 áreas distintas</strong></li>
                         </ul>
-                        <p className="text-sm">Si crees que es un error (ej: tienes horas antiguas no digitalizadas) y posees la documentación respaldatoria, puedes continuar bajo tu responsabilidad.</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Si crees que es un error (ej: tienes horas antiguas no digitalizadas) y posees la documentación respaldatoria, puedes continuar bajo tu responsabilidad.</p>
                     </>
                 )
             }
             confirmText={capturedState === 'ready' ? "Comenzar" : "Continuar de todos modos"}
             cancelText="Volver"
         />
-    </>
+    </div>
   );
 };
 
@@ -100,8 +103,8 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
   );
 
   return (
-    <section className="animate-fade-in-up">
-      {/* Container Base Styles - Updated to MATCH WelcomeBanner exactly */}
+    <section className="animate-fade-in-up relative z-10">
+      {/* Container Base Styles */}
       <div 
         className={`relative p-0 sm:p-8 rounded-3xl transition-all duration-700 overflow-hidden border border-slate-200/80 dark:border-slate-700/80 shadow-lg bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg ${
           todosLosCriteriosCumplidos 
@@ -109,12 +112,12 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
             : ''
         }`}
       >
-        {/* Background Effects */}
+        {/* Background Effects - Low Z-Index */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-600/5 rounded-full blur-3xl -z-10 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/5 dark:bg-indigo-600/5 rounded-full blur-3xl -z-10 pointer-events-none" />
         
         {todosLosCriteriosCumplidos && (
-            <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 pointer-events-none z-0">
               {[...Array(8)].map((_, i) => (
                 <div
                   key={i}
@@ -143,11 +146,11 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
                     Horas Totales
                   </h3>
                 </div>
-                <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed font-medium mb-4">
+                <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed font-medium mb-4 relative z-20">
                   Has completado {todosLosCriteriosCumplidos ? 'exitosamente' : 'un total de'} <strong className="font-black text-blue-600 dark:text-blue-400 text-xl">{Math.round(criterios.horasTotales)}</strong> de <strong className="font-black text-slate-800 dark:text-slate-200 text-xl">{HORAS_OBJETIVO_TOTAL}</strong> horas requeridas.
                 </p>
                 {todosLosCriteriosCumplidos && (
-                    <div className="mt-6">
+                    <div className="mt-6 relative z-20">
                       <CertificationButton onClick={onRequestFinalization} isReady={todosLosCriteriosCumplidos} />
                     </div>
                 )}
@@ -222,8 +225,8 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
                             >
                                 <div className="flex justify-between items-center mb-1">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Especialidad</span>
-                                    <span className="text-[10px] font-bold text-blue-500 flex items-center gap-1">
-                                        Configurar <span className="material-icons !text-xs">arrow_forward</span>
+                                    <span className="text-xs font-bold text-blue-500 flex items-center gap-1">
+                                        Configurar <span className="material-icons !text-sm">arrow_forward</span>
                                     </span>
                                 </div>
                                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
@@ -236,7 +239,13 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
             </div>
 
             {/* Botón Full Width si está listo, o selector si falta especialidad */}
-            {(!selectedOrientacion) && (
+            {todosLosCriteriosCumplidos && (
+                 <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 relative z-20">
+                     <CertificationButton onClick={onRequestFinalization} isReady={todosLosCriteriosCumplidos} compact />
+                 </div>
+            )}
+
+            {(!selectedOrientacion && !todosLosCriteriosCumplidos) && (
                 <div id="orientacion-selector-mobile" className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                      <OrientacionSelector
                         selectedOrientacion={selectedOrientacion}
