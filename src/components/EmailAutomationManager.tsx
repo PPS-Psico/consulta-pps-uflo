@@ -1,0 +1,332 @@
+
+import React, { useState, useEffect } from 'react';
+import Card from './Card';
+import Input from './Input';
+import Toast from './Toast';
+import Button from './Button';
+import { supabase } from '../lib/supabaseClient';
+import {
+    KEY_SELECTION_SUBJECT, KEY_SELECTION_BODY, KEY_SELECTION_ACTIVE,
+    KEY_REQUEST_SUBJECT, KEY_REQUEST_BODY, KEY_REQUEST_ACTIVE,
+    KEY_SAC_SUBJECT, KEY_SAC_BODY, KEY_SAC_ACTIVE,
+    KEY_EMAIL_COUNT, KEY_EMAIL_MONTH
+} from '../constants';
+
+interface AutomationScenario {
+    id: string;
+    label: string;
+    description: string;
+    icon: string;
+    variables: string[];
+    storageKeys: {
+        subject: string;
+        body: string;
+        active: string;
+    };
+    defaultSubject: string;
+    defaultBody: string;
+}
+
+const SCENARIOS: AutomationScenario[] = [
+    {
+        id: 'seleccion',
+        label: 'Alumno Seleccionado',
+        description: 'Se envía cuando marcas a un estudiante como "Seleccionado" en una convocatoria.',
+        icon: 'how_to_reg',
+        variables: ['{{nombre_alumno}}', '{{nombre_pps}}', '{{horario}}'],
+        storageKeys: {
+            subject: KEY_SELECTION_SUBJECT,
+            body: KEY_SELECTION_BODY,
+            active: KEY_SELECTION_ACTIVE
+        },
+        defaultSubject: "Selección PPS: {{nombre_pps}} - UFLO",
+        defaultBody: `¡Buenas noticias, {{nombre_alumno}}!
+
+Has sido seleccionado/a para realizar la Práctica Profesional Supervisada en:
+"{{nombre_pps}}"
+
+Horario asignado: {{horario}}
+
+Por favor, mantente atento a las instrucciones para el inicio.`
+    },
+    {
+        id: 'solicitud',
+        label: 'Avance de Solicitud (Autogestión)',
+        description: 'Se envía cuando actualizas el estado de una solicitud de PPS (ej: a "En conversaciones").',
+        icon: 'assignment_turned_in',
+        variables: ['{{nombre_alumno}}', '{{estado_nuevo}}', '{{institucion}}', '{{notas}}'],
+        storageKeys: {
+            subject: KEY_REQUEST_SUBJECT,
+            body: KEY_REQUEST_BODY,
+            active: KEY_REQUEST_ACTIVE
+        },
+        defaultSubject: "Actualización de tu Solicitud de PPS - UFLO",
+        defaultBody: `Hola {{nombre_alumno}},
+
+Hay novedades sobre tu solicitud de PPS en "{{institucion}}".
+
+Nuevo Estado: {{estado_nuevo}}
+
+Comentarios:
+{{notas}}
+
+Seguimos gestionando tu solicitud.`
+    },
+    {
+        id: 'sac',
+        label: 'Carga en SAC / Finalización',
+        description: 'Se envía cuando se confirma la carga de horas en el sistema académico.',
+        icon: 'school',
+        variables: ['{{nombre_alumno}}', '{{nombre_pps}}'],
+        storageKeys: {
+            subject: KEY_SAC_SUBJECT,
+            body: KEY_SAC_BODY,
+            active: KEY_SAC_ACTIVE
+        },
+        defaultSubject: "PPS Acreditada en SAC - UFLO",
+        defaultBody: `Hola {{nombre_alumno}},
+
+Te informamos que tus horas de la PPS "{{nombre_pps}}" ya han sido cargadas y acreditadas en el sistema académico (SAC).
+
+¡Felicitaciones por completar esta etapa!`
+    }
+];
+
+const EmailAutomationManager: React.FC = () => {
+    const [toastInfo, setToastInfo] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+    
+    // Testing state
+    const [testEmail, setTestEmail] = useState('');
+    const [isSendingTest, setIsSendingTest] = useState(false);
+
+    // Contador de Emails
+    const [emailCount, setEmailCount] = useState(0);
+
+    // Estado de edición de escenarios
+    const [editingScenarioId, setEditingScenarioId] = useState<string | null>(null);
+    const [currentSubject, setCurrentSubject] = useState('');
+    const [currentBody, setCurrentBody] = useState('');
+    const [activeStates, setActiveStates] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+        // Cargar estados activos
+        const states: Record<string, boolean> = {};
+        SCENARIOS.forEach(s => {
+            const stored = localStorage.getItem(s.storageKeys.active);
+            states[s.id] = stored !== null ? stored === 'true' : false;
+        });
+        setActiveStates(states);
+
+        // Inicializar contador mensual
+        const now = new Date();
+        const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`; 
+        const storedMonthKey = localStorage.getItem(KEY_EMAIL_MONTH);
+        const storedCount = parseInt(localStorage.getItem(KEY_EMAIL_COUNT) || '0', 10);
+
+        if (storedMonthKey !== currentMonthKey) {
+            localStorage.setItem(KEY_EMAIL_MONTH, currentMonthKey);
+            localStorage.setItem(KEY_EMAIL_COUNT, '0');
+            setEmailCount(0);
+        } else {
+            setEmailCount(storedCount);
+        }
+    }, []);
+
+    const handleSendTest = async () => {
+        if (!testEmail) {
+            setToastInfo({ message: 'Ingresa un correo para la prueba.', type: 'error' });
+            return;
+        }
+
+        setIsSendingTest(true);
+        try {
+            const { error } = await supabase.functions.invoke('send-email', {
+                body: {
+                    to: testEmail,
+                    subject: "Prueba de Sistema de Correo Interno - UFLO",
+                    text: "Este es un correo de prueba enviado desde tu nueva infraestructura interna en Supabase (Vía Nodemailer/Gmail). \n\nSi lees esto, el sistema funciona correctamente y puedes enviar correos a los alumnos.",
+                    name: "Administrador"
+                }
+            });
+
+            if (error) throw error;
+
+            setToastInfo({ message: 'Correo de prueba enviado exitosamente.', type: 'success' });
+        } catch (error: any) {
+            console.error("Error sending test:", error);
+            setToastInfo({ message: `Fallo el envío: ${error.message || 'Error desconocido'}`, type: 'error' });
+        } finally {
+            setIsSendingTest(false);
+        }
+    };
+
+    const handleEditClick = (scenario: AutomationScenario) => {
+        setEditingScenarioId(scenario.id);
+        setCurrentSubject(localStorage.getItem(scenario.storageKeys.subject) || scenario.defaultSubject);
+        setCurrentBody(localStorage.getItem(scenario.storageKeys.body) || scenario.defaultBody);
+    };
+
+    const handleSaveScenario = (scenario: AutomationScenario) => {
+        localStorage.setItem(scenario.storageKeys.subject, currentSubject);
+        localStorage.setItem(scenario.storageKeys.body, currentBody);
+        setToastInfo({ message: `Plantilla para "${scenario.label}" guardada.`, type: 'success' });
+        setEditingScenarioId(null);
+    };
+
+    const toggleActive = (scenario: AutomationScenario) => {
+        const newState = !activeStates[scenario.id];
+        setActiveStates(prev => ({ ...prev, [scenario.id]: newState }));
+        localStorage.setItem(scenario.storageKeys.active, String(newState));
+    };
+
+    const insertVariable = (variable: string) => {
+        const textarea = document.getElementById('body-editor') as HTMLTextAreaElement;
+        if (textarea) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = currentBody;
+            const newText = text.substring(0, start) + variable + text.substring(end);
+            setCurrentBody(newText);
+            setTimeout(() => {
+                textarea.focus();
+                textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+            }, 0);
+        } else {
+             setCurrentBody(prev => prev + variable);
+        }
+    };
+
+    return (
+        <div className="space-y-8 animate-fade-in-up pb-10">
+            {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
+            
+            {/* PANEL DE CONTROL INTERNO */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
+                        <span className="material-icons !text-2xl">mark_email_read</span>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Servidor de Correo Activo</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            El sistema está configurado para enviar correos ilimitados a estudiantes utilizando tu servidor SMTP.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Status OK */}
+                <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl flex items-start gap-3">
+                    <span className="material-icons text-emerald-500 mt-0.5">check_circle</span>
+                    <div>
+                        <h4 className="font-bold text-emerald-800 dark:text-emerald-400 text-sm">Configuración Correcta</h4>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1 leading-relaxed">
+                            Ya puedes usar las automatizaciones. Los correos saldrán desde tu cuenta de Gmail configurada hacia cualquier destinatario.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">Diagnóstico de Conexión</h4>
+                    <div className="flex flex-col sm:flex-row items-end gap-3">
+                        <div className="flex-grow w-full">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Enviar correo de prueba a:</label>
+                                <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="cualquier_correo@ejemplo.com" className="text-sm" />
+                        </div>
+                        <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
+                            {isSendingTest ? 'Enviando...' : 'Probar Envío'}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ESCENARIOS */}
+            <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">Plantillas de Notificación</h3>
+                <div className="grid grid-cols-1 gap-6">
+                    {SCENARIOS.map(scenario => {
+                        const isEditing = editingScenarioId === scenario.id;
+                        const isActive = activeStates[scenario.id];
+
+                        return (
+                            <div key={scenario.id} className={`bg-white dark:bg-slate-800 rounded-xl border shadow-sm transition-all ${isActive ? 'border-blue-200 dark:border-blue-800' : 'border-slate-200 dark:border-slate-700 opacity-90'}`}>
+                                <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-4">
+                                        <div className={`p-3 rounded-full ${isActive ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                                            <span className="material-icons !text-2xl">{scenario.icon}</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{scenario.label}</h3>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">{scenario.description}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-4 self-end sm:self-center">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-bold ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
+                                                {isActive ? 'ACTIVADO' : 'DESACTIVADO'}
+                                            </span>
+                                            <button 
+                                                onClick={() => toggleActive(scenario)}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isActive ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                                            >
+                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                                            </button>
+                                        </div>
+                                        <button 
+                                            onClick={() => isEditing ? setEditingScenarioId(null) : handleEditClick(scenario)}
+                                            className={`p-2 rounded-lg border transition-colors ${isEditing ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-slate-200 hover:bg-slate-50 text-slate-600 dark:border-slate-700 dark:hover:bg-slate-700 dark:text-slate-300'}`}
+                                        >
+                                            <span className="material-icons !text-xl">{isEditing ? 'expand_less' : 'edit'}</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* EDITOR AREA */}
+                                {isEditing && (
+                                    <div className="border-t border-slate-200 dark:border-slate-700 p-6 bg-slate-50/50 dark:bg-slate-900/30 animate-fade-in">
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Asunto del Correo</label>
+                                                <Input value={currentSubject} onChange={e => setCurrentSubject(e.target.value)} placeholder="Asunto..." />
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                     <label className="block text-xs font-bold text-slate-500 uppercase">Cuerpo del Mensaje</label>
+                                                     <div className="flex gap-1">
+                                                         {scenario.variables.map(v => (
+                                                             <button 
+                                                                key={v} 
+                                                                onClick={() => insertVariable(v)}
+                                                                className="text-[10px] bg-slate-200 dark:bg-slate-700 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/50 dark:hover:text-blue-300 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                                                                title="Insertar variable"
+                                                             >
+                                                                 {v}
+                                                             </button>
+                                                         ))}
+                                                     </div>
+                                                </div>
+                                                <textarea 
+                                                    id="body-editor"
+                                                    value={currentBody}
+                                                    onChange={e => setCurrentBody(e.target.value)}
+                                                    rows={8}
+                                                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                                                />
+                                            </div>
+                                            <div className="flex justify-end gap-2">
+                                                <Button variant="secondary" size="sm" onClick={() => setEditingScenarioId(null)}>Cancelar</Button>
+                                                <Button variant="primary" size="sm" onClick={() => handleSaveScenario(scenario)} icon="save">Guardar Plantilla</Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default EmailAutomationManager;

@@ -1,0 +1,559 @@
+
+
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import CriteriosPanel from '../components/CriteriosPanel';
+import PracticasTable from '../components/PracticasTable';
+import SolicitudesList from '../components/SolicitudesList';
+import EmptyState from '../components/EmptyState';
+import Tabs from '../components/Tabs';
+import Card from '../components/Card';
+import WelcomeBanner from '../components/WelcomeBanner';
+import InformesList from '../components/InformesList';
+import WhatsAppExportButton from '../components/WhatsAppExportButton';
+import { useAuth } from '../contexts/AuthContext';
+import type { AuthUser } from '../contexts/AuthContext';
+import type { TabId, Orientacion, SolicitudPPSFields } from '../types';
+import DashboardLoadingSkeleton from '../components/DashboardLoadingSkeleton';
+import ErrorState from '../components/ErrorState';
+import ProfileView from '../components/ProfileView';
+import HomeView from '../components/HomeView';
+import PrintableReport from '../components/PrintableReport';
+import { useStudentPanel } from '../contexts/StudentPanelContext';
+import FinalizacionForm from '../components/FinalizacionForm';
+import { 
+    FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, 
+    FIELD_NOMBRE_ESTUDIANTES, 
+    TABLE_NAME_PPS,
+    FIELD_LEGAJO_PPS,
+    FIELD_ESTADO_PPS,
+    FIELD_ULTIMA_ACTUALIZACION_PPS,
+    FIELD_EMPRESA_PPS_SOLICITUD,
+    FIELD_SOLICITUD_LEGAJO_ALUMNO,
+    FIELD_SOLICITUD_NOMBRE_ALUMNO,
+    FIELD_SOLICITUD_EMAIL_ALUMNO,
+    FIELD_SOLICITUD_LOCALIDAD,
+    FIELD_SOLICITUD_DIRECCION,
+    FIELD_SOLICITUD_REFERENTE,
+    FIELD_SOLICITUD_TIENE_CONVENIO,
+    FIELD_SOLICITUD_TIENE_TUTOR,
+    FIELD_SOLICITUD_CONTACTO_TUTOR,
+    FIELD_SOLICITUD_TIPO_PRACTICA,
+    FIELD_SOLICITUD_DESCRIPCION,
+    FIELD_SOLICITUD_EMAIL_INSTITUCION,
+    FIELD_SOLICITUD_TELEFONO_INSTITUCION,
+    FIELD_LEGAJO_ESTUDIANTES,
+    FIELD_CORREO_ESTUDIANTES,
+    FIELD_FECHA_SOLICITUD_FINALIZACION,
+    FIELD_ESTADO_FINALIZACION
+} from '../constants';
+import { useNavigate } from 'react-router-dom';
+import { useModal } from '../contexts/ModalContext';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { db } from '../lib/db';
+import { addBusinessDays } from '../utils/formatters';
+
+// Export individual views for Router
+export { default as StudentPracticas } from '../components/PracticasTable';
+export { default as StudentSolicitudes } from '../components/SolicitudesList';
+
+// --- COMPONENT: MobileSectionHeader ---
+// Diseño Premium idéntico al WelcomeBanner: Gradiente sutil, esquinas redondeadas grandes, sin borde sólido fuerte.
+const MobileSectionHeader: React.FC<{ title: React.ReactNode; description?: string }> = ({ title, description }) => (
+    <div className="relative p-6 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg animate-fade-in-up group">
+      {/* Decoraciones de fondo idénticas al Banner de Bienvenida */}
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
+      <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
+
+      <div className="relative z-10 flex flex-col gap-3">
+        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
+            {title}
+        </h2>
+        {description && (
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
+            {description}
+            </p>
+        )}
+      </div>
+    </div>
+);
+
+// --- COMPONENT: StudentHome (For Router Index) ---
+export const StudentHome: React.FC = () => {
+    const navigate = useNavigate();
+    const [isFinalizationModalOpen, setIsFinalizationModalOpen] = useState(false);
+    
+    const {
+        studentDetails,
+        studentAirtableId, // Retrieved from context
+        lanzamientos,
+        allLanzamientos,
+        institutionAddressMap,
+        enrollStudent,
+        criterios,
+        enrollmentMap,
+        completedLanzamientoIds,
+        informeTasks
+    } = useStudentPanel();
+
+    const handleOpenFinalization = useCallback(() => {
+        setIsFinalizationModalOpen(true);
+    }, []);
+
+    return (
+        <>
+             {isFinalizationModalOpen && (
+                <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+                <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
+                    <button 
+                        onClick={() => setIsFinalizationModalOpen(false)}
+                        className="absolute top-4 right-4 z-10 p-2 bg-white/80 dark:bg-slate-700/80 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-50 dark:text-slate-300 transition-colors shadow-sm backdrop-blur-sm"
+                    >
+                        <span className="material-icons">close</span>
+                    </button>
+                    {/* Use context ID directly */}
+                    <FinalizacionForm 
+                        studentAirtableId={studentAirtableId} 
+                        onClose={() => setIsFinalizationModalOpen(false)}
+                    />
+                </div>
+                </div>
+            )}
+            <HomeView 
+                myEnrollments={enrollmentMap ? Array.from(enrollmentMap.values()) : []} 
+                allLanzamientos={allLanzamientos} 
+                informeTasks={informeTasks} 
+                lanzamientos={lanzamientos} 
+                onNavigate={(id) => navigate(`/student/${id === 'inicio' ? '' : id}`)}
+                student={studentDetails}
+                onInscribir={enrollStudent.mutate}
+                institutionAddressMap={institutionAddressMap}
+                enrollmentMap={enrollmentMap}
+                completedLanzamientoIds={completedLanzamientoIds}
+                criterios={criterios}
+                onOpenFinalization={handleOpenFinalization}
+            />
+        </>
+    );
+};
+
+
+// --- COMPONENT: StudentDashboard (Standalone Widget) ---
+interface StudentDashboardProps {
+  user?: AuthUser;
+  activeTab?: TabId;
+  onTabChange?: (tabId: TabId) => void;
+  showExportButton?: boolean;
+}
+
+const FinalizationStatusCard: React.FC<{
+    status: string;
+    requestDate: string;
+}> = ({ status, requestDate }) => {
+    const startDate = new Date(requestDate);
+    const targetDate = addBusinessDays(startDate, 14);
+    const now = new Date();
+    
+    const isFinished = status.toLowerCase() === 'cargado' || status.toLowerCase() === 'finalizada';
+    
+    if (isFinished) {
+        return (
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-6 shadow-xl text-white animate-fade-in-up mb-8">
+                <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
+                 <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-5">
+                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white shadow-sm">
+                            <span className="material-icons !text-3xl">verified</span>
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black tracking-tight">¡Acreditación Completada!</h2>
+                            <p className="text-blue-50 font-medium text-sm mt-1 max-w-md leading-relaxed opacity-90">
+                                Tus horas ya han sido cargadas en el sistema académico (SAC). Puedes consultar tu historial oficial.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Pending Calculation
+    const totalTime = targetDate.getTime() - startDate.getTime();
+    const elapsedTime = now.getTime() - startDate.getTime();
+    const percentage = Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100));
+    const daysLeft = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-amber-200 dark:border-amber-800/50 p-6 shadow-lg shadow-amber-500/5 animate-fade-in-up mb-8">
+            <div className="flex items-start gap-4">
+                 <div className="p-3 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
+                     <span className="material-icons !text-2xl animate-[spin_3s_linear_infinite]">hourglass_top</span>
+                 </div>
+                 <div className="flex-grow">
+                     <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Acreditación en Trámite</h3>
+                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                         Tu solicitud está siendo procesada por el equipo administrativo.
+                     </p>
+                     
+                     <div className="mt-4">
+                         <div className="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+                             <span>Progreso estimado</span>
+                             <span>{daysLeft > 0 ? `${daysLeft} días restan` : 'Finalizando...'}</span>
+                         </div>
+                         <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                             <div 
+                                 className="bg-gradient-to-r from-amber-400 to-orange-500 h-2.5 rounded-full transition-all duration-1000 ease-out"
+                                 style={{ width: `${percentage}%` }}
+                             ></div>
+                         </div>
+                         <p className="text-xs text-slate-400 mt-2 italic">
+                             El proceso demora aprox. 14 días hábiles desde la solicitud ({new Date(requestDate).toLocaleDateString()}).
+                         </p>
+                     </div>
+                 </div>
+            </div>
+        </div>
+    );
+};
+
+const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, onTabChange, showExportButton = false }) => {
+  const { isSuperUserMode, authenticatedUser } = useAuth();
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [isFinalizationModalOpen, setIsFinalizationModalOpen] = useState(false);
+  const { openSolicitudPPSModal, showModal } = useModal();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const currentUser = user || authenticatedUser;
+
+  const {
+    studentDetails,
+    studentAirtableId, // Use the ID provided by context
+    practicas,
+    solicitudes,
+    lanzamientos,
+    allLanzamientos,
+    institutionAddressMap,
+    isLoading,
+    error,
+    updateOrientation,
+    updateInternalNotes,
+    updateNota,
+    enrollStudent,
+    confirmInforme,
+    refetchAll,
+    criterios,
+    enrollmentMap,
+    completedLanzamientoIds,
+    informeTasks,
+    finalizacionRequest // New from context
+  } = useStudentPanel();
+
+  const [internalActiveTab, setInternalActiveTab] = useState<TabId>(showExportButton ? 'practicas' : 'inicio');
+  const currentActiveTab = activeTab ?? internalActiveTab;
+  const setCurrentActiveTab = onTabChange ?? setInternalActiveTab;
+  
+  const selectedOrientacion = (studentDetails?.[FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES] || "") as Orientacion | "";
+  const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || currentUser?.nombre || 'Estudiante';
+
+  // Helper to safely get student ID - prioritize context ID
+  const getStudentId = () => {
+      return studentAirtableId || currentUser?.id || null;
+  };
+
+  const handleOrientacionChange = useCallback((orientacion: Orientacion | "") => {
+    updateOrientation.mutate(orientacion, {
+      onSuccess: () => {
+        setShowSaveConfirmation(true);
+        setTimeout(() => setShowSaveConfirmation(false), 2000);
+      }
+    });
+  }, [updateOrientation]);
+
+  const handleNotaChange = useCallback((practicaId: string, nota: string, convocatoriaId?: string) => {
+    updateNota.mutate({ practicaId, nota, convocatoriaId });
+  }, [updateNota]);
+
+  const handleOpenFinalization = useCallback(() => {
+      setIsFinalizationModalOpen(true);
+  }, []);
+
+  // Create new PPS Request Mutation
+  const createSolicitudMutation = useMutation({
+      mutationFn: async (formData: any) => {
+          const studentId = getStudentId();
+          if (!studentId) throw new Error("Error identificando al estudiante.");
+
+          const newRecord: Partial<SolicitudPPSFields> = {
+              [FIELD_LEGAJO_PPS]: [studentId],
+              [FIELD_SOLICITUD_LEGAJO_ALUMNO]: studentDetails?.[FIELD_LEGAJO_ESTUDIANTES],
+              [FIELD_SOLICITUD_NOMBRE_ALUMNO]: studentDetails?.[FIELD_NOMBRE_ESTUDIANTES],
+              [FIELD_SOLICITUD_EMAIL_ALUMNO]: studentDetails?.[FIELD_CORREO_ESTUDIANTES],
+              
+              [FIELD_EMPRESA_PPS_SOLICITUD]: formData.nombreInstitucion,
+              [FIELD_SOLICITUD_LOCALIDAD]: formData.localidad,
+              [FIELD_SOLICITUD_DIRECCION]: formData.direccion,
+              [FIELD_SOLICITUD_EMAIL_INSTITUCION]: formData.emailInstitucion,
+              [FIELD_SOLICITUD_TELEFONO_INSTITUCION]: formData.telefonoInstitucion,
+              [FIELD_SOLICITUD_REFERENTE]: formData.referente,
+              [FIELD_SOLICITUD_TIENE_CONVENIO]: formData.tieneConvenio,
+              [FIELD_SOLICITUD_TIENE_TUTOR]: formData.tieneTutor,
+              [FIELD_SOLICITUD_CONTACTO_TUTOR]: formData.contactoTutor,
+              [FIELD_SOLICITUD_TIPO_PRACTICA]: formData.tipoPractica,
+              [FIELD_SOLICITUD_DESCRIPCION]: formData.descripcion,
+              
+              [FIELD_ESTADO_PPS]: 'Pendiente',
+              [FIELD_ULTIMA_ACTUALIZACION_PPS]: new Date().toISOString().split('T')[0]
+          };
+
+          await db.solicitudes.create(newRecord as any);
+      },
+      onSuccess: () => {
+          showModal('Solicitud Enviada', 'Tu solicitud de PPS ha sido registrada. Te notificaremos cuando haya novedades.');
+          queryClient.invalidateQueries({ queryKey: ['solicitudes'] }); // Refresh list
+      },
+      onError: (err: any) => {
+          showModal('Error', `Hubo un problema al enviar la solicitud: ${err.message}`);
+      }
+  });
+
+  const handleCreateSolicitud = useCallback(() => {
+      openSolicitudPPSModal(async (data) => {
+          await createSolicitudMutation.mutateAsync(data);
+      });
+  }, [openSolicitudPPSModal, createSolicitudMutation]);
+  
+  // Tab Contents
+  const homeContent = useMemo(() => <HomeView 
+      myEnrollments={enrollmentMap ? Array.from(enrollmentMap.values()) : []} 
+      allLanzamientos={allLanzamientos} 
+      informeTasks={informeTasks} 
+      lanzamientos={lanzamientos} 
+      onNavigate={(id) => setCurrentActiveTab(id)}
+      student={studentDetails}
+      onInscribir={enrollStudent.mutate}
+      institutionAddressMap={institutionAddressMap}
+      enrollmentMap={enrollmentMap}
+      completedLanzamientoIds={completedLanzamientoIds}
+      criterios={criterios}
+      onOpenFinalization={handleOpenFinalization}
+  />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
+  
+  const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
+  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} criterios={criterios} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios]);
+  const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
+  const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
+
+  const studentDataTabs = useMemo(() => {
+    const tabs: { id: TabId; label: string; icon: string; content: React.ReactNode; badge?: number }[] = [
+      { id: 'inicio', label: 'Inicio', icon: 'home', content: homeContent },
+      { id: 'informes', label: `Informes`, icon: 'assignment_turned_in', content: informesContent, badge: informeTasks.length > 0 ? informeTasks.length : undefined },
+      { id: 'solicitudes', label: `Mis Solicitudes`, icon: 'list_alt', content: solicitudesContent, badge: solicitudes.length > 0 ? solicitudes.length : undefined },
+      { id: 'practicas', label: `Mis Prácticas`, icon: 'work_history', content: practicasContent, badge: practicas.length > 0 ? practicas.length : undefined }
+    ];
+
+    if (showExportButton) {
+      return tabs.filter(tab => tab.id === 'informes' || tab.id === 'solicitudes' || tab.id === 'practicas');
+    }
+    
+    tabs.push({
+        id: 'profile' as TabId,
+        label: 'Mi Perfil',
+        icon: 'person',
+        content: profileContent,
+        badge: undefined
+    });
+    return tabs;
+
+  }, [
+      informeTasks.length, solicitudes.length, practicas.length, showExportButton,
+      homeContent, informesContent, solicitudesContent, practicasContent, profileContent
+  ]);
+  
+  useEffect(() => {
+    const isCurrentTabValid = studentDataTabs.some(tab => tab.id === currentActiveTab);
+    if (!isCurrentTabValid && studentDataTabs.length > 0) {
+      setCurrentActiveTab(studentDataTabs[0].id);
+    }
+  }, [studentDataTabs, currentActiveTab, setCurrentActiveTab]);
+
+  const hasData = useMemo(() => practicas.length > 0 || solicitudes.length > 0 || lanzamientos.length > 0 || informeTasks.length > 0, [practicas, solicitudes, lanzamientos, informeTasks]);
+  const showEmptyState = useMemo(() => !isLoading && !hasData && isSuperUserMode, [isLoading, hasData, isSuperUserMode]);
+
+  if (isLoading) return <DashboardLoadingSkeleton />;
+  if (error) return <ErrorState error={error.message} onRetry={() => refetchAll()} />;
+
+  if (showEmptyState) {
+    return (
+      <>
+        <div className="print-only">
+          <PrintableReport studentDetails={studentDetails} criterios={criterios} practicas={practicas} />
+        </div>
+        <div className="no-print">
+          <div className="space-y-8 animate-fade-in-up">
+            <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={false} />
+            <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+            <Card className="border-slate-300/50 bg-slate-50/30">
+              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontró información de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
+            </Card>
+          </div>
+          <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+           <button onClick={() => window.print()} className="fixed bottom-6 right-24 z-50 w-14 h-14 bg-slate-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ease-in-out transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-400" aria-label="Imprimir reporte">
+             <span className="material-icons !text-2xl">print</span>
+           </button>
+        </div>
+        {isFinalizationModalOpen && (
+            <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
+                <button 
+                    onClick={() => setIsFinalizationModalOpen(false)}
+                    className="absolute top-4 right-4 z-10 p-2 bg-white/80 dark:bg-slate-700/80 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-50 dark:text-slate-300 transition-colors shadow-sm backdrop-blur-sm"
+                >
+                    <span className="material-icons">close</span>
+                </button>
+                <FinalizacionForm 
+                    studentAirtableId={getStudentId()} 
+                    onClose={() => setIsFinalizationModalOpen(false)}
+                />
+            </div>
+            </div>
+        )}
+      </>
+    );
+  }
+  
+  return (
+    <>
+      {isFinalizationModalOpen && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
+              <button 
+                onClick={() => setIsFinalizationModalOpen(false)}
+                className="absolute top-4 right-4 z-10 p-2 bg-white/80 dark:bg-slate-700/80 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-50 dark:text-slate-300 transition-colors shadow-sm backdrop-blur-sm"
+              >
+                  <span className="material-icons">close</span>
+              </button>
+              <FinalizacionForm 
+                studentAirtableId={getStudentId()} 
+                onClose={() => setIsFinalizationModalOpen(false)}
+              />
+          </div>
+        </div>
+      )}
+
+      <div className="print-only">
+          <PrintableReport 
+              studentDetails={studentDetails} 
+              criterios={criterios} 
+              practicas={practicas} 
+          />
+      </div>
+
+      {/* --- VISTA DE ESCRITORIO --- */}
+      <div className="hidden md:block no-print space-y-8 animate-fade-in-up">
+        <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+        
+        {finalizacionRequest ? (
+            <FinalizationStatusCard 
+                status={finalizacionRequest[FIELD_ESTADO_FINALIZACION] || 'Pendiente'} 
+                requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
+            />
+        ) : (
+            <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+        )}
+        
+        {hasData ? (
+          <Card>
+            <Tabs
+              tabs={studentDataTabs}
+              activeTabId={currentActiveTab}
+              onTabChange={(id) => setCurrentActiveTab(id as TabId)}
+            />
+          </Card>
+        ) : (
+           // Should technically fall into empty state above, but double check here
+           <div className="space-y-8">
+                <Card icon="list_alt" title="Comenzar">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+                         <button 
+                            onClick={handleCreateSolicitud}
+                            className="p-6 rounded-xl border border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center text-center group"
+                         >
+                             <span className="material-icons !text-4xl text-slate-400 group-hover:text-blue-600 mb-3">add_business</span>
+                             <h4 className="font-bold text-slate-700 group-hover:text-blue-700">Solicitar Nueva PPS</h4>
+                             <p className="text-sm text-slate-500 mt-1">Autogestión de práctica</p>
+                         </button>
+                         <button 
+                            onClick={handleOpenFinalization}
+                            className="p-6 rounded-xl border border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center text-center group"
+                         >
+                             <span className="material-icons !text-4xl text-slate-400 group-hover:text-emerald-600 mb-3">school</span>
+                             <h4 className="font-bold text-slate-700 group-hover:text-emerald-700">Solicitar Acreditación</h4>
+                             <p className="text-sm text-slate-500 mt-1">Finalización de carrera</p>
+                         </button>
+                   </div>
+                </Card>
+           </div>
+        )}
+      </div>
+
+      {/* --- VISTA MÓVIL --- */}
+      <div className="md:hidden no-print space-y-8 animate-fade-in-up">
+          {currentActiveTab === 'inicio' && (
+              <>
+                  <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+                  {finalizacionRequest && (
+                      <FinalizationStatusCard 
+                          status={finalizacionRequest[FIELD_ESTADO_FINALIZACION] || 'Pendiente'} 
+                          requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
+                      />
+                  )}
+                  {homeContent}
+              </>
+          )}
+
+          {currentActiveTab === 'informes' && (
+              <Card icon="assignment_turned_in" title="Entrega de Informes Finales" description="Sube tu informe final al campus y luego confirma la entrega aquí.">
+                  {informesContent}
+              </Card>
+          )}
+
+          {currentActiveTab === 'solicitudes' && (
+              <Card icon="list_alt" title="Mis Solicitudes de PPS" description="Seguimiento del estado de las Prácticas Profesionales Supervisadas que has solicitado.">
+                  {solicitudesContent}
+              </Card>
+          )}
+          
+          {currentActiveTab === 'practicas' && (
+              <>
+                  {!finalizacionRequest && <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />}
+                  <Card icon="work_history" title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones.">
+                    {practicasContent}
+                  </Card>
+              </>
+          )}
+
+          {currentActiveTab === 'profile' && (
+                <Card icon="person" title="Mi Perfil">
+                  {profileContent}
+              </Card>
+          )}
+      </div>
+      
+      {showExportButton && (
+        <>
+          <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
+            <button
+            onClick={() => window.print()}
+            className="fixed bottom-6 right-24 z-50 w-14 h-14 bg-slate-700 text-white rounded-full shadow-lg flex items-center justify-center
+                        transition-all duration-300 ease-in-out transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-400"
+            aria-label="Imprimir reporte"
+          >
+            <span className="material-icons !text-2xl">print</span>
+          </button>
+        </>
+      )}
+    </>
+  );
+};
+
+export default StudentDashboard;
