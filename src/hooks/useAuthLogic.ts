@@ -11,7 +11,9 @@ import {
     FIELD_USER_ID_ESTUDIANTES, 
     FIELD_ROLE_ESTUDIANTES,
     FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES,
-    FIELD_TELEFONO_ESTUDIANTES
+    FIELD_TELEFONO_ESTUDIANTES,
+    FIELD_NOMBRE_SEPARADO_ESTUDIANTES,
+    FIELD_APELLIDO_SEPARADO_ESTUDIANTES
 } from '../constants';
 import type { EstudianteFields, AirtableRecord } from '../types';
 import type { AuthUser } from '../contexts/AuthContext';
@@ -33,9 +35,12 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
     // Reset steps (para recupero de contraseña)
     const [resetStep, setResetStep] = useState<'verify' | 'sent'>('verify');
     
-    // Migration steps (para activación de cuenta)
+    // Migration steps (para activación de cuenta legacy)
     const [migrationStep, setMigrationStep] = useState<1 | 2>(1);
     
+    // Register steps (para nuevos usuarios)
+    const [registerStep, setRegisterStep] = useState<1 | 2>(1);
+
     const [legajo, setLegajo] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -60,8 +65,10 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         setPassword('');
         setConfirmPassword('');
         setResetStep('verify'); 
-        setMigrationStep(1); // Resetear paso de migración
+        setMigrationStep(1); 
+        setRegisterStep(1);
         setVerificationData({ dni: '', correo: '', telefono: '' });
+        setFoundStudent(null);
     };
 
     const handleModeChange = (newMode: any) => {
@@ -72,9 +79,11 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         } else {
             // Si pasamos manteniendo datos, reseteamos pasos internos
             setMigrationStep(1);
+            setRegisterStep(1);
             setResetStep('verify');
             setError(null);
             setFieldError(null);
+            setFoundStudent(null);
         }
     };
 
@@ -108,14 +117,18 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             try {
                 if (!legajoTrimmed || !passwordTrimmed) throw new Error('Por favor, completa todos los campos.');
 
-                // 1. Buscamos datos del estudiante
-                const { data: studentData, error: dbError } = await supabase
-                    .from('estudiantes')
-                    .select(`${FIELD_CORREO_ESTUDIANTES}, ${FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES}, ${FIELD_USER_ID_ESTUDIANTES}`)
-                    .eq(FIELD_LEGAJO_ESTUDIANTES, legajoTrimmed)
-                    .maybeSingle();
+                // 1. Buscamos datos del estudiante usando RPC para saltar RLS
+                const { data: rpcData, error: rpcError } = await supabase
+                    .rpc('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
 
-                if (dbError || !studentData) {
+                if (rpcError) {
+                     console.error("RPC Error:", rpcError);
+                     throw new Error('Error de conexión al validar legajo.');
+                }
+                
+                const studentData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+
+                if (!studentData) {
                      throw new Error('Legajo no encontrado o error de conexión.');
                 }
 
@@ -140,7 +153,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                             throw new Error('Contraseña incorrecta.');
                         }
 
-                        // Si no tiene user_id, necesita migrar/activar
+                        // Si no tiene user_id, necesita migrar/activar (usuario legacy)
                         setMode('migration');
                         setMigrationStep(1);
                         setError('Para acceder por primera vez al nuevo sistema, necesitamos que valides tu identidad.');
@@ -156,14 +169,94 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                 setIsLoading(false);
             }
 
+        } else if (mode === 'register') {
+            // --- REGISTRO DE NUEVOS ALUMNOS (Lista Pre-cargada) ---
+            try {
+                if (registerStep === 1) {
+                     if (!legajoTrimmed) throw new Error("Por favor ingresa tu legajo.");
+
+                     // RPC para buscar si existe el legajo y si está disponible para registro (user_id null)
+                     const { data: rpcData, error: rpcError } = await supabase
+                         .rpc('get_student_for_signup', { legajo_input: legajoTrimmed });
+                     
+                     if (rpcError) throw new Error(rpcError.message);
+                     const student = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+                     
+                     if (!student) {
+                         throw new Error("El legajo no figura en la lista de habilitados o ya tiene un usuario creado.");
+                     }
+                     
+                     if (student.user_id) {
+                         throw new Error("Este legajo ya tiene una cuenta activa. Por favor inicia sesión.");
+                     }
+
+                     setFoundStudent(student as unknown as AirtableRecord<EstudianteFields>);
+                     setRegisterStep(2);
+                     setIsLoading(false);
+                     return;
+                }
+
+                if (registerStep === 2) {
+                    const { dni, correo, telefono } = verificationData;
+                    if (!dni || !correo || !telefono || !password) {
+                        throw new Error("Todos los campos son obligatorios.");
+                    }
+                    if (password !== confirmPassword) {
+                        throw new Error("Las contraseñas no coinciden.");
+                    }
+                    if (password.length < 6) {
+                        throw new Error("La contraseña debe tener al menos 6 caracteres.");
+                    }
+
+                    const inputEmail = correo.trim().toLowerCase();
+
+                    // Crear usuario en Auth
+                    const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
+                        email: inputEmail,
+                        password: password,
+                        options: { data: { legajo: legajoTrimmed, nombre: foundStudent?.[FIELD_NOMBRE_ESTUDIANTES] } }
+                    });
+
+                    if (signUpError) throw signUpError;
+
+                    if (authData.user) {
+                        // Actualizar registro de estudiante con los datos completados
+                        await db.estudiantes.update(foundStudent!.id, {
+                            [FIELD_USER_ID_ESTUDIANTES]: authData.user.id,
+                            [FIELD_DNI_ESTUDIANTES]: parseInt(dni, 10),
+                            [FIELD_CORREO_ESTUDIANTES]: inputEmail,
+                            [FIELD_TELEFONO_ESTUDIANTES]: telefono,
+                            [FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES]: false,
+                        } as any);
+
+                        // Auto-login
+                        login({
+                            id: authData.user.id,
+                            legajo: String(legajoTrimmed),
+                            nombre: String(foundStudent![FIELD_NOMBRE_ESTUDIANTES]),
+                            orientaciones: [],
+                            mustChangePassword: false
+                        });
+                    }
+                }
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
         } else if (mode === 'migration') {
-            // --- MIGRACIÓN (ACTIVACIÓN) ---
+            // --- MIGRACIÓN (ACTIVACIÓN LEGACY) ---
             try {
                 if (migrationStep === 1) {
                     if (!verificationData.dni || !verificationData.correo) {
                         throw new Error("Por favor completa DNI y Correo para validar tu identidad.");
                     }
-                    const [studentData] = await db.estudiantes.get({ filters: { [FIELD_LEGAJO_ESTUDIANTES]: legajoTrimmed } });
+                    
+                    const { data: rpcData, error: rpcError } = await supabase
+                        .rpc('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
+                    
+                    if (rpcError) throw new Error(rpcError.message);
+                    const studentData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
                     
                     if (!studentData) throw new Error("No pudimos encontrar tu legajo en el sistema.");
 
@@ -172,14 +265,13 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
                     const inputEmail = verificationData.correo.trim().toLowerCase();
 
-                    // Admin override or validation
                     if (legajoTrimmed === 'admin' && inputDni === '0') {
                         // bypass
                     } else if (dbDni !== inputDni || dbEmail !== inputEmail) {
                         throw new Error(`Los datos ingresados no coinciden con nuestros registros.`);
                     }
                     
-                    setFoundStudent(studentData);
+                    setFoundStudent(studentData as unknown as AirtableRecord<EstudianteFields>);
                     setMigrationStep(2);
                     setIsLoading(false);
                     return;
@@ -200,7 +292,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                     if (signUpError) {
                         if (signUpError.message.includes('already registered')) {
-                            // Si ya existe, redirigir a recupero si es necesario
                             throw new Error("Este usuario ya está registrado. Si olvidaste tu contraseña, usa la opción 'Recuperar Contraseña'.");
                         }
                         throw signUpError;
@@ -230,20 +321,21 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             }
 
         } else if (mode === 'recover') {
-            // --- RECUPERACIÓN DE CONTRASEÑA (CON TRIPLE VALIDACIÓN) ---
+            // --- RECUPERACIÓN DE CONTRASEÑA ---
             try {
                 if (resetStep === 'verify') {
-                    // 1. Validar campos completos
                     if (!legajoTrimmed || !verificationData.dni || !verificationData.correo || !verificationData.telefono) {
                         throw new Error("Por favor completa Legajo, DNI, Correo y Celular para validar tu identidad.");
                     }
 
-                    // 2. Buscar datos en DB
-                    const [studentData] = await db.estudiantes.get({ filters: { [FIELD_LEGAJO_ESTUDIANTES]: legajoTrimmed } });
+                    const { data: rpcData, error: rpcError } = await supabase
+                        .rpc('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
+
+                    if (rpcError) throw new Error(rpcError.message);
+                    const studentData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
                     
                     if (!studentData) throw new Error("No encontramos un estudiante con ese legajo.");
 
-                    // 3. Comparación estricta
                     const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim();
                     const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
                     const dbPhone = normalizePhone(studentData[FIELD_TELEFONO_ESTUDIANTES]);
@@ -256,9 +348,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     if (dbDni !== inputDni) mismatch = true;
                     if (dbEmail !== inputEmail) mismatch = true;
                     
-                    // Validación de teléfono (si la DB tiene teléfono, debe coincidir; si no tiene, es un problema de datos)
                     if (!dbPhone || !inputPhone.includes(dbPhone.slice(-6))) { 
-                        // Comparamos los últimos 6 dígitos para ser flexibles con prefijos
                         mismatch = true;
                     }
 
@@ -266,13 +356,11 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                          throw new Error("Uno o más datos no coinciden con nuestros registros. Asegúrate de usar el celular y correo registrados.");
                     }
 
-                    // 4. Si validación OK -> Disparar Reset Email de Supabase
                     const { error: resetError } = await supabase.auth.resetPasswordForEmail(inputEmail, {
-                         redirectTo: window.location.origin + '/#reset-callback', // O URL base
+                         redirectTo: window.location.origin + '/#reset-callback',
                     });
 
                     if (resetError) {
-                         // Si dice "Too many requests", avisar
                          if (resetError.status === 429) throw new Error("Demasiados intentos. Por favor espera unos minutos.");
                          throw new Error("Error al enviar el correo de recuperación.");
                     }
@@ -298,12 +386,13 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         mode, setMode: handleModeChange,
         resetStep,
         migrationStep, setMigrationStep,
+        registerStep, setRegisterStep,
         legajo, setLegajo,
         password, setPassword,
         confirmPassword, setConfirmPassword,
         rememberMe, setRememberMe,
         isLoading, error,
-        fieldError, // Nuevo estado para resaltar inputs específicos
+        fieldError, 
         legajoCheckState, legajoMessage,
         foundStudent, missingFields,
         newData, handleNewDataChange,

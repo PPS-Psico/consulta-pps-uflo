@@ -1,5 +1,4 @@
-
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabaseClient';
@@ -8,29 +7,25 @@ import {
     FIELD_NOMBRE_PPS_LANZAMIENTOS,
     FIELD_ESTADO_GESTION_LANZAMIENTOS,
     FIELD_TELEFONO_INSTITUCIONES,
-    FIELD_ESTADO_FINALIZACION,
     FIELD_FECHA_SOLICITUD_FINALIZACION,
     FIELD_ESTADO_PPS,
     FIELD_ULTIMA_ACTUALIZACION_PPS,
     FIELD_EMPRESA_PPS_SOLICITUD,
     FIELD_SOLICITUD_NOMBRE_ALUMNO,
-    FIELD_SOLICITUD_LEGAJO_ALUMNO,
     TABLE_NAME_LANZAMIENTOS_PPS,
     TABLE_NAME_INSTITUCIONES,
     TABLE_NAME_FINALIZACION,
     TABLE_NAME_PPS,
-    TABLE_NAME_ESTUDIANTES,
     COL_FINALIZACION_ESTADO,
     COL_SOLICITUD_ESTADO,
-    COL_SOLICITUD_UPDATED_AT,
     COL_LANZAMIENTO_FECHA_FIN,
     COL_LANZAMIENTO_ESTADO_GESTION,
 } from '../constants';
 import { parseToUTCDate, formatDate, normalizeStringForComparison } from '../utils/formatters';
-import Loader from './Loader';
 import EmptyState from './EmptyState';
 import Card from './Card';
 import Toast from './Toast';
+import { AdminDashboardSkeleton } from './Skeletons';
 
 const RELAUNCH_STATUS_OPTIONS = [
     'Pendiente de Gestión', 
@@ -74,15 +69,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                  return { endingLaunches: [], pendingFinalizations: [], pendingRequests: [] };
             }
 
-            // Date filters for Launches
             const now = new Date();
             const sixtyDaysFromNow = new Date();
             sixtyDaysFromNow.setDate(now.getDate() + 60);
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(now.getDate() - 90);
 
-            // 1. Fetch Ending Launches directly filtered from DB
-            // We need to fetch 'instituciones' manually later because there is no FK.
             const { data: launchesData } = await supabase
                 .from(TABLE_NAME_LANZAMIENTOS_PPS)
                 .select('*')
@@ -90,7 +82,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                 .lte(COL_LANZAMIENTO_FECHA_FIN, sixtyDaysFromNow.toISOString())
                 .not(COL_LANZAMIENTO_ESTADO_GESTION, 'in', '("Archivado","No se Relanza")');
 
-            // Fetch needed institutions for these launches to get phone numbers
             const institutionNames = new Set((launchesData || []).map((l: any) => {
                 const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
                 return name.split(' - ')[0].trim();
@@ -120,7 +111,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                     ppsName: ppsName,
                     institutionName: groupName,
                     institutionId: institution?.id,
-                    phone: institution?.telefono, // FIELD_TELEFONO_INSTITUCIONES
+                    phone: institution?.telefono,
                     fechaFin: endDateStr,
                     daysLeft,
                     gestionStatus: l[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión',
@@ -128,8 +119,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
             }).sort((a: any, b: any) => a.daysLeft - b.daysLeft);
 
 
-            // 2. Fetch Pending Finalizations (JOINED)
-            // Explicit FK used to prevent ambiguity
             const { data: finalizationsData } = await supabase
                 .from(TABLE_NAME_FINALIZACION)
                 .select(`
@@ -147,8 +136,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
             }));
 
 
-            // 3. Fetch Pending Requests (JOINED)
-            // Explicit FK used to prevent ambiguity
             const { data: requestsData } = await supabase
                 .from(TABLE_NAME_PPS)
                 .select(`
@@ -164,7 +151,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                 .order('created_at', { ascending: false });
 
             const pendingRequests = (requestsData || []).map((s: any) => {
-                // Prioritize joined data, fallback to manual fields
                 const studentName = s.estudiante?.nombre || s[FIELD_SOLICITUD_NOMBRE_ALUMNO] || 'Desconocido';
                 return {
                     id: s.id,
@@ -177,8 +163,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
             return { endingLaunches, pendingFinalizations, pendingRequests };
         },
-        refetchInterval: 60000, // Refresh every minute
-        staleTime: 1000 * 60 * 5, // Cache data for 5 minutes to make navigation instant
+        refetchInterval: 60000,
+        staleTime: 1000 * 60 * 5,
     });
 
     const updatePhoneMutation = useMutation({
@@ -241,7 +227,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
         }
     };
 
-    if (isLoading) return <Loader />;
+    if (isLoading) return <AdminDashboardSkeleton />;
     if (error || !data) return <EmptyState icon="error" title="Error" message="No se pudieron cargar los datos." />;
 
     const { endingLaunches, pendingFinalizations, pendingRequests } = data;
@@ -250,7 +236,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
         <div className="space-y-8 animate-fade-in-up pb-10">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
 
-            {/* --- SUMMARY METRICS --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex items-center gap-5 transition-transform hover:-translate-y-1 hover:shadow-md">
                     <div className="p-4 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -283,7 +268,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
                 </div>
             </div>
 
-            {/* --- SECTION 1: RELAUNCH MANAGEMENT --- */}
             <Card className="border-amber-200/50 dark:border-amber-900/30 bg-gradient-to-b from-amber-50/30 to-white dark:from-amber-900/10 dark:to-gray-900">
                 <SectionHeader title="Prácticas por Finalizar / Relanzar" icon="next_week" count={endingLaunches.length} colorClass="text-amber-600 bg-amber-100 dark:bg-amber-900/20" />
                 

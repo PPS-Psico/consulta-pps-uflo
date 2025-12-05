@@ -27,6 +27,7 @@ import SubTabs from './SubTabs';
 import EmptyState from './EmptyState';
 import RecordEditModal from './RecordEditModal';
 import { schema } from '../lib/dbSchema';
+import CollapsibleSection from './CollapsibleSection';
 
 const mockInstitutions = [
   { id: 'recInstMock1', [FIELD_NOMBRE_INSTITUCIONES]: 'Hospital de Juguete' },
@@ -157,6 +158,41 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         },
         enabled: activeTab === 'history'
     });
+
+    // SORTING AND GROUPING LOGIC FOR HISTORY TAB
+    const { visibleHistory, hiddenHistory } = useMemo(() => {
+        const sorted = [...launchHistory].sort((a, b) => {
+            // Priority: Abierta vs Rest
+            const statusA = normalizeStringForComparison(a[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
+            const statusB = normalizeStringForComparison(b[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
+            
+            const isOpenA = statusA === 'abierta' || statusA === 'abierto';
+            const isOpenB = statusB === 'abierta' || statusB === 'abierto';
+            
+            if (isOpenA && !isOpenB) return -1;
+            if (!isOpenA && isOpenB) return 1;
+            
+            // Secondary: Date Descending
+            const dateA = new Date(a[FIELD_FECHA_INICIO_LANZAMIENTOS] || 0).getTime();
+            const dateB = new Date(b[FIELD_FECHA_INICIO_LANZAMIENTOS] || 0).getTime();
+            
+            return dateB - dateA;
+        });
+
+        const visible: LanzamientoPPS[] = [];
+        const hidden: LanzamientoPPS[] = [];
+
+        sorted.forEach(launch => {
+            const status = normalizeStringForComparison(launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
+            if (status === 'oculto') {
+                hidden.push(launch);
+            } else {
+                visible.push(launch);
+            }
+        });
+
+        return { visibleHistory: visible, hiddenHistory: hidden };
+    }, [launchHistory]);
 
     const createLaunchMutation = useMutation({
         mutationFn: (newLaunchData: any) => {
@@ -302,6 +338,55 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         
         updateStatusMutation.mutate({ id, status: newStatus });
     };
+
+    const renderLaunchItem = useCallback((launch: LanzamientoPPS) => {
+        const isAbierta = normalizeStringForComparison(launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]) === 'abierta' || normalizeStringForComparison(launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]) === 'abierto';
+        const isOculta = normalizeStringForComparison(launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]) === 'oculto';
+        
+        return (
+            <div key={launch.id} className={`bg-white dark:bg-slate-800/50 p-4 rounded-xl border transition-shadow hover:shadow-md ${isAbierta ? 'border-emerald-300 dark:border-emerald-800 ring-1 ring-emerald-100 dark:ring-emerald-900/30' : (isOculta ? 'border-slate-200 dark:border-slate-700 opacity-75' : 'border-slate-200 dark:border-slate-700')} flex flex-col md:flex-row justify-between items-start md:items-center gap-4`}>
+                <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]}</h4>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${isAbierta ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : (isOculta ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-slate-100 text-slate-500 border-slate-200')}`}>
+                            {launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]}
+                        </span>
+                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Inicio: {formatDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS])} &bull; Orientación: {launch[FIELD_ORIENTACION_LANZAMIENTOS]}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setEditingLaunch(launch)} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
+                        <span className="material-icons !text-xl">edit</span>
+                    </button>
+                    
+                    {isOculta ? (
+                        // Restaurar (Hacer Cerrada para que sea visible)
+                        <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'cerrar')} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Hacer Visible (Cerrada)">
+                            <span className="material-icons !text-xl">visibility</span>
+                        </button>
+                    ) : isAbierta ? (
+                        // Cerrar
+                        <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'cerrar')} className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Cerrar Convocatoria">
+                            <span className="material-icons !text-xl">lock</span>
+                        </button>
+                    ) : (
+                        // Reabrir
+                        <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'abrir')} className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Reabrir Convocatoria">
+                            <span className="material-icons !text-xl">lock_open</span>
+                        </button>
+                    )}
+
+                    {!isOculta && (
+                        <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'ocultar')} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Ocultar">
+                             <span className="material-icons !text-xl">visibility_off</span>
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }, []);
 
     const inputClass = "w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all";
 
@@ -485,37 +570,31 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             )}
 
             {activeTab === 'history' && (
-                <div className="mt-6 space-y-4">
-                    {isLoadingHistory ? <Loader /> : launchHistory.length === 0 ? <EmptyState icon="history_toggle_off" title="Sin Historial" message="No hay lanzamientos registrados." /> : (
-                        launchHistory.map(launch => (
-                            <div key={launch.id} className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]}</h4>
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] === 'Abierta' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                            {launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]}
-                                        </span>
+                <div className="mt-6 space-y-8">
+                    {isLoadingHistory ? <Loader /> : (visibleHistory.length === 0 && hiddenHistory.length === 0) ? <EmptyState icon="history_toggle_off" title="Sin Historial" message="No hay lanzamientos registrados." /> : (
+                        <>
+                             {/* LISTA VISIBLE (Abiertas / Cerradas) */}
+                             <div className="space-y-4">
+                                {visibleHistory.map(renderLaunchItem)}
+                             </div>
+
+                             {/* LISTA OCULTA (Colapsable) */}
+                             {hiddenHistory.length > 0 && (
+                                <CollapsibleSection 
+                                    title="Archivados / Ocultos" 
+                                    count={hiddenHistory.length}
+                                    icon="visibility_off"
+                                    iconBgColor="bg-slate-100 dark:bg-slate-700"
+                                    iconColor="text-slate-500 dark:text-slate-400"
+                                    borderColor="border-slate-300 dark:border-slate-700"
+                                    defaultOpen={false}
+                                >
+                                    <div className="grid gap-4 mt-4">
+                                        {hiddenHistory.map(renderLaunchItem)}
                                     </div>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                        Inicio: {formatDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS])} &bull; Orientación: {launch[FIELD_ORIENTACION_LANZAMIENTOS]}
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => setEditingLaunch(launch)} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
-                                        <span className="material-icons !text-xl">edit</span>
-                                    </button>
-                                    {launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] === 'Abierta' ? (
-                                        <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'cerrar')} className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Cerrar Convocatoria">
-                                            <span className="material-icons !text-xl">lock</span>
-                                        </button>
-                                    ) : (
-                                        <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'abrir')} className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Reabrir Convocatoria">
-                                            <span className="material-icons !text-xl">lock_open</span>
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))
+                                </CollapsibleSection>
+                             )}
+                        </>
                     )}
                 </div>
             )}

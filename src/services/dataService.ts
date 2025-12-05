@@ -8,46 +8,9 @@ import {
   FinalizacionPPS
 } from '../types';
 import * as C from '../constants';
-import { normalizeStringForComparison, parseToUTCDate, safeGetId } from '../utils/formatters';
-
-// --- MOCK DATA (Legacy) ---
-const mockStudentDetails: EstudianteFields = {
-  [C.FIELD_LEGAJO_ESTUDIANTES]: '99999',
-  [C.FIELD_NOMBRE_ESTUDIANTES]: 'Usuario de Prueba',
-  [C.FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]: 'Clinica',
-  [C.FIELD_DNI_ESTUDIANTES]: 12345678,
-  [C.FIELD_CORREO_ESTUDIANTES]: 'testing@uflo.edu.ar',
-  [C.FIELD_TELEFONO_ESTUDIANTES]: '1122334455',
-  [C.FIELD_GENERO_ESTUDIANTES]: 'Otro',
-};
-
-const mockPracticas: Practica[] = [
-  { id: 'prac_mock_1', [C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: 'Hospital Central', [C.FIELD_ESPECIALIDAD_PRACTICAS]: 'Clinica', [C.FIELD_HORAS_PRACTICAS]: 120, [C.FIELD_FECHA_INICIO_PRACTICAS]: '2023-08-01', [C.FIELD_FECHA_FIN_PRACTICAS]: '2023-12-15', [C.FIELD_ESTADO_PRACTICA]: 'Finalizada', [C.FIELD_NOTA_PRACTICAS]: '9' },
-  { id: 'prac_mock_2', [C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: 'Colegio San Martín', [C.FIELD_ESPECIALIDAD_PRACTICAS]: 'Educacional', [C.FIELD_HORAS_PRACTICAS]: 80, [C.FIELD_FECHA_INICIO_PRACTICAS]: '2024-03-01', [C.FIELD_FECHA_FIN_PRACTICAS]: '2024-07-15', [C.FIELD_ESTADO_PRACTICA]: 'En curso' },
-  { id: 'prac_mock_3', [C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: 'Empresa Tech Solutions', [C.FIELD_ESPECIALIDAD_PRACTICAS]: 'Laboral', [C.FIELD_HORAS_PRACTICAS]: 50, [C.FIELD_FECHA_INICIO_PRACTICAS]: '2024-08-01', [C.FIELD_FECHA_FIN_PRACTICAS]: '2024-10-01', [C.FIELD_ESTADO_PRACTICA]: 'Finalizada' },
-] as any;
-
-const mockSolicitudes: SolicitudPPS[] = [
-    { id: 'sol_mock_1', [C.FIELD_EMPRESA_PPS_SOLICITUD]: 'Consultora Global', [C.FIELD_ESTADO_PPS]: 'En conversaciones', [C.FIELD_ULTIMA_ACTUALIZACION_PPS]: '2024-05-20', [C.FIELD_NOTAS_PPS]: 'Se contactó para coordinar entrevista.' }
-] as any;
-
-const mockLanzamientos: LanzamientoPPS[] = [
-    { id: 'lanz_mock_1', [C.FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hogar de Ancianos "Amanecer"', [C.FIELD_FECHA_INICIO_LANZAMIENTOS]: '2024-09-01', [C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Abierta', [C.FIELD_INFORME_LANZAMIENTOS]: 'http://example.com' },
-    { id: 'lanz_mock_2', [C.FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Fundación "Crecer Juntos"', [C.FIELD_FECHA_INICIO_LANZAMIENTOS]: '2024-08-15', [C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Cerrado', [C.FIELD_INFORME_LANZAMIENTOS]: 'http://example.com' },
-] as any;
-
-const mockMyEnrollments: Convocatoria[] = [
-    { id: 'conv_mock_1', [C.FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: 'Seleccionado', [C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: 'lanz_mock_2', [C.FIELD_NOMBRE_PPS_CONVOCATORIAS]: 'Fundación "Crecer Juntos"', [C.FIELD_FECHA_INICIO_CONVOCATORIAS]: '2024-08-15' },
-] as any;
-
-
-// --- CORE FETCH FUNCTIONS ---
+import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatters';
 
 export const fetchStudentData = async (legajo: string): Promise<{ studentDetails: EstudianteFields | null; studentAirtableId: string | null; }> => {
-  if (legajo === '99999') {
-    return Promise.resolve({ studentDetails: mockStudentDetails, studentAirtableId: 'recTestingUser123' });
-  }
-
   const { data, error } = await supabase
     .from(C.TABLE_NAME_ESTUDIANTES)
     .select('*')
@@ -61,15 +24,14 @@ export const fetchStudentData = async (legajo: string): Promise<{ studentDetails
 
   const studentDetails: EstudianteFields = {
       ...data,
-      createdTime: data.created_at // Alias for legacy compatibility
-  };
+      createdTime: data.created_at,
+      [C.FIELD_USER_ID_ESTUDIANTES]: data.user_id, // Map explicit for clarity, though it matches
+  } as unknown as EstudianteFields; // Forced casting due to partial mismatch in strictness, but safe for now
 
   return { studentDetails, studentAirtableId: data.id };
 };
 
 export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
-  if (legajo === '99999') return Promise.resolve(mockPracticas);
-
   const { studentAirtableId } = await fetchStudentData(legajo);
   if (!studentAirtableId) return [];
 
@@ -88,7 +50,17 @@ export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
       return [];
   }
 
-  return data.map((row: any) => {
+  // Type assertion for joined query result which is hard to type perfectly with generic client
+  type PracticaRowWithJoin = {
+      id: string;
+      created_at: string;
+      nombre_institucion: string | null;
+      lanzamiento_id: string | null;
+      lanzamiento: { nombre_pps: string | null } | null;
+      [key: string]: any;
+  };
+
+  return (data as unknown as PracticaRowWithJoin[]).map((row) => {
       const linkedName = row.lanzamiento?.nombre_pps;
       const lanzId = row.lanzamiento_id;
       
@@ -97,15 +69,12 @@ export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
           id: row.id,
           createdTime: row.created_at,
           [C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: row.nombre_institucion || linkedName || 'Institución desconocida',
-          // Store as ARRAY to maintain compatibility with legacy components, or standardize later
-          [C.FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: lanzId ? [lanzId] : [], 
+          [C.FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: lanzId || null, 
       } as Practica;
   });
 };
 
 export const fetchSolicitudes = async (legajo: string, studentAirtableId: string | null): Promise<SolicitudPPS[]> => {
-  if (legajo === '99999') return Promise.resolve(mockSolicitudes);
-
   let targetId = studentAirtableId;
   if (!targetId) {
        const { studentAirtableId: fetchedId } = await fetchStudentData(legajo);
@@ -117,7 +86,7 @@ export const fetchSolicitudes = async (legajo: string, studentAirtableId: string
     .from(C.TABLE_NAME_PPS)
     .select('*')
     .eq(C.FIELD_LEGAJO_PPS, targetId)
-    .not(C.FIELD_ESTADO_PPS, 'eq', 'Archivado') // Hide archived from active view
+    .not(C.FIELD_ESTADO_PPS, 'eq', 'Archivado')
     .order(C.COL_SOLICITUD_UPDATED_AT, { ascending: false });
 
   if (error) return [];
@@ -126,13 +95,11 @@ export const fetchSolicitudes = async (legajo: string, studentAirtableId: string
       ...row,
       id: row.id,
       createdTime: row.created_at,
-      [C.FIELD_LEGAJO_PPS]: [row.estudiante_id], 
-  })) as SolicitudPPS[];
+      [C.FIELD_LEGAJO_PPS]: row.estudiante_id, 
+  })) as unknown as SolicitudPPS[];
 };
 
 export const fetchFinalizacionRequest = async (legajo: string, studentAirtableId: string | null): Promise<FinalizacionPPS | null> => {
-  if (legajo === '99999') return null;
-  
   let targetId = studentAirtableId;
   if (!targetId) {
        const { studentAirtableId: fetchedId } = await fetchStudentData(legajo);
@@ -154,7 +121,7 @@ export const fetchFinalizacionRequest = async (legajo: string, studentAirtableId
       ...data,
       id: data.id,
       createdTime: data.created_at
-  } as FinalizacionPPS;
+  } as unknown as FinalizacionPPS;
 }
 
 export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: string | null, isSuperUserMode: boolean): Promise<{
@@ -163,17 +130,30 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
     allLanzamientos: LanzamientoPPS[],
     institutionAddressMap: Map<string, string>,
 }> => {
-  if (legajo === '99999') {
-    return Promise.resolve({
-      lanzamientos: mockLanzamientos.filter(l => l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] !== 'Oculto'),
-      myEnrollments: mockMyEnrollments,
-      allLanzamientos: mockLanzamientos,
-      institutionAddressMap: new Map(),
-    });
-  }
-  
-  // Fetch ALL launches to build a complete history for "Existing Institutions" checks.
-  // We will filter the 'lanzamientos' (displayed in UI) array in memory.
+    
+  // Define explicit type for joined result
+  type EnrollmentWithJoin = {
+      id: string;
+      created_at: string;
+      lanzamiento_id: string | null;
+      estudiante_id: string | null;
+      nombre_pps: string | null;
+      fecha_inicio: string | null;
+      fecha_finalizacion: string | null;
+      direccion: string | null;
+      orientacion: string | null;
+      horas_acreditadas: number | null;
+      lanzamiento: {
+          nombre_pps: string | null;
+          fecha_inicio: string | null;
+          fecha_finalizacion: string | null;
+          direccion: string | null;
+          orientacion: string | null;
+          horas_acreditadas: number | null;
+      } | null;
+      [key: string]: any;
+  };
+
   const [enrollmentsRes, activeLaunchesRes] = await Promise.all([
       studentAirtableId ? supabase
           .from(C.TABLE_NAME_CONVOCATORIAS)
@@ -187,21 +167,22 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
           .order(C.FIELD_FECHA_INICIO_LANZAMIENTOS, { ascending: false }),
   ]);
 
-  const myEnrollments: Convocatoria[] = (enrollmentsRes.data || []).map((row: any) => {
-      const launch = row.lanzamiento || {};
+  const myEnrollments: Convocatoria[] = (enrollmentsRes.data as unknown as EnrollmentWithJoin[] || []).map((row) => {
+      const launch = row.lanzamiento;
       return {
           ...row,
           id: row.id,
           createdTime: row.created_at,
-          [C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: [row.lanzamiento_id],
-          [C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: [row.estudiante_id],
-          [C.FIELD_NOMBRE_PPS_CONVOCATORIAS]: row.nombre_pps || launch.nombre_pps,
-          [C.FIELD_FECHA_INICIO_CONVOCATORIAS]: row.fecha_inicio || launch.fecha_inicio,
-          [C.FIELD_FECHA_FIN_CONVOCATORIAS]: row.fecha_finalizacion || launch.fecha_finalizacion,
-          [C.FIELD_DIRECCION_CONVOCATORIAS]: row.direccion || launch.direccion,
-          [C.FIELD_ORIENTACION_CONVOCATORIAS]: row.orientacion || launch.orientacion,
-          [C.FIELD_HORAS_ACREDITADAS_CONVOCATORIAS]: row.horas_acreditadas || launch.horas_acreditadas
-      } as Convocatoria;
+          [C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: row.lanzamiento_id,
+          [C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: row.estudiante_id,
+          // Prioritize row data, fallback to joined launch data
+          [C.FIELD_NOMBRE_PPS_CONVOCATORIAS]: row.nombre_pps || launch?.nombre_pps,
+          [C.FIELD_FECHA_INICIO_CONVOCATORIAS]: row.fecha_inicio || launch?.fecha_inicio,
+          [C.FIELD_FECHA_FIN_CONVOCATORIAS]: row.fecha_finalizacion || launch?.fecha_finalizacion,
+          [C.FIELD_DIRECCION_CONVOCATORIAS]: row.direccion || launch?.direccion,
+          [C.FIELD_ORIENTACION_CONVOCATORIAS]: row.orientacion || launch?.orientacion,
+          [C.FIELD_HORAS_ACREDITADAS_CONVOCATORIAS]: row.horas_acreditadas || launch?.horas_acreditadas
+      } as unknown as Convocatoria;
   });
 
   const allRawLanzamientos = (activeLaunchesRes.data || []).map((l: any) => ({
@@ -210,14 +191,12 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       createdTime: l.created_at
   } as LanzamientoPPS));
   
-  // Filter for the Student Dashboard UI (Only show Available)
   const lanzamientos = allRawLanzamientos.filter(l => 
       l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] !== 'Oculto' && 
       l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'Archivado' &&
       l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'No se Relanza'
   );
   
-  // allLanzamientos contains EVERYTHING (for duplicate checks)
   const allLanzamientos = allRawLanzamientos;
 
   const institutionAddressMap = new Map<string, string>();
@@ -235,6 +214,11 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
 export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<GroupedSeleccionados | null> => {
     const lanzamientoId = lanzamiento.id;
     if (!lanzamientoId) return null;
+
+    type SeleccionadoRow = {
+        horario_seleccionado: string | null;
+        estudiante: { nombre: string | null; legajo: string | null } | null;
+    };
 
     const { data, error } = await supabase
         .from(C.TABLE_NAME_CONVOCATORIAS)
@@ -257,9 +241,9 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
 
     const grouped: GroupedSeleccionados = {};
     
-    data.forEach((row: any) => {
+    (data as unknown as SeleccionadoRow[]).forEach((row) => {
         const horario = row.horario_seleccionado || 'No especificado';
-        // Handle JOIN response which might be an array if relationship isn't unique, or object if 1:1
+        // Handle array or single object from join depending on relationship cardinality (usually single for FK)
         const student = Array.isArray(row.estudiante) ? row.estudiante[0] : row.estudiante;
         
         if (student) {
@@ -323,7 +307,6 @@ export const autoCloseExpiredPractices = async (): Promise<number> => {
 
 export const deleteFinalizationRequest = async (id: string, record: any): Promise<{ success: boolean, error: any }> => {
     try {
-        // 1. Collect file paths
         const filesToDelete: string[] = [];
         const fileFields = [
             C.FIELD_INFORME_FINAL_FINALIZACION, 
@@ -343,8 +326,6 @@ export const deleteFinalizationRequest = async (id: string, record: any): Promis
 
                 if (Array.isArray(attachments)) {
                     attachments.forEach((att: any) => {
-                        // The URL typically looks like: .../storage/v1/object/public/documentos_finalizacion/FOLDER/FILE
-                        // We need the path AFTER the bucket name.
                         if (att.url) {
                             const urlParts = att.url.split('/documentos_finalizacion/');
                             if (urlParts.length > 1) {
@@ -356,7 +337,6 @@ export const deleteFinalizationRequest = async (id: string, record: any): Promis
             }
         });
 
-        // 2. Delete files from Storage
         if (filesToDelete.length > 0) {
             const { error: storageError } = await supabase.storage
                 .from('documentos_finalizacion')
@@ -364,11 +344,9 @@ export const deleteFinalizationRequest = async (id: string, record: any): Promis
             
             if (storageError) {
                 console.error("Error removing files from storage:", storageError);
-                // We continue to delete the record even if storage deletion fails partially
             }
         }
 
-        // 3. Delete Record
         await db.finalizacion.delete(id);
         return { success: true, error: null };
 

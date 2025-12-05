@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGestionConvocatorias } from '../hooks/useGestionConvocatorias';
 import {
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
@@ -11,6 +11,49 @@ import Toast from './Toast';
 import EmptyState from './EmptyState';
 import GestionCard from './GestionCard';
 import CollapsibleSection from './CollapsibleSection';
+
+const ITEMS_PER_PAGE = 9;
+
+const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChange: (page: number) => void }> = ({ currentPage, totalPages, onPageChange }) => {
+    if (totalPages <= 1) return null;
+    return (
+        <div className="flex justify-center items-center gap-4 mt-4">
+            <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50">
+                <span className="material-icons !text-lg">chevron_left</span>
+            </button>
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                Página {currentPage} de {totalPages}
+            </span>
+            <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50">
+                <span className="material-icons !text-lg">chevron_right</span>
+            </button>
+        </div>
+    );
+};
+
+const PaginatedGrid: React.FC<{ items: any[]; renderItem: (item: any) => React.ReactNode }> = ({ items, renderItem }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    
+    const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+    const paginatedItems = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return items.slice(start, start + ITEMS_PER_PAGE);
+    }, [items, currentPage]);
+    
+    // Reset page when items change drastically
+    useMemo(() => {
+         if (currentPage > totalPages && totalPages > 0) setCurrentPage(1);
+    }, [totalPages, currentPage]);
+
+    return (
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
+                {paginatedItems.map(renderItem)}
+            </div>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        </>
+    );
+};
 
 interface ConvocatoriaManagerProps {
   forcedOrientations?: string[];
@@ -27,8 +70,6 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
         updatingIds,
         searchTerm,
         setSearchTerm,
-        // orientationFilter,
-        // setOrientationFilter,
         isSyncing,
         isLinking,
         handleSave,
@@ -66,8 +107,9 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
             </div>
 
              {filteredData.activasYPorFinalizar.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {filteredData.activasYPorFinalizar.map(pps => (
+                <PaginatedGrid 
+                    items={filteredData.activasYPorFinalizar}
+                    renderItem={(pps) => (
                         <GestionCard 
                             key={pps.id} 
                             pps={pps} 
@@ -77,8 +119,8 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
                             institution={institutionsMap.get(normalizeStringForComparison(pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || ''))} 
                             onSavePhone={handleUpdateInstitutionPhone} 
                         />
-                    ))}
-                </div>
+                    )}
+                />
             )}
 
             {filteredData.activasIndefinidas.length > 0 && (
@@ -90,8 +132,9 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
                     iconColor="text-slate-600 dark:text-slate-300"
                     borderColor="border-slate-300 dark:border-slate-600"
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
-                         {filteredData.activasIndefinidas.map(pps => (
+                     <PaginatedGrid 
+                        items={filteredData.activasIndefinidas}
+                        renderItem={(pps) => (
                             <GestionCard 
                                 key={pps.id} 
                                 pps={pps} 
@@ -101,8 +144,8 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
                                 institution={institutionsMap.get(normalizeStringForComparison(pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || ''))} 
                                 onSavePhone={handleUpdateInstitutionPhone} 
                             />
-                        ))}
-                    </div>
+                        )}
+                    />
                 </CollapsibleSection>
             )}
 
@@ -115,8 +158,9 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
                     iconColor="text-indigo-600 dark:text-indigo-300"
                     borderColor="border-indigo-300 dark:border-indigo-600"
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
-                        {filteredData.relanzamientosConfirmados.map(pps => (
+                    <PaginatedGrid 
+                        items={filteredData.relanzamientosConfirmados}
+                        renderItem={(pps) => (
                             <GestionCard 
                                 key={pps.id} 
                                 pps={pps} 
@@ -126,8 +170,8 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
                                 institution={institutionsMap.get(normalizeStringForComparison(pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || ''))} 
                                 onSavePhone={handleUpdateInstitutionPhone} 
                             />
-                        ))}
-                    </div>
+                        )}
+                    />
                 </CollapsibleSection>
             )}
 
@@ -141,8 +185,9 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
                     borderColor="border-slate-300 dark:border-slate-700"
                     defaultOpen={false}
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
-                        {filteredData.finalizadasParaReactivar.map(pps => (
+                    <PaginatedGrid 
+                        items={filteredData.finalizadasParaReactivar}
+                        renderItem={(pps) => (
                             <GestionCard 
                                 key={pps.id} 
                                 pps={pps} 
@@ -152,8 +197,8 @@ const ConvocatoriaManager: React.FC<ConvocatoriaManagerProps> = ({ forcedOrienta
                                 institution={institutionsMap.get(normalizeStringForComparison(pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || ''))} 
                                 onSavePhone={handleUpdateInstitutionPhone} 
                             />
-                        ))}
-                    </div>
+                        )}
+                    />
                 </CollapsibleSection>
             )}
 

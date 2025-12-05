@@ -428,6 +428,7 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
                 
                 if (!rpcError && rpcData) {
                     console.log("✅ Métricas obtenidas vía RPC (SQL Server-Side)");
+                    // Map simple JSON to shape if needed, assuming RPC returns exact shape
                     return rpcData;
                 }
 
@@ -437,7 +438,7 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
                     if (!rpcError.message.includes('does not exist') && !rpcError.message.includes('not found')) {
                          console.warn("⚠️ RPC Error (falling back to client-side):", rpcError);
                     } else {
-                         console.log("ℹ️ RPC no encontrada, usando cálculo en cliente.");
+                         console.log("ℹ️ RPC no encontrada (get_dashboard_metrics), usando cálculo en cliente.");
                     }
                 }
             } catch (err) {
@@ -445,11 +446,11 @@ export const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYe
             }
 
             // 2. Fallback to Client-Side calculation (Legacy but reliable)
-            console.log("🔄 Ejecutando cálculo de métricas en el cliente...");
+            console.log("🔄 Ejecutando cálculo de métricas en el cliente (Fallback)...");
             const allData = await fetchAllDataForReport();
             return calculateClientSideMetrics(allData, targetYear);
         },
-        staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+        staleTime: 1000 * 60 * 15, // Increase cache to 15 minutes for metrics
         refetchOnWindowFocus: false
     });
 };

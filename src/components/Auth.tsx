@@ -7,6 +7,12 @@ import { useModal } from '../contexts/ModalContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Input from './Input';
 import { useAuthLogic } from '../hooks/useAuthLogic';
+import { 
+    FIELD_NOMBRE_ESTUDIANTES, 
+    FIELD_NOMBRE_SEPARADO_ESTUDIANTES, 
+    FIELD_APELLIDO_SEPARADO_ESTUDIANTES 
+} from '../constants';
+import { toTitleCase } from '../utils/formatters';
 
 const Auth: React.FC = () => {
   const { login } = useAuth();
@@ -16,25 +22,36 @@ const Auth: React.FC = () => {
   const {
       mode, setMode,
       migrationStep, setMigrationStep,
-      resetStep, // Nuevo paso para recovery
+      registerStep, setRegisterStep,
+      resetStep,
       legajo, setLegajo,
       password, setPassword,
       confirmPassword, setConfirmPassword,
       rememberMe, setRememberMe,
       isLoading, error, fieldError,
       verificationData, handleVerificationDataChange,
-      handleFormSubmit
+      handleFormSubmit,
+      foundStudent
   } = useAuthLogic({ login, showModal });
   
   const [showPassword, setShowPassword] = useState(false);
 
   const handleModeChange = (newMode: 'login' | 'register' | 'forgot' | 'reset' | 'migration' | 'recover') => {
     setMode(newMode);
-    if (newMode !== 'reset' && newMode !== 'migration' && newMode !== 'recover') {
+    if (newMode !== 'reset' && newMode !== 'migration' && newMode !== 'recover' && newMode !== 'register') {
         setLegajo('');
         setPassword('');
         setConfirmPassword('');
     }
+  };
+
+  // Helper para mostrar el nombre en modo registro
+  const getDisplayName = () => {
+      if (!foundStudent) return '';
+      const nombre = foundStudent[FIELD_NOMBRE_SEPARADO_ESTUDIANTES];
+      const apellido = foundStudent[FIELD_APELLIDO_SEPARADO_ESTUDIANTES];
+      if (nombre && apellido) return toTitleCase(`${nombre} ${apellido}`);
+      return toTitleCase(foundStudent[FIELD_NOMBRE_ESTUDIANTES] || '');
   };
 
   const renderLoginRegister = () => (
@@ -48,71 +65,156 @@ const Auth: React.FC = () => {
       
       <div className="p-1 bg-slate-100 dark:bg-slate-900/50 rounded-lg flex items-center mb-8 ring-1 ring-slate-200/50 dark:ring-slate-700 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
         <button onClick={() => handleModeChange('login')} className={`w-full py-2.5 text-sm font-semibold rounded-md transition-all duration-300 ${mode === 'login' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-700 dark:hover:text-slate-200'}`}>Iniciar Sesión</button>
-        <button disabled className={`w-full py-2.5 text-sm font-semibold rounded-md transition-all duration-300 opacity-50 cursor-not-allowed text-slate-500 dark:text-slate-400`}>Crear Usuario</button>
+        <button onClick={() => handleModeChange('register')} className={`w-full py-2.5 text-sm font-semibold rounded-md transition-all duration-300 ${mode === 'register' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-700 dark:hover:text-slate-200'}`}>Crear Usuario</button>
       </div>
 
       <form onSubmit={handleFormSubmit} className="space-y-5">
-        <div className="animate-fade-in-up" style={{ animationDelay: '700ms' }}>
-          <label htmlFor="legajo" className="sr-only">Número de Legajo</label>
-          <div className="relative">
-            <Input 
-                id="legajo" 
-                type="text" 
-                value={legajo} 
-                onChange={(e) => setLegajo(e.target.value)} 
-                placeholder="Número de Legajo" 
-                icon="badge" 
-                disabled={isLoading} 
-                autoComplete="username"
-                className="bg-white dark:bg-slate-900"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
-          <div className="relative">
-            <label htmlFor="password" className="sr-only">Contraseña</label>
-            <Input 
-                id="password" 
-                type={showPassword ? 'text' : 'password'} 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="Contraseña" 
-                icon="lock" 
-                disabled={isLoading} 
-                autoComplete="current-password"
-                className={`bg-white dark:bg-slate-900 ${fieldError === 'password' ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
-            />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
-              <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between animate-fade-in-up" style={{ animationDelay: '950ms' }}>
-            <label htmlFor="remember-me" className="flex items-center gap-2 cursor-pointer select-none group">
-                <input id="remember-me" name="remember-me" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} disabled={isLoading} className="sr-only"/>
-                <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ease-in-out ${rememberMe ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500' : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800'} group-hover:border-blue-500`}>
-                    <span className={`material-icons !text-sm text-white transition-transform duration-200 ease-in-out ${rememberMe ? 'scale-100' : 'scale-0'}`}>check</span>
+        {mode === 'register' && registerStep === 2 ? (
+            // --- STEP 2: REGISTER FORM ---
+            <div className="space-y-4 animate-fade-in">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+                    <p className="text-xs text-blue-600 dark:text-blue-300 font-bold uppercase">Hola,</p>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">{getDisplayName()}</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Completa tus datos para finalizar el registro.</p>
                 </div>
-                <span className="text-sm font-medium text-slate-800 dark:text-slate-300">Recordarme</span>
-            </label>
-            
-            {/* Enlace de recuperación (siempre visible o condicional según error) */}
-            <button 
-                type="button"
-                onClick={() => handleModeChange('recover')}
-                className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-            >
-                ¿Olvidaste tu contraseña?
-            </button>
-        </div>
+
+                <Input 
+                    name="dni" 
+                    type="text" 
+                    placeholder="Tu DNI (sin puntos)" 
+                    icon="fingerprint" 
+                    value={verificationData.dni} 
+                    onChange={handleVerificationDataChange} 
+                    disabled={isLoading} 
+                    inputMode="numeric" 
+                    className="bg-white dark:bg-slate-900"
+                />
+                <Input 
+                    name="correo" 
+                    type="email" 
+                    placeholder="Correo electrónico personal" 
+                    icon="email" 
+                    value={verificationData.correo} 
+                    onChange={handleVerificationDataChange} 
+                    disabled={isLoading} 
+                    className="bg-white dark:bg-slate-900"
+                />
+                <Input 
+                    name="telefono" 
+                    type="tel" 
+                    placeholder="Teléfono celular" 
+                    icon="smartphone" 
+                    value={verificationData.telefono} 
+                    onChange={handleVerificationDataChange} 
+                    disabled={isLoading} 
+                    className="bg-white dark:bg-slate-900"
+                />
+                <div className="relative">
+                    <Input 
+                        id="new-password" 
+                        type={showPassword ? 'text' : 'password'} 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        placeholder="Crear contraseña (mín. 6 caracteres)" 
+                        icon="lock" 
+                        disabled={isLoading}
+                        className="bg-white dark:bg-slate-900"
+                    />
+                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                        <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                </div>
+                <Input 
+                    id="confirm-password" 
+                    type={showPassword ? 'text' : 'password'} 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                    placeholder="Repetir contraseña" 
+                    icon="lock_reset" 
+                    disabled={isLoading}
+                    className="bg-white dark:bg-slate-900"
+                />
+            </div>
+        ) : (
+            // --- STEP 1 (LOGIN & REGISTER): LEGAJO INPUT ---
+            <>
+                <div className="animate-fade-in-up" style={{ animationDelay: '700ms' }}>
+                  <label htmlFor="legajo" className="sr-only">Número de Legajo</label>
+                  <div className="relative">
+                    <Input 
+                        id="legajo" 
+                        type="text" 
+                        value={legajo} 
+                        onChange={(e) => setLegajo(e.target.value)} 
+                        placeholder="Número de Legajo" 
+                        icon="badge" 
+                        disabled={isLoading} 
+                        autoComplete="username"
+                        className="bg-white dark:bg-slate-900"
+                        autoFocus
+                    />
+                  </div>
+                </div>
+
+                {mode === 'login' && (
+                    <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
+                      <div className="relative">
+                        <label htmlFor="password" className="sr-only">Contraseña</label>
+                        <Input 
+                            id="password" 
+                            type={showPassword ? 'text' : 'password'} 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)} 
+                            placeholder="Contraseña" 
+                            icon="lock" 
+                            disabled={isLoading} 
+                            autoComplete="current-password"
+                            className={`bg-white dark:bg-slate-900 ${fieldError === 'password' ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                          <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                        </button>
+                      </div>
+                    </div>
+                )}
+
+                {mode === 'login' && (
+                    <div className="flex items-center justify-between animate-fade-in-up" style={{ animationDelay: '950ms' }}>
+                        <label htmlFor="remember-me" className="flex items-center gap-2 cursor-pointer select-none group">
+                            <input id="remember-me" name="remember-me" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} disabled={isLoading} className="sr-only"/>
+                            <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ease-in-out ${rememberMe ? 'border-blue-600 bg-blue-600 dark:border-blue-500 dark:bg-blue-500' : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800'} group-hover:border-blue-500`}>
+                                <span className={`material-icons !text-sm text-white transition-transform duration-200 ease-in-out ${rememberMe ? 'scale-100' : 'scale-0'}`}>check</span>
+                            </div>
+                            <span className="text-sm font-medium text-slate-800 dark:text-slate-300">Recordarme</span>
+                        </label>
+                        
+                        <button 
+                            type="button"
+                            onClick={() => handleModeChange('recover')}
+                            className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                        >
+                            ¿Olvidaste tu contraseña?
+                        </button>
+                    </div>
+                )}
+            </>
+        )}
         
         <div className="pt-4 animate-fade-in-up" style={{ animationDelay: '1000ms' }}>
           <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white font-bold text-base py-3 px-6 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 flex items-center justify-center gap-3">
             {isLoading && <div className="border-2 border-white/50 border-t-white rounded-full w-5 h-5 animate-spin"></div>}
-            <span>Ingresar</span>
+            <span>{mode === 'login' ? 'Ingresar' : (registerStep === 1 ? 'Validar Legajo' : 'Registrarme')}</span>
           </button>
+          
+          {mode === 'register' && registerStep === 2 && (
+               <button 
+                 type="button"
+                 onClick={() => setRegisterStep(1)}
+                 className="w-full mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+               >
+                   Volver
+               </button>
+          )}
         </div>
       </form>
     </>
@@ -329,7 +431,7 @@ const Auth: React.FC = () => {
 
       <div className="flex flex-col items-center justify-center p-6 sm:p-10 min-h-full dark:bg-[#0B1120]">
         <main className="w-full max-w-md">
-            {mode === 'login' ? renderLoginRegister() :
+            {mode === 'login' || mode === 'register' ? renderLoginRegister() :
              mode === 'migration' ? renderMigration() :
              mode === 'recover' ? renderRecover() :
              null
