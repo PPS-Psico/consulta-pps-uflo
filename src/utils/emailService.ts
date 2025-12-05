@@ -48,8 +48,6 @@ Nos complace informarte que has sido seleccionado/a para realizar tu Práctica P
 
 💡 Recomendaciones para tu Práctica
 
-Para aprovechar al máximo esta experiencia y representar a la Universidad de la mejor manera, te sugerimos tener en cuenta lo siguiente:
-
 **Puntualidad y Asistencia:** La puntualidad es la primera señal de compromiso profesional. Si surge un imprevisto de fuerza mayor, avisá con la mayor antelación posible tanto a la institución como a la Universidad. Recordá que faltar sin previo aviso es motivo suficiente de suspensión de la PPS.
 
 **Ética y Confidencialidad:** Vas a trabajar con personas y, en muchos casos, con información sensible. El secreto profesional y el respeto por la privacidad son fundamentales desde el primer momento.
@@ -104,9 +102,6 @@ interface EmailData {
     notes?: string;
 }
 
-/**
- * Incrementa el contador local de correos (solo para referencia visual en UI).
- */
 const incrementCounter = () => {
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
@@ -124,8 +119,130 @@ const incrementCounter = () => {
 };
 
 /**
+ * Genera un HTML profesional y responsivo (Estrategia Premium).
+ * Detecta bloques, saludos e íconos para construir una "Tarjeta Digital".
+ */
+export const generateHtmlTemplate = (textBody: string, title: string = "Comunicación UFLO"): string => {
+    // 1. Limpieza inicial
+    let safeText = textBody
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    // 2. Extracción Agresiva del Saludo
+    // Busca líneas que empiecen con Hola/Estimado, permitiendo espacios antes
+    const greetingRegex = /^\s*(Hola|Estimado|Estimada|Buenas|Buen día)(.*?)(\n|$)/im;
+    const greetingMatch = safeText.match(greetingRegex);
+    
+    let subHeaderHtml = '';
+    
+    if (greetingMatch) {
+        // Extraemos el saludo completo (ej: "Hola Juan,")
+        const greetingText = greetingMatch[0].trim();
+        subHeaderHtml = `<h2 style="margin: 0; color: #3b82f6; font-size: 20px; font-weight: 600; line-height: 1.4;">${greetingText}</h2>`;
+        
+        // Lo eliminamos del cuerpo para evitar duplicados
+        safeText = safeText.replace(greetingMatch[0], '').trim();
+    }
+
+    // 3. Procesamiento de Bloques Especiales (**Titulo:** Contenido)
+    // Convertimos bloques de texto markdown-style en tarjetas de alerta visuales.
+    // Usamos split para procesar por párrafos y detectar bloques
+    const lines = safeText.split(/\n+/); // Split por uno o más saltos de línea
+    let processedBody = '';
+    
+    lines.forEach(line => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return;
+
+        // Detectar bloques destacados: **Titulo:** Contenido
+        const blockMatch = trimmedLine.match(/^\*\*(.*?)\*\*[:]?\s*(.*)/);
+        
+        if (blockMatch) {
+            // Es un bloque destacado
+            const blockTitle = blockMatch[1].trim();
+            const blockContent = blockMatch[2].trim();
+            
+            processedBody += `
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 15px 0; background-color: #f1f5f9; border-left: 4px solid #2563eb; border-radius: 4px;">
+                <tr>
+                    <td style="padding: 15px;">
+                        <strong style="display: block; color: #1e3a8a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">${blockTitle}</strong>
+                        <span style="color: #334155; font-size: 14px; line-height: 1.5;">${blockContent}</span>
+                    </td>
+                </tr>
+            </table>`;
+        } else if (trimmedLine.match(/^([📍🗓️💡👉])\s*(.*)/)) {
+            // Es una lista con íconos
+            const iconMatch = trimmedLine.match(/^([📍🗓️💡👉])\s*(.*)/);
+            if (iconMatch) {
+                processedBody += `
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 8px;">
+                    <tr>
+                        <td valign="top" width="24" style="font-size: 18px; line-height: 1;">${iconMatch[1]}</td>
+                        <td valign="top" style="font-size: 14px; color: #475569; line-height: 1.5;">${iconMatch[2]}</td>
+                    </tr>
+                </table>`;
+            }
+        } else if (trimmedLine.match(/^(Saludos|Atentamente|Cariños|Blas|Coordinador|Licenciatura)/i)) {
+            // Es parte de la firma
+            processedBody += `<div style="color: #64748b; font-size: 13px; line-height: 1.4; margin-top: 4px;">${trimmedLine}</div>`;
+        } else {
+            // Párrafo normal con negritas inline
+            const paragraphWithBold = trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #0f172a;">$1</strong>');
+            processedBody += `<p style="margin: 0 0 12px 0; font-size: 15px; line-height: 1.6; color: #334155;">${paragraphWithBold}</p>`;
+        }
+    });
+
+    // Agregar separador visual antes de la firma si detectamos "Saludos" o similar
+    processedBody = processedBody.replace(
+        /(<div.*?>(Saludos|Atentamente).*?<\/div>)/i,
+        '<div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px; margin-bottom: 10px;"></div>$1'
+    );
+
+    // 7. Estructura Maestra (Table-based layout)
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <center style="width: 100%; background-color: #f8fafc; padding: 40px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); max-width: 600px; width: 100%;">
+            <!-- Header Azul UFLO -->
+            <tr>
+                <td style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 30px 40px; text-align: center;">
+                     <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">${title}</h1>
+                </td>
+            </tr>
+            
+            <!-- Cuerpo Principal -->
+            <tr>
+                <td style="padding: 40px;">
+                    ${subHeaderHtml}
+                    <div style="height: 20px;"></div>
+                    ${processedBody}
+                </td>
+            </tr>
+
+            <!-- Footer Gris -->
+            <tr>
+                <td style="background-color: #f1f5f9; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+                    <p style="margin: 0; color: #64748b; font-size: 12px; font-weight: 600;">Universidad de Flores - Comahue</p>
+                    <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 11px;">Panel de Gestión Académica de PPS</p>
+                </td>
+            </tr>
+        </table>
+    </center>
+</body>
+</html>
+    `;
+}
+
+/**
  * Envía un correo utilizando la infraestructura interna de Supabase (Edge Function).
- * Ya no depende de EmailJS en el cliente.
  */
 export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): Promise<{ success: boolean; message?: string }> => {
     // 1. Verificar si la automatización está activa localmente
@@ -140,22 +257,19 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
         return { success: false, message: 'El alumno no tiene email registrado.' };
     }
 
-    // 2. Obtener Plantilla (Asunto y Cuerpo)
-    // Priority: 1. Custom saved in localStorage -> 2. Specific Default -> 3. Generic Fallback
+    // 2. Obtener Plantilla
     const specificDefault = DEFAULT_TEMPLATES[scenario];
-    
     const storedSubject = localStorage.getItem(configKeys.subject) || specificDefault.subject;
     const storedBody = localStorage.getItem(configKeys.body) || specificDefault.body;
 
-    // 3. Reemplazar Variables en el Cliente
+    // 3. Reemplazar Variables en Texto Plano
     let finalSubject = storedSubject;
-    let finalBody = storedBody;
+    let textBody = storedBody;
     
-    // Reemplazos comunes
     finalSubject = finalSubject.replace(/{{nombre_pps}}/g, data.ppsName || '');
     finalSubject = finalSubject.replace(/{{institucion}}/g, data.institution || '');
     
-    finalBody = finalBody
+    textBody = textBody
         .replace(/{{nombre_alumno}}/g, data.studentName)
         .replace(/{{nombre_pps}}/g, data.ppsName || '')
         .replace(/{{horario}}/g, data.schedule || '')
@@ -163,14 +277,22 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
         .replace(/{{estado_nuevo}}/g, data.newState || '')
         .replace(/{{notas}}/g, data.notes || '');
 
-    // 4. Invocar Función Interna de Supabase
+    // 4. Generar HTML Premium
+    const emailTitle = scenario === 'seleccion' ? 'Asignación de Práctica' : scenario === 'sac' ? 'Acreditación Finalizada' : 'Novedades de tu Solicitud';
+    const htmlBody = generateHtmlTemplate(textBody, emailTitle);
+
+    console.log(`[Email Debug] Enviando a: ${data.studentEmail}`);
+    console.log(`[Email Debug] HTML Generado (primeros 100 chars):`, htmlBody.substring(0, 100));
+
+    // 5. Invocar Función Interna
     try {
         const { error } = await supabase.functions.invoke('send-email', {
             body: {
                 to: data.studentEmail,
                 subject: finalSubject,
-                text: finalBody, // Enviamos como texto plano, la función puede envolverlo en HTML si se desea
-                name: data.studentName
+                text: textBody, 
+                html: htmlBody,
+                name: "Administrador" 
             }
         });
 

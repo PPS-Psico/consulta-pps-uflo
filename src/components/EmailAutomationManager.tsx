@@ -11,6 +11,7 @@ import {
     KEY_SAC_SUBJECT, KEY_SAC_BODY, KEY_SAC_ACTIVE,
     KEY_EMAIL_COUNT, KEY_EMAIL_MONTH
 } from '../constants';
+import { generateHtmlTemplate } from '../utils/emailService';
 
 interface AutomationScenario {
     id: string;
@@ -50,8 +51,6 @@ Nos complace informarte que has sido seleccionado/a para realizar tu Práctica P
 🗓️ Horario/Comisión asignada: {{horario}}
 
 💡 Recomendaciones para tu Práctica
-
-Para aprovechar al máximo esta experiencia y representar a la Universidad de la mejor manera, te sugerimos tener en cuenta lo siguiente:
 
 **Puntualidad y Asistencia:** La puntualidad es la primera señal de compromiso profesional. Si surge un imprevisto de fuerza mayor, avisá con la mayor antelación posible tanto a la institución como a la Universidad. Recordá que faltar sin previo aviso es motivo suficiente de suspensión de la PPS.
 
@@ -165,18 +164,37 @@ const EmailAutomationManager: React.FC = () => {
 
         setIsSendingTest(true);
         try {
+            // Obtenemos la plantilla ACTUAL (si se ha editado, usamos la editada, si no, la default)
+            const selectionScenario = SCENARIOS[0]; // Usamos 'seleccion' como ejemplo base
+            const savedBody = localStorage.getItem(selectionScenario.storageKeys.body) || selectionScenario.defaultBody;
+            const savedSubject = localStorage.getItem(selectionScenario.storageKeys.subject) || selectionScenario.defaultSubject;
+
+            const textBody = savedBody
+                .replace('{{nombre_alumno}}', 'Estudiante de Prueba')
+                .replace('{{nombre_pps}}', 'Clínica Demo UFLO')
+                .replace('{{horario}}', 'Lunes 14hs');
+
+            const subject = savedSubject
+                .replace('{{nombre_pps}}', 'Clínica Demo');
+
+            // Generamos el HTML usando el nuevo servicio unificado
+            const htmlBody = generateHtmlTemplate(textBody, "Asignación de Práctica");
+
+            console.log("HTML Generated for Test:", htmlBody);
+
             const { error } = await supabase.functions.invoke('send-email', {
                 body: {
                     to: testEmail,
-                    subject: "Prueba de Sistema de Correo Interno - UFLO",
-                    text: "Este es un correo de prueba enviado desde tu nueva infraestructura interna en Supabase (Vía Nodemailer/Gmail). \n\nSi lees esto, el sistema funciona correctamente y puedes enviar correos a los alumnos.",
-                    name: "Administrador"
+                    subject: `[PRUEBA] ${subject}`,
+                    text: textBody,
+                    html: htmlBody,
+                    name: "Administrador" // Mandatory
                 }
             });
 
             if (error) throw error;
 
-            setToastInfo({ message: 'Correo de prueba enviado exitosamente.', type: 'success' });
+            setToastInfo({ message: 'Correo de prueba enviado. Verifica tu bandeja de entrada (y Spam).', type: 'success' });
         } catch (error: any) {
             console.error("Error sending test:", error);
             setToastInfo({ message: `Fallo el envío: ${error.message || 'Error desconocido'}`, type: 'error' });
@@ -234,7 +252,7 @@ const EmailAutomationManager: React.FC = () => {
                     <div>
                         <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Servidor de Correo Activo</h3>
                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                            El sistema está configurado para enviar correos ilimitados a estudiantes utilizando tu servidor SMTP.
+                            El sistema está configurado para enviar correos ilimitados con formato HTML profesional (Tarjeta Digital).
                         </p>
                     </div>
                 </div>
@@ -245,7 +263,7 @@ const EmailAutomationManager: React.FC = () => {
                     <div>
                         <h4 className="font-bold text-emerald-800 dark:text-emerald-400 text-sm">Configuración Correcta</h4>
                         <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1 leading-relaxed">
-                            Ya puedes usar las automatizaciones. Los correos saldrán desde tu cuenta de Gmail configurada hacia cualquier destinatario.
+                            Ya puedes usar las automatizaciones. Los correos se enviarán con el diseño institucional de UFLO.
                         </p>
                     </div>
                 </div>
@@ -258,7 +276,7 @@ const EmailAutomationManager: React.FC = () => {
                                 <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="cualquier_correo@ejemplo.com" className="text-sm" />
                         </div>
                         <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
-                            {isSendingTest ? 'Enviando...' : 'Probar Envío'}
+                            {isSendingTest ? 'Enviando...' : 'Probar Diseño'}
                         </Button>
                     </div>
                 </div>
@@ -316,7 +334,7 @@ const EmailAutomationManager: React.FC = () => {
                                             </div>
                                             <div>
                                                 <div className="flex justify-between items-center mb-1.5">
-                                                     <label className="block text-xs font-bold text-slate-500 uppercase">Cuerpo del Mensaje</label>
+                                                     <label className="block text-xs font-bold text-slate-500 uppercase">Cuerpo del Mensaje (Soporta **negrita** para títulos)</label>
                                                      <div className="flex gap-1">
                                                          {scenario.variables.map(v => (
                                                              <button 
@@ -329,6 +347,9 @@ const EmailAutomationManager: React.FC = () => {
                                                              </button>
                                                          ))}
                                                      </div>
+                                                </div>
+                                                <div className="text-xs text-slate-400 mb-2 px-2 border-l-2 border-blue-200">
+                                                    Tip: Usa el formato <strong>**Título:**</strong> para crear bloques destacados automáticamente.
                                                 </div>
                                                 <textarea 
                                                     id="body-editor"
