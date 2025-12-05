@@ -479,6 +479,16 @@ export interface Database {
            user_id: string
         }[]
       }
+      register_new_student: {
+        Args: {
+          legajo_input: string
+          userid_input: string
+          dni_input: number
+          correo_input: string
+          telefono_input: string
+        }
+        Returns: undefined
+      }
       mark_password_changed: {
         Args: Record<string, never>
         Returns: undefined
