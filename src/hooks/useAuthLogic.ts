@@ -136,7 +136,8 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                 const hasAuthUser = !!studentData[FIELD_USER_ID_ESTUDIANTES];
 
                 if (!email) {
-                     throw new Error('Tu legajo no tiene un correo asociado. Contacta a soporte.');
+                    // Mensaje mejorado para guiar al usuario a la reparación
+                    throw new Error('Tu usuario parece incompleto. Por favor, ve a "Crear Usuario" e ingresa tus datos nuevamente para reparar el vínculo.');
                 }
 
                 // 2. Intentamos login
@@ -209,29 +210,56 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     }
 
                     const inputEmail = correo.trim().toLowerCase();
+                    let userIdToLink = null;
 
-                    // Crear usuario en Auth
+                    // Intentar Crear usuario en Auth
                     const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
                         email: inputEmail,
                         password: password,
                         options: { data: { legajo: legajoTrimmed, nombre: foundStudent?.[FIELD_NOMBRE_ESTUDIANTES] } }
                     });
 
-                    if (signUpError) throw signUpError;
+                    if (signUpError) {
+                        // AUTORREPARACIÓN: Si el usuario ya existe en Auth pero llegó hasta aquí (user_id null en DB),
+                        // intentamos loguearlo para verificar que es él, y si pasa, enlazamos la cuenta.
+                        if (signUpError.message.includes('already registered') || signUpError.message.includes('unique constraint')) {
+                            console.log("Usuario existe en Auth, intentando vincular...");
+                            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                                email: inputEmail,
+                                password: password
+                            });
 
-                    if (authData.user) {
-                        // Actualizar registro de estudiante con los datos completados
-                        await db.estudiantes.update(foundStudent!.id, {
-                            [FIELD_USER_ID_ESTUDIANTES]: authData.user.id,
-                            [FIELD_DNI_ESTUDIANTES]: parseInt(dni, 10),
-                            [FIELD_CORREO_ESTUDIANTES]: inputEmail,
-                            [FIELD_TELEFONO_ESTUDIANTES]: telefono,
-                            [FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES]: false,
-                        } as any);
+                            if (signInError) {
+                                throw new Error("Ya existe una cuenta con este correo pero la contraseña no coincide. Si olvidaste tu clave, usa 'Recuperar Contraseña'.");
+                            }
+                            
+                            if (signInData.user) {
+                                userIdToLink = signInData.user.id;
+                            }
+                        } else {
+                            throw signUpError;
+                        }
+                    } else if (authData.user) {
+                        userIdToLink = authData.user.id;
+                    }
+
+                    if (userIdToLink) {
+                        // Actualizar registro de estudiante usando la función SEGURA (RPC) para evitar errores RLS
+                        const { error: rpcUpdateError } = await supabase.rpc('register_new_student', {
+                            legajo_input: legajoTrimmed,
+                            userid_input: userIdToLink,
+                            dni_input: parseInt(dni, 10),
+                            correo_input: inputEmail,
+                            telefono_input: telefono
+                        });
+
+                        if (rpcUpdateError) {
+                            throw new Error("Error al vincular tu cuenta: " + rpcUpdateError.message);
+                        }
 
                         // Auto-login
                         login({
-                            id: authData.user.id,
+                            id: userIdToLink,
                             legajo: String(legajoTrimmed),
                             nombre: String(foundStudent![FIELD_NOMBRE_ESTUDIANTES]),
                             orientaciones: [],
