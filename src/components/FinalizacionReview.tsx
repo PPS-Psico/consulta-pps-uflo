@@ -290,12 +290,21 @@ const RequestListItem: React.FC<{
         setIsDownloadingZip(true);
         try {
             const zip = new JSZip();
+<<<<<<< HEAD
             
             // Ensure we are working with strings safely
             const rawName = request.studentName;
             const rawLegajo = request.studentLegajo;
             const sName = typeof rawName === 'string' ? rawName : 'Estudiante';
             const sLegajo = rawLegajo ? String(rawLegajo) : 'SinLegajo';
+=======
+            // Safe string conversion for any type with fallbacks
+            const nameVal = request.studentName || 'Estudiante';
+            const sName = typeof nameVal === 'string' ? nameVal : String(nameVal);
+            
+            const legajoVal = request.studentLegajo || 'SinLegajo';
+            const sLegajo = typeof legajoVal === 'string' ? legajoVal : String(legajoVal);
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
             
             const folderName = `Acreditacion_${sName.replace(/\s+/g, '_')}_${sLegajo}`;
             
@@ -307,6 +316,7 @@ const RequestListItem: React.FC<{
                 try {
                     // Use cached blob if available
                     const cachedUrl = cachedBlobs[file.url];
+<<<<<<< HEAD
                     let blob: Blob;
                     
                     if (cachedUrl) {
@@ -318,6 +328,18 @@ const RequestListItem: React.FC<{
                         blob = await response.blob();
                     }
                     folder.file(file.filename, blob);
+=======
+                    if (cachedUrl) {
+                         const response = await fetch(cachedUrl);
+                         const blob = await response.blob();
+                         folder.file(file.filename, blob);
+                    } else {
+                        const response = await fetch(file.url);
+                        if (!response.ok) throw new Error('Network error');
+                        const blob = await response.blob();
+                        folder.file(file.filename, blob);
+                    }
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
                 } catch (err: any) {
                     const e = err as Error;
                     console.error(`Error downloading ${file.filename}`, e);
@@ -410,6 +432,7 @@ const RequestListItem: React.FC<{
                                 {planillaHoras.length > 0 ? planillaHoras.map((file, idx) => (
                                     <button key={idx} onClick={(e) => handlePreview(e, 'horas', idx)} className="w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-gray-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-200 dark:border-gray-700 transition-colors group text-left">
                                         <span className="material-icons !text-lg text-slate-400 group-hover:text-blue-500">table_view</span>
+<<<<<<< HEAD
                                         <span className="text-xs font-medium truncate flex-1 text-slate-600 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300">{file.filename}</span>
                                         <span className="material-icons !text-sm text-slate-300 group-hover:text-blue-400">visibility</span>
                                     </button>
@@ -479,6 +502,66 @@ const RequestListItem: React.FC<{
                                 </div>
                             </div>
                         )}
+=======
+                                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{file.filename}</span>
+                                    </button>
+                                )) : <span className="text-xs text-slate-400 italic">No adjunto</span>}
+                            </div>
+                            <div className="space-y-2">
+                                <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Informes</h5>
+                                {informes.length > 0 ? informes.map((file, idx) => (
+                                    <button key={idx} onClick={(e) => handlePreview(e, 'informe', idx)} className="w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-gray-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-200 dark:border-gray-700 transition-colors group text-left">
+                                        <span className="material-icons !text-lg text-slate-400 group-hover:text-blue-500">description</span>
+                                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{file.filename}</span>
+                                    </button>
+                                )) : <span className="text-xs text-slate-400 italic">No adjunto</span>}
+                            </div>
+                            <div className="space-y-2">
+                                <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Asistencias</h5>
+                                {asistencias.length > 0 ? asistencias.map((file, idx) => (
+                                    <button key={idx} onClick={(e) => handlePreview(e, 'asistencia', idx)} className="w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-gray-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-200 dark:border-gray-700 transition-colors group text-left">
+                                        <span className="material-icons !text-lg text-slate-400 group-hover:text-blue-500">checklist</span>
+                                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{file.filename}</span>
+                                    </button>
+                                )) : <span className="text-xs text-slate-400 italic">No adjunto</span>}
+                            </div>
+                        </div>
+
+                        {request[FIELD_SUGERENCIAS_MEJORAS_FINALIZACION] && (
+                            <div className="mb-6 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 rounded-lg">
+                                <p className="text-xs font-bold text-amber-800 dark:text-amber-50 mb-1">Comentarios del Alumno:</p>
+                                <p className="text-sm text-slate-700 dark:text-slate-300 italic">"{request[FIELD_SUGERENCIAS_MEJORAS_FINALIZACION]}"</p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-between items-center pt-2">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onDelete(request); }}
+                                className="text-xs font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 px-3 py-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
+                            >
+                                <span className="material-icons !text-base">delete</span> Eliminar
+                            </button>
+
+                            <div className="flex gap-2">
+                                {isArchived ? (
+                                    <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(String(request.id), 'Pendiente'); }} disabled={isUpdating} className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg shadow-sm transition-all">
+                                        Revertir a Pendiente
+                                    </button>
+                                ) : isEnProceso ? (
+                                    <>
+                                        <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(String(request.id), 'Pendiente'); }} disabled={isUpdating} className="px-3 py-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-bold">Volver</button>
+                                        <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(String(request.id), 'Cargado'); }} disabled={isUpdating} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                                            {isUpdating ? <div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : <span className="material-icons !text-sm">check_circle</span>} Confirmar Carga SAC
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button onClick={(e) => { e.stopPropagation(); onUpdateStatus(String(request.id), 'En Proceso'); }} disabled={isUpdating} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                                        {isUpdating ? <div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : <span className="material-icons !text-sm">arrow_forward</span>} Aprobar para SAC
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
                     </div>
                 </div>
             </div>
@@ -487,6 +570,7 @@ const RequestListItem: React.FC<{
 };
 
 const FinalizacionReview: React.FC = () => {
+<<<<<<< HEAD
     const [loadingState, setLoadingState] = useState<'initial' | 'loading' | 'loaded' | 'error'>('initial');
     const [requests, setRequests] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -644,10 +728,128 @@ const FinalizacionReview: React.FC = () => {
 
     if (loadingState === 'loading' || loadingState === 'initial') return <Loader />;
     if (loadingState === 'error') return <EmptyState icon="error" title="Error" message="No se pudieron cargar las solicitudes." />;
+=======
+    const [searchTerm, setSearchTerm] = useState('');
+    const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const queryClient = useQueryClient();
+    const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [previewFiles, setPreviewFiles] = useState<Attachment[]>([]);
+    const [previewIndex, setPreviewIndex] = useState(0);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [currentCachedBlobs, setCurrentCachedBlobs] = useState<Record<string, string>>({});
+
+    const { data, isLoading, error } = useQuery({
+        queryKey: ['finalizacionRequests'],
+        queryFn: async () => {
+            const [finalizacionRes, estudiantesRes] = await Promise.all([
+                fetchAllData<any>(TABLE_NAME_FINALIZACION, finalizacionPPSArraySchema),
+                fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES])
+            ]);
+            const studentMap = new Map(estudiantesRes.records.map(s => [s.id, s]));
+            return finalizacionRes.records.map(req => {
+                const rawStudentId = req[FIELD_ESTUDIANTE_FINALIZACION];
+                const studentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
+                const student = studentId ? studentMap.get(studentId) : null;
+                return {
+                    id: req.id,
+                    ...req, 
+                    studentName: student?.[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido',
+                    studentLegajo: student?.[FIELD_LEGAJO_ESTUDIANTES] || '---',
+                    studentEmail: student?.[FIELD_CORREO_ESTUDIANTES],
+                    studentId: studentId, 
+                    createdTime: req.createdTime
+                };
+            }).sort((a, b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());
+        }
+    });
+
+    const updateStatusMutation = useMutation<any, Error, { id: string; newStatus: string }>({
+        mutationFn: async ({ id, newStatus }) => {
+            const request = data?.find(r => r.id === id);
+            if (request && request.studentId) {
+                if (newStatus === 'Cargado') {
+                     await db.estudiantes.update(request.studentId, {
+                        [FIELD_FINALIZARON_ESTUDIANTES]: true,
+                        [FIELD_FECHA_FINALIZACION_ESTUDIANTES]: new Date().toISOString().split('T')[0]
+                     });
+                     if (request.studentEmail) {
+                        const emailRes = await sendSmartEmail('sac', {
+                             studentName: String(request.studentName || ''),
+                             studentEmail: String(request.studentEmail || ''),
+                             ppsName: 'Práctica Profesional Supervisada'
+                        });
+                        if (!emailRes.success && emailRes.message !== 'Automación desactivada') console.warn("Email send failed:", emailRes.message);
+                    }
+                } else {
+                    await db.estudiantes.update(request.studentId, {
+                       [FIELD_FINALIZARON_ESTUDIANTES]: false,
+                       [FIELD_FECHA_FINALIZACION_ESTUDIANTES]: null
+                    });
+                }
+            }
+            return db.finalizacion.update(id, { [FIELD_ESTADO_FINALIZACION]: newStatus });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['finalizacionRequests'] });
+            queryClient.invalidateQueries({ queryKey: ['adminDashboardOverview'] }); 
+            setToastInfo({ message: 'Estado actualizado correctamente.', type: 'success' });
+        },
+        onError: (err: any) => setToastInfo({ message: `Error al actualizar: ${err?.message || String(err)}`, type: 'error' }),
+        onSettled: () => setUpdatingId(null)
+    });
+
+    const deleteMutation = useMutation<any, Error, any>({
+        mutationFn: (record: any) => {
+            const id = record?.id ? String(record.id) : '';
+            if (!id) throw new Error("ID not found");
+            return deleteFinalizationRequest(id, record);
+        },
+        onSuccess: () => {
+             setToastInfo({ message: 'Solicitud y archivos eliminados.', type: 'success' });
+             queryClient.invalidateQueries({ queryKey: ['finalizacionRequests'] });
+        },
+        onError: (e: any) => setToastInfo({ message: 'Error al eliminar.', type: 'error' })
+    });
+
+    const handleDelete = (record: any) => {
+        if (window.confirm('¿Eliminar solicitud de acreditación permanentemente? Esto borrará también los archivos adjuntos.')) deleteMutation.mutate(record);
+    }
+
+    const handleUpdateStatus = (id: string, newStatus: string) => {
+        if (newStatus === 'Cargado' && !window.confirm('¿Confirmar acreditación final? Se actualizará el estado del alumno y se enviará el correo de confirmación.')) return;
+        setUpdatingId(id);
+        updateStatusMutation.mutate({ id, newStatus });
+    };
+
+    const handlePreview = useCallback((files: Attachment[], initialIndex: number, cachedBlobs: Record<string, string>) => {
+        setPreviewFiles(files);
+        setPreviewIndex(initialIndex);
+        setCurrentCachedBlobs(cachedBlobs);
+        setIsPreviewOpen(true);
+    }, []);
+
+    const filteredData = useMemo(() => {
+        if (!data) return { pending: [], inProcess: [], archived: [] };
+        const searchLower = searchTerm.toLowerCase();
+        const matches = data.filter(item => item.studentName.toLowerCase().includes(searchLower) || String(item.studentLegajo).includes(searchLower));
+        const pending: typeof data = [], inProcess: typeof data = [], archived: typeof data = [];
+        matches.forEach(item => {
+            const state = getNormalizationState(item);
+            if (state === 'cargado') archived.push(item);
+            else if (state === 'en proceso') inProcess.push(item);
+            else pending.push(item);
+        });
+        return { pending, inProcess, archived };
+    }, [data, searchTerm]);
+
+    if (isLoading) return <div className="p-8 flex justify-center"><Loader /></div>;
+    if (error) return <EmptyState icon="error" title="Error" message="No se pudieron cargar las solicitudes." />;
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 
     return (
         <div className="space-y-8 animate-fade-in-up">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
+<<<<<<< HEAD
             
             {isPreviewOpen && (
                 <FilePreviewModal 
@@ -726,6 +928,65 @@ const FinalizacionReview: React.FC = () => {
                         ))}
                     </div>
                 </CollapsibleSection>
+=======
+            <FilePreviewModal 
+                isOpen={isPreviewOpen} 
+                onClose={() => setIsPreviewOpen(false)} 
+                files={previewFiles} 
+                initialIndex={previewIndex} 
+                cachedBlobs={currentCachedBlobs}
+            />
+            
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50 dark:bg-gray-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                 <div className="relative w-full md:w-96">
+                    <input type="text" placeholder="Buscar por estudiante o legajo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 dark:text-white" />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400">search</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="material-icons !text-lg">filter_list</span>
+                    <span>Mostrando {filteredData.pending.length + filteredData.inProcess.length} activas</span>
+                </div>
+            </div>
+
+            {filteredData.pending.length === 0 && filteredData.inProcess.length === 0 && filteredData.archived.length === 0 ? (
+                 <EmptyState icon="inbox" title="Bandeja Vacía" message="No hay solicitudes de finalización que coincidan con tu búsqueda." />
+            ) : (
+                <>
+                    {filteredData.pending.length > 0 && (
+                        <div className="space-y-4">
+                             <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-1 flex items-center gap-2">
+                                 <span className="w-2 h-2 rounded-full bg-amber-400"></span> 1. Pendientes de Revisión ({filteredData.pending.length})
+                             </h3>
+                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {filteredData.pending.map((req) => (
+                                    <RequestListItem key={req.id} request={req} onUpdateStatus={handleUpdateStatus} onDelete={handleDelete} isUpdating={updatingId === req.id} searchTerm={searchTerm} onPreview={handlePreview} />
+                                ))}
+                             </div>
+                        </div>
+                    )}
+                    {filteredData.inProcess.length > 0 && (
+                        <div className="space-y-4">
+                             <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider px-1 flex items-center gap-2">
+                                 <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span> 2. Carga al SAC ({filteredData.inProcess.length})
+                             </h3>
+                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                 {filteredData.inProcess.map((req) => (
+                                     <RequestListItem key={req.id} request={req} onUpdateStatus={handleUpdateStatus} onDelete={handleDelete} isUpdating={updatingId === req.id} searchTerm={searchTerm} onPreview={handlePreview} />
+                                 ))}
+                             </div>
+                        </div>
+                    )}
+                    {filteredData.archived.length > 0 && (
+                        <CollapsibleSection title="Finalizadas y Cargadas" count={filteredData.archived.length} icon="verified" iconBgColor="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400" borderColor="border-emerald-200 dark:border-emerald-900" defaultOpen={false}>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                                 {filteredData.archived.map((req) => (
+                                     <RequestListItem key={req.id} request={req} onUpdateStatus={handleUpdateStatus} onDelete={handleDelete} isUpdating={updatingId === req.id} searchTerm={searchTerm} onPreview={handlePreview} isArchived={true} />
+                                 ))}
+                            </div>
+                        </CollapsibleSection>
+                    )}
+                </>
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
             )}
         </div>
     );

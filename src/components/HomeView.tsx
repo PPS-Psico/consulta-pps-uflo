@@ -250,11 +250,15 @@ const HomeView: React.FC<HomeViewProps> = ({
         return allPracticeEvents.filter(e => e.date >= startFilterDate).slice(0, 4); 
     }, [allPracticeEvents, nextPracticeForTodayOrTomorrow]);
 
+<<<<<<< HEAD
     // Validar que NO haya prácticas en curso antes de mostrar el cartel
     const canFinalize = criterios.cumpleHorasTotales && 
                         criterios.cumpleRotacion && 
                         criterios.cumpleHorasOrientacion && 
                         !criterios.tienePracticasPendientes;
+=======
+    const canFinalize = criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion;
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 
     if (lanzamientos.length === 0 && allPracticeEvents.length === 0 && !canFinalize) {
         return <EmptyState icon="home" title="Todo Tranquilo" message="No tienes actividades pendientes ni hay convocatorias abiertas en este momento."/>;

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 import { Practica, Orientacion, CriteriosCalculados } from '../types';
 import { 
   HORAS_OBJETIVO_TOTAL, 
@@ -6,7 +9,10 @@ import {
   ROTACION_OBJETIVO_ORIENTACIONES,
   FIELD_HORAS_PRACTICAS,
   FIELD_ESPECIALIDAD_PRACTICAS,
+<<<<<<< HEAD
   FIELD_ESTADO_PRACTICA
+=======
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 } from '../constants';
 import { normalizeStringForComparison } from './formatters';
 
@@ -20,7 +26,10 @@ export const initialCriterios: CriteriosCalculados = {
     orientacionesCursadasCount: 0,
     orientacionesUnicas: [],
     cumpleRotacion: false,
+<<<<<<< HEAD
     tienePracticasPendientes: false,
+=======
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 };
 
 export const calculateCriterios = (
@@ -43,12 +52,15 @@ export const calculateCriterios = (
   }
   const cumpleHorasOrientacion = horasOrientacionElegida >= HORAS_OBJETIVO_ORIENTACION;
 
+<<<<<<< HEAD
   // Verificar si hay prácticas activas (En curso)
   const tienePracticasPendientes = allPracticas.some(p => {
       const estado = normalizeStringForComparison(p[FIELD_ESTADO_PRACTICA]);
       return estado === 'en curso' || estado === 'pendiente' || estado === 'en proceso';
   });
 
+=======
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
   return {
     horasTotales,
     cumpleHorasTotales,
@@ -59,6 +71,11 @@ export const calculateCriterios = (
     cumpleRotacion,
     horasFaltantes250: Math.max(0, HORAS_OBJETIVO_TOTAL - horasTotales),
     horasFaltantesOrientacion: Math.max(0, HORAS_OBJETIVO_ORIENTACION - horasOrientacionElegida),
+<<<<<<< HEAD
     tienePracticasPendientes
   };
 };
+=======
+  };
+};
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc

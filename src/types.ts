@@ -52,7 +52,10 @@ export interface CriteriosCalculados {
   orientacionesCursadasCount: number;
   orientacionesUnicas: string[];
   cumpleRotacion: boolean;
+<<<<<<< HEAD
   tienePracticasPendientes: boolean;
+=======
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 }
 
 // --- Table Fields Interfaces ---
