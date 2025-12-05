@@ -11,7 +11,7 @@ import {
     KEY_SAC_SUBJECT, KEY_SAC_BODY, KEY_SAC_ACTIVE,
     KEY_EMAIL_COUNT, KEY_EMAIL_MONTH
 } from '../constants';
-import { generateHtmlTemplate } from '../utils/emailService';
+import { generateHtmlTemplate, stripGreeting } from '../utils/emailService';
 
 interface AutomationScenario {
     id: string;
@@ -164,37 +164,48 @@ const EmailAutomationManager: React.FC = () => {
 
         setIsSendingTest(true);
         try {
-            // Obtenemos la plantilla ACTUAL (si se ha editado, usamos la editada, si no, la default)
-            const selectionScenario = SCENARIOS[0]; // Usamos 'seleccion' como ejemplo base
+            // Obtenemos la plantilla ACTUAL
+            const selectionScenario = SCENARIOS[0]; 
             const savedBody = localStorage.getItem(selectionScenario.storageKeys.body) || selectionScenario.defaultBody;
             const savedSubject = localStorage.getItem(selectionScenario.storageKeys.subject) || selectionScenario.defaultSubject;
+            
+            const studentName = 'Estudiante de Prueba';
 
-            const textBody = savedBody
-                .replace('{{nombre_alumno}}', 'Estudiante de Prueba')
+            const rawTextBody = savedBody
+                .replace('{{nombre_alumno}}', studentName)
                 .replace('{{nombre_pps}}', 'Clínica Demo UFLO')
                 .replace('{{horario}}', 'Lunes 14hs');
 
             const subject = savedSubject
                 .replace('{{nombre_pps}}', 'Clínica Demo');
 
-            // Generamos el HTML usando el nuevo servicio unificado
-            const htmlBody = generateHtmlTemplate(textBody, "Asignación de Práctica");
+            // 1. Generar HTML Premium
+            // Usamos el Subject como título del encabezado
+            const htmlBody = generateHtmlTemplate(rawTextBody, subject);
+            
+            // 2. Generar texto plano limpio (sin saludo, para que no se duplique si el backend lo agrega)
+            const cleanTextBody = stripGreeting(rawTextBody);
 
-            console.log("HTML Generated for Test:", htmlBody);
+            console.log(">>> GENERATING TEST EMAIL <<<");
+            console.log("HTML Length:", htmlBody.length);
+            console.log("Subject:", subject);
 
             const { error } = await supabase.functions.invoke('send-email', {
                 body: {
                     to: testEmail,
                     subject: `[PRUEBA] ${subject}`,
-                    text: textBody,
-                    html: htmlBody,
-                    name: "Administrador" // Mandatory
+                    text: cleanTextBody, 
+                    html: htmlBody, // IMPORTANTE: El frontend envía esto. El backend debe usarlo.
+                    name: studentName
                 }
             });
 
-            if (error) throw error;
+            if (error) {
+                console.error("Supabase Invoke Error:", error);
+                throw error;
+            }
 
-            setToastInfo({ message: 'Correo de prueba enviado. Verifica tu bandeja de entrada (y Spam).', type: 'success' });
+            setToastInfo({ message: 'Correo de prueba enviado con formato Premium.', type: 'success' });
         } catch (error: any) {
             console.error("Error sending test:", error);
             setToastInfo({ message: `Fallo el envío: ${error.message || 'Error desconocido'}`, type: 'error' });
@@ -252,18 +263,7 @@ const EmailAutomationManager: React.FC = () => {
                     <div>
                         <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Servidor de Correo Activo</h3>
                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                            El sistema está configurado para enviar correos ilimitados con formato HTML profesional (Tarjeta Digital).
-                        </p>
-                    </div>
-                </div>
-
-                {/* Status OK */}
-                <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl flex items-start gap-3">
-                    <span className="material-icons text-emerald-500 mt-0.5">check_circle</span>
-                    <div>
-                        <h4 className="font-bold text-emerald-800 dark:text-emerald-400 text-sm">Configuración Correcta</h4>
-                        <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1 leading-relaxed">
-                            Ya puedes usar las automatizaciones. Los correos se enviarán con el diseño institucional de UFLO.
+                            El sistema está configurado para enviar correos con diseño <strong>Premium</strong> (Tarjeta Digital).
                         </p>
                     </div>
                 </div>
@@ -349,7 +349,9 @@ const EmailAutomationManager: React.FC = () => {
                                                      </div>
                                                 </div>
                                                 <div className="text-xs text-slate-400 mb-2 px-2 border-l-2 border-blue-200">
-                                                    Tip: Usa el formato <strong>**Título:**</strong> para crear bloques destacados automáticamente.
+                                                    Tip: Usa <strong>**Título:**</strong> para crear cajas de alerta visuales con íconos.
+                                                    <br/>
+                                                    Nota: No incluyas el saludo inicial ("Hola..."), el sistema lo agrega automáticamente.
                                                 </div>
                                                 <textarea 
                                                     id="body-editor"

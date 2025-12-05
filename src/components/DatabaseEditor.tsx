@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -40,7 +41,9 @@ import {
     TABLE_NAME_PRACTICAS,
     TABLE_NAME_ESTUDIANTES,
     TABLE_NAME_INSTITUCIONES,
-    FIELD_FECHA_INICIO_LANZAMIENTOS
+    FIELD_FECHA_INICIO_LANZAMIENTOS,
+    FIELD_NOMBRE_SEPARADO_ESTUDIANTES,
+    FIELD_APELLIDO_SEPARADO_ESTUDIANTES
 } from '../constants';
 
 interface FieldConfig {
@@ -68,16 +71,19 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
         tableName: TABLE_NAME_ESTUDIANTES,
         schema: schema.estudiantes,
         displayFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_TELEFONO_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES],
-        searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_DNI_ESTUDIANTES],
+        searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_NOMBRE_SEPARADO_ESTUDIANTES, FIELD_APELLIDO_SEPARADO_ESTUDIANTES],
         fieldConfig: [
-            { key: FIELD_NOMBRE_ESTUDIANTES, label: 'Nombre Completo', type: 'text' },
             { key: FIELD_LEGAJO_ESTUDIANTES, label: 'Legajo', type: 'text' },
+            { key: FIELD_NOMBRE_SEPARADO_ESTUDIANTES, label: 'Nombre (Pila)', type: 'text' },
+            { key: FIELD_APELLIDO_SEPARADO_ESTUDIANTES, label: 'Apellido', type: 'text' },
             { key: FIELD_DNI_ESTUDIANTES, label: 'DNI', type: 'number' },
             { key: FIELD_CORREO_ESTUDIANTES, label: 'Correo', type: 'email' },
             { key: FIELD_TELEFONO_ESTUDIANTES, label: 'Teléfono', type: 'tel' },
             { key: FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, label: 'Orientación Elegida', type: 'select', options: ['', 'Clinica', 'Educacional', 'Laboral', 'Comunitaria'] },
             { key: FIELD_NOTAS_INTERNAS_ESTUDIANTES, label: 'Notas Internas', type: 'textarea' },
             { key: FIELD_FINALIZARON_ESTUDIANTES, label: 'Finalizó PPS', type: 'checkbox' },
+            // Nombre Completo se mantiene para visualización pero no se edita directamente para priorizar separados
+            { key: FIELD_NOMBRE_ESTUDIANTES, label: 'Nombre Completo (Auto)', type: 'text' }, 
         ]
     },
     practicas: {
@@ -265,6 +271,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     
+    const [estudianteSearchSelection, setEstudianteSearchSelection] = useState<string>(''); // Legajo para el filtro de Estudiantes
+
     const [filterStudentId, setFilterStudentId] = useState<string>('');
     const [selectedStudentLabel, setSelectedStudentLabel] = useState<string>('');
 
@@ -299,6 +307,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     useEffect(() => {
         setCurrentPage(1);
         setSearchTerm('');
+        setEstudianteSearchSelection(''); // Reset specific student filter
         setFilterStudentId('');
         setSelectedStudentLabel('');
         setFilterInstitutionId('');
@@ -353,13 +362,11 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     // Construct Filters for DB Query
     const dbFilters = useMemo(() => {
         const filters: Record<string, any> = {};
+        
         if (activeTable === 'practicas') {
             if (filterStudentId) filters[FIELD_ESTUDIANTE_LINK_PRACTICAS] = filterStudentId;
             
             if (filterLaunchId) {
-                // Special Hybrid Filter: 
-                // If launch is selected, we try to find records linked by ID OR by legacy Name+Date text match.
-                // We pass a composite value "ID|Name|Date" which `supabaseService` handles specially.
                 const launch = availableLaunches.find(l => l.id === filterLaunchId);
                 if (launch) {
                     const compositeValue = `${launch.id}|${launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]}|${launch[FIELD_FECHA_INICIO_LANZAMIENTOS]}`;
@@ -368,13 +375,16 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     filters[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] = filterLaunchId;
                 }
             } else if (filterInstitutionId) {
-                // Fallback: if inst selected but not launch, verify via lookup string
                 const inst = allInstitutions.find(i => i.id === filterInstitutionId);
                 if (inst) filters[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] = inst[FIELD_NOMBRE_INSTITUCIONES];
             }
+        } else if (activeTable === 'estudiantes') {
+            if (estudianteSearchSelection) {
+                filters[FIELD_LEGAJO_ESTUDIANTES] = estudianteSearchSelection;
+            }
         }
         return filters;
-    }, [activeTable, filterStudentId, filterLaunchId, filterInstitutionId, allInstitutions, availableLaunches]);
+    }, [activeTable, filterStudentId, filterLaunchId, filterInstitutionId, allInstitutions, availableLaunches, estudianteSearchSelection]);
 
     const queryKey = ['databaseEditor', activeTable, currentPage, itemsPerPage, sortConfig, debouncedSearch, dbFilters, isTestingMode];
 
@@ -447,10 +457,24 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     const totalItems = queryResult?.total || 0;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
 
+    const prepareFields = (fields: any) => {
+        // Generar Nombre Completo automáticamente si es la tabla de estudiantes
+        if (activeTable === 'estudiantes') {
+            const nombre = fields[FIELD_NOMBRE_SEPARADO_ESTUDIANTES] || '';
+            const apellido = fields[FIELD_APELLIDO_SEPARADO_ESTUDIANTES] || '';
+            if (nombre && apellido) {
+                // Formato: Nombre Apellido
+                fields[FIELD_NOMBRE_ESTUDIANTES] = `${nombre.trim()} ${apellido.trim()}`;
+            }
+        }
+        return fields;
+    };
+
     // Mutations
     const updateMutation = useMutation({
         mutationFn: ({ recordId, fields }: { recordId: string, fields: any }) => {
-            return db[activeTable].update(recordId, fields);
+            const preparedFields = prepareFields(fields);
+            return db[activeTable].update(recordId, preparedFields);
         },
         onSuccess: () => {
             setToastInfo({ message: 'Registro actualizado.', type: 'success' });
@@ -462,7 +486,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
     const createMutation = useMutation({
         mutationFn: (fields: any) => {
-            return db[activeTable].create(fields);
+            const preparedFields = prepareFields(fields);
+            return db[activeTable].create(preparedFields);
         },
         onSuccess: () => {
              setToastInfo({ message: 'Registro creado.', type: 'success' });
@@ -602,6 +627,21 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     };
 
     // --- Student Selection Handler ---
+    const handleStudentSearchSelect = (student: AirtableRecord<any>) => {
+        // Al seleccionar en el AdminSearch (dentro de la pestaña Estudiantes), filtramos la tabla por ese legajo
+        // en lugar de usar la búsqueda global que falla con números.
+        setSearchTerm(''); // Clear text search
+        setEstudianteSearchSelection(student[FIELD_LEGAJO_ESTUDIANTES] || '');
+        setCurrentPage(1);
+    };
+    
+    // Handler for clearing the specific student filter in Estudiantes tab
+    const clearEstudianteFilter = () => {
+        setEstudianteSearchSelection('');
+        setSearchTerm('');
+        setDebouncedSearch('');
+    };
+
     const handleStudentSelect = (student: AirtableRecord<any>) => {
         setFilterStudentId(student.id);
         setSelectedStudentLabel(`${student[FIELD_NOMBRE_ESTUDIANTES]} (${student[FIELD_LEGAJO_ESTUDIANTES]})`);
@@ -657,7 +697,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 <SubTabs 
                     tabs={tableTabs} 
                     activeTabId={activeTable} 
-                    onTabChange={(id) => { setActiveTable(id as TableKey); setSearchTerm(''); setSortConfig({ key: '', direction: 'asc' }); }} 
+                    onTabChange={(id) => { setActiveTable(id as TableKey); setSearchTerm(''); setEstudianteSearchSelection(''); setSortConfig({ key: '', direction: 'asc' }); }} 
                 />
             </div>
 
@@ -732,29 +772,49 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                         </div>
                     </div>
                 )}
+                
+                {/* --- SEARCH BAR FOR STUDENTS --- */}
+                {activeTable === 'estudiantes' && (
+                    <div className="bg-slate-50/50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800 animate-fade-in mb-4">
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Buscar y Filtrar Estudiante</label>
+                         <AdminSearch 
+                            onStudentSelect={handleStudentSearchSelect}
+                            isTestingMode={isTestingMode}
+                         />
+                         {(searchTerm || estudianteSearchSelection) && (
+                             <div className="flex justify-end mt-2">
+                                <button onClick={clearEstudianteFilter} className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                    Limpiar filtro {estudianteSearchSelection ? `(${estudianteSearchSelection})` : ''}
+                                </button>
+                             </div>
+                         )}
+                    </div>
+                )}
 
                 {/* --- MAIN TOOLBAR --- */}
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                     
-                    {/* Left: Search */}
-                    <div className="relative w-full md:w-72 group">
-                        <input 
-                            type="search" 
-                            placeholder="Búsqueda general..." 
-                            value={searchTerm} 
-                            onChange={e => setSearchTerm(e.target.value)} 
-                            className="w-full pl-10 pr-10 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" 
-                        />
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none">search</span>
-                        {searchTerm && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" style={{ opacity: isLoading ? 1 : 0 }} />
-                            </div>
-                        )}
-                    </div>
+                    {/* Left: Generic Search (only if not students, as students has the better search above) */}
+                    {activeTable !== 'estudiantes' && (
+                        <div className="relative w-full md:w-72 group">
+                            <input 
+                                type="search" 
+                                placeholder="Búsqueda general..." 
+                                value={searchTerm} 
+                                onChange={e => setSearchTerm(e.target.value)} 
+                                className="w-full pl-10 pr-10 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" 
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none">search</span>
+                            {searchTerm && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" style={{ opacity: isLoading ? 1 : 0 }} />
+                                </div>
+                            )}
+                        </div>
+                    )}
                     
                     {/* Right: Actions */}
-                    <div className="flex items-center gap-2 w-full md:w-auto">
+                    <div className={`flex items-center gap-2 w-full md:w-auto ${activeTable === 'estudiantes' ? 'ml-auto' : ''}`}>
                         {isBulkEditMode && (
                             <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 animate-fade-in">
                                 <select 
