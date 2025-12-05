@@ -36,15 +36,40 @@ const SCENARIO_CONFIG: Record<EmailScenario, ScenarioKeys> = {
 // Define rich defaults so the system works out-of-the-box without saving templates in UI first
 const DEFAULT_TEMPLATES: Record<EmailScenario, { subject: string; body: string }> = {
     'seleccion': {
-        subject: "Selección PPS: {{nombre_pps}} - UFLO",
-        body: `¡Buenas noticias, {{nombre_alumno}}!
+        subject: "Confirmación de Asignación PPS: {{nombre_pps}} 🎓",
+        body: `Hola {{nombre_alumno}},
 
-Has sido seleccionado/a para realizar la Práctica Profesional Supervisada en:
-"{{nombre_pps}}"
+Espero que estés muy bien.
 
-Horario asignado: {{horario}}
+Nos complace informarte que has sido seleccionado/a para realizar tu Práctica Profesional Supervisada en:
 
-Por favor, mantente atento a las instrucciones para el inicio.`
+📍 Institución: {{nombre_pps}}
+🗓️ Horario/Comisión asignada: {{horario}}
+
+💡 Recomendaciones para tu Práctica
+
+Para aprovechar al máximo esta experiencia y representar a la Universidad de la mejor manera, te sugerimos tener en cuenta lo siguiente:
+
+**Puntualidad y Asistencia:** La puntualidad es la primera señal de compromiso profesional. Si surge un imprevisto de fuerza mayor, avisá con la mayor antelación posible tanto a la institución como a la Universidad. Recordá que faltar sin previo aviso es motivo suficiente de suspensión de la PPS.
+
+**Ética y Confidencialidad:** Vas a trabajar con personas y, en muchos casos, con información sensible. El secreto profesional y el respeto por la privacidad son fundamentales desde el primer momento.
+
+**Rol Activo:** No te quedes solo con "observar". Preguntá, mostrá interés, llevá cuaderno para anotar y participá de los espacios de supervisión. La PPS te devuelve lo que vos le pongas de energía.
+
+**Disfrutalo:** No olvides que es tu primer acercamiento real al rol profesional. Aprovechá cada instancia para aprender, incluso de las dificultades.
+
+**Documentación Final:** No te olvides de terminar la PPS con tu planilla de asistencia firmada y conservarla (exceptuando las Online que no se firma). Recordá que tenés 30 días para la entrega del informe final una vez finalizada la PPS.
+
+Por favor, respondenos a este correo confirmando que recibiste la información y que aceptás la vacante asignada.
+
+¡Te deseamos un excelente comienzo!
+
+Saludos,
+
+Blas
+Coordinador de Prácticas Profesionales Supervisadas
+Licenciatura en Psicología
+UFLO`
     },
     'solicitud': {
         subject: "Actualización de tu Solicitud de PPS - UFLO",

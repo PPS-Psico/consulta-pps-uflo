@@ -281,7 +281,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         setSchedules(newSchedules.length ? newSchedules : ['']);
     };
     
-    const handleLoadLastData = () => {
+    const handleLoadLastData = useCallback(() => {
         if (!lastLanzamiento) return;
         
         // Cargar horarios anteriores (separados por punto y coma)
@@ -301,8 +301,15 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         }));
         
         setSchedules(prevSchedulesList);
-        setToastInfo({ message: 'Datos de la última convocatoria cargados.', type: 'success' });
-    };
+        setToastInfo({ message: 'Datos de la última convocatoria cargados automáticamente.', type: 'success' });
+    }, [lastLanzamiento]);
+
+    // Automatically load data when institution is selected and last launch is fetched
+    useEffect(() => {
+        if (lastLanzamiento && selectedInstitution) {
+            handleLoadLastData();
+        }
+    }, [lastLanzamiento, selectedInstitution, handleLoadLastData]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
