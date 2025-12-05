@@ -33,6 +33,42 @@ const SCENARIO_CONFIG: Record<EmailScenario, ScenarioKeys> = {
     }
 };
 
+// Define rich defaults so the system works out-of-the-box without saving templates in UI first
+const DEFAULT_TEMPLATES: Record<EmailScenario, { subject: string; body: string }> = {
+    'seleccion': {
+        subject: "Selección PPS: {{nombre_pps}} - UFLO",
+        body: `¡Buenas noticias, {{nombre_alumno}}!
+
+Has sido seleccionado/a para realizar la Práctica Profesional Supervisada en:
+"{{nombre_pps}}"
+
+Horario asignado: {{horario}}
+
+Por favor, mantente atento a las instrucciones para el inicio.`
+    },
+    'solicitud': {
+        subject: "Actualización de tu Solicitud de PPS - UFLO",
+        body: `Hola {{nombre_alumno}},
+
+Hay novedades sobre tu solicitud de PPS en "{{institucion}}".
+
+Nuevo Estado: {{estado_nuevo}}
+
+Comentarios:
+{{notas}}
+
+Seguimos gestionando tu solicitud.`
+    },
+    'sac': {
+        subject: "PPS Acreditada en SAC - UFLO",
+        body: `Hola {{nombre_alumno}},
+
+Te informamos que tus horas de la PPS "{{nombre_pps}}" ya han sido cargadas y acreditadas en el sistema académico (SAC).
+
+¡Felicitaciones por completar esta etapa!`
+    }
+};
+
 interface EmailData {
     studentName: string;
     studentEmail: string;
@@ -80,8 +116,11 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
     }
 
     // 2. Obtener Plantilla (Asunto y Cuerpo)
-    const storedSubject = localStorage.getItem(configKeys.subject) || 'Actualización PPS UFLO';
-    const storedBody = localStorage.getItem(configKeys.body) || 'Tienes una actualización sobre tu PPS.';
+    // Priority: 1. Custom saved in localStorage -> 2. Specific Default -> 3. Generic Fallback
+    const specificDefault = DEFAULT_TEMPLATES[scenario];
+    
+    const storedSubject = localStorage.getItem(configKeys.subject) || specificDefault.subject;
+    const storedBody = localStorage.getItem(configKeys.body) || specificDefault.body;
 
     // 3. Reemplazar Variables en el Cliente
     let finalSubject = storedSubject;
