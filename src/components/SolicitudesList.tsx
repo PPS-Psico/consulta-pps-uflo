@@ -161,15 +161,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     <>
                         <p className="mb-3">¡Felicitaciones! Has cumplido con todos los objetivos académicos. Antes de continuar, asegúrate de tener listos los siguientes documentos digitales:</p>
                         <ul className="list-disc pl-5 mb-4 space-y-2 text-sm text-left bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800/50 text-slate-700 dark:text-slate-300">
-<<<<<<< HEAD
                             <li><strong>Planilla de Seguimiento completa</strong></li>
                             <li><strong>Planillas de asistencias</strong></li>
                             <li><strong>Todos los informes finales Aprobados</strong></li>
-=======
-                            <li><strong>Planilla de Seguimiento de Horas</strong> (firmada)</li>
-                            <li><strong>Planilla de Asistencia</strong></li>
-                            <li><strong>Informe Final</strong> de la práctica</li>
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
                         </ul>
                         <div className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
                              <span className="material-icons !text-sm mt-0.5">info</span>

@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 import React, { useState, useMemo } from 'react';
 import type { Practica } from '../types';
 import {
@@ -21,7 +17,6 @@ import {
 } from '../utils/formatters';
 import EmptyState from './EmptyState';
 
-<<<<<<< HEAD
 // Helper to clean weird JSON/Array string formats like ["Name"] or {Name}
 const cleanInstitutionName = (val: any): string => {
     if (val === null || val === undefined) return 'N/A';
@@ -39,8 +34,6 @@ const cleanInstitutionName = (val: any): string => {
     return str.replace(/[\[\]\{\}"]/g, '').trim();
 }
 
-=======
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 const NOTA_OPTIONS = ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
 // Mobile options filtered as requested: Only numbers, Desaprobado, or reset to Sin calificar
 const MOBILE_NOTA_OPTIONS = ['Sin calificar', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
@@ -113,11 +106,7 @@ const NotaEditor: React.FC<{
   mobileLayout?: boolean;
 }> = ({ practica, handleNotaChange, savingNotaId, justUpdatedPracticaId, compact = false, mobileLayout = false }) => {
     const nota = practica[FIELD_NOTA_PRACTICAS] || 'Sin calificar';
-<<<<<<< HEAD
     const institucion = cleanInstitutionName(practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
-=======
-    const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'Institución no asignada';
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
     
     // Editable if it is "Sin calificar" OR any of the intermediate states ("No Entregado", "Entregado (sin corregir)")
     const isEditable = nota === 'Sin calificar' || nota === 'Entregado (sin corregir)' || nota === 'No Entregado';
@@ -233,13 +222,8 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
         
         switch (sortConfig.key) {
           case 'institucion':
-<<<<<<< HEAD
             aValue = normalizeStringForComparison(cleanInstitutionName(a[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]));
             bValue = normalizeStringForComparison(cleanInstitutionName(b[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]));
-=======
-            aValue = normalizeStringForComparison(a[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
-            bValue = normalizeStringForComparison(b[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
             break;
           case 'especialidad':
             aValue = normalizeStringForComparison(a[FIELD_ESPECIALIDAD_PRACTICAS]);
@@ -303,11 +287,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
             {sortedPracticas.map((practica) => {
-<<<<<<< HEAD
               const institucion = cleanInstitutionName(practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
-=======
-              const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'N/A';
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
               const status = practica[FIELD_ESTADO_PRACTICA];
               const statusVisuals = getStatusVisuals(status || '');
 
@@ -351,11 +331,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
       {/* Mobile Compact List View - REDESIGNED for Metrics focus */}
       <div className="md:hidden space-y-5">
         {sortedPracticas.map(practica => {
-<<<<<<< HEAD
           const institucion = cleanInstitutionName(practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
-=======
-          const institucion = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || 'N/A';
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
           const status = practica[FIELD_ESTADO_PRACTICA];
           const statusVisuals = getStatusVisuals(status || '');
           const especialidadVisuals = getEspecialidadClasses(practica[FIELD_ESPECIALIDAD_PRACTICAS] || '');
@@ -417,8 +393,4 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
   );
 };
 
-<<<<<<< HEAD
 export default React.memo(PracticasTable);
-=======
-export default React.memo(PracticasTable);
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
