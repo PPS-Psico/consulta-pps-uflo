@@ -33,7 +33,6 @@ const SCENARIO_CONFIG: Record<EmailScenario, ScenarioKeys> = {
     }
 };
 
-// Define rich defaults so the system works out-of-the-box without saving templates in UI first
 const DEFAULT_TEMPLATES: Record<EmailScenario, { subject: string; body: string }> = {
     'seleccion': {
         subject: "Confirmación de Asignación PPS: {{nombre_pps}} 🎓",
@@ -119,133 +118,160 @@ const incrementCounter = () => {
 };
 
 /**
- * Genera un HTML profesional y responsivo (Estrategia Premium).
- * Detecta bloques, saludos e íconos para construir una "Tarjeta Digital".
+ * Limpia el saludo inicial del texto para evitar duplicados con el backend.
+ */
+export const stripGreeting = (text: string): string => {
+    return text
+        .replace(/^[\s\S]*?(Hola|Estimad[oa]|Buen día|Buenas tardes).*?(\n|$)/i, '') // Elimina línea de saludo
+        .replace(/^\s*Espero que estés muy bien\.?\s*/i, '') // Elimina frase común de cortesía
+        .trim();
+};
+
+/**
+ * Detecta keywords en el título para asignar íconos y colores
+ */
+const getBlockStyle = (title: string) => {
+    const lower = title.toLowerCase();
+    if (lower.includes('puntualidad') || lower.includes('asistencia')) return { icon: '⏰', bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af' }; // Blue
+    if (lower.includes('ética') || lower.includes('confidencialidad')) return { icon: '🔒', bg: '#f0fdf4', border: '#bbf7d0', text: '#166534' }; // Green
+    if (lower.includes('rol') || lower.includes('activo')) return { icon: '🚀', bg: '#faf5ff', border: '#e9d5ff', text: '#6b21a8' }; // Purple
+    if (lower.includes('disfruta')) return { icon: '✨', bg: '#fff7ed', border: '#fed7aa', text: '#9a3412' }; // Orange
+    if (lower.includes('documentación') || lower.includes('final')) return { icon: '📄', bg: '#fff1f2', border: '#fecdd3', text: '#9f1239' }; // Rose
+    return { icon: '📌', bg: '#f8fafc', border: '#e2e8f0', text: '#334155' }; // Slate default
+};
+
+/**
+ * Genera un HTML "Premium" basado en tablas.
  */
 export const generateHtmlTemplate = (textBody: string, title: string = "Comunicación UFLO"): string => {
-    // 1. Limpieza inicial
-    let safeText = textBody
+    // 1. Limpiar saludo y caracteres especiales HTML
+    const cleanText = stripGreeting(textBody)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-    // 2. Extracción Agresiva del Saludo
-    // Busca líneas que empiecen con Hola/Estimado, permitiendo espacios antes
-    const greetingRegex = /^\s*(Hola|Estimado|Estimada|Buenas|Buen día)(.*?)(\n|$)/im;
-    const greetingMatch = safeText.match(greetingRegex);
+    // Dividimos por saltos de línea
+    const lines = cleanText.split(/\n/); 
+    let contentHtml = '';
     
-    let subHeaderHtml = '';
-    
-    if (greetingMatch) {
-        // Extraemos el saludo completo (ej: "Hola Juan,")
-        const greetingText = greetingMatch[0].trim();
-        subHeaderHtml = `<h2 style="margin: 0; color: #3b82f6; font-size: 20px; font-weight: 600; line-height: 1.4;">${greetingText}</h2>`;
-        
-        // Lo eliminamos del cuerpo para evitar duplicados
-        safeText = safeText.replace(greetingMatch[0], '').trim();
-    }
-
-    // 3. Procesamiento de Bloques Especiales (**Titulo:** Contenido)
-    // Convertimos bloques de texto markdown-style en tarjetas de alerta visuales.
-    // Usamos split para procesar por párrafos y detectar bloques
-    const lines = safeText.split(/\n+/); // Split por uno o más saltos de línea
-    let processedBody = '';
-    
-    lines.forEach(line => {
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
         const trimmedLine = line.trim();
-        if (!trimmedLine) return;
+        
+        if (!trimmedLine) {
+            // Espacio vacío
+            contentHtml += `<div style="height: 12px; line-height: 12px; font-size: 1px;">&nbsp;</div>`;
+            continue;
+        }
 
         // Detectar bloques destacados: **Titulo:** Contenido
         const blockMatch = trimmedLine.match(/^\*\*(.*?)\*\*[:]?\s*(.*)/);
         
         if (blockMatch) {
-            // Es un bloque destacado
             const blockTitle = blockMatch[1].trim();
             const blockContent = blockMatch[2].trim();
+            const style = getBlockStyle(blockTitle);
             
-            processedBody += `
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 15px 0; background-color: #f1f5f9; border-left: 4px solid #2563eb; border-radius: 4px;">
+            contentHtml += `
+            <!-- Bloque Destacado -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 15px; background-color: ${style.bg}; border-radius: 8px; border: 1px solid ${style.border}; border-collapse: separate;">
                 <tr>
-                    <td style="padding: 15px;">
-                        <strong style="display: block; color: #1e3a8a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">${blockTitle}</strong>
-                        <span style="color: #334155; font-size: 14px; line-height: 1.5;">${blockContent}</span>
+                    <td width="50" align="center" valign="middle" style="padding: 0; border-right: 1px solid ${style.border}; font-size: 24px; line-height: 1;">
+                        <div style="padding: 12px;">${style.icon}</div>
+                    </td>
+                    <td style="padding: 12px 15px; vertical-align: middle;">
+                        <div style="color: ${style.text}; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: bold; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">${blockTitle}</div>
+                        <div style="color: #475569; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.5;">${blockContent}</div>
                     </td>
                 </tr>
             </table>`;
-        } else if (trimmedLine.match(/^([📍🗓️💡👉])\s*(.*)/)) {
-            // Es una lista con íconos
+        } 
+        // Detectar líneas de datos con íconos explícitos (📍, 🗓️)
+        else if (trimmedLine.match(/^([📍🗓️💡👉])\s*(.*)/)) {
             const iconMatch = trimmedLine.match(/^([📍🗓️💡👉])\s*(.*)/);
             if (iconMatch) {
-                processedBody += `
-                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 8px;">
-                    <tr>
-                        <td valign="top" width="24" style="font-size: 18px; line-height: 1;">${iconMatch[1]}</td>
-                        <td valign="top" style="font-size: 14px; color: #475569; line-height: 1.5;">${iconMatch[2]}</td>
-                    </tr>
-                </table>`;
+                contentHtml += `
+                <div style="margin-bottom: 12px; padding: 12px 15px; background-color: #ffffff; border-left: 4px solid #3b82f6; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                            <td width="25" style="padding-right: 10px; font-size: 18px; vertical-align: middle;">${iconMatch[1]}</td>
+                            <td style="color: #1e293b; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 600; vertical-align: middle;">${iconMatch[2]}</td>
+                        </tr>
+                    </table>
+                </div>`;
             }
-        } else if (trimmedLine.match(/^(Saludos|Atentamente|Cariños|Blas|Coordinador|Licenciatura)/i)) {
-            // Es parte de la firma
-            processedBody += `<div style="color: #64748b; font-size: 13px; line-height: 1.4; margin-top: 4px;">${trimmedLine}</div>`;
-        } else {
-            // Párrafo normal con negritas inline
+        } 
+        // Firma
+        else if (trimmedLine.match(/^(Saludos|Atentamente|Cariños|Blas|Coordinador|Licenciatura)/i)) {
+             contentHtml += `<div style="color: #64748b; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; margin-top: 4px;">${trimmedLine}</div>`;
+        } 
+        // Párrafo normal
+        else {
             const paragraphWithBold = trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #0f172a;">$1</strong>');
-            processedBody += `<p style="margin: 0 0 12px 0; font-size: 15px; line-height: 1.6; color: #334155;">${paragraphWithBold}</p>`;
+            contentHtml += `<p style="margin: 0 0 10px 0; color: #334155; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.6;">${paragraphWithBold}</p>`;
         }
-    });
+    }
 
-    // Agregar separador visual antes de la firma si detectamos "Saludos" o similar
-    processedBody = processedBody.replace(
-        /(<div.*?>(Saludos|Atentamente).*?<\/div>)/i,
-        '<div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px; margin-bottom: 10px;"></div>$1'
-    );
+    // Separador antes de la firma si existe
+    if (contentHtml.includes('Saludos') || contentHtml.includes('Atentamente')) {
+         contentHtml = contentHtml.replace(/(<div.*?>(Saludos|Atentamente).*?<\/div>)/i, '<hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 25px 0;" />$1');
+    }
 
-    // 7. Estructura Maestra (Table-based layout)
     return `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    <center style="width: 100%; background-color: #f8fafc; padding: 40px 0;">
-        <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); max-width: 600px; width: 100%;">
-            <!-- Header Azul UFLO -->
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>${title}</title>
+        <style type="text/css">
+            body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; background-color: #f1f5f9; }
+            table, td { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+            img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+        </style>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f1f5f9;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f1f5f9;">
             <tr>
-                <td style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 30px 40px; text-align: center;">
-                     <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">${title}</h1>
-                </td>
-            </tr>
-            
-            <!-- Cuerpo Principal -->
-            <tr>
-                <td style="padding: 40px;">
-                    ${subHeaderHtml}
-                    <div style="height: 20px;"></div>
-                    ${processedBody}
-                </td>
-            </tr>
+                <td align="center" style="padding: 40px 15px;">
+                    <!-- Tarjeta Principal -->
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+                        <!-- Header Azul/Gradiente -->
+                        <tr>
+                            <td style="padding: 30px 40px; text-align: center; background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);">
+                                <h1 style="margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">${title}</h1>
+                                <p style="margin: 8px 0 0 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #e0f2fe; font-size: 14px; font-weight: 500;">Prácticas Profesionales Supervisadas</p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Contenido -->
+                        <tr>
+                            <td style="padding: 40px 40px 30px 40px; background-color: #ffffff;">
+                                ${contentHtml}
+                            </td>
+                        </tr>
 
-            <!-- Footer Gris -->
-            <tr>
-                <td style="background-color: #f1f5f9; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-                    <p style="margin: 0; color: #64748b; font-size: 12px; font-weight: 600;">Universidad de Flores - Comahue</p>
-                    <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 11px;">Panel de Gestión Académica de PPS</p>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 24px; background-color: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
+                                <p style="margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; color: #94a3b8; font-weight: 500;">
+                                    Universidad de Flores - Facultad de Psicología
+                                </p>
+                                <p style="margin: 5px 0 0 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11px; color: #cbd5e1;">
+                                    Sistema de Gestión Académica
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
                 </td>
             </tr>
         </table>
-    </center>
-</body>
-</html>
+    </body>
+    </html>
     `;
 }
 
-/**
- * Envía un correo utilizando la infraestructura interna de Supabase (Edge Function).
- */
 export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): Promise<{ success: boolean; message?: string }> => {
-    // 1. Verificar si la automatización está activa localmente
     const configKeys = SCENARIO_CONFIG[scenario];
     const isActive = localStorage.getItem(configKeys.active) === 'true';
     
@@ -257,12 +283,10 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
         return { success: false, message: 'El alumno no tiene email registrado.' };
     }
 
-    // 2. Obtener Plantilla
     const specificDefault = DEFAULT_TEMPLATES[scenario];
     const storedSubject = localStorage.getItem(configKeys.subject) || specificDefault.subject;
     const storedBody = localStorage.getItem(configKeys.body) || specificDefault.body;
 
-    // 3. Reemplazar Variables en Texto Plano
     let finalSubject = storedSubject;
     let textBody = storedBody;
     
@@ -277,22 +301,24 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
         .replace(/{{estado_nuevo}}/g, data.newState || '')
         .replace(/{{notas}}/g, data.notes || '');
 
-    // 4. Generar HTML Premium
-    const emailTitle = scenario === 'seleccion' ? 'Asignación de Práctica' : scenario === 'sac' ? 'Acreditación Finalizada' : 'Novedades de tu Solicitud';
-    const htmlBody = generateHtmlTemplate(textBody, emailTitle);
+    // 1. Generar HTML Premium
+    // Usamos el ASUNTO como título del header de la tarjeta, o un fallback
+    const emailHeaderTitle = finalSubject.replace(/^[\[\(].*?[\]\)]\s*/, ''); // Remover [PRUEBA] si existe
+    const htmlBody = generateHtmlTemplate(textBody, emailHeaderTitle);
+    
+    // 2. Generar texto plano limpio (sin saludo redundante)
+    const cleanTextBody = stripGreeting(textBody);
 
-    console.log(`[Email Debug] Enviando a: ${data.studentEmail}`);
-    console.log(`[Email Debug] HTML Generado (primeros 100 chars):`, htmlBody.substring(0, 100));
-
-    // 5. Invocar Función Interna
     try {
+        console.log(`[Email] Sending to ${data.studentEmail} with HTML content.`);
+        // IMPORTANTE: Enviamos el HTML en el cuerpo de la request
         const { error } = await supabase.functions.invoke('send-email', {
             body: {
                 to: data.studentEmail,
                 subject: finalSubject,
-                text: textBody, 
-                html: htmlBody,
-                name: "Administrador" 
+                text: cleanTextBody, 
+                html: htmlBody, // <--- Campo HTML explícito
+                name: data.studentName 
             }
         });
 
