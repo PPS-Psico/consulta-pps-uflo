@@ -7,16 +7,6 @@ import { useModal } from '../contexts/ModalContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Input from './Input';
 import { useAuthLogic } from '../hooks/useAuthLogic';
-<<<<<<< HEAD
-=======
-import { 
-    FIELD_DNI_ESTUDIANTES, 
-    FIELD_FECHA_NACIMIENTO_ESTUDIANTES, 
-    FIELD_CORREO_ESTUDIANTES, 
-    FIELD_TELEFONO_ESTUDIANTES
-} from '../constants';
-
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
 
 const Auth: React.FC = () => {
   const { login } = useAuth();
@@ -26,34 +16,21 @@ const Auth: React.FC = () => {
   const {
       mode, setMode,
       migrationStep, setMigrationStep,
-<<<<<<< HEAD
       resetStep, // Nuevo paso para recovery
-=======
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
       legajo, setLegajo,
       password, setPassword,
       confirmPassword, setConfirmPassword,
       rememberMe, setRememberMe,
-<<<<<<< HEAD
       isLoading, error, fieldError,
-=======
-      isLoading, error,
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
       verificationData, handleVerificationDataChange,
       handleFormSubmit
   } = useAuthLogic({ login, showModal });
   
   const [showPassword, setShowPassword] = useState(false);
 
-<<<<<<< HEAD
   const handleModeChange = (newMode: 'login' | 'register' | 'forgot' | 'reset' | 'migration' | 'recover') => {
     setMode(newMode);
     if (newMode !== 'reset' && newMode !== 'migration' && newMode !== 'recover') {
-=======
-  const handleModeChange = (newMode: 'login' | 'register' | 'forgot' | 'reset' | 'migration') => {
-    setMode(newMode);
-    if (newMode !== 'reset' && newMode !== 'migration') {
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
         setLegajo('');
         setPassword('');
         setConfirmPassword('');
@@ -104,11 +81,7 @@ const Auth: React.FC = () => {
                 icon="lock" 
                 disabled={isLoading} 
                 autoComplete="current-password"
-<<<<<<< HEAD
                 className={`bg-white dark:bg-slate-900 ${fieldError === 'password' ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
-=======
-                className="bg-white dark:bg-slate-900"
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
             />
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
               <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
@@ -124,7 +97,6 @@ const Auth: React.FC = () => {
                 </div>
                 <span className="text-sm font-medium text-slate-800 dark:text-slate-300">Recordarme</span>
             </label>
-<<<<<<< HEAD
             
             {/* Enlace de recuperación (siempre visible o condicional según error) */}
             <button 
@@ -136,9 +108,6 @@ const Auth: React.FC = () => {
             </button>
         </div>
         
-=======
-        </div>
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
         <div className="pt-4 animate-fade-in-up" style={{ animationDelay: '1000ms' }}>
           <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white font-bold text-base py-3 px-6 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-900 disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 flex items-center justify-center gap-3">
             {isLoading && <div className="border-2 border-white/50 border-t-white rounded-full w-5 h-5 animate-spin"></div>}
@@ -241,7 +210,6 @@ const Auth: React.FC = () => {
       </form>
   );
 
-<<<<<<< HEAD
   const renderRecover = () => (
       <form onSubmit={handleFormSubmit} className="space-y-5 animate-fade-in-up">
            <div className="text-left mb-6">
@@ -340,8 +308,6 @@ const Auth: React.FC = () => {
       </form>
   );
 
-=======
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
   return (
     <div className="w-full bg-white dark:bg-slate-950 md:grid md:grid-cols-2 min-h-[85vh] rounded-2xl shadow-2xl shadow-slate-200/40 dark:shadow-black/50 overflow-hidden border border-slate-200/60 dark:border-slate-800">
       <div className="hidden md:flex flex-col justify-between p-8 lg:p-12 bg-gradient-to-br from-slate-50 to-slate-200 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-950 text-slate-800 dark:text-white relative overflow-hidden">
@@ -365,10 +331,7 @@ const Auth: React.FC = () => {
         <main className="w-full max-w-md">
             {mode === 'login' ? renderLoginRegister() :
              mode === 'migration' ? renderMigration() :
-<<<<<<< HEAD
              mode === 'recover' ? renderRecover() :
-=======
->>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
              null
             }
             <div aria-live="assertive" className="mt-4">
