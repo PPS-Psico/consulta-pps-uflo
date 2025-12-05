@@ -59,6 +59,8 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
             return fetchConvocatoriasData(legajo, studentAirtableId, isSuperUserMode);
         },
         enabled: !!studentAirtableId || isSuperUserMode || legajo === '99999',
+        staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+        refetchOnWindowFocus: false,
     });
     
     const { lanzamientos = [], myEnrollments = [], allLanzamientos = [], institutionAddressMap = new Map() } = convocatoriasData || {};

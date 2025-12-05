@@ -18,6 +18,8 @@ import {
     FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS
 } from './constants';
 
+export type { Database } from './types/supabase';
+
 // --- Base Record Type ---
 export interface DBRecord {
   id: string;

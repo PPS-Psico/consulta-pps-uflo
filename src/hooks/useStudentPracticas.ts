@@ -17,6 +17,8 @@ export const useStudentPracticas = (legajo: string) => {
     } = useQuery({
         queryKey: ['practicas', legajo],
         queryFn: () => fetchPracticas(legajo),
+        staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+        refetchOnWindowFocus: false,
     });
 
     const updateNota = useMutation({

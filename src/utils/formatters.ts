@@ -1,10 +1,10 @@
 
 export function addBusinessDays(startDate: Date, days: number): Date {
-    let date = new Date(startDate.getTime()); // Creates a copy
+    let date = new Date(startDate.getTime());
     let added = 0;
     while (added < days) {
         date.setDate(date.getDate() + 1);
-        const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+        const dayOfWeek = date.getDay();
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
             added++;
         }
@@ -13,7 +13,6 @@ export function addBusinessDays(startDate: Date, days: number): Date {
 }
 
 export function getBusinessDaysDiff(startDate: Date, endDate: Date): number {
-    // Calculate business days between two dates
     let start = new Date(startDate.getTime());
     start.setHours(0,0,0,0);
     let end = new Date(endDate.getTime());
@@ -22,7 +21,6 @@ export function getBusinessDaysDiff(startDate: Date, endDate: Date): number {
     if (start.getTime() === end.getTime()) return 0;
 
     if (start > end) {
-        // If start is after end, calculate negative business days
         let count = 0;
         let curr = new Date(start);
         while (curr > end) {
@@ -51,23 +49,16 @@ export function formatDate(dateString?: string): string {
     if (!dateString) return 'N/A';
     
     let date: Date;
-
-    // First, try to parse it as is. This works for ISO 8601 formats (YYYY-MM-DD) which Airtable's Date fields provide.
     const initialDate = new Date(dateString);
 
-    // Check if the initial parsing resulted in a valid date.
     if (!isNaN(initialDate.getTime())) {
         date = initialDate;
     } else {
-        // If not, try parsing a DD/MM/YYYY format.
         const parts = dateString.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
         if (parts) {
-            // parts[1] = day, parts[2] = month, parts[3] = year
-            // Note: Month is 0-indexed in JavaScript Date constructor (0 for Jan, 11 for Dec).
             const day = parseInt(parts[1], 10);
             const month = parseInt(parts[2], 10) - 1;
             const year = parseInt(parts[3], 10);
-            // Check for valid date components before creating the date object.
             if (year > 1000 && month >= 0 && month < 12 && day > 0 && day <= 31) {
                 date = new Date(Date.UTC(year, month, day));
             } else {
@@ -78,18 +69,24 @@ export function formatDate(dateString?: string): string {
         }
     }
     
-    // Final check if the resulting date is valid.
     if (isNaN(date.getTime())) {
         return 'Fecha inválida';
     }
     
-    // If valid, format and return it.
     return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
-        timeZone: 'UTC' // Use UTC to avoid off-by-one day errors due to timezone conversion
+        timeZone: 'UTC'
     });
+}
+
+export function toTitleCase(str: string | null | undefined): string {
+    if (!str) return '';
+    return str.replace(
+        /\w\S*/g,
+        (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+    );
 }
 
 export function getEspecialidadClasses(especialidad?: string): { 
@@ -227,7 +224,6 @@ export function getStatusVisuals(status?: string): { icon: string; iconContainer
         }
     }
 
-    // --- DEFAULT FALLBACK ---
     return {
         icon: 'help_outline',
         iconContainerClass: `${baseIconContainer} bg-slate-50 text-slate-500 border-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700`,
@@ -236,13 +232,12 @@ export function getStatusVisuals(status?: string): { icon: string; iconContainer
     };
 }
 
-
 export function normalizeStringForComparison(str?: any): string {
   const value = String(str || '');
   if (!value) return "";
   return value
-    .normalize("NFD") // Decompose accented characters into base characters and diacritics
-    .replace(/[\u0300-\u036f]/g, "") // Remove diacritics (e.g. accents)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
 }
@@ -250,10 +245,9 @@ export function normalizeStringForComparison(str?: any): string {
 export function parseToUTCDate(dateString?: string): Date | null {
     if (!dateString || typeof dateString !== 'string') return null;
 
-    const trimmedStr = dateString.trim().split('T')[0]; // Get only the date part
+    const trimmedStr = dateString.trim().split('T')[0];
     if (!trimmedStr) return null;
 
-    // Try YYYY-MM-DD format (ISO standard)
     let parts = trimmedStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (parts) {
         const [, year, month, day] = parts.map(Number);
@@ -263,7 +257,6 @@ export function parseToUTCDate(dateString?: string): Date | null {
         }
     }
 
-    // Try DD/MM/YYYY or DD-MM-YYYY format
     parts = trimmedStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
     if (parts) {
         const [, day, month, year] = parts.map(Number);
@@ -314,22 +307,10 @@ export function isValidLocation(location?: string): boolean {
     return true;
 }
 
-/**
- * Helper seguro para obtener ID de un campo de relación.
- * Maneja la diferencia entre Airtable (Array de IDs) y Supabase (String UUID).
- * 
- * @param val El valor del campo de relación
- * @returns string | null
- */
-export const safeGetId = (val: any): string | null => {
-    if (!val) return null;
-    if (Array.isArray(val)) {
-        // Caso Legacy / Mock (Array)
-        return val.length > 0 ? String(val[0]) : null;
+export function safeGetId(value: any): string | null {
+    if (!value) return null;
+    if (Array.isArray(value)) {
+        return value.length > 0 ? String(value[0]) : null;
     }
-    // Caso SQL (String UUID)
-    if (typeof val === 'string') {
-        return val.trim() || null;
-    }
-    return null;
-};
+    return String(value);
+}

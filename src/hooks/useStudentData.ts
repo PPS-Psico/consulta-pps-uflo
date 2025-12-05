@@ -18,6 +18,8 @@ export const useStudentData = (legajo: string) => {
     } = useQuery({
         queryKey: ['student', legajo],
         queryFn: () => fetchStudentData(legajo),
+        staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+        refetchOnWindowFocus: false,
     });
 
     const studentDetails = data?.studentDetails ?? null;

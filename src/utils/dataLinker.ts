@@ -1,6 +1,6 @@
 
 import type { Convocatoria, LanzamientoPPS, Practica, InformeTask } from '../types';
-import { normalizeStringForComparison, parseToUTCDate, safeGetId } from './formatters';
+import { normalizeStringForComparison, parseToUTCDate } from './formatters';
 import {
     FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
     FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
@@ -22,21 +22,14 @@ interface LinkDataParams {
     practicas: Practica[];
 }
 
-/**
- * Processes student data.
- * Since Supabase now returns joined data for 'myEnrollments', 
- * this function primarily focuses on grouping logic and status determination.
- */
 export function processAndLinkStudentData({ myEnrollments, allLanzamientos, practicas }: LinkDataParams) {
     const lanzamientosMap = new Map(allLanzamientos.map(l => [l.id, l]));
     
     // Step 1: Prioritize Enrollments
-    // Supabase ensures 'lanzamiento_id' is present, so grouping is robust.
     const enrollmentsByPpsId = new Map<string, Convocatoria[]>();
     
     myEnrollments.forEach(enrollment => {
-        // SAFE ID ACCESS: Handles both Array (legacy) and String (SQL)
-        const linkedId = safeGetId(enrollment[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]);
+        const linkedId = enrollment[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] as string;
         
         if (linkedId) {
             if (!enrollmentsByPpsId.has(linkedId)) {
@@ -65,26 +58,21 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
         enrollmentMap.set(ppsId, bestEnrollment);
     });
 
-    // Step 3: Identify completed practices (Optimized)
-    // Rely on the Practice record itself, which contains the institution name snapshot.
-    // This removes the dependency on fetching the entire database of old launches.
+    // Step 3: Identify completed practices
     const completedLanzamientoIds = new Set<string>();
     const finalizadaStatuses = ['finalizada', 'pps realizada', 'convenio realizado', 'aprobada'];
     
     practicas.forEach(practica => {
         const estadoPractica = normalizeStringForComparison(practica[FIELD_ESTADO_PRACTICA]);
         if (finalizadaStatuses.includes(estadoPractica)) {
-            // Track via Link ID if available (Current active links)
-            const linkedId = safeGetId(practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]);
+            const linkedId = practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string;
             if (linkedId) {
                 completedLanzamientoIds.add(linkedId);
             }
             
-            // Track via Institution Name (Historical/Legacy links)
-            // This allows us to say "You already went to Hospital Central" even if the Launch ID is old/archived.
             const pNameRaw = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-            const pName = Array.isArray(pNameRaw) ? pNameRaw[0] : pNameRaw;
-            if (typeof pName === 'string' && pName.trim()) {
+            const pName = String(pNameRaw || '');
+            if (pName.trim()) {
                 const groupName = pName.split(' - ')[0].trim();
                 completedLanzamientoIds.add(normalizeStringForComparison(groupName));
             }
@@ -99,10 +87,8 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
     for (const [ppsId, enrollment] of enrollmentMap.entries()) {
         if (normalizeStringForComparison(enrollment[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]) === 'seleccionado') {
             const pps = lanzamientosMap.get(ppsId);
-            // Only if report link exists
             if (pps && pps[FIELD_INFORME_LANZAMIENTOS]) {
-                // Try to find matching practice for Grade
-                const practica = practicas.find(p => safeGetId(p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]) === pps.id);
+                const practica = practicas.find(p => p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] === pps.id);
                 
                 informeTasks.push({
                     convocatoriaId: enrollment.id,
@@ -119,12 +105,9 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
         }
     }
 
-    // 4b. From Finished Practices (orphan, no active enrollment found or manual entry)
-    // This requires the PPS data to be present in 'allLanzamientos'. 
-    // Since we reduced 'allLanzamientos' to mostly active ones + enrolled ones in dataService, 
-    // some very old tasks might not appear here if they are not in 'myEnrollments', but that's expected behavior (archived).
+    // 4b. From Finished Practices
     for (const practica of practicas) {
-        const linkedId = safeGetId(practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]);
+        const linkedId = practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string;
         
         if (linkedId && !processedForInforme.has(linkedId)) {
              const pps = lanzamientosMap.get(linkedId);
@@ -132,12 +115,12 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
              
              if (pps && pps[FIELD_INFORME_LANZAMIENTOS] && finalizadaStatuses.includes(estado)) {
                  informeTasks.push({
-                    convocatoriaId: `practica-${practica.id}`, // Virtual ID
+                    convocatoriaId: `practica-${practica.id}`,
                     practicaId: practica.id,
                     ppsName: pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Práctica',
                     informeLink: pps[FIELD_INFORME_LANZAMIENTOS],
                     fechaFinalizacion: pps[FIELD_FECHA_FIN_LANZAMIENTOS] || practica[FIELD_FECHA_FIN_PRACTICAS] || new Date().toISOString(),
-                    informeSubido: !!practica[FIELD_NOTA_PRACTICAS], // Assume uploaded if graded
+                    informeSubido: !!practica[FIELD_NOTA_PRACTICAS], 
                     nota: practica[FIELD_NOTA_PRACTICAS],
                 });
                 processedForInforme.add(linkedId);
@@ -145,7 +128,6 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
         }
     }
     
-    // Sort: Pending first
     informeTasks.sort((a, b) => {
         const aIsPending = !a.informeSubido;
         const bIsPending = !b.informeSubido;

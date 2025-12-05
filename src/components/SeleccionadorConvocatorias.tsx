@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useSeleccionadorLogic } from '../hooks/useSeleccionadorLogic';
 import {
     FIELD_NOMBRE_PPS_LANZAMIENTOS,
@@ -23,11 +23,6 @@ const StudentRow: React.FC<{
     const [localSchedule, setLocalSchedule] = React.useState(student.horarioSeleccionado);
     const [isScheduleDirty, setIsScheduleDirty] = React.useState(false);
     const isSelected = normalizeStringForComparison(student.status) === 'seleccionado';
-    
-    // Lógica de texto de estado
-    const statusText = student.terminoCursar ? 'Terminó de Cursar' : 
-                       student.cursandoElectivas ? 'Cursando Electivas' : 
-                       (student.finalesAdeuda ? `Adeuda: ${student.finalesAdeuda}` : 'Adeuda finales');
 
     const handleScheduleBlur = () => {
         if (isScheduleDirty && localSchedule !== student.horarioSeleccionado) {
@@ -37,83 +32,99 @@ const StudentRow: React.FC<{
     };
 
     return (
-        <div className={`p-4 rounded-xl border transition-all duration-300 ${isSelected ? 'bg-emerald-50/50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600'}`}>
-            <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
+        <div className={`rounded-xl border transition-all duration-200 ${isSelected ? 'bg-emerald-50/60 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800 shadow-sm' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600'}`}>
+            <div className="p-3 sm:p-4 flex flex-col lg:flex-row gap-4 items-start lg:items-center">
                 
-                {/* 1. Score & Basic Info */}
-                <div className="flex-1 min-w-[220px]">
-                    <div className="flex items-center gap-3 mb-2">
-                         <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border shadow-sm ${student.puntajeTotal >= 100 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`} title="Puntaje Total">
-                            {student.puntajeTotal}
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">{student.nombre}</h4>
-                            <p className="text-xs text-slate-500 font-mono">{student.legajo}</p>
-                        </div>
+                {/* 1. Puntaje, Nombre y Horas (Datos clave para decidir) */}
+                <div className="flex items-center gap-3 min-w-[200px]">
+                     <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-base font-black border shadow-sm ${student.puntajeTotal >= 100 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`} title="Puntaje Total">
+                        {student.puntajeTotal}
                     </div>
-                    {/* Metrics Badges */}
-                    <div className="flex items-center gap-2 text-xs pl-1">
-                        <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800" title="Horas Realizadas">
-                            <span className="material-icons !text-xs">schedule</span>
-                            {student.totalHoras} hs
-                        </span>
-                        {student.penalizacionAcumulada > 0 && (
-                            <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-100 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800" title="Penalización">
-                                <span className="material-icons !text-xs">gavel</span>
-                                -{student.penalizacionAcumulada}
+                    <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate leading-tight" title={student.nombre}>
+                            {student.nombre}
+                        </h4>
+                        {/* Horas movidas aquí debajo del nombre */}
+                        <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800">
+                                <span className="material-icons !text-[11px]">schedule</span> {student.totalHoras} hs acumuladas
                             </span>
-                        )}
+                        </div>
                     </div>
                 </div>
 
-                {/* 2. Academic Status & Notes */}
-                <div className="flex-1 text-sm space-y-1.5 border-l border-slate-100 dark:border-slate-700 pl-0 lg:pl-4 border-l-0 lg:border-l">
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-400 text-xs uppercase font-bold tracking-wider">Estado:</span>
-                        <span className={`font-semibold ${student.terminoCursar ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>
-                            {statusText}
+                {/* 2. Situación Académica y Notas (Unificado) */}
+                <div className="flex-1 w-full lg:w-auto flex flex-wrap items-center gap-2 border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-700 pt-3 lg:pt-0 lg:pl-4 min-h-[32px]">
+                    
+                    {/* Cursada Status */}
+                    {student.terminoCursar ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-800 whitespace-nowrap">
+                            Terminó Cursada
                         </span>
-                    </div>
+                    ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-700 dark:text-slate-300 whitespace-nowrap">
+                            Cursando
+                        </span>
+                    )}
+
+                    {/* Finales */}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border whitespace-nowrap ${student.finalesAdeuda ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                        {student.finalesAdeuda ? `Adeuda: ${student.finalesAdeuda}` : 'Sin Finales'}
+                    </span>
+
+                    {/* Electivas */}
+                    {student.cursandoElectivas && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 whitespace-nowrap">
+                            Electivas
+                        </span>
+                    )}
+                    
+                    {/* Penalización */}
+                    {student.penalizacionAcumulada > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 whitespace-nowrap">
+                            Penalización Activa
+                        </span>
+                    )}
+
+                    {/* Nota del alumno (integrada) */}
                     {student.notasEstudiante && (
-                        <div className="text-xs italic text-slate-600 dark:text-slate-400 bg-yellow-50 dark:bg-yellow-900/10 p-2 rounded border border-yellow-100 dark:border-yellow-800/30 flex items-start gap-1">
-                            <span className="material-icons !text-xs text-yellow-600 mt-0.5">sticky_note_2</span>
-                            <span>"{student.notasEstudiante}"</span>
+                         <div className="inline-flex items-center gap-1.5 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-800/30 rounded px-2 py-0.5 text-xs text-slate-700 dark:text-slate-300 max-w-full">
+                            <span className="font-bold text-[10px] uppercase text-yellow-700 dark:text-yellow-500 shrink-0">Nota:</span>
+                            <span className="italic truncate max-w-[250px] leading-tight" title={student.notasEstudiante}>"{student.notasEstudiante}"</span>
                         </div>
                     )}
                 </div>
 
-                {/* 3. Schedule Input */}
-                <div className="flex-1 min-w-[200px]">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Horario Asignado</label>
-                    <input 
-                        type="text" 
-                        value={localSchedule} 
-                        onChange={(e) => {setLocalSchedule(e.target.value); setIsScheduleDirty(true);}} 
-                        onBlur={handleScheduleBlur} 
-                        className="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                        placeholder="Definir horario..." 
-                    />
-                </div>
+                {/* 3. Acción y Horario */}
+                <div className="flex items-center gap-2 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-700">
+                    <div className="flex-grow lg:w-40">
+                        <input 
+                            type="text" 
+                            value={localSchedule} 
+                            onChange={(e) => {setLocalSchedule(e.target.value); setIsScheduleDirty(true);}} 
+                            onBlur={handleScheduleBlur} 
+                            className="w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400" 
+                            placeholder="Asignar horario..." 
+                        />
+                    </div>
 
-                {/* 4. Action Button */}
-                <button 
-                    onClick={() => onToggleSelection(student)} 
-                    disabled={isUpdating} 
-                    className={`flex-shrink-0 py-2 px-5 rounded-lg text-sm font-bold shadow-sm transition-all active:scale-95 flex items-center gap-2 ${
-                        isSelected 
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-600 ring-offset-2 dark:ring-offset-slate-800' 
-                            : 'bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600'
-                    }`}
-                >
-                    {isUpdating ? (
-                         <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                        <>
-                            <span className="material-icons !text-lg">{isSelected ? 'check' : 'add'}</span>
-                            {isSelected ? (isReviewMode ? 'Confirmado' : 'Listo') : 'Elegir'}
-                        </>
-                    )}
-                </button>
+                    <button 
+                        onClick={() => onToggleSelection(student)} 
+                        disabled={isUpdating} 
+                        className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-all active:scale-95 shadow-sm ${
+                            isSelected 
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-100 dark:ring-emerald-900' 
+                                : 'bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-400 hover:text-blue-600 hover:border-blue-300'
+                        }`}
+                        title={isSelected ? "Deseleccionar" : "Seleccionar Alumno"}
+                    >
+                        {isUpdating ? (
+                             <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <span className="material-icons !text-xl">{isSelected ? 'check' : 'add'}</span>
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -222,13 +233,11 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({ isTestingMod
                     )}
                 </div>
 
-                {/* Helper Info */}
                 <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 pt-3">
                      <div className="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-lg border border-blue-100 dark:border-blue-800 flex items-center gap-2 group relative cursor-help">
                         <span className="font-bold">Criterio:</span> Puntaje descendente
                         <span className="material-icons !text-sm opacity-70">help</span>
                         
-                        {/* Tooltip con la fórmula */}
                         <div className="absolute left-0 top-full mt-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                             <p className="font-bold mb-1 border-b border-slate-600 pb-1">Fórmula de Puntaje:</p>
                             <ul className="space-y-1 list-disc pl-3">
