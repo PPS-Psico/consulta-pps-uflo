@@ -60,6 +60,7 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean; com
                     <>
                         <p className="mb-3">¡Felicitaciones! Has cumplido con todos los objetivos académicos. Antes de continuar, asegúrate de tener listos los siguientes documentos digitales:</p>
                         <ul className="list-disc pl-5 mb-4 space-y-2 text-sm text-left bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-100 dark:border-teal-800/50 text-slate-700 dark:text-slate-300">
+<<<<<<< HEAD
                             <li><strong>Planilla de Seguimiento completa</strong></li>
                             <li><strong>Planillas de asistencias</strong></li>
                             <li><strong>Todos los informes finales Aprobados</strong></li>
@@ -70,6 +71,14 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean; com
                         </div>
                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
                              <span className="material-icons !text-sm mt-0.5">schedule</span>
+=======
+                            <li><strong>Planilla de Seguimiento de Horas</strong> (firmada)</li>
+                            <li><strong>Planilla de Asistencia</strong></li>
+                            <li><strong>Informe Final</strong> de la práctica</li>
+                        </ul>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
+                             <span className="material-icons !text-sm mt-0.5">info</span>
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
                              <p>El proceso administrativo de revisión y acreditación puede demorar hasta <strong>14 días hábiles</strong> desde el envío de la solicitud.</p>
                         </div>
                     </>
@@ -80,7 +89,10 @@ const CertificationButton: React.FC<{ onClick: () => void; isReady: boolean; com
                             <li><strong>250 Horas Totales</strong></li>
                             <li><strong>70 Horas en tu Especialidad</strong></li>
                             <li><strong>Rotación por 3 áreas distintas</strong></li>
+<<<<<<< HEAD
                             <li><strong>No tener PPS en curso</strong></li>
+=======
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
                         </ul>
                         <p className="text-sm text-slate-600 dark:text-slate-400">Si crees que es un error (ej: tienes horas antiguas no digitalizadas) y posees la documentación respaldatoria, puedes continuar bajo tu responsabilidad.</p>
                     </>
@@ -103,10 +115,14 @@ interface CriteriosPanelProps {
 
 const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrientacion, handleOrientacionChange, showSaveConfirmation, onRequestFinalization }) => {
   const todosLosCriteriosCumplidos = useMemo(() => 
+<<<<<<< HEAD
     criterios.cumpleHorasTotales && 
     criterios.cumpleRotacion && 
     criterios.cumpleHorasOrientacion && 
     !criterios.tienePracticasPendientes,
+=======
+    criterios.cumpleHorasTotales && criterios.cumpleRotacion && criterios.cumpleHorasOrientacion,
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
     [criterios]
   );
 

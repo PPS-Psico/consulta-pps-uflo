@@ -144,14 +144,22 @@ const EmailAutomationManager: React.FC = () => {
                 body: {
                     to: testEmail,
                     subject: "Prueba de Sistema de Correo Interno - UFLO",
+<<<<<<< HEAD
                     text: "Este es un correo de prueba enviado desde tu nueva infraestructura interna en Supabase (Vía Nodemailer/Gmail). \n\nSi lees esto, el sistema funciona correctamente y puedes enviar correos a los alumnos.",
+=======
+                    text: "Este es un correo de prueba enviado desde tu nueva infraestructura interna en Supabase. \n\nSi lees esto, el sistema funciona correctamente.",
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
                     name: "Administrador"
                 }
             });
 
             if (error) throw error;
 
+<<<<<<< HEAD
             setToastInfo({ message: 'Correo de prueba enviado exitosamente.', type: 'success' });
+=======
+            setToastInfo({ message: 'Correo de prueba enviado. Verifica tu bandeja.', type: 'success' });
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
         } catch (error: any) {
             console.error("Error sending test:", error);
             setToastInfo({ message: `Fallo el envío: ${error.message || 'Error desconocido'}`, type: 'error' });
@@ -204,6 +212,7 @@ const EmailAutomationManager: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
                 <div className="flex items-center gap-4 mb-6">
                     <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
+<<<<<<< HEAD
                         <span className="material-icons !text-2xl">mark_email_read</span>
                     </div>
                     <div>
@@ -221,6 +230,14 @@ const EmailAutomationManager: React.FC = () => {
                         <h4 className="font-bold text-emerald-800 dark:text-emerald-400 text-sm">Configuración Correcta</h4>
                         <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1 leading-relaxed">
                             Ya puedes usar las automatizaciones. Los correos saldrán desde tu cuenta de Gmail configurada hacia cualquier destinatario.
+=======
+                        <span className="material-icons !text-2xl">dns</span>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Servidor de Correo Interno</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            El sistema utiliza una Edge Function de Supabase para enviar correos de forma segura y escalable.
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
                         </p>
                     </div>
                 </div>
@@ -230,10 +247,17 @@ const EmailAutomationManager: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-end gap-3">
                         <div className="flex-grow w-full">
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Enviar correo de prueba a:</label>
+<<<<<<< HEAD
                                 <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="cualquier_correo@ejemplo.com" className="text-sm" />
                         </div>
                         <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
                             {isSendingTest ? 'Enviando...' : 'Probar Envío'}
+=======
+                                <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="tu_correo@ejemplo.com" className="text-sm" />
+                        </div>
+                        <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
+                            {isSendingTest ? 'Procesando...' : 'Probar Envío'}
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
                         </Button>
                     </div>
                 </div>

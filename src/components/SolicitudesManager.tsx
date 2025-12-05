@@ -384,10 +384,14 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
     });
 
     const deleteMutation = useMutation({
+<<<<<<< HEAD
         mutationFn: async (id: string) => {
             if (isTestingMode) return;
             await db.solicitudes.delete(id);
         },
+=======
+        mutationFn: (id: string) => isTestingMode ? Promise.resolve() : db.solicitudes.delete(id),
+>>>>>>> f22bb5e2c429f50a41112032c45a849d8b353adc
         onSuccess: () => {
             setToastInfo({ message: 'Solicitud eliminada.', type: 'success' });
             queryClient.invalidateQueries({ queryKey: ['adminSolicitudes', isTestingMode] });
