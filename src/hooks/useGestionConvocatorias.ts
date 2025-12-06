@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchAllData, updateRecord, createRecord, updateRecords } from '../services/supabaseService';
 import type { LanzamientoPPS, InstitucionFields, AirtableRecord, LanzamientoPPSFields, PracticaFields } from '../types';
@@ -29,7 +30,7 @@ import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatter
 import { lanzamientoPPSArraySchema, institucionArraySchema, practicaArraySchema } from '../schemas';
 
 // MOCK DATA FOR TESTING
-const mockLanzamientos: LanzamientoPPS[] = [
+const mockLanzamientos: any[] = [
     { id: 'lanz_test_1', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hospital de Prueba (Activa)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Clinica', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión', [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 5 },
     { id: 'lanz_test_2', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Escuela Simulada (Finalizada)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Educacional', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión' },
     { id: 'lanz_test_3', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Consultora Ficticia (Confirmada)', [FIELD_FECHA_FIN_LANZAMIENTOS]: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(), [FIELD_ORIENTACION_LANZAMIENTOS]: 'Laboral', [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Relanzamiento Confirmado', [FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS]: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString() },
@@ -441,7 +442,7 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
                     if (launchMap.has(key)) {
                         updates.push({
                             id: practice.id,
-                            fields: { [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: [launchMap.get(key)!] }
+                            fields: { [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: launchMap.get(key)! }
                         });
                     }
                 }

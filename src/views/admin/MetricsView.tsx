@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import SubTabs from '../../components/SubTabs';
 import { MetricsDashboard } from '../../components/MetricsDashboard';
 import TimelineView from '../../components/TimelineView';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 interface MetricsViewProps {
   onStudentSelect: (student: { legajo: string, nombre: string }) => void;
@@ -21,8 +22,16 @@ const MetricsView: React.FC<MetricsViewProps> = ({ onStudentSelect, isTestingMod
     <>
       <SubTabs tabs={metricsSubTabs} activeTabId={activeMetricsTabId} onTabChange={setActiveMetricsTabId} />
       <div className="mt-6">
-          {activeMetricsTabId === 'dashboard' && <MetricsDashboard onStudentSelect={onStudentSelect} isTestingMode={isTestingMode} />}
-          {activeMetricsTabId === 'timeline' && <TimelineView isTestingMode={isTestingMode} />}
+          {activeMetricsTabId === 'dashboard' && (
+            <ErrorBoundary>
+              <MetricsDashboard onStudentSelect={onStudentSelect} isTestingMode={isTestingMode} />
+            </ErrorBoundary>
+          )}
+          {activeMetricsTabId === 'timeline' && (
+            <ErrorBoundary>
+              <TimelineView isTestingMode={isTestingMode} />
+            </ErrorBoundary>
+          )}
       </div>
     </>
   );

@@ -82,7 +82,7 @@ function formatPhoneNumber(phone?: string): string {
 const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingMode = false, preSelectedLanzamientoId }) => {
     const [step, setStep] = useState<'selection' | 'review'>('selection');
     
-    const [convocatorias, setConvocatorias] = useState<Convocatoria[]>([]);
+    const [convocatorias, setConvocatorias] = useState<any[]>([]); // Use any[] for aggregated objects
     const [selectedConvocatorias, setSelectedConvocatorias] = useState<Set<string>>(new Set());
     const [studentsForReview, setStudentsForReview] = useState<StudentForReview[]>([]);
     
@@ -117,7 +117,7 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
                 sort: [{ field: FIELD_FECHA_INICIO_CONVOCATORIAS, direction: 'desc' }]
             });
 
-            const groupedConvocatorias = new Map<string, Convocatoria>();
+            const groupedConvocatorias = new Map<string, any>();
 
             records.forEach(record => {
                 const lanzId = safeGetId(record[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]);
@@ -134,7 +134,7 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
                         id: key, // Usamos la key como ID del grupo para la UI
                         [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: [],
                         [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: lanzId ? [lanzId] : [] 
-                    } as any);
+                    });
                 }
 
                 const group = groupedConvocatorias.get(key)!;

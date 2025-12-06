@@ -131,7 +131,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Initialize: Get current session
     supabase.auth.getSession().then(({ data, error }) => {
         if (error) {
-            console.error("GetSession Error:", error.message);
+            // Handle "Invalid Refresh Token" gracefully (treat as logged out instead of error)
+            const msg = error.message.toLowerCase();
+            const isRefreshError = msg.includes("refresh token") || msg.includes("not found") || msg.includes("invalid");
+            
+            if (isRefreshError) {
+                console.log("ℹ️ Sesión anterior expirada (Refresh Token inválido). Limpiando estado.");
+                localStorage.removeItem('sb-qxnxtnhtbpsgzprqtrjl-auth-token');
+                // Intentamos un signOut limpio para purgar estado interno del cliente
+                supabase.auth.signOut().catch(() => {});
+            } else {
+                console.error("GetSession Error:", error.message);
+            }
+            
             if (isMounted) setIsAuthLoading(false);
             // If invalid refresh token, Supabase usually triggers SIGNED_OUT event next
         } else {

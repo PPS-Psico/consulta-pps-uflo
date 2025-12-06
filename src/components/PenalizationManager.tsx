@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AdminSearch from './AdminSearch';
@@ -33,6 +34,7 @@ import Loader from './Loader';
 import EmptyState from './EmptyState';
 import Toast from './Toast';
 import Card from './Card';
+import ConfirmModal from './ConfirmModal';
 import { formatDate, normalizeStringForComparison } from '../utils/formatters';
 import { convocatoriaArraySchema, practicaArraySchema, lanzamientoPPSArraySchema, penalizacionArraySchema, estudianteArraySchema } from '../schemas';
 
@@ -127,7 +129,7 @@ const AddPenaltyModal: React.FC<{
     });
 
     const applyPenaltyMutation = useMutation({
-        mutationFn: async (penaltyData: PenalizacionFields) => {
+        mutationFn: async (penaltyData: any) => {
             if (isTestingMode) {
                 console.log("TEST MODE: Applying penalty:", penaltyData);
                 return;
@@ -140,8 +142,7 @@ const AddPenaltyModal: React.FC<{
 
             const triggerTypes = ['Baja Anticipada', 'Baja sobre la Fecha / Ausencia en Inicio', 'Abandono durante la PPS'];
             if (selectedPpsId && triggerTypes.includes(penaltyType)) {
-                // Auto-unsubscribe logic (requires fetching to find exact records to update/delete)
-                // We can keep client-side filtering here for safety on specific records, but fetching is already narrowed down.
+                // Auto-unsubscribe logic
                 const ppsId = selectedPpsId;
                 
                 const [convocatoriasRes, practicasRes] = await Promise.all([
@@ -149,7 +150,6 @@ const AddPenaltyModal: React.FC<{
                     fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, undefined, { [FIELD_NOMBRE_BUSQUEDA_PRACTICAS]: student.legajo }),
                 ]);
 
-                // Filter in memory to find the exact match for this Launch ID
                 const targetConv = convocatoriasRes.records.find(c => {
                     const ids = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
                     const linked = (Array.isArray(ids) ? ids : [ids]).includes(ppsId);
@@ -189,7 +189,7 @@ const AddPenaltyModal: React.FC<{
     });
 
     const handleSave = () => {
-        const penaltyData: PenalizacionFields = {
+        const penaltyData: any = {
             [FIELD_PENALIZACION_ESTUDIANTE_LINK]: student.id,
             [FIELD_PENALIZACION_TIPO]: penaltyType,
             [FIELD_PENALIZACION_FECHA]: new Date().toISOString().split('T')[0],
@@ -240,9 +240,9 @@ const AddPenaltyModal: React.FC<{
 
 const PenalizedStudentCard: React.FC<{
   student: PenalizedStudent;
-  onDelete: (penaltyId: string) => void;
+  onDeleteRequest: (penaltyId: string) => void;
   deletingId: string | null;
-}> = ({ student, onDelete, deletingId }) => {
+}> = ({ student, onDeleteRequest, deletingId }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const scoreVisuals = useMemo(() => {
@@ -329,7 +329,7 @@ const PenalizedStudentCard: React.FC<{
                    {p[FIELD_PENALIZACION_NOTAS] && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 border-l-2 border-slate-200 dark:border-slate-600 pl-2 italic">{p[FIELD_PENALIZACION_NOTAS]}</p>}
                 </div>
                 <button 
-                  onClick={() => onDelete(p.id)} 
+                  onClick={() => onDeleteRequest(p.id)} 
                   disabled={deletingId === p.id}
                   className="p-1.5 rounded-full text-slate-400 hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-900/50 dark:hover:text-rose-400 disabled:opacity-50"
                   aria-label="Eliminar penalización"
@@ -357,6 +357,7 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [penaltyToDelete, setPenaltyToDelete] = useState<string | null>(null); // State for modal
     const queryClient = useQueryClient();
 
     const { data: penalizedStudents, isLoading } = useQuery<PenalizedStudent[]>({
@@ -431,13 +432,18 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
         },
         onSettled: () => {
             setDeletingId(null);
+            setPenaltyToDelete(null);
         }
     });
 
-    const handleDelete = (penaltyId: string) => {
-        if (window.confirm('¿Estás seguro de que quieres eliminar esta penalización?')) {
-            setDeletingId(penaltyId);
-            deleteMutation.mutate(penaltyId);
+    const handleDeleteRequest = (penaltyId: string) => {
+        setPenaltyToDelete(penaltyId);
+    };
+
+    const confirmDelete = () => {
+        if (penaltyToDelete) {
+            setDeletingId(penaltyToDelete);
+            deleteMutation.mutate(penaltyToDelete);
         }
     };
     
@@ -459,6 +465,17 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             {selectedStudent && <AddPenaltyModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} student={selectedStudent} onSuccess={() => setToastInfo({message: 'Penalización aplicada con éxito.', type: 'success'})} isTestingMode={isTestingMode} />}
             
+            <ConfirmModal 
+                isOpen={!!penaltyToDelete}
+                title="Eliminar Penalización"
+                message="¿Estás seguro de que quieres eliminar este registro de penalización? Esta acción afectará el puntaje del alumno y no se puede deshacer."
+                onConfirm={confirmDelete}
+                onClose={() => setPenaltyToDelete(null)}
+                confirmText="Eliminar"
+                cancelText="Cancelar"
+                type="danger"
+            />
+
             <Card title="Panel de Penalizaciones" icon="gavel" description="Aplica y gestiona las penalizaciones por incumplimientos de los estudiantes.">
                 <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                      <AdminSearch onStudentSelect={handleStudentSelect} />
@@ -470,7 +487,7 @@ const PenalizationManager: React.FC<PenalizationManagerProps> = ({ isTestingMode
                     penalizedStudents && penalizedStudents.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {penalizedStudents.map(student => (
-                                <PenalizedStudentCard key={student.id} student={student} onDelete={handleDelete} deletingId={deletingId} />
+                                <PenalizedStudentCard key={student.id} student={student} onDeleteRequest={handleDeleteRequest} deletingId={deletingId} />
                             ))}
                         </div>
                     ) : (

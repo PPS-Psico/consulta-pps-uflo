@@ -1,34 +1,24 @@
 
-import { z } from 'zod';
-import {
-    estudianteFieldsSchema,
-    practicaFieldsSchema,
-    solicitudPPSFieldsSchema,
-    lanzamientoPPSFieldsSchema,
-    convocatoriaFieldsSchema,
-    institucionFieldsSchema,
-    penalizacionFieldsSchema,
-    finalizacionPPSFieldsSchema,
-    authUserFieldsSchema,
-    ALL_ORIENTACIONES,
-} from './schemas';
+import { Database } from './types/supabase';
+import { ALL_ORIENTACIONES } from './schemas';
 
-import {
-    FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
-    FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS
-} from './constants';
+// --- Supabase Helpers ---
+type Tables = Database['public']['Tables'];
+export type TableRow<T extends keyof Tables> = Tables[T]['Row'];
+export type TableInsert<T extends keyof Tables> = Tables[T]['Insert'];
+export type TableUpdate<T extends keyof Tables> = Tables[T]['Update'];
 
-export type { Database } from './types/supabase';
+export type { Database };
 
 // --- Base Record Type ---
-export interface DBRecord {
-  id: string;
-  created_at?: string;
-  createdTime?: string; // Legacy Alias
-}
+// Extends the Row with frontend-specific legacy fields or computed props
+export type AppRecord<T> = T & {
+  createdTime?: string; // Legacy alias for created_at
+  // Allow dynamic string indexing for UI components using constants as keys
+  [key: string]: any; 
+};
 
-export type AppRecord<T> = T & DBRecord;
-export type AirtableRecord<T> = AppRecord<T>; // Alias
+export type AirtableRecord<T> = AppRecord<T>; // Alias legacy
 
 export interface AppError {
   type: string;
@@ -57,30 +47,39 @@ export interface CriteriosCalculados {
   tienePracticasPendientes: boolean;
 }
 
-// --- Table Fields Interfaces ---
-export type EstudianteFields = z.infer<typeof estudianteFieldsSchema>;
+// --- Table Fields Interfaces (Derived from Supabase) ---
 
-export type PracticaFields = z.infer<typeof practicaFieldsSchema> & {
-    [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]?: string[] | string;
-    [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]?: string | string[];
+export type EstudianteFields = TableRow<'estudiantes'>;
+export type PracticaFields = TableRow<'practicas'>;
+export type SolicitudPPSFields = TableRow<'solicitudes_pps'>;
+export type LanzamientoPPSFields = TableRow<'lanzamientos_pps'>;
+export type ConvocatoriaFields = TableRow<'convocatorias'>;
+export type InstitucionFields = TableRow<'instituciones'>;
+export type FinalizacionPPSFields = TableRow<'finalizacion_pps'>;
+export type PenalizacionFields = TableRow<'penalizaciones'>;
+
+// Manual definition for AuthUserFields as it might not be in public schema or is a view
+export type AuthUserFields = {
+    id: string;
+    created_at: string;
+    legajo: string | null;
+    nombre: string | null;
+    password_hash: string | null;
+    salt: string | null;
+    role: string | null;
+    orientaciones: string[] | null;
 };
 
-export type SolicitudPPSFields = z.infer<typeof solicitudPPSFieldsSchema>;
-export type LanzamientoPPSFields = z.infer<typeof lanzamientoPPSFieldsSchema>;
-export type ConvocatoriaFields = z.infer<typeof convocatoriaFieldsSchema>;
-export type InstitucionFields = z.infer<typeof institucionFieldsSchema>;
-export type FinalizacionPPSFields = z.infer<typeof finalizacionPPSFieldsSchema>;
-export type PenalizacionFields = z.infer<typeof penalizacionFieldsSchema>;
-export type AuthUserFields = z.infer<typeof authUserFieldsSchema>;
+// --- Extended Types with ID (AppRecord adds optional createdTime) ---
+export type Penalizacion = AppRecord<PenalizacionFields>;
+export type FinalizacionPPS = AppRecord<FinalizacionPPSFields>;
+export type Practica = AppRecord<PracticaFields>;
+export type SolicitudPPS = AppRecord<SolicitudPPSFields>;
+export type LanzamientoPPS = AppRecord<LanzamientoPPSFields>;
+export type Convocatoria = AppRecord<ConvocatoriaFields>;
+export type Institucion = AppRecord<InstitucionFields>;
+export type Estudiante = AppRecord<EstudianteFields>;
 
-export type Penalizacion = PenalizacionFields & DBRecord;
-export type FinalizacionPPS = FinalizacionPPSFields & DBRecord;
-
-// Types with ID
-export type Practica = PracticaFields & DBRecord;
-export type SolicitudPPS = SolicitudPPSFields & DBRecord;
-export type LanzamientoPPS = LanzamientoPPSFields & DBRecord;
-export type Convocatoria = ConvocatoriaFields & DBRecord;
 
 // --- Component-specific Types ---
 export interface InformeTask {
