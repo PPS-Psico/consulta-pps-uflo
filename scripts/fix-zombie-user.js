@@ -73,9 +73,10 @@ async function repairUser() {
         console.log("\n📢 --- INSTRUCCIONES PARA ENVIAR AL ALUMNO ---");
         console.log("---------------------------------------------------");
         console.log("1. Tu usuario ya está creado y activo.");
-        console.log("2. Ve a 'Iniciar Sesión'.");
-        console.log("3. Si no recuerdas tu clave, haz clic en '¿Olvidaste tu contraseña?'.");
-        console.log(`4. Te llegará un mail a: ${user.email}`);
+        console.log("2. En la pantalla de inicio, hacé clic en '¿Olvidaste tu contraseña?'.");
+        console.log("3. Ingresá tu Legajo, DNI, Correo y Celular para validar tu identidad.");
+        console.log("4. Si los datos son correctos, podrás escribir tu nueva contraseña ahí mismo.");
+        console.log("   (No hace falta esperar ningún correo electrónico).");
         console.log("---------------------------------------------------");
 
     } else {
@@ -101,8 +102,8 @@ async function repairUser() {
             console.log("Hubo un error técnico con tu usuario anterior que ya fue solucionado.");
             console.log("Por favor, volvé a registrarte como si fueras nuevo:");
             console.log(`1. Clic en 'Crear Usuario'.`);
-            console.log(`2. Ingresá tu Legajo ${student.legajo}, DNI y Correo.`);
-            console.log("3. Creá una contraseña nueva.");
+            console.log(`2. Ingresá tu Legajo ${student.legajo}.`);
+            console.log("3. Validá tus datos y creá una contraseña nueva.");
             console.log("---------------------------------------------------");
         }
     }
