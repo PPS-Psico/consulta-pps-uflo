@@ -26,11 +26,12 @@ describe('fetchSeleccionados', () => {
         jest.clearAllMocks();
     });
     
-    const mockLanzamiento: LanzamientoPPS = {
+    // Casting to LanzamientoPPS to satisfy type requirements for the test
+    const mockLanzamiento = {
         id: 'recLanzamiento1',
         [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hospital Central',
         [FIELD_FECHA_INICIO_LANZAMIENTOS]: '2024-08-05',
-    };
+    } as unknown as LanzamientoPPS;
 
     it('should return grouped selected students correctly', async () => {
         

@@ -1,4 +1,5 @@
 
+
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllData } from '../services/supabaseService';
@@ -15,7 +16,7 @@ import EmptyState from './EmptyState';
 import { parseToUTCDate } from '../utils/formatters';
 import { lanzamientoPPSArraySchema } from '../schemas';
 
-const MOCK_TIMELINE_DATA: LanzamientoPPS[] = [
+const MOCK_TIMELINE_DATA: any[] = [
     { id: 'tl_mock_1', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Hospital de Simulación', [FIELD_FECHA_INICIO_LANZAMIENTOS]: `${new Date().getFullYear()}-03-10`, [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 10 },
     { id: 'tl_mock_2', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Escuela de Prueba', [FIELD_FECHA_INICIO_LANZAMIENTOS]: `${new Date().getFullYear()}-03-20`, [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 5 },
     { id: 'tl_mock_3', [FIELD_NOMBRE_PPS_LANZAMIENTOS]: 'Empresa Ficticia', [FIELD_FECHA_INICIO_LANZAMIENTOS]: `${new Date().getFullYear()}-05-05`, [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 8 },
@@ -62,7 +63,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ isTestingMode = false }) =>
 
     const { data: launches, isLoading, error } = useQuery({
         queryKey: ['timelineData', isTestingMode],
-        queryFn: () => isTestingMode ? Promise.resolve(MOCK_TIMELINE_DATA) : fetchTimelineData(),
+        queryFn: () => isTestingMode ? Promise.resolve(MOCK_TIMELINE_DATA as LanzamientoPPS[]) : fetchTimelineData(),
     });
     
     const availableYears = useMemo(() => {

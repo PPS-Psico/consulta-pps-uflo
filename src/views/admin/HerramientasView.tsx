@@ -8,7 +8,8 @@ import type { AirtableRecord, EstudianteFields } from '../../types';
 import DatabaseEditor from '../../components/DatabaseEditor';
 import Loader from '../../components/Loader';
 import EmailAutomationManager from '../../components/EmailAutomationManager';
-import NuevosConvenios from '../../components/NuevosConvenios'; // Imported
+import NuevosConvenios from '../../components/NuevosConvenios';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 const ExecutiveReportGenerator = lazy(() => import('../../components/ExecutiveReportGenerator'));
 const ActiveInstitutionsReport = lazy(() => import('../../components/ActiveInstitutionsReport'));
@@ -21,6 +22,11 @@ interface HerramientasViewProps {
 const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, isTestingMode = false }) => {
   const [activeTabId, setActiveTabId] = useState('editor-db');
   const [activeReportType, setActiveReportType] = useState<'instituciones' | 'ejecutivo'>('instituciones');
+  const { showModal } = useModal();
+  
+  // Lazy load SeguroGenerator inside component to avoid circular dependency issues if any,
+  // and because it is heavy.
+  const SeguroGenerator = lazy(() => import('../../components/SeguroGenerator'));
 
   const tabs = [
     { id: 'editor-db', label: 'Editor DB', icon: 'storage' },
@@ -28,6 +34,7 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
     { id: 'penalizaciones', label: 'Penalizaciones', icon: 'gavel' },
     { id: 'automation', label: 'Automatizaciones', icon: 'auto_fix_high' },
     { id: 'search', label: 'Buscar Alumno', icon: 'person_search' },
+    { id: 'insurance', label: 'Seguros', icon: 'shield' },
     { id: 'reportes', label: 'Reportes', icon: 'summarize' },
   ];
 
@@ -37,23 +44,46 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
       <div className="mt-6">
         <Suspense fallback={<div className="flex justify-center p-8"><Loader /></div>}>
           
-          {activeTabId === 'editor-db' && <DatabaseEditor isTestingMode={isTestingMode} />}
+          {activeTabId === 'editor-db' && (
+            <ErrorBoundary>
+              <DatabaseEditor isTestingMode={isTestingMode} />
+            </ErrorBoundary>
+          )}
           
-          {activeTabId === 'convenios' && <NuevosConvenios isTestingMode={isTestingMode} />}
+          {activeTabId === 'convenios' && (
+            <ErrorBoundary>
+              <NuevosConvenios isTestingMode={isTestingMode} />
+            </ErrorBoundary>
+          )}
 
-          {activeTabId === 'penalizaciones' && <PenalizationManager isTestingMode={isTestingMode} />}
+          {activeTabId === 'penalizaciones' && (
+            <ErrorBoundary>
+              <PenalizationManager isTestingMode={isTestingMode} />
+            </ErrorBoundary>
+          )}
 
-          {activeTabId === 'automation' && <EmailAutomationManager />}
+          {activeTabId === 'automation' && (
+            <ErrorBoundary>
+              <EmailAutomationManager />
+            </ErrorBoundary>
+          )}
           
           {activeTabId === 'search' && (
-            <div className="p-4">
-              <AdminSearch onStudentSelect={onStudentSelect} isTestingMode={isTestingMode} />
-            </div>
+            <ErrorBoundary>
+              <div className="p-4">
+                <AdminSearch onStudentSelect={onStudentSelect} isTestingMode={isTestingMode} />
+              </div>
+            </ErrorBoundary>
+          )}
+          
+          {activeTabId === 'insurance' && (
+              <ErrorBoundary>
+                  <SeguroGenerator showModal={showModal} isTestingMode={isTestingMode} />
+              </ErrorBoundary>
           )}
 
           {activeTabId === 'reportes' && (
              <div className="space-y-6">
-                {/* Internal Tab Switcher for Reports */}
                 <div className="flex justify-center">
                     <div className="inline-flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
                         <button 
@@ -71,8 +101,16 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
                     </div>
                 </div>
 
-                {activeReportType === 'instituciones' && <ActiveInstitutionsReport isTestingMode={isTestingMode} />}
-                {activeReportType === 'ejecutivo' && <ExecutiveReportGenerator isTestingMode={isTestingMode} />}
+                {activeReportType === 'instituciones' && (
+                    <ErrorBoundary>
+                        <ActiveInstitutionsReport isTestingMode={isTestingMode} />
+                    </ErrorBoundary>
+                )}
+                {activeReportType === 'ejecutivo' && (
+                    <ErrorBoundary>
+                        <ExecutiveReportGenerator isTestingMode={isTestingMode} />
+                    </ErrorBoundary>
+                )}
              </div>
           )}
 

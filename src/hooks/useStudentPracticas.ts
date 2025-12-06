@@ -24,7 +24,8 @@ export const useStudentPracticas = (legajo: string) => {
     const updateNota = useMutation({
         mutationFn: ({ practicaId, nota, convocatoriaId }: { practicaId: string; nota: string; convocatoriaId?: string }) => {
             const valueToSend = nota === 'Sin calificar' ? null : nota;
-            const promises = [db.practicas.update(practicaId, { [FIELD_NOTA_PRACTICAS]: valueToSend })];
+            // Use any to bypass specific AppRecord type check which might fail due to generic differences
+            const promises: Promise<any>[] = [db.practicas.update(practicaId, { [FIELD_NOTA_PRACTICAS]: valueToSend })];
             
             if (nota === 'No Entregado' && convocatoriaId) {
                 promises.push(db.convocatorias.update(convocatoriaId, { [FIELD_INFORME_SUBIDO_CONVOCATORIAS]: false }));

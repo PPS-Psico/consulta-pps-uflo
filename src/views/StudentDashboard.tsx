@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import CriteriosPanel from '../components/CriteriosPanel';
 import PracticasTable from '../components/PracticasTable';
@@ -21,6 +20,8 @@ import PrintableReport from '../components/PrintableReport';
 import { useStudentPanel } from '../contexts/StudentPanelContext';
 import FinalizacionForm from '../components/FinalizacionForm';
 import FinalizationStatusCard from '../components/FinalizationStatusCard';
+import MobileSectionHeader from '../components/MobileSectionHeader';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { 
     FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, 
     FIELD_NOMBRE_ESTUDIANTES, 
@@ -50,6 +51,7 @@ import { useNavigate } from 'react-router-dom';
 import { useModal } from '../contexts/ModalContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
+import { addBusinessDays } from '../utils/formatters';
 
 // Export individual views for Router
 export { default as StudentPracticas } from '../components/PracticasTable';
@@ -62,7 +64,7 @@ export const StudentHome: React.FC = () => {
     
     const {
         studentDetails,
-        studentAirtableId, 
+        studentAirtableId, // Retrieved from context
         lanzamientos,
         allLanzamientos,
         institutionAddressMap,
@@ -70,8 +72,7 @@ export const StudentHome: React.FC = () => {
         criterios,
         enrollmentMap,
         completedLanzamientoIds,
-        informeTasks,
-        finalizacionRequest
+        informeTasks
     } = useStudentPanel();
 
     const handleOpenFinalization = useCallback(() => {
@@ -79,7 +80,7 @@ export const StudentHome: React.FC = () => {
     }, []);
 
     return (
-        <>
+        <ErrorBoundary>
              {isFinalizationModalOpen && (
                 <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                 <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
@@ -89,6 +90,7 @@ export const StudentHome: React.FC = () => {
                     >
                         <span className="material-icons">close</span>
                     </button>
+                    {/* Use context ID directly */}
                     <FinalizacionForm 
                         studentAirtableId={studentAirtableId} 
                         onClose={() => setIsFinalizationModalOpen(false)}
@@ -96,17 +98,6 @@ export const StudentHome: React.FC = () => {
                 </div>
                 </div>
             )}
-            
-            {/* Mostrar tarjeta de estado SIEMPRE que haya un trámite activo */}
-            {finalizacionRequest && (
-                <FinalizationStatusCard 
-                    status={finalizacionRequest[FIELD_ESTADO_FINALIZACION] || 'Pendiente'} 
-                    requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
-                />
-            )}
-
-            {/* Note: FinalizationReadyCard is handled inside HomeView, removed here to avoid duplication */}
-
             <HomeView 
                 myEnrollments={enrollmentMap ? Array.from(enrollmentMap.values()) : []} 
                 allLanzamientos={allLanzamientos} 
@@ -121,10 +112,9 @@ export const StudentHome: React.FC = () => {
                 criterios={criterios}
                 onOpenFinalization={handleOpenFinalization}
             />
-        </>
+        </ErrorBoundary>
     );
 };
-
 
 // --- COMPONENT: StudentDashboard (Standalone Widget) ---
 interface StudentDashboardProps {
@@ -241,26 +231,49 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       });
   }, [openSolicitudPPSModal, createSolicitudMutation]);
   
-  // Tab Contents
-  const homeContent = useMemo(() => <HomeView 
-      myEnrollments={enrollmentMap ? Array.from(enrollmentMap.values()) : []} 
-      allLanzamientos={allLanzamientos} 
-      informeTasks={informeTasks} 
-      lanzamientos={lanzamientos} 
-      onNavigate={(id) => setCurrentActiveTab(id)}
-      student={studentDetails}
-      onInscribir={enrollStudent.mutate}
-      institutionAddressMap={institutionAddressMap}
-      enrollmentMap={enrollmentMap}
-      completedLanzamientoIds={completedLanzamientoIds}
-      criterios={criterios}
-      onOpenFinalization={handleOpenFinalization}
-  />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
+  // Tab Contents Wrappers with ErrorBoundary
+  const homeContent = useMemo(() => (
+    <ErrorBoundary>
+        <HomeView 
+            myEnrollments={enrollmentMap ? Array.from(enrollmentMap.values()) : []} 
+            allLanzamientos={allLanzamientos} 
+            informeTasks={informeTasks} 
+            lanzamientos={lanzamientos} 
+            onNavigate={(id) => setCurrentActiveTab(id)}
+            student={studentDetails}
+            onInscribir={enrollStudent.mutate}
+            institutionAddressMap={institutionAddressMap}
+            enrollmentMap={enrollmentMap}
+            completedLanzamientoIds={completedLanzamientoIds}
+            criterios={criterios}
+            onOpenFinalization={handleOpenFinalization}
+        />
+    </ErrorBoundary>
+  ), [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
-  const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
-  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} criterios={criterios} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios]);
-  const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
-  const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
+  const informesContent = useMemo(() => (
+    <ErrorBoundary>
+        <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />
+    </ErrorBoundary>
+  ), [informeTasks, confirmInforme]);
+
+  const solicitudesContent = useMemo(() => (
+    <ErrorBoundary>
+        <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} criterios={criterios} finalizacionRequest={finalizacionRequest} />
+    </ErrorBoundary>
+  ), [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios, finalizacionRequest]);
+
+  const practicasContent = useMemo(() => (
+    <ErrorBoundary>
+        <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />
+    </ErrorBoundary>
+  ), [practicas, handleNotaChange]);
+
+  const profileContent = useMemo(() => (
+    <ErrorBoundary>
+        <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />
+    </ErrorBoundary>
+  ), [studentDetails, isLoading, updateInternalNotes]);
 
   const studentDataTabs = useMemo(() => {
     const tabs: { id: TabId; label: string; icon: string; content: React.ReactNode; badge?: number }[] = [
@@ -377,7 +390,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                 requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
             />
         ) : (
-            <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+            <ErrorBoundary>
+                <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+            </ErrorBoundary>
         )}
         
         {hasData ? (
@@ -389,7 +404,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
             />
           </Card>
         ) : (
-           // Should technically fall into empty state above, but double check here
            <div className="space-y-8">
                 <Card icon="list_alt" title="Comenzar">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
@@ -431,30 +445,34 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           )}
 
           {currentActiveTab === 'informes' && (
-              <Card icon="assignment_turned_in" title="Entrega de Informes Finales" description="Sube tu informe final al campus y luego confirma la entrega aquí.">
-                  {informesContent}
-              </Card>
+              <ErrorBoundary>
+                <MobileSectionHeader title="Entrega de Informes Finales" description="Sube tu informe final al campus y luego confirma la entrega aquí." />
+                {informesContent}
+              </ErrorBoundary>
           )}
 
           {currentActiveTab === 'solicitudes' && (
-              <Card icon="list_alt" title="Mis Solicitudes de PPS" description="Seguimiento del estado de las Prácticas Profesionales Supervisadas que has solicitado.">
-                  {solicitudesContent}
-              </Card>
+              <ErrorBoundary>
+                 <MobileSectionHeader title="Mis Solicitudes de PPS" description="Seguimiento del estado de las Prácticas Profesionales Supervisadas que has solicitado." />
+                 {solicitudesContent}
+              </ErrorBoundary>
           )}
           
           {currentActiveTab === 'practicas' && (
-              <>
+              <ErrorBoundary>
                   {!finalizacionRequest && <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />}
-                  <Card icon="work_history" title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones.">
-                    {practicasContent}
-                  </Card>
-              </>
+                  <MobileSectionHeader title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones." />
+                  {practicasContent}
+              </ErrorBoundary>
           )}
 
           {currentActiveTab === 'profile' && (
-                <Card icon="person" title="Mi Perfil">
-                  {profileContent}
-              </Card>
+                <ErrorBoundary>
+                  <MobileSectionHeader title="Mi Perfil" />
+                  <Card>
+                    {profileContent}
+                  </Card>
+                </ErrorBoundary>
           )}
       </div>
       

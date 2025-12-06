@@ -8,9 +8,9 @@ import { useTheme } from '../contexts/ThemeContext';
 import Input from './Input';
 import { useAuthLogic } from '../hooks/useAuthLogic';
 import { 
-    FIELD_NOMBRE_ESTUDIANTES, 
     FIELD_NOMBRE_SEPARADO_ESTUDIANTES, 
-    FIELD_APELLIDO_SEPARADO_ESTUDIANTES 
+    FIELD_APELLIDO_SEPARADO_ESTUDIANTES,
+    FIELD_NOMBRE_ESTUDIANTES
 } from '../constants';
 import { toTitleCase } from '../utils/formatters';
 
@@ -45,7 +45,6 @@ const Auth: React.FC = () => {
     }
   };
 
-  // Helper para mostrar el nombre en modo registro
   const getDisplayName = () => {
       if (!foundStudent) return '';
       const nombre = foundStudent[FIELD_NOMBRE_SEPARADO_ESTUDIANTES];
@@ -70,7 +69,6 @@ const Auth: React.FC = () => {
 
       <form onSubmit={handleFormSubmit} className="space-y-5">
         {mode === 'register' && registerStep === 2 ? (
-            // --- STEP 2: REGISTER FORM ---
             <div className="space-y-4 animate-fade-in">
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
                     <p className="text-xs text-blue-600 dark:text-blue-300 font-bold uppercase">Hola,</p>
@@ -78,81 +76,23 @@ const Auth: React.FC = () => {
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Completa tus datos para finalizar el registro.</p>
                 </div>
 
-                <Input 
-                    name="dni" 
-                    type="text" 
-                    placeholder="Tu DNI (sin puntos)" 
-                    icon="fingerprint" 
-                    value={verificationData.dni} 
-                    onChange={handleVerificationDataChange} 
-                    disabled={isLoading} 
-                    inputMode="numeric" 
-                    className="bg-white dark:bg-slate-900"
-                />
-                <Input 
-                    name="correo" 
-                    type="email" 
-                    placeholder="Correo electrónico personal" 
-                    icon="email" 
-                    value={verificationData.correo} 
-                    onChange={handleVerificationDataChange} 
-                    disabled={isLoading} 
-                    className="bg-white dark:bg-slate-900"
-                />
-                <Input 
-                    name="telefono" 
-                    type="tel" 
-                    placeholder="Teléfono celular" 
-                    icon="smartphone" 
-                    value={verificationData.telefono} 
-                    onChange={handleVerificationDataChange} 
-                    disabled={isLoading} 
-                    className="bg-white dark:bg-slate-900"
-                />
+                <Input name="dni" type="text" placeholder="Tu DNI (sin puntos)" icon="fingerprint" value={verificationData.dni} onChange={handleVerificationDataChange} disabled={isLoading} inputMode="numeric" className="bg-white dark:bg-slate-900" />
+                <Input name="correo" type="email" placeholder="Correo electrónico personal" icon="email" value={verificationData.correo} onChange={handleVerificationDataChange} disabled={isLoading} className="bg-white dark:bg-slate-900" />
+                <Input name="telefono" type="tel" placeholder="Teléfono celular" icon="smartphone" value={verificationData.telefono} onChange={handleVerificationDataChange} disabled={isLoading} className="bg-white dark:bg-slate-900" />
                 <div className="relative">
-                    <Input 
-                        id="new-password" 
-                        type={showPassword ? 'text' : 'password'} 
-                        value={password} 
-                        onChange={(e) => setPassword(e.target.value)} 
-                        placeholder="Crear contraseña (mín. 6 caracteres)" 
-                        icon="lock" 
-                        disabled={isLoading}
-                        className="bg-white dark:bg-slate-900"
-                    />
+                    <Input id="new-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Crear contraseña (mín. 6 caracteres)" icon="lock" disabled={isLoading} className="bg-white dark:bg-slate-900" />
                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
                         <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
                     </button>
                 </div>
-                <Input 
-                    id="confirm-password" 
-                    type={showPassword ? 'text' : 'password'} 
-                    value={confirmPassword} 
-                    onChange={(e) => setConfirmPassword(e.target.value)} 
-                    placeholder="Repetir contraseña" 
-                    icon="lock_reset" 
-                    disabled={isLoading}
-                    className="bg-white dark:bg-slate-900"
-                />
+                <Input id="confirm-password" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repetir contraseña" icon="lock_reset" disabled={isLoading} className="bg-white dark:bg-slate-900" />
             </div>
         ) : (
-            // --- STEP 1 (LOGIN & REGISTER): LEGAJO INPUT ---
             <>
                 <div className="animate-fade-in-up" style={{ animationDelay: '700ms' }}>
                   <label htmlFor="legajo" className="sr-only">Número de Legajo</label>
                   <div className="relative">
-                    <Input 
-                        id="legajo" 
-                        type="text" 
-                        value={legajo} 
-                        onChange={(e) => setLegajo(e.target.value)} 
-                        placeholder="Número de Legajo" 
-                        icon="badge" 
-                        disabled={isLoading} 
-                        autoComplete="username"
-                        className="bg-white dark:bg-slate-900"
-                        autoFocus
-                    />
+                    <Input id="legajo" type="text" value={legajo} onChange={(e) => setLegajo(e.target.value)} placeholder="Número de Legajo" icon="badge" disabled={isLoading} autoComplete="username" className="bg-white dark:bg-slate-900" autoFocus />
                   </div>
                 </div>
 
@@ -160,17 +100,7 @@ const Auth: React.FC = () => {
                     <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
                       <div className="relative">
                         <label htmlFor="password" className="sr-only">Contraseña</label>
-                        <Input 
-                            id="password" 
-                            type={showPassword ? 'text' : 'password'} 
-                            value={password} 
-                            onChange={(e) => setPassword(e.target.value)} 
-                            placeholder="Contraseña" 
-                            icon="lock" 
-                            disabled={isLoading} 
-                            autoComplete="current-password"
-                            className={`bg-white dark:bg-slate-900 ${fieldError === 'password' ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
-                        />
+                        <Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" icon="lock" disabled={isLoading} autoComplete="current-password" className={`bg-white dark:bg-slate-900 ${fieldError === 'password' ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`} />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
                           <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
                         </button>
@@ -188,11 +118,7 @@ const Auth: React.FC = () => {
                             <span className="text-sm font-medium text-slate-800 dark:text-slate-300">Recordarme</span>
                         </label>
                         
-                        <button 
-                            type="button"
-                            onClick={() => handleModeChange('recover')}
-                            className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                        >
+                        <button type="button" onClick={() => handleModeChange('recover')} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                             ¿Olvidaste tu contraseña?
                         </button>
                     </div>
@@ -207,109 +133,13 @@ const Auth: React.FC = () => {
           </button>
           
           {mode === 'register' && registerStep === 2 && (
-               <button 
-                 type="button"
-                 onClick={() => setRegisterStep(1)}
-                 className="w-full mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-               >
+               <button type="button" onClick={() => setRegisterStep(1)} className="w-full mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
                    Volver
                </button>
           )}
         </div>
       </form>
     </>
-  );
-
-  const renderMigration = () => (
-      <form onSubmit={handleFormSubmit} className="space-y-5 animate-fade-in-up">
-          <div className="text-left mb-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-bold mb-3 border border-blue-100 dark:border-blue-500/20">
-                  <span className="material-icons !text-sm">person_add</span>
-                  Activa tu cuenta
-              </div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {migrationStep === 1 ? "1. Validar Identidad" : "2. Crear Contraseña"}
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm leading-relaxed">
-                  {migrationStep === 1 
-                    ? <>Hola <strong>{legajo}</strong>. Para activar tu acceso, primero necesitamos validar tu identidad.</>
-                    : "¡Identidad validada! Ahora define tu contraseña para acceder al sistema."
-                  }
-              </p>
-          </div>
-
-          {migrationStep === 1 && (
-              <div className="space-y-4 animate-fade-in">
-                  <Input 
-                      name="dni" 
-                      type="text" 
-                      placeholder="Tu DNI (sin puntos)" 
-                      icon="badge" 
-                      value={verificationData.dni} 
-                      onChange={handleVerificationDataChange} 
-                      disabled={isLoading} 
-                      inputMode="numeric" 
-                      pattern="[0-9]*"
-                      autoFocus
-                      className="bg-white dark:bg-slate-900"
-                  />
-                  <Input 
-                      name="correo" 
-                      type="email" 
-                      placeholder="Correo electrónico registrado" 
-                      icon="email" 
-                      value={verificationData.correo} 
-                      onChange={handleVerificationDataChange} 
-                      disabled={isLoading} 
-                      className="bg-white dark:bg-slate-900"
-                  />
-              </div>
-          )}
-
-          {migrationStep === 2 && (
-               <div className="space-y-4 animate-fade-in">
-                   <div className="relative">
-                    <label htmlFor="new-password" className="sr-only">Nueva Contraseña</label>
-                    <Input 
-                        id="new-password" 
-                        type={showPassword ? 'text' : 'password'} 
-                        value={password} 
-                        onChange={(e) => setPassword(e.target.value)} 
-                        placeholder="Contraseña (Mínimo 6 caracteres)" 
-                        icon="lock" 
-                        disabled={isLoading}
-                        className={`bg-white dark:bg-slate-900 ${password.length > 0 && password.length < 6 ? "border-red-500 focus:border-red-500" : ""}`}
-                        autoFocus
-                    />
-                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
-                        <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
-                    </button>
-                  </div>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 px-1 font-medium flex items-start gap-1">
-                      <span className="material-icons !text-sm mt-0.5">check_circle</span>
-                      Puedes usar la misma contraseña que usabas antes si tiene al menos 6 caracteres.
-                  </p>
-              </div>
-          )}
-
-          <div className="pt-4 space-y-3">
-              <button type="submit" disabled={isLoading} className="w-full bg-emerald-600 text-white font-bold text-base py-3 px-6 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:bg-emerald-700 hover:-translate-y-0.5 active:scale-95 active:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-3">
-                  {isLoading ? (
-                      <><div className="border-2 border-white/50 border-t-white rounded-full w-5 h-5 animate-spin"></div><span>Procesando...</span></>
-                  ) : (
-                      <span>{migrationStep === 1 ? 'Validar Identidad' : 'Activar Cuenta'}</span>
-                  )}
-              </button>
-              
-              <button 
-                type="button" 
-                onClick={() => migrationStep === 2 ? setMigrationStep(1) : handleModeChange('login')} 
-                className="w-full text-center text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-              >
-                  {migrationStep === 2 ? "Volver atrás" : "Cancelar"}
-              </button>
-          </div>
-      </form>
   );
 
   const renderRecover = () => (
@@ -325,76 +155,59 @@ const Auth: React.FC = () => {
               <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm leading-relaxed">
                   {resetStep === 'verify' 
                     ? "Para tu seguridad, necesitamos validar tu identidad con tus datos registrados."
-                    : "¡Listo! Revisa tu correo electrónico."
+                    : resetStep === 'reset_password'
+                    ? "Identidad validada. Ahora puedes definir tu nueva contraseña."
+                    : "¡Contraseña actualizada con éxito!"
                   }
               </p>
           </div>
 
           {resetStep === 'verify' && (
               <div className="space-y-4 animate-fade-in">
-                  <Input 
-                      id="rec-legajo"
-                      type="text" 
-                      value={legajo} 
-                      onChange={(e) => setLegajo(e.target.value)} 
-                      placeholder="Número de Legajo" 
-                      icon="badge" 
-                      disabled={isLoading} 
-                      className="bg-white dark:bg-slate-900"
-                  />
-                  <Input 
-                      name="dni" 
-                      type="text" 
-                      placeholder="DNI (sin puntos)" 
-                      icon="fingerprint" 
-                      value={verificationData.dni} 
-                      onChange={handleVerificationDataChange} 
-                      disabled={isLoading} 
-                      inputMode="numeric" 
-                      className="bg-white dark:bg-slate-900"
-                  />
-                  <Input 
-                      name="correo" 
-                      type="email" 
-                      placeholder="Correo electrónico registrado" 
-                      icon="email" 
-                      value={verificationData.correo} 
-                      onChange={handleVerificationDataChange} 
-                      disabled={isLoading} 
-                      className="bg-white dark:bg-slate-900"
-                  />
-                  <Input 
-                      name="telefono" 
-                      type="tel" 
-                      placeholder="Celular registrado (sin 0 ni 15)" 
-                      icon="smartphone" 
-                      value={verificationData.telefono} 
-                      onChange={handleVerificationDataChange} 
-                      disabled={isLoading} 
-                      className="bg-white dark:bg-slate-900"
-                  />
+                  <Input id="rec-legajo" type="text" value={legajo} onChange={(e) => setLegajo(e.target.value)} placeholder="Número de Legajo" icon="badge" disabled={isLoading} className="bg-white dark:bg-slate-900" />
+                  <Input name="dni" type="text" placeholder="DNI (sin puntos)" icon="fingerprint" value={verificationData.dni} onChange={handleVerificationDataChange} disabled={isLoading} inputMode="numeric" className="bg-white dark:bg-slate-900" />
+                  <Input name="correo" type="email" placeholder="Correo electrónico registrado" icon="email" value={verificationData.correo} onChange={handleVerificationDataChange} disabled={isLoading} className="bg-white dark:bg-slate-900" />
+                  <Input name="telefono" type="tel" placeholder="Celular registrado (sin 0 ni 15)" icon="smartphone" value={verificationData.telefono} onChange={handleVerificationDataChange} disabled={isLoading} className="bg-white dark:bg-slate-900" />
               </div>
           )}
 
-          {resetStep === 'sent' && (
-               <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 p-5 rounded-xl text-center animate-fade-in">
-                    <div className="mx-auto bg-emerald-100 dark:bg-emerald-800 text-emerald-600 dark:text-emerald-300 w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                        <span className="material-icons !text-2xl">mark_email_read</span>
+          {resetStep === 'reset_password' && (
+              <div className="space-y-4 animate-fade-in">
+                 <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded border border-green-100 dark:border-green-800 mb-2">
+                     <p className="text-xs text-green-700 dark:text-green-300 font-medium flex items-center gap-2">
+                         <span className="material-icons !text-sm">check_circle</span>
+                         Datos verificados correctamente.
+                     </p>
+                 </div>
+                 <div className="relative">
+                    <Input id="new-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva Contraseña" icon="lock" disabled={isLoading} className="bg-white dark:bg-slate-900" autoFocus />
+                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                        <span className="material-icons !text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                 </div>
+                 <Input id="confirm-password" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repetir Contraseña" icon="lock_reset" disabled={isLoading} className="bg-white dark:bg-slate-900" />
+              </div>
+          )}
+
+          {resetStep === 'success' && (
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 p-5 rounded-xl text-center animate-fade-in">
+                    <div className="mx-auto bg-emerald-100 dark:bg-emerald-800 text-emerald-600 dark:text-emerald-300 w-16 h-16 rounded-full flex items-center justify-center mb-3">
+                        <span className="material-icons !text-4xl">check</span>
                     </div>
-                    <h3 className="font-bold text-emerald-800 dark:text-emerald-200 mb-2">Correo Enviado</h3>
+                    <h3 className="font-bold text-emerald-800 dark:text-emerald-200 mb-2 text-lg">¡Listo!</h3>
                     <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                        Hemos enviado un enlace de recuperación a <strong>{verificationData.correo}</strong>. Revisa tu bandeja de entrada (y spam) para crear tu nueva contraseña.
+                        Tu contraseña ha sido restablecida. Ya puedes iniciar sesión.
                     </p>
                </div>
           )}
 
           <div className="pt-4 space-y-3">
-              {resetStep === 'verify' && (
+              {resetStep !== 'success' && (
                   <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white font-bold text-base py-3 px-6 rounded-lg transition-all duration-200 ease-in-out shadow-md hover:bg-blue-700 hover:-translate-y-0.5 active:scale-95 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-3">
                       {isLoading ? (
-                          <><div className="border-2 border-white/50 border-t-white rounded-full w-5 h-5 animate-spin"></div><span>Verificando...</span></>
+                          <><div className="border-2 border-white/50 border-t-white rounded-full w-5 h-5 animate-spin"></div><span>Procesando...</span></>
                       ) : (
-                          <span>Validar y Recuperar</span>
+                          <span>{resetStep === 'verify' ? 'Validar Identidad' : 'Cambiar Contraseña'}</span>
                       )}
                   </button>
               )}
@@ -404,7 +217,7 @@ const Auth: React.FC = () => {
                 onClick={() => handleModeChange('login')} 
                 className="w-full text-center text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
               >
-                  Volver al inicio
+                  {resetStep === 'success' ? "Ir a Iniciar Sesión" : "Cancelar"}
               </button>
           </div>
       </form>
@@ -432,7 +245,7 @@ const Auth: React.FC = () => {
       <div className="flex flex-col items-center justify-center p-6 sm:p-10 min-h-full dark:bg-[#0B1120]">
         <main className="w-full max-w-md">
             {mode === 'login' || mode === 'register' ? renderLoginRegister() :
-             mode === 'migration' ? renderMigration() :
+             mode === 'migration' ? renderLoginRegister() : // Fallback visual, logic handled inside
              mode === 'recover' ? renderRecover() :
              null
             }

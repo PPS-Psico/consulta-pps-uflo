@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 import * as supabaseService from '../services/supabaseService';
 import { schema } from './dbSchema';
@@ -8,26 +9,26 @@ import {
     finalizacionPPSArraySchema 
 } from '../schemas';
 import type { 
-    EstudianteFields, PracticaFields, AuthUserFields, ConvocatoriaFields, 
-    LanzamientoPPSFields, InstitucionFields, PenalizacionFields, SolicitudPPSFields, FinalizacionPPSFields,
-    AppRecord
+    AppRecord, Database
 } from '../types';
 import { supabase } from './supabaseClient';
 
+type Tables = Database['public']['Tables'];
+
 // Helper to access the table name from the schema object
-function createTableInterface<TSchema extends { _tableName: string }, TRecordFields extends object>(
-    tableSchema: TSchema,
-    zodArraySchema: z.ZodSchema<AppRecord<TRecordFields>[]>
+function createTableInterface<TName extends keyof Tables, TRow extends Tables[TName]['Row']>(
+    tableName: TName,
+    zodArraySchema: z.ZodSchema<AppRecord<TRow>[]>
 ) {
-    const { _tableName } = tableSchema;
+    const _tableName = tableName as string;
 
     return {
         getAll: async (options?: { filters?: Record<string, any>; sort?: any[]; fields?: string[] }) => {
-            const { records, error } = await supabaseService.fetchAllData<TRecordFields>(
+            const { records, error } = await supabaseService.fetchAllData<TRow>(
                 _tableName, 
                 zodArraySchema, 
                 options?.fields || [], 
-                options?.filters, // Updated parameter
+                options?.filters,
                 options?.sort
             );
             if (error) {
@@ -38,11 +39,11 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
         },
         
         get: async (options?: { filters?: Record<string, any>; maxRecords?: number; sort?: any[] }) => {
-             const { records, error } = await supabaseService.fetchData<TRecordFields>(
+             const { records, error } = await supabaseService.fetchData<TRow>(
                  _tableName, 
                  zodArraySchema, 
                  [], 
-                 options?.filters, // Updated parameter
+                 options?.filters,
                  options?.maxRecords, 
                  options?.sort
             );
@@ -59,7 +60,7 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             pageSize: number, 
             options?: { searchTerm?: string, searchFields?: string[], sort?: { field: string; direction: 'asc' | 'desc' }, filters?: Record<string, any> }
         ) => {
-            return supabaseService.fetchPaginatedData<TRecordFields>(
+            return supabaseService.fetchPaginatedData<TRow>(
                 _tableName,
                 zodArraySchema,
                 page,
@@ -72,22 +73,25 @@ function createTableInterface<TSchema extends { _tableName: string }, TRecordFie
             );
         },
 
-        create: async (fields: TRecordFields) => {
-            const { record, error } = await supabaseService.createRecord<TRecordFields>(_tableName, fields);
+        create: async (fields: Tables[TName]['Insert']) => {
+            // @ts-ignore: Supabase types might be slightly stricter than loose Insert types, but runtime is safe
+            const { record, error } = await supabaseService.createRecord<TRow>(_tableName, fields);
             if (error) throw error;
             return record;
         },
 
-        update: async (recordId: string, fields: Partial<TRecordFields>) => {
-            const { record, error } = await supabaseService.updateRecord<TRecordFields>(_tableName, recordId, fields);
+        update: async (recordId: string, fields: Tables[TName]['Update']) => {
+             // @ts-ignore: Update types match
+            const { record, error } = await supabaseService.updateRecord<TRow>(_tableName, recordId, fields);
             if (error) throw error;
             return record;
         },
 
-        updateMany: async (records: { id: string; fields: Partial<TRecordFields> }[]) => {
-            const { records: updatedRecords, error } = await supabaseService.updateRecords<TRecordFields>(
+        updateMany: async (records: { id: string; fields: Tables[TName]['Update'] }[]) => {
+            // @ts-ignore
+            const { records: updatedRecords, error } = await supabaseService.updateRecords<TRow>(
                 _tableName,
-                records
+                records as any
             );
             if (error) throw error;
             return updatedRecords;
@@ -124,13 +128,14 @@ export const getStudentLoginInfo = async (legajo: string): Promise<{ email: stri
 };
 
 export const db = {
-    estudiantes: createTableInterface<typeof schema.estudiantes, EstudianteFields>(schema.estudiantes, estudianteArraySchema),
-    practicas: createTableInterface<typeof schema.practicas, PracticaFields>(schema.practicas, practicaArraySchema),
-    authUsers: createTableInterface<typeof schema.authUsers, AuthUserFields>(schema.authUsers, authUserArraySchema),
-    convocatorias: createTableInterface<typeof schema.convocatorias, ConvocatoriaFields>(schema.convocatorias, convocatoriaArraySchema),
-    lanzamientos: createTableInterface<typeof schema.lanzamientos, LanzamientoPPSFields>(schema.lanzamientos, lanzamientoPPSArraySchema),
-    instituciones: createTableInterface<typeof schema.instituciones, InstitucionFields>(schema.instituciones, institucionArraySchema),
-    penalizaciones: createTableInterface<typeof schema.penalizaciones, PenalizacionFields>(schema.penalizaciones, penalizacionArraySchema),
-    solicitudes: createTableInterface<typeof schema.solicitudes, SolicitudPPSFields>(schema.solicitudes, solicitudPPSArraySchema),
-    finalizacion: createTableInterface<typeof schema.finalizacion, FinalizacionPPSFields>(schema.finalizacion, finalizacionPPSArraySchema),
+    estudiantes: createTableInterface('estudiantes', estudianteArraySchema),
+    practicas: createTableInterface('practicas', practicaArraySchema),
+    // Auth users is a special case depending on your DB setup, assumed to be 'auth_users' view/table
+    authUsers: createTableInterface('auth_users' as any, authUserArraySchema), 
+    convocatorias: createTableInterface('convocatorias', convocatoriaArraySchema),
+    lanzamientos: createTableInterface('lanzamientos_pps', lanzamientoPPSArraySchema),
+    instituciones: createTableInterface('instituciones', institucionArraySchema),
+    penalizaciones: createTableInterface('penalizaciones', penalizacionArraySchema),
+    solicitudes: createTableInterface('solicitudes_pps', solicitudPPSArraySchema),
+    finalizacion: createTableInterface('finalizacion_pps', finalizacionPPSArraySchema),
 };

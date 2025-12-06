@@ -51,31 +51,12 @@ import { useModal } from '../contexts/ModalContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { addBusinessDays } from '../utils/formatters';
+import FinalizationStatusCard from './FinalizationStatusCard';
+import MobileSectionHeader from './MobileSectionHeader';
 
 // Export individual views for Router
 export { default as StudentPracticas } from '../components/PracticasTable';
 export { default as StudentSolicitudes } from '../components/SolicitudesList';
-
-// --- COMPONENT: MobileSectionHeader ---
-// Diseño Premium idéntico al WelcomeBanner: Gradiente sutil, esquinas redondeadas grandes, sin borde sólido fuerte.
-const MobileSectionHeader: React.FC<{ title: React.ReactNode; description?: string }> = ({ title, description }) => (
-    <div className="relative p-6 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg animate-fade-in-up group">
-      {/* Decoraciones de fondo idénticas al Banner de Bienvenida */}
-      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
-      <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
-
-      <div className="relative z-10 flex flex-col gap-3">
-        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
-            {title}
-        </h2>
-        {description && (
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
-            {description}
-            </p>
-        )}
-      </div>
-    </div>
-);
 
 // --- COMPONENT: StudentHome (For Router Index) ---
 export const StudentHome: React.FC = () => {
@@ -144,76 +125,6 @@ interface StudentDashboardProps {
   onTabChange?: (tabId: TabId) => void;
   showExportButton?: boolean;
 }
-
-const FinalizationStatusCard: React.FC<{
-    status: string;
-    requestDate: string;
-}> = ({ status, requestDate }) => {
-    const startDate = new Date(requestDate);
-    const targetDate = addBusinessDays(startDate, 14);
-    const now = new Date();
-    
-    const isFinished = status.toLowerCase() === 'cargado' || status.toLowerCase() === 'finalizada';
-    
-    if (isFinished) {
-        return (
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-6 shadow-xl text-white animate-fade-in-up mb-8">
-                <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
-                 <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-5">
-                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white shadow-sm">
-                            <span className="material-icons !text-3xl">verified</span>
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-black tracking-tight">¡Acreditación Completada!</h2>
-                            <p className="text-blue-50 font-medium text-sm mt-1 max-w-md leading-relaxed opacity-90">
-                                Tus horas ya han sido cargadas en el sistema académico (SAC). Puedes consultar tu historial oficial.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Pending Calculation
-    const totalTime = targetDate.getTime() - startDate.getTime();
-    const elapsedTime = now.getTime() - startDate.getTime();
-    const percentage = Math.min(100, Math.max(0, (elapsedTime / totalTime) * 100));
-    const daysLeft = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-    return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-amber-200 dark:border-amber-800/50 p-6 shadow-lg shadow-amber-500/5 animate-fade-in-up mb-8">
-            <div className="flex items-start gap-4">
-                 <div className="p-3 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
-                     <span className="material-icons !text-2xl animate-[spin_3s_linear_infinite]">hourglass_top</span>
-                 </div>
-                 <div className="flex-grow">
-                     <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Acreditación en Trámite</h3>
-                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                         Tu solicitud está siendo procesada por el equipo administrativo.
-                     </p>
-                     
-                     <div className="mt-4">
-                         <div className="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
-                             <span>Progreso estimado</span>
-                             <span>{daysLeft > 0 ? `${daysLeft} días restan` : 'Finalizando...'}</span>
-                         </div>
-                         <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                             <div 
-                                 className="bg-gradient-to-r from-amber-400 to-orange-500 h-2.5 rounded-full transition-all duration-1000 ease-out"
-                                 style={{ width: `${percentage}%` }}
-                             ></div>
-                         </div>
-                         <p className="text-xs text-slate-400 mt-2 italic">
-                             El proceso demora aprox. 14 días hábiles desde la solicitud ({new Date(requestDate).toLocaleDateString()}).
-                         </p>
-                     </div>
-                 </div>
-            </div>
-        </div>
-    );
-};
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, onTabChange, showExportButton = false }) => {
   const { isSuperUserMode, authenticatedUser } = useAuth();
@@ -284,7 +195,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           if (!studentId) throw new Error("Error identificando al estudiante.");
 
           const newRecord: Partial<SolicitudPPSFields> = {
-              [FIELD_LEGAJO_PPS]: [studentId],
+              [FIELD_LEGAJO_PPS]: studentId,
               [FIELD_SOLICITUD_LEGAJO_ALUMNO]: studentDetails?.[FIELD_LEGAJO_ESTUDIANTES],
               [FIELD_SOLICITUD_NOMBRE_ALUMNO]: studentDetails?.[FIELD_NOMBRE_ESTUDIANTES],
               [FIELD_SOLICITUD_EMAIL_ALUMNO]: studentDetails?.[FIELD_CORREO_ESTUDIANTES],
@@ -470,7 +381,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
             />
           </Card>
         ) : (
-           // Should technically fall into empty state above, but double check here
            <div className="space-y-8">
                 <Card icon="list_alt" title="Comenzar">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
