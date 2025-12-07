@@ -32,12 +32,12 @@ const StudentRow: React.FC<{
     };
 
     return (
-        <div className={`rounded-xl border transition-all duration-200 ${isSelected ? 'bg-emerald-50/60 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800 shadow-sm' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600'}`}>
+        <div className={`rounded-xl border transition-all duration-200 ${isSelected ? 'bg-emerald-50/60 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800 shadow-sm' : 'bg-white dark:bg-[#0B1120] border-slate-200 dark:border-white/5 hover:border-blue-300 dark:hover:border-blue-800'}`}>
             <div className="p-3 sm:p-4 flex flex-col lg:flex-row gap-4 items-start lg:items-center">
                 
                 {/* 1. Puntaje, Nombre y Horas (Datos clave para decidir) */}
                 <div className="flex items-center gap-3 min-w-[200px]">
-                     <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-base font-black border shadow-sm ${student.puntajeTotal >= 100 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`} title="Puntaje Total">
+                     <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-base font-black border shadow-sm ${student.puntajeTotal >= 100 ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'}`} title="Puntaje Total">
                         {student.puntajeTotal}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -46,7 +46,7 @@ const StudentRow: React.FC<{
                         </h4>
                         {/* Horas movidas aquí debajo del nombre */}
                         <div className="mt-1">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800">
                                 <span className="material-icons !text-[11px]">schedule</span> {student.totalHoras} hs acumuladas
                             </span>
                         </div>
@@ -54,34 +54,34 @@ const StudentRow: React.FC<{
                 </div>
 
                 {/* 2. Situación Académica y Notas (Unificado) */}
-                <div className="flex-1 w-full lg:w-auto flex flex-wrap items-center gap-2 border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-700 pt-3 lg:pt-0 lg:pl-4 min-h-[32px]">
+                <div className="flex-1 w-full lg:w-auto flex flex-wrap items-center gap-2 border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-800 pt-3 lg:pt-0 lg:pl-4 min-h-[32px]">
                     
                     {/* Cursada Status */}
                     {student.terminoCursar ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-800 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800 whitespace-nowrap">
                             Terminó Cursada
                         </span>
                     ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 whitespace-nowrap">
                             Cursando
                         </span>
                     )}
 
                     {/* Finales */}
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border whitespace-nowrap ${student.finalesAdeuda ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border whitespace-nowrap ${student.finalesAdeuda ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800' : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700'}`}>
                         {student.finalesAdeuda ? `Adeuda: ${student.finalesAdeuda}` : 'Sin Finales'}
                     </span>
 
                     {/* Electivas */}
                     {student.cursandoElectivas && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 whitespace-nowrap">
                             Electivas
                         </span>
                     )}
                     
                     {/* Penalización */}
                     {student.penalizacionAcumulada > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800 whitespace-nowrap">
                             Penalización Activa
                         </span>
                     )}
@@ -96,14 +96,14 @@ const StudentRow: React.FC<{
                 </div>
 
                 {/* 3. Acción y Horario */}
-                <div className="flex items-center gap-2 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-2 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
                     <div className="flex-grow lg:w-40">
                         <input 
                             type="text" 
                             value={localSchedule} 
                             onChange={(e) => {setLocalSchedule(e.target.value); setIsScheduleDirty(true);}} 
                             onBlur={handleScheduleBlur} 
-                            className="w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400" 
+                            className="w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-black/30 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400 dark:text-white" 
                             placeholder="Asignar horario..." 
                         />
                     </div>
@@ -114,7 +114,7 @@ const StudentRow: React.FC<{
                         className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-all active:scale-95 shadow-sm ${
                             isSelected 
                                 ? 'bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-100 dark:ring-emerald-900' 
-                                : 'bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-400 hover:text-blue-600 hover:border-blue-300'
+                                : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-400 hover:text-blue-600 hover:border-blue-300 dark:hover:border-blue-500 dark:hover:text-blue-400'
                         }`}
                         title={isSelected ? "Deseleccionar" : "Seleccionar Alumno"}
                     >
@@ -166,21 +166,26 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({ isTestingMod
                                 <button 
                                     key={lanz.id} 
                                     onClick={() => setSelectedLanzamiento(lanz)}
-                                    className="text-left p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all group"
+                                    className="text-left p-5 rounded-xl border border-slate-200 dark:border-white/5 bg-white dark:bg-[#0F172A] shadow-sm hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-600 dark:hover:shadow-blue-900/10 transition-all group relative overflow-hidden"
                                 >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className={visuals.tag}>{lanz[FIELD_ORIENTACION_LANZAMIENTOS]}</span>
-                                        <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
-                                            {lanz[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]} Cupos
-                                        </span>
+                                    {/* Accent Background on Dark Mode */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-transparent to-slate-50 dark:to-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    
+                                    <div className="relative z-10">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <span className={visuals.tag}>{lanz[FIELD_ORIENTACION_LANZAMIENTOS]}</span>
+                                            <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full">
+                                                {lanz[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]} Cupos
+                                            </span>
+                                        </div>
+                                        <h4 className="font-bold text-lg text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 min-h-[3.5rem]">
+                                            {lanz[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
+                                        </h4>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-3 flex items-center gap-1.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                                            <span className="material-icons !text-base opacity-70">calendar_today</span>
+                                            Inicio: <span className="font-medium text-slate-700 dark:text-slate-300">{formatDate(lanz[FIELD_FECHA_INICIO_LANZAMIENTOS])}</span>
+                                        </p>
                                     </div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                        {lanz[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
-                                    </h4>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1">
-                                        <span className="material-icons !text-base">calendar_today</span>
-                                        Inicio: {formatDate(lanz[FIELD_FECHA_INICIO_LANZAMIENTOS])}
-                                    </p>
                                 </button>
                             );
                         })}
@@ -194,10 +199,10 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({ isTestingMod
         <div className="animate-fade-in-up space-y-6">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setSelectedLanzamiento(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400">
+                        <button onClick={() => setSelectedLanzamiento(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500 dark:text-slate-400">
                             <span className="material-icons">arrow_back</span>
                         </button>
                         <div>
@@ -211,20 +216,20 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({ isTestingMod
                          <div className="flex gap-2">
                             <button 
                                 onClick={() => setViewMode('review')} 
-                                className="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition-colors"
+                                className="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition-colors dark:bg-blue-700 dark:hover:bg-blue-600"
                             >
                                 Revisar y Cerrar
                             </button>
                          </div>
                     ) : (
                          <div className="flex gap-2">
-                            <button onClick={() => setViewMode('selection')} className="text-slate-600 dark:text-slate-300 font-bold px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                            <button onClick={() => setViewMode('selection')} className="text-slate-600 dark:text-slate-300 font-bold px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
                                 Volver
                             </button>
                             <button 
                                 onClick={handleConfirmAndCloseTable} 
                                 disabled={isClosingTable} 
-                                className="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-md hover:bg-emerald-700 transition-colors disabled:opacity-70"
+                                className="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-md hover:bg-emerald-700 transition-colors disabled:opacity-70 dark:bg-emerald-700 dark:hover:bg-emerald-600"
                             >
                                 {isClosingTable ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" /> : <span className="material-icons !text-base">lock</span>}
                                 {isClosingTable ? 'Cerrando...' : 'Confirmar Cierre'}
@@ -233,7 +238,7 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({ isTestingMod
                     )}
                 </div>
 
-                <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 pt-3">
+                <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                      <div className="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-lg border border-blue-100 dark:border-blue-800 flex items-center gap-2 group relative cursor-help">
                         <span className="font-bold">Criterio:</span> Puntaje descendente
                         <span className="material-icons !text-sm opacity-70">help</span>

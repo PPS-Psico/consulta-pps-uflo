@@ -8,63 +8,100 @@ import {
   FIELD_ESTADO_GESTION_LANZAMIENTOS,
   FIELD_NOTAS_GESTION_LANZAMIENTOS,
   FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS,
-  FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS
+  FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
+  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
+  FIELD_FECHA_INICIO_LANZAMIENTOS
 } from '../constants';
-import { getEspecialidadClasses, formatDate, parseToUTCDate } from '../utils/formatters';
+import { getEspecialidadClasses, formatDate, parseToUTCDate, normalizeStringForComparison } from '../utils/formatters';
 
-const GESTION_STATUS_OPTIONS = ['Pendiente de Gestión', 'En Conversación', 'Relanzamiento Confirmado', 'No se Relanza', 'Archivado'];
+// Opciones Simplificadas (Removed "En Conversación")
+const GESTION_STATUS_OPTIONS = [
+    'Pendiente de Gestión', 
+    'Relanzamiento Confirmado', 
+    'Esperando Respuesta',
+    'No se Relanza', 
+    'Archivado'
+];
 
 interface GestionCardProps {
   pps: LanzamientoPPS;
   onSave: (id: string, updates: Partial<LanzamientoPPS>) => Promise<boolean>;
   isUpdating: boolean;
-  cardType: 'activasYPorFinalizar' | 'finalizadasParaReactivar' | 'relanzamientosConfirmados' | 'activasIndefinidas';
+  cardType: string;
   institution?: { id: string; phone?: string };
   onSavePhone: (institutionId: string, phone: string) => Promise<boolean>;
+  daysLeft?: number;
 }
 
-const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpdating, cardType, institution, onSavePhone }) => {
+const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpdating, institution, onSavePhone, daysLeft }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [status, setStatus] = useState(pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión');
   const [notes, setNotes] = useState(pps[FIELD_NOTAS_GESTION_LANZAMIENTOS] || '');
+  
+  // Initialize date with Relaunch Date OR Start Date if it's already a 2026 record
+  const [relaunchDate, setRelaunchDate] = useState(() => {
+      const rDate = pps[FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS];
+      if (rDate) return rDate;
+      const sDate = pps[FIELD_FECHA_INICIO_LANZAMIENTOS];
+      // If start date is in the future (2026+), use it as the default display date
+      if (sDate) {
+          const d = parseToUTCDate(sDate);
+          if (d && d.getUTCFullYear() >= 2026) return sDate;
+      }
+      return '';
+  });
+  
   const [isJustSaved, setIsJustSaved] = useState(false);
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [newPhone, setNewPhone] = useState('');
-  const especialidadVisuals = getEspecialidadClasses(pps[FIELD_ORIENTACION_LANZAMIENTOS]); 
   
-  useEffect(() => {
-    setStatus(pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión');
-    setNotes(pps[FIELD_NOTAS_GESTION_LANZAMIENTOS] || '');
-  }, [pps]);
+  const especialidadVisuals = getEspecialidadClasses(pps[FIELD_ORIENTACION_LANZAMIENTOS]); 
 
+  // Detectar cambios
   const hasChanges = useMemo(() => {
     const originalStatus = pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] || 'Pendiente de Gestión';
     const originalNotes = pps[FIELD_NOTAS_GESTION_LANZAMIENTOS] || '';
-    return status !== originalStatus || notes !== originalNotes;
-  }, [status, notes, pps]);
+    const originalDate = pps[FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS] || '';
+    
+    // Only verify date change if we are explicitly confirming a relaunch, otherwise ignore auto-population
+    const dateChanged = status === 'Relanzamiento Confirmado' ? relaunchDate !== originalDate : false;
+    
+    return status !== originalStatus || notes !== originalNotes || dateChanged;
+  }, [status, notes, relaunchDate, pps]);
 
-  const handleSave = async () => {
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!hasChanges) return;
+    
     const updates: Partial<LanzamientoPPS> = {
       [FIELD_ESTADO_GESTION_LANZAMIENTOS]: status,
       [FIELD_NOTAS_GESTION_LANZAMIENTOS]: notes,
     };
+
+    // If confirming, save the date. If specifically marked 2026 via StartDate, we might want to update RelaunchDate too for consistency.
+    if (status === 'Relanzamiento Confirmado') {
+        updates[FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS] = relaunchDate;
+    }
+    
     setIsJustSaved(true); 
     const success = await onSave(pps.id, updates);
     if (success) {
       setTimeout(() => setIsJustSaved(false), 2000);
+      setIsExpanded(false); // Auto close on save for cleaner workflow
     } else {
         setIsJustSaved(false);
     }
   };
 
-  const handleWhatsAppClick = () => {
+  const handleWhatsAppClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!institution?.phone) return;
     const cleanPhone = institution.phone.replace(/[^0-9]/g, '');
-    const url = `https://wa.me/${cleanPhone}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(`https://wa.me/${cleanPhone}`, '_blank', 'noopener,noreferrer');
   };
 
-  const handleSavePhone = async () => {
+  const handleSavePhone = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!institution || !newPhone.trim()) return;
     const success = await onSavePhone(institution.id, newPhone.trim());
     if (success) {
@@ -72,166 +109,198 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(({ pps, onSave, isUpd
       setNewPhone('');
     }
   };
+
+  // Status Color Logic
+  const statusColor = useMemo(() => {
+      if (status === 'Relanzamiento Confirmado') return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800';
+      if (status === 'No se Relanza') return 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800';
+      if (status === 'Esperando Respuesta') return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800';
+      return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+  }, [status]);
   
-  const timeBadge = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  // Urgency Badge
+  const UrgencyBadge = () => {
+      if (daysLeft === undefined) return null;
+      if (status !== 'Pendiente de Gestión' && status !== 'Esperando Respuesta') return null;
+      
+      const convStatus = normalizeStringForComparison(pps[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
+      const isOpen = convStatus === 'abierta' || convStatus === 'abierto';
 
-    if (cardType === 'activasIndefinidas') {
-        return { text: 'Sin fecha fin', color: 'text-slate-500 bg-slate-100 dark:bg-slate-700 dark:text-slate-400', icon: 'hourglass_empty' };
-    }
+      if (daysLeft < 0) {
+          if (isOpen) {
+              // CASO CRÍTICO: Vencida y Abierta
+              return (
+                  <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800 flex items-center gap-1 animate-pulse">
+                      <span className="material-icons !text-[10px]">warning</span> VENCIDA
+                  </span>
+              );
+          } else {
+              // CASO NORMAL: Vencida y Cerrada (Finalizada)
+              return (
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                      <span className="material-icons !text-[10px]">history</span> Ciclo Finalizado
+                  </span>
+              );
+          }
+      }
+      
+      if (daysLeft <= 30) {
+           return (
+              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                  <span className="material-icons !text-[10px]">schedule</span> Vence en {daysLeft} días
+              </span>
+          );
+      }
+      return null;
+  };
 
-    if (cardType === 'activasYPorFinalizar') {
-        const endDate = parseToUTCDate(pps[FIELD_FECHA_FIN_LANZAMIENTOS]);
-        if (!endDate) return null;
-        const diffTime = endDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays < 0) return null;
-        if (diffDays === 0) return { text: 'Termina hoy', color: 'text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-300', icon: 'event_busy' };
-        
-        const text = `${diffDays} días restan`;
-        if (diffDays <= 30) return { text, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300', icon: 'timelapse' };
-        return { text, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300', icon: 'event' };
-    }
+  // Helper to display date if standard format or just text
+  const displayRelaunchDate = () => {
+      if (!relaunchDate) return null;
+      // If it parses to a valid date using standard format, show year, else show text
+      const d = parseToUTCDate(relaunchDate);
+      if (d) return d.getFullYear();
+      // If free text, just return it limited
+      return relaunchDate.length > 15 ? relaunchDate.substring(0, 12) + '...' : relaunchDate;
+  };
 
-    if (cardType === 'finalizadasParaReactivar') {
-        return { text: `Fin: ${formatDate(pps[FIELD_FECHA_FIN_LANZAMIENTOS])}`, color: 'text-slate-500 bg-slate-100 dark:bg-slate-700 dark:text-slate-400', icon: 'history' };
-    }
-    
-    if (cardType === 'relanzamientosConfirmados') {
-        const relaunchDateValue = pps[FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS]; 
-        const text = relaunchDateValue ? `Relanza ${formatDate(relaunchDateValue)}` : 'Confirmado';
-        return { text, color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-300', icon: 'rocket_launch' };
-    }
-    return null;
-  }, [pps, cardType]);
-
-  const isEnConversacion = status === 'En Conversación';
-  const cupos = pps[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS];
+  // Check if we should treat this as confirmed for display purposes (either by status or date)
+  const isEffectivelyConfirmed = status === 'Relanzamiento Confirmado' || (relaunchDate && new Date(relaunchDate).getFullYear() >= 2026);
 
   return (
-    <div className={`group flex flex-col h-full bg-white dark:bg-gray-900 rounded-2xl border shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden ${isEnConversacion ? 'border-sky-400 dark:border-sky-500 ring-1 ring-sky-100 dark:ring-sky-900/30' : 'border-slate-200 dark:border-slate-700'}`}>
-        
-        {/* Borde superior de color según especialidad */}
-        <div className={`h-1.5 w-full bg-gradient-to-r ${especialidadVisuals.gradient}`}></div>
+    <div 
+        className={`relative bg-white dark:bg-gray-900 rounded-xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'shadow-xl ring-1 ring-blue-500/20 border-blue-300 dark:border-blue-700' : 'shadow-sm hover:shadow-md border-slate-200 dark:border-slate-700'}`}
+        onClick={() => !isEditingPhone && setIsExpanded(!isExpanded)}
+    >
+        {/* Status Stripe */}
+        <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors duration-300 ${status === 'Relanzamiento Confirmado' ? 'bg-emerald-500' : status === 'No se Relanza' ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
 
-        {/* Header */}
-        <div className="px-5 pt-4 pb-2">
+        {/* Header Content (Always Visible) */}
+        <div className="p-4 pl-6 cursor-pointer">
             <div className="flex justify-between items-start gap-3">
-                <h4 className="font-bold text-slate-800 dark:text-slate-100 leading-tight line-clamp-2 min-h-[1.5em]" title={pps[FIELD_NOMBRE_PPS_LANZAMIENTOS]}>
-                    {pps[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
-                </h4>
-                <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md border ${especialidadVisuals.tag.replace('rounded-full', 'rounded-md')}`}>
-                    {pps[FIELD_ORIENTACION_LANZAMIENTOS]?.substring(0, 4).toUpperCase()}
-                </span>
-            </div>
-            
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-                {timeBadge && (
-                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md ${timeBadge.color}`}>
-                        <span className="material-icons !text-xs">{timeBadge.icon}</span>
-                        {timeBadge.text}
-                    </span>
-                )}
-                {cupos != null && (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
-                        <span className="material-icons !text-xs">groups</span>
-                        {cupos}
-                    </span>
-                )}
-            </div>
-        </div>
-
-        {/* Body - Inputs */}
-        <div className="px-5 py-3 flex-grow flex flex-col gap-3">
-            <div className="space-y-1">
-                <label htmlFor={`status-${pps.id}`} className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider ml-1">Estado</label>
-                <div className="relative">
-                    <select 
-                        id={`status-${pps.id}`} 
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                        className="w-full text-sm font-medium rounded-lg border-0 bg-slate-100 dark:bg-slate-800/80 py-2 pl-3 pr-8 text-slate-700 dark:text-slate-200 shadow-inner focus:ring-2 focus:ring-blue-500 cursor-pointer transition-all"
-                    >
-                        {GESTION_STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5">
-                        <span className="material-icons !text-sm text-slate-400">expand_more</span>
+                <div className="flex-grow min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`${especialidadVisuals.tag} text-[10px] py-0.5 px-2`}>{pps[FIELD_ORIENTACION_LANZAMIENTOS]}</span>
+                        {isEffectivelyConfirmed && relaunchDate && (
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800">
+                                <span className="material-icons !text-[10px]">event</span>
+                                {displayRelaunchDate()}
+                            </span>
+                        )}
+                        <UrgencyBadge />
+                    </div>
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 leading-tight truncate pr-4" title={pps[FIELD_NOMBRE_PPS_LANZAMIENTOS]}>
+                        {pps[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
+                    </h4>
+                </div>
+                
+                <div className="flex-shrink-0 flex items-center gap-2">
+                     {institution?.phone ? (
+                        <button
+                            onClick={handleWhatsAppClick}
+                            className="p-2 rounded-full bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 transition-colors"
+                            title="WhatsApp"
+                        >
+                            <span className="material-icons !text-lg">chat</span>
+                        </button>
+                    ) : (
+                         <button
+                            onClick={(e) => { e.stopPropagation(); setIsEditingPhone(true); }}
+                            className="p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            title="Agregar Teléfono"
+                        >
+                            <span className="material-icons !text-lg">add_call</span>
+                        </button>
+                    )}
+                    <div className={`transform transition-transform duration-300 text-slate-400 ${isExpanded ? 'rotate-180' : ''}`}>
+                        <span className="material-icons">expand_more</span>
                     </div>
                 </div>
             </div>
             
-            <div className="flex-grow">
-                 <label htmlFor={`notes-${pps.id}`} className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider ml-1">Notas</label>
-                 <textarea 
-                    id={`notes-${pps.id}`}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3} 
-                    className="w-full text-sm rounded-lg border-0 bg-slate-50 dark:bg-slate-800/50 p-3 text-slate-600 dark:text-slate-300 shadow-inner resize-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all placeholder:text-slate-400 h-full min-h-[80px]" 
-                    placeholder="Notas de gestión..."
-                />
-            </div>
+            {/* Phone Edit Overlay */}
+            {isEditingPhone && (
+                <div className="absolute top-3 right-12 z-20 flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 animate-scale-in" onClick={e => e.stopPropagation()}>
+                    <input
+                        type="tel"
+                        value={newPhone}
+                        onChange={(e) => setNewPhone(e.target.value)}
+                        className="w-28 text-xs p-1.5 border-none bg-transparent focus:ring-0 outline-none text-slate-800 dark:text-white"
+                        placeholder="Número..."
+                        autoFocus
+                    />
+                    <button onClick={handleSavePhone} className="p-1 text-emerald-500 hover:bg-emerald-50 rounded"><span className="material-icons !text-sm">check</span></button>
+                    <button onClick={(e) => { e.stopPropagation(); setIsEditingPhone(false); }} className="p-1 text-rose-500 hover:bg-rose-50 rounded"><span className="material-icons !text-sm">close</span></button>
+                </div>
+            )}
         </div>
 
-        {/* Footer - Actions */}
-        <div className="px-4 py-3 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-700/80 flex items-center justify-between gap-2">
-             {/* Left: Phone Action */}
-             <div className="flex-shrink-0">
-                 {isEditingPhone ? (
-                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg border border-blue-200 dark:border-blue-800 p-0.5 shadow-sm absolute bottom-14 left-4 z-10 animate-fade-in">
-                        <input
-                            type="tel"
-                            value={newPhone}
-                            onChange={(e) => setNewPhone(e.target.value)}
-                            placeholder="Teléfono"
-                            className="w-24 px-2 py-1 text-xs border-none bg-transparent focus:ring-0 outline-none"
-                            autoFocus
-                        />
-                        <button onClick={handleSavePhone} className="p-1 rounded text-emerald-600 hover:bg-emerald-50"><span className="material-icons !text-sm">check</span></button>
-                        <button onClick={() => setIsEditingPhone(false)} className="p-1 rounded text-rose-500 hover:bg-rose-50"><span className="material-icons !text-sm">close</span></button>
+        {/* Expanded Body (Animation) */}
+        <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100 border-t border-slate-100 dark:border-slate-800' : 'grid-rows-[0fr] opacity-0'}`}>
+            <div className="overflow-hidden bg-slate-50/50 dark:bg-slate-800/20 cursor-default" onClick={e => e.stopPropagation()}>
+                <div className="p-4 space-y-4">
+                    
+                    {/* Status Selector */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Estado de Gestión</label>
+                        <select 
+                            value={status}
+                            onChange={(e) => setStatus(e.target.value)}
+                            className={`w-full text-sm font-semibold rounded-lg py-2.5 px-3 border outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer transition-colors appearance-none ${statusColor}`}
+                        >
+                            {GESTION_STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
                     </div>
-                 ) : institution?.phone ? (
-                    <button
-                        onClick={handleWhatsAppClick}
-                        type="button"
-                        className="p-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/50 transition-colors flex items-center justify-center"
-                        title={`WhatsApp: ${institution.phone}`}
-                    >
-                        <span className="material-icons !text-lg">chat</span>
-                    </button>
-                ) : (
-                     <button
-                        onClick={() => setIsEditingPhone(true)}
-                        type="button"
-                        className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors flex items-center justify-center disabled:opacity-50"
-                        title="Agregar Teléfono"
-                        disabled={!institution}
-                     >
-                         <span className="material-icons !text-lg">add_call</span>
-                     </button>
-                )}
-             </div>
 
-             {/* Right: Save Button */}
-             <button
-                onClick={handleSave}
-                disabled={isUpdating || !hasChanges || isJustSaved}
-                className={`flex-grow flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold shadow-sm transition-all transform active:scale-95
-                    ${isJustSaved
-                        ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none cursor-default'
-                        : isUpdating
-                            ? 'bg-slate-400 text-white cursor-wait'
-                            : hasChanges
-                                ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white hover:shadow-md'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
-                    }
-                `}
-            >
-                {isUpdating ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : <span className="material-icons !text-base">{isJustSaved ? 'check' : 'save'}</span>}
-                <span>{isJustSaved ? 'Guardado' : 'Guardar'}</span>
-            </button>
+                    {/* Flexible Date Picker (Text) */}
+                    {isEffectivelyConfirmed && (
+                         <div className="animate-fade-in">
+                            <label className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                <span className="material-icons !text-sm">event</span>
+                                Fecha Estimada 2026
+                            </label>
+                            <input 
+                                type="text"
+                                placeholder="Ej: 15/03/2026, Febrero, Marzo..."
+                                value={relaunchDate}
+                                onChange={(e) => setRelaunchDate(e.target.value)}
+                                className="w-full text-sm font-medium rounded-lg py-2.5 px-3 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-emerald-500/50 outline-none text-slate-800 dark:text-slate-100"
+                            />
+                        </div>
+                    )}
+
+                    {/* Notes */}
+                    <div>
+                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Bitácora / Notas</label>
+                         <textarea 
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            rows={3}
+                            className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                            placeholder="Registro de llamados, emails, contactos..."
+                        />
+                    </div>
+
+                    {/* Actions Footer */}
+                    <div className="flex justify-end pt-2">
+                        <button
+                            onClick={handleSave}
+                            disabled={isUpdating || !hasChanges || isJustSaved}
+                            className={`flex items-center gap-2 py-2 px-6 rounded-lg text-sm font-bold shadow-sm transition-all transform active:scale-95
+                                ${isJustSaved
+                                    ? 'bg-emerald-500 text-white cursor-default'
+                                    : hasChanges
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
+                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                }
+                            `}
+                        >
+                            {isUpdating ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : <span className="material-icons !text-base">{isJustSaved ? 'check' : 'save'}</span>}
+                            <span>{isJustSaved ? 'Guardado' : 'Guardar Cambios'}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
   );

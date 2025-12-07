@@ -87,10 +87,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       const active: SolicitudPPS[] = [];
       const history: SolicitudPPS[] = [];
       
-      const finishedStatuses = ['finalizada', 'cancelada', 'rechazada', 'no se pudo concretar', 'archivado', 'pps realizada', 'solicitud invalida', 'realizada'];
+      const finishedStatuses = ['finalizada', 'cancelada', 'rechazada', 'no se pudo concretar', 'pps realizada', 'solicitud invalida', 'realizada'];
+      const hiddenStatuses = ['archivado'];
 
       solicitudes.forEach(sol => {
           const status = normalizeStringForComparison(sol[FIELD_ESTADO_PPS]);
+          
+          // Force hide "Archivado" for students
+          if (hiddenStatuses.includes(status)) return;
+          
           if (finishedStatuses.some(s => status.includes(s))) {
               history.push(sol);
           } else {
@@ -220,7 +225,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         )}
 
         {/* Empty State General */}
-        {solicitudes.length === 0 && !finalizacionRequest && (
+        {activeRequests.length === 0 && historyRequests.length === 0 && !finalizacionRequest && (
             <div className="mt-6">
                 <EmptyState 
                     icon="list_alt"

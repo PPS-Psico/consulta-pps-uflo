@@ -342,7 +342,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                             onVerSeleccionados={(l) => seleccionadosMutation.mutate(l)}
                             isVerSeleccionadosLoading={seleccionadosMutation.isPending && seleccionadosMutation.variables?.id === lanzamiento.id}
                             isCompleted={isCompleted}
-                            userGender={student?.genero}
+                            userGender={student?.genero as "Varon" | "Mujer" | "Otro" | undefined} // Cast here
                             direccion={finalDireccion}
                         />
                         );

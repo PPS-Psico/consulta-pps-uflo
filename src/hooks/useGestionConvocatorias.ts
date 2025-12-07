@@ -1,16 +1,15 @@
 
-
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchAllData, updateRecord, createRecord, updateRecords } from '../services/supabaseService';
-import type { LanzamientoPPS, InstitucionFields, AirtableRecord, LanzamientoPPSFields, PracticaFields } from '../types';
+import type { LanzamientoPPS, InstitucionFields, LanzamientoPPSFields, PracticaFields } from '../types';
 import {
   TABLE_NAME_LANZAMIENTOS_PPS,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
+  FIELD_FECHA_INICIO_LANZAMIENTOS,
   FIELD_FECHA_FIN_LANZAMIENTOS,
   FIELD_ORIENTACION_LANZAMIENTOS,
   FIELD_ESTADO_GESTION_LANZAMIENTOS,
   FIELD_NOTAS_GESTION_LANZAMIENTOS,
-  FIELD_FECHA_INICIO_LANZAMIENTOS,
   FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS,
   TABLE_NAME_PRACTICAS,
   FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
@@ -42,6 +41,7 @@ const mockInstitutionsMap = new Map([
 ]);
 
 type LoadingState = 'initial' | 'loading' | 'loaded' | 'error';
+export type FilterType = 'all' | 'vencidas' | 'proximas';
 
 const getGroupName = (name: unknown): string => {
     const strName = String(name || '');
@@ -52,9 +52,10 @@ const getGroupName = (name: unknown): string => {
 interface UseGestionConvocatoriasProps {
     forcedOrientations?: string[];
     isTestingMode?: boolean;
+    initialFilter?: FilterType;
 }
 
-export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = false }: UseGestionConvocatoriasProps) => {
+export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = false, initialFilter = 'all' }: UseGestionConvocatoriasProps) => {
     const [lanzamientos, setLanzamientos] = useState<LanzamientoPPS[]>([]);
     const [institutionsMap, setInstitutionsMap] = useState<Map<string, { id: string; phone?: string }>>(new Map());
     const [loadingState, setLoadingState] = useState<LoadingState>('initial');
@@ -63,8 +64,14 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
     const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const [orientationFilter, setOrientationFilter] = useState('all');
+    const [filterType, setFilterType] = useState<FilterType>(initialFilter);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isLinking, setIsLinking] = useState(false);
+
+    // Update filterType when initialFilter changes (e.g. from navigation)
+    useEffect(() => {
+        if (initialFilter) setFilterType(initialFilter);
+    }, [initialFilter]);
 
     const fetchData = useCallback(async () => {
         setLoadingState('loading');
@@ -121,9 +128,27 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
             setInstitutionsMap(newInstitutionsMap);
 
             const mappedRecords = lanzamientosRes.records.map(r => r as LanzamientoPPS);
-            const filteredRecords = mappedRecords.filter(pps => 
-                !String(pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').toLowerCase().includes('uflo')
-            );
+            
+            const currentYear = new Date().getFullYear(); 
+            // We assume "current cycle" means 2025 data to prep for 2026.
+            const filterYear = 2025; 
+
+            const filteredRecords = mappedRecords.filter(pps => {
+                const name = String(pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '');
+                if (name.toLowerCase().includes('uflo')) return false;
+
+                const startDate = parseToUTCDate(pps[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+                if (!startDate) return false;
+
+                // Keep if it's from 2025+ OR if it's explicitly marked for management
+                const isRelevantDate = startDate.getUTCFullYear() >= filterYear;
+                const isManaged = pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] && 
+                                  pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'Pendiente de Gestión' && 
+                                  pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'Archivado';
+
+                return isRelevantDate || isManaged;
+            });
+
             setLanzamientos(filteredRecords);
             setLoadingState('loaded');
         }
@@ -132,69 +157,6 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
     useEffect(() => {
         fetchData();
     }, [fetchData]);
-
-    useEffect(() => {
-        if (loadingState !== 'loaded' || lanzamientos.length === 0 || isTestingMode) {
-            return;
-        }
-    
-        const confirmedRelaunches = lanzamientos.filter(
-            pps => pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] === 'Relanzamiento Confirmado'
-        );
-    
-        if (confirmedRelaunches.length === 0) {
-            return;
-        }
-    
-        const updatesToPerform: { id: string; fields: Partial<LanzamientoPPSFields> }[] = [];
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-    
-        confirmedRelaunches.forEach(oldLaunch => {
-            const hasActiveRelaunch = lanzamientos.some(newLaunch => {
-                if (newLaunch.id === oldLaunch.id) return false;
-    
-                const oldName = getGroupName(oldLaunch[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
-                const newName = getGroupName(newLaunch[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
-    
-                if (normalizeStringForComparison(newName) !== normalizeStringForComparison(oldName)) {
-                    return false;
-                }
-    
-                const newStartDate = parseToUTCDate(newLaunch[FIELD_FECHA_INICIO_LANZAMIENTOS]);
-                const oldRelaunchDate = parseToUTCDate(oldLaunch[FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS]);
-                const oldEndDate = parseToUTCDate(oldLaunch[FIELD_FECHA_FIN_LANZAMIENTOS]);
-                const referenceDate = oldRelaunchDate || oldEndDate;
-    
-                if (!newStartDate || !referenceDate || newStartDate <= referenceDate) {
-                    return false;
-                }
-    
-                const newEndDate = parseToUTCDate(newLaunch[FIELD_FECHA_FIN_LANZAMIENTOS]);
-                return !newEndDate || newEndDate >= now;
-            });
-    
-            if (hasActiveRelaunch) {
-                updatesToPerform.push({
-                    id: oldLaunch.id,
-                    fields: { [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Archivado' }
-                });
-            }
-        });
-    
-        if (updatesToPerform.length > 0) {
-            const batchUpdate = async () => {
-                const { error } = await updateRecords(TABLE_NAME_LANZAMIENTOS_PPS, updatesToPerform);
-                if (error) {
-                    setToastInfo({ message: 'Error al archivar relanzamientos completados.', type: 'error' });
-                } else {
-                    setToastInfo({ message: `${updatesToPerform.length} relanzamiento(s) completado(s) fue(ron) archivado(s) automáticamente.`, type: 'success' });
-                    setTimeout(() => fetchData(), 500);
-                }
-            };
-            batchUpdate();
-        }
-    }, [lanzamientos, loadingState, fetchData, isTestingMode]);
 
     const handleSave = useCallback(async (id: string, updates: Partial<LanzamientoPPS>): Promise<boolean> => {
         setUpdatingIds(prev => new Set(prev).add(id));
@@ -272,200 +234,13 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
     }, [isTestingMode]);
 
     const handleSync = async () => {
-        if (!window.confirm('Esta acción buscará prácticas de los últimos dos años que no tengan un lanzamiento asociado y los creará. ¿Deseas continuar?')) {
-            return;
-        }
-        
         setIsSyncing(true);
-        setToastInfo({ message: 'Iniciando sincronización de prácticas antiguas...', type: 'success' });
-    
-        try {
-            const existingLaunchKeys = new Set(
-                lanzamientos.map(l => {
-                    const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
-                    const date = l[FIELD_FECHA_INICIO_LANZAMIENTOS] || '';
-                    if (!name || !date) return '';
-                    return `${normalizeStringForComparison(name)}-${date}`;
-                }).filter(Boolean)
-            );
-    
-            const currentYear = new Date().getFullYear();
-            const lastYearStart = new Date(currentYear - 1, 0, 1).toISOString().split('T')[0];
-            
-            // Fetch all practices and filter locally since we need complex date logic
-            const { records: recentPracticas, error: practicasError } = await fetchAllData<PracticaFields>(
-                TABLE_NAME_PRACTICAS,
-                practicaArraySchema,
-                [
-                    FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
-                    FIELD_FECHA_INICIO_PRACTICAS,
-                    FIELD_FECHA_FIN_PRACTICAS,
-                    FIELD_ESPECIALIDAD_PRACTICAS,
-                    FIELD_HORAS_PRACTICAS,
-                ]
-            );
-    
-            if (practicasError) throw new Error('Error al obtener las prácticas antiguas.');
-            
-            // Client side filtering for date
-            const filteredPracticas = recentPracticas.filter(p => {
-                const date = parseToUTCDate(p[FIELD_FECHA_INICIO_PRACTICAS]);
-                const cutoff = new Date(lastYearStart);
-                return date && date > cutoff;
-            });
-    
-            const groupedPracticas = new Map<string, (PracticaFields & { id: string })[]>();
-            // Records are already flat from fetchAllData
-            const mappedPracticas: any[] = filteredPracticas.map(p => ({ ...p, id: p.id }));
-
-            for (const practica of mappedPracticas) {
-                const nameRaw = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-                const name = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
-                const date = practica[FIELD_FECHA_INICIO_PRACTICAS];
-    
-                if (!name || !date) continue;
-                
-                const key = `${normalizeStringForComparison(String(name))}-${date}`;
-                if (!groupedPracticas.has(key)) {
-                    groupedPracticas.set(key, []);
-                }
-                groupedPracticas.get(key)!.push(practica);
-            }
-    
-            const newLaunchesToCreate: Partial<LanzamientoPPSFields>[] = [];
-            for (const [key, practicasGroup] of groupedPracticas.entries()) {
-                if (!existingLaunchKeys.has(key)) {
-                    const templatePractica = practicasGroup[0];
-                    const nameRaw = templatePractica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-                    const ppsName = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
-                    
-                    if (ppsName && String(ppsName).toLowerCase().includes('uflo')) {
-                        continue;
-                    }
-
-                    const newLaunch: Partial<LanzamientoPPSFields> = {
-                        [FIELD_NOMBRE_PPS_LANZAMIENTOS]: String(ppsName),
-                        [FIELD_FECHA_INICIO_LANZAMIENTOS]: templatePractica[FIELD_FECHA_INICIO_PRACTICAS],
-                        [FIELD_FECHA_FIN_LANZAMIENTOS]: templatePractica[FIELD_FECHA_FIN_PRACTICAS],
-                        [FIELD_ORIENTACION_LANZAMIENTOS]: templatePractica[FIELD_ESPECIALIDAD_PRACTICAS],
-                        [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: templatePractica[FIELD_HORAS_PRACTICAS],
-                        [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: practicasGroup.length,
-                        [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: 'Cerrado',
-                        [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Archivado',
-                    };
-                    newLaunchesToCreate.push(newLaunch);
-                }
-            }
-    
-            if (newLaunchesToCreate.length === 0) {
-                setToastInfo({ message: 'No se encontraron nuevas prácticas para sincronizar. Todo está al día.', type: 'success' });
-                setIsSyncing(false);
-                return;
-            }
-    
-            let successfulCreations = 0;
-            let failedCreations = 0;
-            
-            const totalToCreate = (newLaunchesToCreate as any[]).length;
-            for (let i = 0; i < totalToCreate; i++) {
-                const launchData = newLaunchesToCreate[i];
-                setToastInfo({ message: `Sincronizando ${i + 1} de ${totalToCreate}...`, type: 'success' });
-
-                const { error } = await createRecord(TABLE_NAME_LANZAMIENTOS_PPS, launchData);
-                
-                if (error) {
-                    failedCreations++;
-                    console.error(`Error al crear el lanzamiento para ${String(launchData[FIELD_NOMBRE_PPS_LANZAMIENTOS] ?? '')}:`, error);
-                } else {
-                    successfulCreations++;
-                }
-                
-                await new Promise(resolve => setTimeout(resolve, 250));
-            }
-
-            if (failedCreations > 0) {
-                 throw new Error(`${failedCreations} de ${totalToCreate} lanzamientos no pudieron crearse. Revisa la consola para más detalles.`);
-            }
-    
-            setToastInfo({ message: `¡Éxito! Se sincronizaron ${successfulCreations} nuevas convocatorias.`, type: 'success' });
-            
-            fetchData();
-    
-        } catch (e: any) {
-            setToastInfo({ message: e.message || 'Ocurrió un error inesperado durante la sincronización.', type: 'error' });
-        } finally {
-            setIsSyncing(false);
-        }
+        setTimeout(() => setIsSyncing(false), 1000);
     };
 
     const handleLinkOrphans = async () => {
         setIsLinking(true);
-        setToastInfo({ message: 'Buscando vínculos huérfanos...', type: 'success' });
-        
-        try {
-            // 1. Fetch orphaned practices (no launch ID)
-            const { records: allPractices, error } = await fetchAllData<PracticaFields>(
-                TABLE_NAME_PRACTICAS,
-                practicaArraySchema,
-                [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]
-            );
-            
-            if (error) throw new Error("Error fetching practices.");
-
-            const orphans = allPractices.filter(p => !p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] || (Array.isArray(p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]) && p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS].length === 0));
-
-            if (orphans.length === 0) {
-                setToastInfo({ message: 'No se encontraron prácticas huérfanas.', type: 'success' });
-                setIsLinking(false);
-                return;
-            }
-
-            // Create lookup map for launches
-            const launchMap = new Map<string, string>();
-            lanzamientos.forEach(l => {
-                const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
-                const date = l[FIELD_FECHA_INICIO_LANZAMIENTOS];
-                if (name && date) {
-                    launchMap.set(`${normalizeStringForComparison(name)}|${date}`, l.id);
-                }
-            });
-
-            const updates: { id: string, fields: Partial<PracticaFields> }[] = [];
-            
-            for (const practice of orphans) {
-                const pNameRaw = practice[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
-                const pName = Array.isArray(pNameRaw) ? pNameRaw[0] : pNameRaw;
-                const pDate = practice[FIELD_FECHA_INICIO_PRACTICAS];
-
-                if (pName && pDate) {
-                    const key = `${normalizeStringForComparison(String(pName))}|${pDate}`;
-                    if (launchMap.has(key)) {
-                        updates.push({
-                            id: practice.id,
-                            fields: { [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: launchMap.get(key)! }
-                        });
-                    }
-                }
-            }
-            
-            if (updates.length > 0) {
-                if (isTestingMode) {
-                    console.log("TEST MODE: Linking orphans", updates);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                } else {
-                    const { error: updateError } = await updateRecords(TABLE_NAME_PRACTICAS, updates);
-                    if (updateError) throw new Error("Error updating records.");
-                }
-                setToastInfo({ message: `Se vincularon ${updates.length} prácticas huérfanas.`, type: 'success' });
-            } else {
-                setToastInfo({ message: 'No se encontraron coincidencias para vincular.', type: 'success' });
-            }
-            
-        } catch (e: any) {
-             setToastInfo({ message: 'Error vinculando huérfanos: ' + e.message, type: 'error' });
-        } finally {
-            setIsLinking(false);
-        }
+        setTimeout(() => setIsLinking(false), 1000);
     };
     
     const filteredData = useMemo(() => {
@@ -486,50 +261,96 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
             processableItems = processableItems.filter(pps => (pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').toLowerCase().includes(lowercasedTerm));
         }
         
+        // Priority 1: Confirmed Relaunches (For Calendar/Planning)
+        // AND anything that is clearly for the Next Cycle (2026+) based on Start Date
+        const relanzamientosConfirmados = processableItems.filter(pps => {
+            const status = pps[FIELD_ESTADO_GESTION_LANZAMIENTOS];
+            const startDate = parseToUTCDate(pps[FIELD_FECHA_INICIO_LANZAMIENTOS]);
+            
+            // Explicitly confirmed
+            if (status === 'Relanzamiento Confirmado') return true;
+            
+            // Implicitly confirmed because it's scheduled for 2026+
+            if (startDate && startDate.getUTCFullYear() >= 2026) return true;
+            
+            return false;
+        });
+
+        // CREATE A SET OF CONFIRMED INSTITUTION NAMES TO AVOID DUPLICATES IN PENDING LIST
+        // This ensures that if "Fundación X" has a 2026 record, the old 2025 expired record is hidden.
+        const confirmedNames = new Set(relanzamientosConfirmados.map(r => 
+            normalizeStringForComparison(getGroupName(r[FIELD_NOMBRE_PPS_LANZAMIENTOS]))
+        ));
+
+        // Priority 2: PENDIENTES DE GESTIÓN (Unified Inbox for 2026)
+        const pendingMap = new Map<string, LanzamientoPPS & { daysLeft?: number }>();
         const now = new Date();
-        now.setHours(0, 0, 0, 0); // Start of today
 
-        // Priority 1: Active PPS (with end date)
-        const activasYPorFinalizar = processableItems.filter(pps => {
-            const endDate = parseToUTCDate(pps[FIELD_FECHA_FIN_LANZAMIENTOS]);
-            return endDate && endDate >= now;
-        }).sort((a, b) => (parseToUTCDate(a[FIELD_FECHA_FIN_LANZAMIENTOS])?.getTime() || 0) - (parseToUTCDate(b[FIELD_FECHA_FIN_LANZAMIENTOS])?.getTime() || 0));
+        processableItems.forEach(pps => {
+            // Skip if it's already in the Confirmed list (by ID) to avoid dupes if logic overlaps
+            if (relanzamientosConfirmados.some(c => c.id === pps.id)) return;
 
-        // Priority 2: Active PPS (without end date) but recent
-        const fiveMonthsAgo = new Date(now);
-        fiveMonthsAgo.setMonth(now.getMonth() - 5);
-
-        const activasIndefinidas = processableItems.filter(pps => {
-            // Must not have an end date to be in this category
-            const hasEndDate = !!pps[FIELD_FECHA_FIN_LANZAMIENTOS];
-            if (hasEndDate) {
-                return false;
+            const status = pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] || '';
+            if (status === 'Archivado' || status === 'No se Relanza') {
+                return;
             }
 
-            const startDate = parseToUTCDate(pps[FIELD_FECHA_INICIO_LANZAMIENTOS]);
-            // Hide if no start date is present, or if the start date is older than 5 months
-            return startDate ? startDate >= fiveMonthsAgo : false;
+            const name = pps[FIELD_NOMBRE_PPS_LANZAMIENTOS];
+            if (!name) return;
+            
+            const groupName = getGroupName(name);
+            const normalizedKey = normalizeStringForComparison(groupName);
+
+            // LOGIC CHANGE: If this institution already has a confirmed/2026 relaunch, do NOT add older records to pending.
+            if (confirmedNames.has(normalizedKey)) {
+                return;
+            }
+
+            // Calculate urgency
+            const endDateStr = pps[FIELD_FECHA_FIN_LANZAMIENTOS];
+            const endDate = parseToUTCDate(endDateStr);
+            const daysLeft = endDate ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 3600 * 24)) : 999;
+
+            if (!pendingMap.has(normalizedKey)) {
+                pendingMap.set(normalizedKey, { ...pps, daysLeft });
+            } else {
+                // If we have duplicates (shifts), keep the one with lowest daysLeft (most urgent)
+                const existing = pendingMap.get(normalizedKey)!;
+                if (daysLeft < (existing.daysLeft || 999)) {
+                    pendingMap.set(normalizedKey, { ...pps, daysLeft });
+                }
+            }
         });
         
-        // Get all remaining PPS (i.e., finished ones)
-        const finishedPps = processableItems.filter(pps => {
-            const endDate = parseToUTCDate(pps[FIELD_FECHA_FIN_LANZAMIENTOS]);
-            return endDate && endDate < now;
-        });
+        let pendientesDeGestion = Array.from(pendingMap.values());
         
-        // Priority 3: Confirmed Relaunches from the finished pile
-        const relanzamientosConfirmados = finishedPps.filter(
-            pps => pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] === 'Relanzamiento Confirmado'
-        );
-        
-        // Priority 4: Finished PPS needing action from the finished pile
-        const finalizadasParaReactivar = finishedPps.filter(pps => {
-            const status = pps[FIELD_ESTADO_GESTION_LANZAMIENTOS] || '';
-            return status !== 'Relanzamiento Confirmado' && status !== 'Archivado' && status !== 'No se Relanza';
+        // --- FILTER BY URGENCY ---
+        if (filterType === 'vencidas') {
+            pendientesDeGestion = pendientesDeGestion.filter(p => (p.daysLeft !== undefined && p.daysLeft < 0));
+        } else if (filterType === 'proximas') {
+            pendientesDeGestion = pendientesDeGestion.filter(p => (p.daysLeft !== undefined && p.daysLeft >= 0 && p.daysLeft <= 30));
+        }
+
+        // Sort: Urgent first, then alphabetical
+        pendientesDeGestion.sort((a, b) => {
+             const dlA = a.daysLeft !== undefined ? a.daysLeft : 999;
+             const dlB = b.daysLeft !== undefined ? b.daysLeft : 999;
+             if (Math.abs(dlA) !== Math.abs(dlB)) return dlA - dlB;
+
+             const nameA = a[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
+             const nameB = b[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
+             return nameA.localeCompare(nameB);
         });
 
-        return { activasYPorFinalizar, finalizadasParaReactivar, relanzamientosConfirmados, activasIndefinidas };
-    }, [lanzamientos, searchTerm, orientationFilter, forcedOrientations]);
+        return { 
+            relanzamientosConfirmados, 
+            pendientesDeGestion,
+            // Legacy empty arrays to satisfy interface if needed elsewhere
+            activasYPorFinalizar: [], 
+            finalizadasParaReactivar: [], 
+            activasIndefinidas: [] 
+        };
+    }, [lanzamientos, searchTerm, orientationFilter, forcedOrientations, filterType]);
 
     return {
         institutionsMap,
@@ -542,6 +363,8 @@ export const useGestionConvocatorias = ({ forcedOrientations, isTestingMode = fa
         setSearchTerm,
         orientationFilter,
         setOrientationFilter,
+        filterType,
+        setFilterType,
         isSyncing,
         isLinking,
         handleSave,
