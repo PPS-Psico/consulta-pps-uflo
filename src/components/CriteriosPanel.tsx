@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { HORAS_OBJETIVO_TOTAL } from '../constants';
+import { HORAS_OBJETIVO_TOTAL, HORAS_OBJETIVO_ORIENTACION } from '../constants';
 import ProgressBar from './ProgressBar';
 import RotationTracker from './RotationTracker';
 import ProgressCircle from './ProgressCircle';
@@ -110,6 +110,10 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
     [criterios]
   );
 
+  // Use fixed target (70) as the denominator, so if student has 110, it shows 110/70 instead of 110/110.
+  // This clarifies that the goal was met and exceeded.
+  const maxHoursOrientation = HORAS_OBJETIVO_ORIENTACION;
+
   return (
     <section className="animate-fade-in-up relative z-10">
       {/* Container Base Styles */}
@@ -174,7 +178,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
                 <ProgressBar
                   label={`Horas en ${selectedOrientacion}`}
                   value={criterios.horasOrientacionElegida}
-                  max={criterios.horasFaltantesOrientacion + criterios.horasOrientacionElegida}
+                  max={maxHoursOrientation}
                   unit="hs"
                   isComplete={criterios.cumpleHorasOrientacion}
                 />
@@ -218,7 +222,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({ criterios, selectedOrie
                             <ProgressBar
                               label={`${selectedOrientacion}`}
                               value={criterios.horasOrientacionElegida}
-                              max={criterios.horasFaltantesOrientacion + criterios.horasOrientacionElegida}
+                              max={maxHoursOrientation}
                               unit="hs"
                               isComplete={criterios.cumpleHorasOrientacion}
                               compact

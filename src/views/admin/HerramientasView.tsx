@@ -13,6 +13,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 
 const ExecutiveReportGenerator = lazy(() => import('../../components/ExecutiveReportGenerator'));
 const ActiveInstitutionsReport = lazy(() => import('../../components/ActiveInstitutionsReport'));
+const YearEndResetTool = lazy(() => import('../../components/YearEndResetTool'));
 
 interface HerramientasViewProps {
   onStudentSelect: (student: AirtableRecord<EstudianteFields>) => void;
@@ -36,6 +37,7 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
     { id: 'search', label: 'Buscar Alumno', icon: 'person_search' },
     { id: 'insurance', label: 'Seguros', icon: 'shield' },
     { id: 'reportes', label: 'Reportes', icon: 'summarize' },
+    { id: 'mantenimiento', label: 'Mantenimiento', icon: 'build' },
   ];
 
   return (
@@ -112,6 +114,12 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
                     </ErrorBoundary>
                 )}
              </div>
+          )}
+
+          {activeTabId === 'mantenimiento' && (
+              <ErrorBoundary>
+                  <YearEndResetTool />
+              </ErrorBoundary>
           )}
 
         </Suspense>

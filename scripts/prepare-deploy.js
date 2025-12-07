@@ -37,6 +37,7 @@ try {
     
     const urlRegex = /export const SUPABASE_URL = ".*";/;
     const keyRegex = /export const SUPABASE_ANON_KEY = ".*";/;
+    const geminiRegex = /export const GEMINI_API_KEY = ".*";/;
     
     let updated = false;
 
@@ -47,6 +48,11 @@ try {
 
     if (keyRegex.test(tsContent)) {
         tsContent = tsContent.replace(keyRegex, 'export const SUPABASE_ANON_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";');
+        updated = true;
+    }
+
+    if (geminiRegex.test(tsContent)) {
+        tsContent = tsContent.replace(geminiRegex, 'export const GEMINI_API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY || "";');
         updated = true;
     }
 

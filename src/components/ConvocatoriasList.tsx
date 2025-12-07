@@ -96,7 +96,7 @@ const ConvocatoriasList: React.FC<ConvocatoriasListProps> = ({
                   onVerSeleccionados={(l) => seleccionadosMutation.mutate(l)}
                   isVerSeleccionadosLoading={seleccionadosMutation.isPending && seleccionadosMutation.variables?.id === lanzamiento.id}
                   isCompleted={isCompleted}
-                  userGender={student?.[FIELD_GENERO_ESTUDIANTES]}
+                  userGender={student?.[FIELD_GENERO_ESTUDIANTES] as "Varon" | "Mujer" | "Otro" | undefined}
                   direccion={finalDireccion}
               />
             );

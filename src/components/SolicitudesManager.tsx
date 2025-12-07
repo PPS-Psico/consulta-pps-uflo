@@ -81,6 +81,7 @@ const RequestListItem: React.FC<{
     const statusVisuals = getStatusVisuals(req[FIELD_ESTADO_PPS]);
     const isStagnant = req._daysSinceUpdate > 4 && !['finalizada', 'cancelada', 'rechazada', 'archivado'].includes(req[FIELD_ESTADO_PPS]?.toLowerCase() || '');
     const institucion = cleanValue(req[FIELD_EMPRESA_PPS_SOLICITUD]);
+    const instEmail = cleanValue(req[FIELD_SOLICITUD_EMAIL_INSTITUCION]);
 
     useEffect(() => {
         setHasChanges(
@@ -108,6 +109,20 @@ const RequestListItem: React.FC<{
         setNotes(req[FIELD_NOTAS_PPS] || '');
         setHasChanges(false);
         setIsExpanded(false);
+    };
+
+    const handleDraftEmail = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const subject = `Propuesta de Convenio PPS - UFLO - Alumno: ${req._studentName}`;
+        const body = `Estimados ${institucion},\n\nMe comunico desde la coordinación de Prácticas Profesionales de la Universidad de Flores (UFLO).\n\nEl estudiante ${req._studentName} (Legajo: ${req._studentLegajo}) nos ha informado de su interés en realizar sus prácticas en su institución.\n\nQuisiéramos iniciar el proceso de vinculación institucional para formalizar este acuerdo.\n\nQuedo a la espera de su respuesta.\n\nSaludos cordiales,\n\nCoordinación PPS`;
+        const mailto = `mailto:${instEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.open(mailto, '_blank');
+        
+        // Sugerir cambio de estado
+        if (status === 'Pendiente') {
+            setStatus('Puesta en contacto');
+            setHasChanges(true);
+        }
     };
 
     return (
@@ -185,11 +200,21 @@ const RequestListItem: React.FC<{
                                     </div>
                                 </div>
 
-                                <div className="bg-slate-50/50 dark:bg-gray-950/50 p-4 rounded-xl border border-slate-200/60 dark:border-gray-800">
+                                <div className="bg-slate-50/50 dark:bg-gray-950/50 p-4 rounded-xl border border-slate-200/60 dark:border-gray-800 relative">
                                     <h5 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-3 flex items-center gap-2">
                                         <span className="material-icons !text-sm">contact_phone</span>
                                         Contacto y Tutoría
                                     </h5>
+                                    {instEmail && (
+                                        <button 
+                                            onClick={handleDraftEmail}
+                                            className="absolute top-3 right-3 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 font-bold flex items-center gap-1 hover:bg-emerald-200 dark:hover:bg-emerald-800/50 transition-colors"
+                                            title="Redactar correo de presentación"
+                                        >
+                                            <span className="material-icons !text-sm">forward_to_inbox</span>
+                                            Redactar Correo
+                                        </button>
+                                    )}
                                     <div className="grid grid-cols-2 gap-4">
                                         <InfoField label="Email Inst." value={req[FIELD_SOLICITUD_EMAIL_INSTITUCION]} fullWidth />
                                         <InfoField label="Teléfono Inst." value={req[FIELD_SOLICITUD_TELEFONO_INSTITUCION]} />

@@ -39,7 +39,6 @@ const processLaunchesForYear = (
     allLanzamientos: AirtableRecord<LanzamientoPPSFields>[]
 ): { totalCuposForYear: number; totalLaunchesForYear: number; launchesByMonth: TimelineMonthData[] } => {
     const launchesForYear = allLanzamientos.filter(launch => {
-        // Ensure property access is direct since we use flat objects
         const date = parseToUTCDate(launch[FIELD_FECHA_INICIO_LANZAMIENTOS]);
         return date && date.getUTCFullYear() === year;
     });
@@ -129,14 +128,18 @@ const fetchAllDataForReport = async () => {
 const getMetricsSnapshot = (
     snapshotDate: Date,
     allEstudiantes: AirtableRecord<EstudianteFields>[],
-    allPracticas: AirtableRecord<PracticaFields>[]
+    allPracticas: AirtableRecord<PracticaFields>[],
+    studentEntryMap: Map<string, Date>
 ) => {
     const snapshotDay = new Date(snapshotDate);
     snapshotDay.setUTCHours(23, 59, 59, 999);
 
     const activeStudentRecords = allEstudiantes.filter(student => {
-        const creationDate = parseToUTCDate(student.createdTime);
-        if (!creationDate || creationDate > snapshotDay) {
+        // Use effective entry date (from practice history if earlier than created_at)
+        // This fixes 0 count in 2024 when DB migration happened in 2025
+        const entryDate = studentEntryMap.get(student.id);
+        
+        if (!entryDate || entryDate > snapshotDay) {
             return false;
         }
 
@@ -185,11 +188,12 @@ const calculateFlowMetrics = (
     yearStartDate: Date,
     allEstudiantes: AirtableRecord<EstudianteFields>[],
     allInstituciones: AirtableRecord<InstitucionFields>[],
-    allLanzamientos: AirtableRecord<LanzamientoPPSFields>[]
+    allLanzamientos: AirtableRecord<LanzamientoPPSFields>[],
+    studentEntryMap: Map<string, Date>
 ) => {
     const newStudents = allEstudiantes.filter(s => {
-        const creationDate = parseToUTCDate(s.createdTime);
-        return creationDate && creationDate >= yearStartDate && creationDate <= snapshotEndDate;
+        const entryDate = studentEntryMap.get(s.id);
+        return entryDate && entryDate >= yearStartDate && entryDate <= snapshotEndDate;
     }).length;
 
     const finishedStudents = allEstudiantes.filter(s => {
@@ -280,6 +284,40 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
 
             const allData = await fetchAllDataForReport();
 
+            // Pre-calculate Effective Entry Dates
+            // Map student ID to earliest date found (Created At vs Earliest Practice Start)
+            const studentEntryMap = new Map<string, Date>();
+            
+            // 1. Check Practices
+            allData.practicas.forEach(p => {
+                const startDate = parseToUTCDate(p[FIELD_FECHA_INICIO_PRACTICAS]);
+                if (!startDate) return;
+                
+                const rawLink = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                const ids = Array.isArray(rawLink) ? rawLink : [rawLink];
+                
+                ids.filter(Boolean).forEach((id: string) => {
+                     const current = studentEntryMap.get(id);
+                     if (!current || startDate < current) {
+                         studentEntryMap.set(id, startDate);
+                     }
+                });
+            });
+
+            // 2. Fallback to Created At & Populate Map
+            allData.estudiantes.forEach(s => {
+                let date = parseToUTCDate(s.createdTime);
+                const activityDate = studentEntryMap.get(s.id);
+                
+                // If we found activity earlier than creation (common in migration), use that
+                if (activityDate && (!date || activityDate < date)) {
+                    date = activityDate;
+                }
+                
+                if (date) studentEntryMap.set(s.id, date);
+            });
+
+
             const generateSingleYearReport = (year: number): ExecutiveReportData => {
                 const yearStartDate = new Date(Date.UTC(year, 0, 1));
                 const yearEndDate = new Date(Date.UTC(year + 1, 0, 1));
@@ -288,10 +326,10 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
                 const previousYearEndDate = new Date(Date.UTC(year, 0, 1));
                 previousYearEndDate.setUTCDate(previousYearEndDate.getUTCDate() - 1);
 
-                const currentSnapshot = getMetricsSnapshot(yearEndDate, allData.estudiantes, allData.practicas);
-                const previousSnapshot = getMetricsSnapshot(previousYearEndDate, allData.estudiantes, allData.practicas);
+                const currentSnapshot = getMetricsSnapshot(yearEndDate, allData.estudiantes, allData.practicas, studentEntryMap);
+                const previousSnapshot = getMetricsSnapshot(previousYearEndDate, allData.estudiantes, allData.practicas, studentEntryMap);
                 
-                const flowMetrics = calculateFlowMetrics(yearEndDate, yearStartDate, allData.estudiantes, allData.instituciones, allData.lanzamientos);
+                const flowMetrics = calculateFlowMetrics(yearEndDate, yearStartDate, allData.estudiantes, allData.instituciones, allData.lanzamientos, studentEntryMap);
                 
                 const launchesData = processLaunchesForYear(year, allData.lanzamientos);
 
