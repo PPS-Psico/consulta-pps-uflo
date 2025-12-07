@@ -12,6 +12,7 @@ import {
     FIELD_NOMBRE_ESTUDIANTES
 } from '../constants';
 import { toTitleCase } from '../utils/formatters';
+import Button from './Button';
 
 const Auth: React.FC = () => {
   const { login } = useAuth();
@@ -35,15 +36,6 @@ const Auth: React.FC = () => {
   
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleModeChange = (newMode: 'login' | 'register' | 'forgot' | 'reset' | 'migration' | 'recover') => {
-    setMode(newMode);
-    if (newMode !== 'reset' && newMode !== 'migration' && newMode !== 'recover' && newMode !== 'register') {
-        setLegajo('');
-        setPassword('');
-        setConfirmPassword('');
-    }
-  };
-
   const getDisplayName = () => {
       if (!foundStudent) return '';
       const nombre = foundStudent[FIELD_NOMBRE_SEPARADO_ESTUDIANTES];
@@ -59,7 +51,7 @@ const Auth: React.FC = () => {
     hover:bg-slate-100 dark:hover:bg-[#334155]
   `;
 
-  const renderLoginRegister = () => (
+  const renderLogin = () => (
     <>
       <div className="text-left mb-10">
         <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter animate-fade-in-up" style={{ animationDelay: '100ms' }}>
@@ -117,7 +109,7 @@ const Auth: React.FC = () => {
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-white transition-colors">Recordarme</span>
               </label>
 
-              <button type="button" onClick={() => handleModeChange('recover')} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+              <button type="button" onClick={() => setMode('recover')} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                   ¿Olvidaste tu contraseña?
               </button>
           </div>
@@ -143,7 +135,106 @@ const Auth: React.FC = () => {
           </button>
         </div>
       </form>
+      <div className="mt-12 animate-fade-in-up" style={{ animationDelay: '700ms' }}>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          ¿No tienes una cuenta?{' '}
+          <button
+            type="button"
+            onClick={() => setMode('register')}
+            className="font-bold text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Crear una cuenta nueva
+          </button>
+        </p>
+      </div>
     </>
+  );
+
+  const renderRegister = () => (
+    <form onSubmit={handleFormSubmit} className="space-y-6 animate-fade-in-up">
+        {registerStep === 1 ? (
+            <>
+                <div className="text-left mb-8">
+                    <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Crear Cuenta</h2>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2 text-base leading-relaxed">
+                        Ingresa tu legajo para verificar si estás habilitado para registrarte.
+                    </p>
+                </div>
+                <Input id="legajo" type="text" value={legajo} onChange={(e) => setLegajo(e.target.value)} placeholder="Número de Legajo" icon="badge" disabled={isLoading} autoFocus />
+                <div className="pt-2">
+                    <Button type="submit" isLoading={isLoading} className="w-full" size="lg">Verificar</Button>
+                </div>
+            </>
+        ) : (
+            <>
+                <div className="text-left mb-8">
+                     <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">¡Hola, {getDisplayName()}!</h2>
+                     <p className="text-slate-500 dark:text-slate-400 mt-2 text-base leading-relaxed">
+                         Confirma tus datos y crea una contraseña para finalizar el registro.
+                     </p>
+                </div>
+                <div className="space-y-4">
+                    <Input name="dni" type="text" placeholder="DNI (sin puntos)" icon="fingerprint" value={verificationData.dni} onChange={handleVerificationDataChange} disabled={isLoading} inputMode="numeric" autoFocus />
+                    <Input name="correo" type="email" placeholder="Correo electrónico" icon="email" value={verificationData.correo} onChange={handleVerificationDataChange} disabled={isLoading} />
+                    <Input name="telefono" type="tel" placeholder="Número de Celular" icon="smartphone" value={verificationData.telefono} onChange={handleVerificationDataChange} disabled={isLoading} />
+                    <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva Contraseña (mín. 6 caracteres)" icon="lock" disabled={isLoading} />
+                    <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar Contraseña" icon="lock" disabled={isLoading} />
+                </div>
+                <div className="pt-2">
+                    <Button type="submit" isLoading={isLoading} className="w-full" size="lg">Crear Cuenta</Button>
+                </div>
+            </>
+        )}
+
+        <div className="text-center">
+            <button type="button" onClick={() => setMode('login')} className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors p-2">
+                Volver a Iniciar Sesión
+            </button>
+        </div>
+    </form>
+  );
+
+  const renderMigration = () => (
+    <form onSubmit={handleFormSubmit} className="space-y-6 animate-fade-in-up">
+      {migrationStep === 1 ? (
+        <>
+            <div className="text-left mb-8">
+                 <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Activación de Cuenta</h2>
+                 <p className="text-slate-500 dark:text-slate-400 mt-2 text-base leading-relaxed">
+                     Para usar el nuevo sistema, valida tu identidad y crea una contraseña.
+                 </p>
+            </div>
+            <div className="space-y-4">
+                <Input name="dni" type="text" placeholder="DNI (sin puntos)" icon="fingerprint" value={verificationData.dni} onChange={handleVerificationDataChange} disabled={isLoading} autoFocus />
+                <Input name="correo" type="email" placeholder="Correo registrado en UFLO" icon="email" value={verificationData.correo} onChange={handleVerificationDataChange} disabled={isLoading} />
+            </div>
+            <div className="pt-2">
+                <Button type="submit" isLoading={isLoading} className="w-full" size="lg">Validar Identidad</Button>
+            </div>
+        </>
+      ) : (
+        <>
+            <div className="text-left mb-8">
+                 <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Identidad Verificada</h2>
+                 <p className="text-slate-500 dark:text-slate-400 mt-2 text-base leading-relaxed">
+                     Ahora, crea tu nueva contraseña para acceder.
+                 </p>
+            </div>
+            <div className="space-y-4">
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva Contraseña (mín. 6 caracteres)" icon="lock" disabled={isLoading} autoFocus />
+                <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar Contraseña" icon="lock" disabled={isLoading} />
+            </div>
+             <div className="pt-2">
+                <Button type="submit" isLoading={isLoading} className="w-full" size="lg">Establecer Contraseña</Button>
+            </div>
+        </>
+      )}
+       <div className="text-center">
+            <button type="button" onClick={() => setMode('login')} className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors p-2">
+                Cancelar
+            </button>
+        </div>
+    </form>
   );
 
   const renderRecover = () => (
@@ -206,7 +297,7 @@ const Auth: React.FC = () => {
                     </p>
                     <button 
                         type="button" 
-                        onClick={() => handleModeChange('login')} 
+                        onClick={() => setMode('login')} 
                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5"
                     >
                         Iniciar Sesión
@@ -226,7 +317,7 @@ const Auth: React.FC = () => {
                   
                   <button 
                     type="button" 
-                    onClick={() => handleModeChange('login')} 
+                    onClick={() => setMode('login')} 
                     className="w-full text-center text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors p-2"
                   >
                       Cancelar y Volver
@@ -235,6 +326,16 @@ const Auth: React.FC = () => {
           )}
       </form>
   );
+
+  const renderContent = () => {
+    switch(mode) {
+      case 'login': return renderLogin();
+      case 'register': return renderRegister();
+      case 'migration': return renderMigration();
+      case 'recover': return renderRecover();
+      default: return renderLogin();
+    }
+  };
 
   return (
     <div className="w-full min-h-[85vh] flex items-center justify-center p-4">
@@ -313,7 +414,7 @@ const Auth: React.FC = () => {
                     </div>
 
                     <main className="w-full max-w-sm mx-auto">
-                        {mode === 'login' || mode === 'register' || mode === 'migration' ? renderLoginRegister() : renderRecover()}
+                        {renderContent()}
                         
                         <div aria-live="assertive" className="mt-8">
                         {error && (
@@ -322,7 +423,7 @@ const Auth: React.FC = () => {
                                     <span className="material-icons !text-lg">priority_high</span>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-rose-700 dark:text-rose-300">Error de Acceso</h4>
+                                    <h4 className="text-sm font-bold text-rose-700 dark:text-rose-300">Error</h4>
                                     <p className="text-sm text-rose-600 dark:text-rose-400 mt-0.5 leading-snug">{error}</p>
                                 </div>
                             </div>
