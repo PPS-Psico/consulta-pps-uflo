@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import MiPanelLogo from './MiPanelLogo';
 import UfloLogo from './UfloLogo';
@@ -134,19 +135,18 @@ const Auth: React.FC = () => {
             </div>
           </button>
         </div>
+        
+        <div className="mt-8 flex items-center justify-between pt-6 border-t border-slate-200 dark:border-slate-800 animate-fade-in-up" style={{ animationDelay: '700ms' }}>
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">¿No tienes una cuenta?</span>
+            <button
+                type="button"
+                onClick={() => setMode('register')}
+                className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            >
+                Crear una cuenta nueva
+            </button>
+        </div>
       </form>
-      <div className="mt-12 animate-fade-in-up" style={{ animationDelay: '700ms' }}>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          ¿No tienes una cuenta?{' '}
-          <button
-            type="button"
-            onClick={() => setMode('register')}
-            className="font-bold text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Crear una cuenta nueva
-          </button>
-        </p>
-      </div>
     </>
   );
 
@@ -347,57 +347,50 @@ const Auth: React.FC = () => {
         <div className="absolute -bottom-32 left-1/3 w-[600px] h-[600px] bg-purple-400/20 dark:bg-purple-600/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000 pointer-events-none"></div>
 
         {/* Main Card Container with pseudo-element for shadow */}
-        <div className="w-full max-w-6xl relative before:content-[''] before:absolute before:inset-0 before:rounded-[2.5rem] before:shadow-2xl before:z-0">
+        <div className="w-full max-w-6xl relative before:content-[''] before:absolute before:inset-0 before:rounded-[2.5rem] before:shadow-2xl before:z-[-1]">
             <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[650px] relative z-10 transition-all duration-500 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
             
                 {/* LEFT SIDE: Brand & Visuals */}
-                <div className={`hidden lg:flex relative flex-col justify-between p-16 z-0 ${
-                    resolvedTheme === 'dark' 
-                    ? 'bg-slate-900 text-white' 
-                    : 'bg-gradient-to-br from-[#F8FAFC]/80 via-[#EFF6FF]/80 to-[#E2E8F0]/80 text-slate-900'
-                }`}>
+                <div className="hidden lg:flex relative flex-col justify-between p-16 z-0 overflow-hidden bg-blue-600 dark:bg-slate-900 text-white transition-colors duration-500">
                     
-                    {/* Subtle Texture */}
-                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02] mix-blend-overlay pointer-events-none"></div>
+                    {/* Decorative Orbs - Subtle and Professional */}
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/30 dark:bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-400/30 dark:bg-indigo-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none"></div>
                     
                     {/* Content */}
                     <div className="relative z-10 h-full flex flex-col justify-between">
                         <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
-                            <MiPanelLogo className="h-16 w-auto" variant={resolvedTheme} />
+                            <MiPanelLogo className="h-16 w-auto" variant="dark" />
                         </div>
 
                         <div className="space-y-8">
                             <div className="space-y-4">
-                                <div className={`w-16 h-1.5 rounded-full mb-6 ${resolvedTheme === 'dark' ? 'bg-blue-500/50' : 'bg-blue-600'}`}></div>
-                                <h1 className={`text-5xl font-black leading-[1.1] tracking-tighter animate-fade-in-up ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`} style={{ animationDelay: '200ms' }}>
+                                <div className="w-16 h-1.5 rounded-full mb-6 bg-white/30 backdrop-blur-sm"></div>
+                                <h1 className="text-5xl font-black leading-[1.1] tracking-tighter animate-fade-in-up text-white" style={{ animationDelay: '200ms' }}>
                                     Tu futuro profesional,<br/>organizado.
                                 </h1>
                             </div>
-                            <p className={`text-lg leading-relaxed max-w-md font-medium animate-fade-in-up ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`} style={{ animationDelay: '300ms' }}>
+                            <p className="text-lg leading-relaxed max-w-md font-medium animate-fade-in-up text-blue-50 dark:text-slate-400" style={{ animationDelay: '300ms' }}>
                                 Gestiona tus prácticas, inscripciones y acreditaciones en una plataforma unificada y segura.
                             </p>
                             
                             <div className="flex gap-3 flex-wrap animate-fade-in-up" style={{ animationDelay: '400ms' }}>
                                 {['Gestión 100% Digital', 'Seguimiento en Tiempo Real', 'Soporte Directo'].map((tag, i) => (
-                                    <span key={i} className={`px-3 py-1.5 rounded-full border text-xs font-semibold backdrop-blur-md ${
-                                        resolvedTheme === 'dark' 
-                                            ? 'bg-white/5 border-white/10 text-slate-300' 
-                                            : 'bg-white/60 border-blue-100 text-blue-800 shadow-sm'
-                                    }`}>
+                                    <span key={i} className="px-3 py-1.5 rounded-full border border-white/20 text-xs font-semibold backdrop-blur-md bg-white/10 text-white">
                                         {tag}
                                     </span>
                                 ))}
                             </div>
                         </div>
 
-                        <div className={`flex items-center justify-between pt-8 border-t animate-fade-in-up ${resolvedTheme === 'dark' ? 'border-white/10' : 'border-slate-200'}`} style={{ animationDelay: '500ms' }}>
-                            <p className={`text-xs font-bold uppercase tracking-widest ${resolvedTheme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        <div className="flex items-center justify-between pt-8 border-t border-white/10 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
+                            <p className="text-xs font-bold uppercase tracking-widest text-blue-100 dark:text-slate-500 opacity-80">
                                 UFLO Universidad
                             </p>
                             <div className="flex gap-3 opacity-40">
-                                 <div className={`w-2 h-2 rounded-full ${resolvedTheme === 'dark' ? 'bg-white' : 'bg-slate-400'}`}></div>
-                                 <div className={`w-2 h-2 rounded-full ${resolvedTheme === 'dark' ? 'bg-white/50' : 'bg-slate-400/50'}`}></div>
-                                 <div className={`w-2 h-2 rounded-full ${resolvedTheme === 'dark' ? 'bg-white/30' : 'bg-slate-400/30'}`}></div>
+                                 <div className="w-2 h-2 rounded-full bg-white"></div>
+                                 <div className="w-2 h-2 rounded-full bg-white/50"></div>
+                                 <div className="w-2 h-2 rounded-full bg-white/30"></div>
                             </div>
                         </div>
                     </div>
