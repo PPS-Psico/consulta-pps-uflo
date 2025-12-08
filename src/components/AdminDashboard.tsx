@@ -63,6 +63,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
     const { data: metrics, isLoading: isMetricsLoading, error: metricsError } = useMetricsData({ targetYear, isTestingMode });
     
     // 2. Fetch Operational Data (For Smart Analysis / AI / Cards)
+    // The hook has been updated to include 'confirmedRelaunches' which useSmartAnalysis now consumes.
     const { data: opData, isLoading: isOpLoading, error: opError } = useOperationalData(isTestingMode);
 
     // Smart Analysis Hook (Uses Operational Data)

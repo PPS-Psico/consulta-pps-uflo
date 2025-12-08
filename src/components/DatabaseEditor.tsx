@@ -43,7 +43,16 @@ import {
     TABLE_NAME_INSTITUCIONES,
     FIELD_FECHA_INICIO_LANZAMIENTOS,
     FIELD_NOMBRE_SEPARADO_ESTUDIANTES,
-    FIELD_APELLIDO_SEPARADO_ESTUDIANTES
+    FIELD_APELLIDO_SEPARADO_ESTUDIANTES,
+    TABLE_NAME_CONVOCATORIAS,
+    FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
+    FIELD_HORARIO_FORMULA_CONVOCATORIAS,
+    FIELD_FECHA_INICIO_CONVOCATORIAS,
+    FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
+    FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
+    FIELD_TERMINO_CURSAR_CONVOCATORIAS,
+    FIELD_FINALES_ADEUDA_CONVOCATORIAS,
+    FIELD_NOMBRE_PPS_CONVOCATORIAS
 } from '../constants';
 
 interface FieldConfig {
@@ -86,8 +95,25 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
             { key: FIELD_NOMBRE_ESTUDIANTES, label: 'Nombre Completo (Auto)', type: 'text' }, 
         ]
     },
+    convocatorias: {
+        label: 'Inscripciones (Convocatorias)',
+        icon: 'how_to_reg',
+        tableName: TABLE_NAME_CONVOCATORIAS,
+        schema: schema.convocatorias,
+        // Usamos campos calculados (__studentName) para mostrar info útil
+        displayFields: ['__studentName', '__lanzamientoName', FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS, FIELD_HORARIO_FORMULA_CONVOCATORIAS, FIELD_FECHA_INICIO_CONVOCATORIAS],
+        searchFields: [FIELD_NOMBRE_PPS_CONVOCATORIAS], 
+        fieldConfig: [
+            { key: FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS, label: 'ID Estudiante (UUID)', type: 'text' },
+            { key: FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS, label: 'ID Lanzamiento (UUID)', type: 'text' },
+            { key: FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS, label: 'Estado', type: 'select', options: ['Inscripto', 'Seleccionado', 'No Seleccionado', 'Baja'] },
+            { key: FIELD_HORARIO_FORMULA_CONVOCATORIAS, label: 'Horario', type: 'text' },
+            { key: FIELD_TERMINO_CURSAR_CONVOCATORIAS, label: 'Terminó Cursar', type: 'select', options: ['Sí', 'No'] },
+            { key: FIELD_FINALES_ADEUDA_CONVOCATORIAS, label: 'Finales Adeudados', type: 'text' },
+        ]
+    },
     practicas: {
-        label: 'Prácticas',
+        label: 'Prácticas (Historial)',
         icon: 'work_history',
         tableName: TABLE_NAME_PRACTICAS,
         schema: schema.practicas,
@@ -378,6 +404,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 const inst = allInstitutions.find(i => i.id === filterInstitutionId);
                 if (inst) filters[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] = inst[FIELD_NOMBRE_INSTITUCIONES];
             }
+        } else if (activeTable === 'convocatorias') {
+            if (filterStudentId) filters[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] = filterStudentId;
         } else if (activeTable === 'estudiantes') {
             if (estudianteSearchSelection) {
                 filters[FIELD_LEGAJO_ESTUDIANTES] = estudianteSearchSelection;
@@ -406,15 +434,20 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
             if (error) throw new Error(error.error as string);
 
-            // Special handling for "practicas" joins to display friendly names
-            if (activeTable === 'practicas' && records.length > 0) {
+            // Special handling for "practicas" or "convocatorias" joins to display friendly names
+            if ((activeTable === 'practicas' || activeTable === 'convocatorias') && records.length > 0) {
+                
+                // Determinamos los campos de ID según la tabla
+                const studentIdField = activeTable === 'practicas' ? FIELD_ESTUDIANTE_LINK_PRACTICAS : FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS;
+                const launchIdField = activeTable === 'practicas' ? FIELD_LANZAMIENTO_VINCULADO_PRACTICAS : FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS;
+
                 const studentIds = [...new Set(records.map(r => {
-                    const raw = r[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                    const raw = r[studentIdField];
                     return Array.isArray(raw) ? raw[0] : raw;
                 }).filter(Boolean))] as string[];
 
                 const launchIds = [...new Set(records.map(r => {
-                    const raw = r[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                    const raw = r[launchIdField];
                     return Array.isArray(raw) ? raw[0] : raw;
                 }).filter(Boolean))] as string[];
 
@@ -427,17 +460,22 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 const lanzamientosMap = new Map(lanzamientosRes.map(r => [r.id, r]));
     
                 const enrichedRecords = records.map(p => {
-                    const rawStudentId = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                    const rawStudentId = p[studentIdField];
                     const studentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
                     
-                    const rawLanzamientoId = p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+                    const rawLanzamientoId = p[launchIdField];
                     const lanzamientoId = Array.isArray(rawLanzamientoId) ? rawLanzamientoId[0] : rawLanzamientoId;
                     
                     const student = estudiantesMap.get(studentId as string);
                     const studentName = student?.[FIELD_NOMBRE_ESTUDIANTES] || 'Desconocido';
                     const studentLegajo = student?.[FIELD_LEGAJO_ESTUDIANTES] || '---';
                     
-                    const lanzamientoName = lanzamientosMap.get(lanzamientoId as string)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || cleanDisplayValue(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) || 'N/A';
+                    // For practicas fallback to lookup, for convocatorias fallback to snapshot if available (or N/A)
+                    const fallbackName = activeTable === 'practicas' 
+                        ? cleanDisplayValue(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]) 
+                        : (p as any)[FIELD_NOMBRE_PPS_CONVOCATORIAS] || 'N/A';
+                    
+                    const lanzamientoName = lanzamientosMap.get(lanzamientoId as string)?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || fallbackName;
     
                     return {
                         ...p,
@@ -703,8 +741,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
             <div className="mt-6 border-t border-slate-200/60 dark:border-slate-700/60 pt-6 space-y-4">
                 
-                {/* --- FILTER BAR FOR PRACTICAS --- */}
-                {activeTable === 'practicas' && (
+                {/* --- FILTER BAR FOR PRACTICAS AND CONVOCATORIAS --- */}
+                {(activeTable === 'practicas' || activeTable === 'convocatorias') && (
                     <div className="bg-blue-50/50 dark:bg-slate-900/30 p-4 rounded-xl border border-blue-100 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
                         
                         {/* Student Filter */}
@@ -737,39 +775,41 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                             )}
                         </div>
                         
-                        {/* Institution/Date Filters */}
-                        <div className="flex flex-col gap-2">
-                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">1. Institución</label>
-                                <select 
-                                    value={filterInstitutionId} 
-                                    onChange={(e) => { setFilterInstitutionId(e.target.value); }}
-                                    className="w-full p-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                                >
-                                    <option value="">Todas las instituciones</option>
-                                    {allInstitutions.map(i => (
-                                        <option key={i.id} value={i.id}>{i[FIELD_NOMBRE_INSTITUCIONES]}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            {filterInstitutionId && (
-                                <div className="animate-fade-in">
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">2. Convocatoria (Fecha)</label>
+                        {/* Institution/Date Filters (ONLY FOR PRACTICAS) */}
+                        {activeTable === 'practicas' && (
+                            <div className="flex flex-col gap-2">
+                                 <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">1. Institución</label>
                                     <select 
-                                        value={filterLaunchId} 
-                                        onChange={(e) => setFilterLaunchId(e.target.value)}
+                                        value={filterInstitutionId} 
+                                        onChange={(e) => { setFilterInstitutionId(e.target.value); }}
                                         className="w-full p-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                                     >
-                                        <option value="">Cualquier fecha</option>
-                                        {availableLaunches.map(l => (
-                                            <option key={l.id} value={l.id}>
-                                                {l[FIELD_NOMBRE_PPS_LANZAMIENTOS]} - {formatDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS])}
-                                            </option>
+                                        <option value="">Todas las instituciones</option>
+                                        {allInstitutions.map(i => (
+                                            <option key={i.id} value={i.id}>{i[FIELD_NOMBRE_INSTITUCIONES]}</option>
                                         ))}
                                     </select>
                                 </div>
-                            )}
-                        </div>
+                                {filterInstitutionId && (
+                                    <div className="animate-fade-in">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">2. Convocatoria (Fecha)</label>
+                                        <select 
+                                            value={filterLaunchId} 
+                                            onChange={(e) => setFilterLaunchId(e.target.value)}
+                                            className="w-full p-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                                        >
+                                            <option value="">Cualquier fecha</option>
+                                            {availableLaunches.map(l => (
+                                                <option key={l.id} value={l.id}>
+                                                    {l[FIELD_NOMBRE_PPS_LANZAMIENTOS]} - {formatDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS])}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
                 
@@ -794,8 +834,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 {/* --- MAIN TOOLBAR --- */}
                 <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                     
-                    {/* Left: Generic Search (only if not students, as students has the better search above) */}
-                    {activeTable !== 'estudiantes' && (
+                    {/* Left: Generic Search (only if not students or convocatorias, as they have specific filters) */}
+                    {activeTable !== 'estudiantes' && activeTable !== 'convocatorias' && (
                         <div className="relative w-full md:w-72 group">
                             <input 
                                 type="search" 
@@ -814,7 +854,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     )}
                     
                     {/* Right: Actions */}
-                    <div className={`flex items-center gap-2 w-full md:w-auto ${activeTable === 'estudiantes' ? 'ml-auto' : ''}`}>
+                    <div className={`flex items-center gap-2 w-full md:w-auto ${activeTable === 'estudiantes' || activeTable === 'convocatorias' ? 'ml-auto' : ''}`}>
                         {isBulkEditMode && (
                             <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 animate-fade-in">
                                 <select 
@@ -944,8 +984,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 <RecordEditModal 
                     isOpen={!!editingRecord} 
                     onClose={() => setEditingRecord(null)} 
-                    record={'isCreating' in editingRecord ? null : editingRecord}
-                    initialData={'isCreating' in editingRecord ? editingRecord.initialData : undefined}
+                    record={'isCreating' in editingRecord ? null : editingRecord} 
                     tableConfig={activeTableConfig} 
                     onSave={(recordId, fields) => {
                         if (recordId) { updateMutation.mutate({ recordId, fields }); } else { createMutation.mutate(fields); }

@@ -11,13 +11,16 @@ import {
     FIELD_ESTADO_PPS,
     FIELD_ULTIMA_ACTUALIZACION_PPS,
     TABLE_NAME_FINALIZACION,
-    FIELD_ESTADO_FINALIZACION
+    FIELD_ESTADO_FINALIZACION,
+    FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS,
+    FIELD_NOMBRE_PPS_LANZAMIENTOS
 } from '../constants';
 
 export interface OperationalData {
     endingLaunches: any[];
     pendingRequests: any[];
     pendingFinalizations: any[];
+    confirmedRelaunches: any[]; // New field
 }
 
 export const useOperationalData = (isTestingMode = false) => {
@@ -28,19 +31,19 @@ export const useOperationalData = (isTestingMode = false) => {
                  return {
                     endingLaunches: [],
                     pendingFinalizations: [],
-                    pendingRequests: []
+                    pendingRequests: [],
+                    confirmedRelaunches: []
                  };
             }
 
             const now = new Date();
             
             // 1. Lanzamientos closing soon (Active & Open) OR Recently Closed but Unmanaged
-            // We fetch slightly more to allow SmartAnalysis to filter by 7 days or negative days
             const { data: launches } = await supabase
                 .from(TABLE_NAME_LANZAMIENTOS_PPS)
-                .select(`*, ${FIELD_NOTAS_GESTION_LANZAMIENTOS}`) // Explicitly fetch notes
-                .in(FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS, ['Abierta', 'Abierto', 'Cerrado']) // Include closed to check for unmanaged expired
-                .not(FIELD_ESTADO_GESTION_LANZAMIENTOS, 'in', '("Archivado")'); // Exclude archived, keep "No se Relanza" to check for notes
+                .select(`*, ${FIELD_NOTAS_GESTION_LANZAMIENTOS}`) 
+                .in(FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS, ['Abierta', 'Abierto', 'Cerrado']) 
+                .not(FIELD_ESTADO_GESTION_LANZAMIENTOS, 'in', '("Archivado")'); 
 
             const endingLaunches = (launches || []).map((l: any) => {
                  const endDate = new Date(l[FIELD_FECHA_FIN_LANZAMIENTOS]);
@@ -48,13 +51,18 @@ export const useOperationalData = (isTestingMode = false) => {
                  return { 
                      ...l, 
                      daysLeft,
-                     // Normalize fields for easy access
                      estado_gestion: l[FIELD_ESTADO_GESTION_LANZAMIENTOS],
                      notas_gestion: l[FIELD_NOTAS_GESTION_LANZAMIENTOS]
                  };
             });
 
-            // 2. Requests pending or stagnant (Not finished)
+            // 2. Confirmed Relaunches (Future planning)
+            const { data: relaunches } = await supabase
+                .from(TABLE_NAME_LANZAMIENTOS_PPS)
+                .select(`id, ${FIELD_NOMBRE_PPS_LANZAMIENTOS}, ${FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS}, ${FIELD_NOTAS_GESTION_LANZAMIENTOS}, ${FIELD_ESTADO_GESTION_LANZAMIENTOS}`)
+                .eq(FIELD_ESTADO_GESTION_LANZAMIENTOS, 'Relanzamiento Confirmado');
+
+            // 3. Requests pending or stagnant
             const { data: requests } = await supabase
                 .from(TABLE_NAME_PPS)
                 .select('*')
@@ -66,7 +74,7 @@ export const useOperationalData = (isTestingMode = false) => {
                 estado_seguimiento: r[FIELD_ESTADO_PPS]
             }));
 
-            // 3. Pending Accreditations
+            // 4. Pending Accreditations
             const { data: finals } = await supabase
                 .from(TABLE_NAME_FINALIZACION)
                 .select('*')
@@ -75,7 +83,8 @@ export const useOperationalData = (isTestingMode = false) => {
             return {
                 endingLaunches,
                 pendingRequests,
-                pendingFinalizations: finals || []
+                pendingFinalizations: finals || [],
+                confirmedRelaunches: relaunches || []
             };
         }
     });
