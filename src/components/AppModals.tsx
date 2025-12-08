@@ -5,7 +5,11 @@ import Modal from './Modal';
 import { EnrollmentForm } from './EnrollmentForm';
 import SeleccionadosModal from './SeleccionadosModal';
 import SolicitudPPSForm from './SolicitudPPSForm'; // Import the new form
-import { FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS, FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS } from '../constants';
+import { 
+    FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS, 
+    FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS,
+    FIELD_NOMBRE_PPS_LANZAMIENTOS 
+} from '../constants';
 
 const AppModals: React.FC = () => {
     const { 
@@ -30,6 +34,9 @@ const AppModals: React.FC = () => {
     const horariosStr = selectedLanzamientoForEnrollment?.[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS] || '';
     const horariosArray = horariosStr ? horariosStr.split(';').map(h => h.trim()).filter(Boolean) : [];
     const permiteCertificado = !!selectedLanzamientoForEnrollment?.[FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS];
+    
+    // Fix: Use constant key instead of hardcoded string to ensure compatibility with snake_case DB response
+    const convocatoriaName = selectedLanzamientoForEnrollment?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Convocatoria';
 
     return (
         <>
@@ -44,7 +51,7 @@ const AppModals: React.FC = () => {
               isOpen={isEnrollmentFormOpen}
               onClose={closeEnrollmentForm}
               onSubmit={onSubmitEnrollment || (() => Promise.resolve())} // Proporciona una función vacía como fallback
-              convocatoriaName={selectedLanzamientoForEnrollment?.['Nombre PPS'] || ''}
+              convocatoriaName={convocatoriaName}
               horariosDisponibles={horariosArray}
               isSubmitting={isSubmittingEnrollment}
               permiteCertificado={permiteCertificado}

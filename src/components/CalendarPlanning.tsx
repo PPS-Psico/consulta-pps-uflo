@@ -30,16 +30,18 @@ const CalendarPlanning: React.FC<CalendarPlanningProps> = ({ items }) => {
                 let monthIndex = -1;
                 let dayOfMonth = '?';
 
-                // 1. Try exact date parsing
-                const date = parseToUTCDate(dateStr);
-                if (date) {
-                    monthIndex = date.getUTCMonth();
-                    dayOfMonth = String(date.getUTCDate());
-                } else {
-                    // 2. Try text matching (Loose parsing for "Febrero 2026")
-                    const lowerDateStr = dateStr.toLowerCase();
-                    monthIndex = MONTHS.findIndex(m => lowerDateStr.includes(m.toLowerCase()));
-                    if (monthIndex === -1 && lowerDateStr.includes('enero')) monthIndex = 0; // Fallback hardcheck
+                // 1. Try parsing loose Spanish text Month (e.g. "Marzo 2025", "Mediados de Abril")
+                const lowerDateStr = dateStr.toLowerCase();
+                // Check against MONTHS array
+                monthIndex = MONTHS.findIndex(m => lowerDateStr.includes(m.toLowerCase()));
+                
+                // 2. If no text month found, try standard Date parsing
+                if (monthIndex === -1) {
+                    const date = parseToUTCDate(dateStr);
+                    if (date) {
+                        monthIndex = date.getUTCMonth();
+                        dayOfMonth = String(date.getUTCDate());
+                    }
                 }
 
                 // If valid month found
@@ -60,10 +62,15 @@ const CalendarPlanning: React.FC<CalendarPlanningProps> = ({ items }) => {
                 const launches = calendarData[index];
                 const hasLaunches = launches.length > 0;
                 
+                // Highlight current month
+                const isCurrentMonth = new Date().getMonth() === index;
+                
                 return (
-                    <div key={monthName} className={`rounded-xl border ${hasLaunches ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/50 opacity-70'} overflow-hidden flex flex-col h-full`}>
+                    <div key={monthName} className={`rounded-xl border ${hasLaunches ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/50 opacity-70'} ${isCurrentMonth ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-900' : ''} overflow-hidden flex flex-col h-full`}>
                         <div className={`p-3 border-b ${hasLaunches ? 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800' : 'border-slate-100 dark:border-slate-800'} flex justify-between items-center`}>
-                            <h3 className={`font-bold ${hasLaunches ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-500 dark:text-slate-500'}`}>{monthName}</h3>
+                            <h3 className={`font-bold ${hasLaunches ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-500 dark:text-slate-500'}`}>
+                                {monthName} {isCurrentMonth && <span className="text-[10px] text-blue-500 uppercase ml-1">(Actual)</span>}
+                            </h3>
                             {hasLaunches && <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-xs font-bold px-2 py-0.5 rounded-full">{launches.length}</span>}
                         </div>
                         
@@ -76,7 +83,7 @@ const CalendarPlanning: React.FC<CalendarPlanningProps> = ({ items }) => {
                                                 {launch[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
                                             </div>
                                             <div className="text-slate-500 dark:text-slate-400 flex justify-between mt-0.5">
-                                                <span>{(launch as any)._displayDay !== '?' ? `Día ${(launch as any)._displayDay}` : 'Estimado'}</span>
+                                                <span>{(launch as any)._displayDay !== '?' ? `Día ${(launch as any)._displayDay}` : 'A confirmar'}</span>
                                                 {launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] && <span>{launch[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]} cupos</span>}
                                             </div>
                                         </li>

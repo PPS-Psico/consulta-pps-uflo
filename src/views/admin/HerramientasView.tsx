@@ -9,6 +9,7 @@ import DatabaseEditor from '../../components/DatabaseEditor';
 import Loader from '../../components/Loader';
 import EmailAutomationManager from '../../components/EmailAutomationManager';
 import NuevosConvenios from '../../components/NuevosConvenios';
+import StudentDiagnostics from '../../components/StudentDiagnostics';
 import ErrorBoundary from '../../components/ErrorBoundary';
 
 const ExecutiveReportGenerator = lazy(() => import('../../components/ExecutiveReportGenerator'));
@@ -35,6 +36,7 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
     { id: 'penalizaciones', label: 'Penalizaciones', icon: 'gavel' },
     { id: 'automation', label: 'Automatizaciones', icon: 'auto_fix_high' },
     { id: 'search', label: 'Buscar Alumno', icon: 'person_search' },
+    { id: 'diagnostico', label: 'Diagnóstico', icon: 'troubleshoot' },
     { id: 'insurance', label: 'Seguros', icon: 'shield' },
     { id: 'reportes', label: 'Reportes', icon: 'summarize' },
     { id: 'mantenimiento', label: 'Mantenimiento', icon: 'build' },
@@ -75,6 +77,12 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
               <div className="p-4">
                 <AdminSearch onStudentSelect={onStudentSelect} isTestingMode={isTestingMode} />
               </div>
+            </ErrorBoundary>
+          )}
+
+          {activeTabId === 'diagnostico' && (
+            <ErrorBoundary>
+               <StudentDiagnostics />
             </ErrorBoundary>
           )}
           

@@ -117,7 +117,7 @@ const FinalizationReadyCard: React.FC<{ onClick: () => void }> = ({ onClick }) =
                 </div>
                 <div>
                     <h2 className="text-2xl font-black tracking-tight">¡Objetivo Cumplido!</h2>
-                    <p className="text-emerald-50 font-medium text-sm mt-1 max-w-md leading-relaxed opacity-90">
+                    <p className="text-emerald-50 font-medium text-sm mt-1 max-w-md leading-relaxed opacity-95 text-shadow-sm">
                         Has completado todos los requisitos. Ya estás listo para solicitar tu acreditación final.
                     </p>
                 </div>
@@ -177,6 +177,10 @@ const HomeView: React.FC<HomeViewProps> = ({
         const events: { date: Date, event: CalendarEvent }[] = [];
         const dayMap: { [key: string]: number } = { lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6, domingo: 0 };
         
+        // Critical Optimization: Define 'today' once outside the loop
+        const today = new Date();
+        today.setUTCHours(0,0,0,0);
+
         const enrolledPractices = myEnrollments
             .filter(e => normalizeStringForComparison(e[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]) === 'seleccionado')
             .map(enrollment => {
@@ -193,11 +197,21 @@ const HomeView: React.FC<HomeViewProps> = ({
             const schedule = (enrollment[FIELD_HORARIO_FORMULA_CONVOCATORIAS] || '').trim();
             if (!schedule || !ppsStartDate || !ppsEndDate) return;
             
+            // OPTIMIZATION: Skip practices that ended before today
+            if (ppsEndDate < today) return;
+
             const normalizedSchedule = normalizeStringForComparison(schedule);
             const scheduleDays = Object.keys(dayMap).filter(d => normalizedSchedule.includes(d) && !normalizedSchedule.includes(`no ${d}`));
             const scheduleDayNumbers = scheduleDays.map(d => dayMap[d]);
 
-            for (let d = new Date(ppsStartDate); d <= ppsEndDate; d.setUTCDate(d.getUTCDate() + 1)) {
+            // OPTIMIZATION: Start the loop from today if the practice started in the past
+            // This prevents generating hundreds/thousands of past events for students with long history.
+            let loopStart = new Date(ppsStartDate);
+            if (loopStart < today) {
+                loopStart = new Date(today);
+            }
+
+            for (let d = loopStart; d <= ppsEndDate; d.setUTCDate(d.getUTCDate() + 1)) {
                 if (scheduleDayNumbers.includes(d.getUTCDay())) {
                     const orientation = pps[FIELD_ORIENTACION_LANZAMIENTOS] || 'General';
                     events.push({
