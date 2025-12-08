@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Checkbox from './Checkbox';
 import { z } from 'zod';
@@ -255,9 +256,16 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
       }
       setErrors(newErrors);
       
+      // UX Mejorada para Móvil: Scroll al primer error
       setTimeout(() => {
-        const firstErrorField = formRef.current?.querySelector('[aria-invalid="true"], .border-red-400') as HTMLElement;
-        firstErrorField?.focus();
+        // Buscamos elementos marcados como inválidos o con borde rojo (clase de error visual)
+        const firstErrorElement = formRef.current?.querySelector('[aria-invalid="true"], .border-red-400') as HTMLElement;
+        if (firstErrorElement) {
+            // Scroll suave y centrado, crucial en pantallas pequeñas
+            firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Intentar enfocar sin scrollear de nuevo (evita saltos)
+            firstErrorElement.focus({ preventScroll: true });
+        }
       }, 100);
       return;
     }
@@ -270,6 +278,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
   };
 
   const progress = getProgress();
+  const hasErrors = Object.keys(errors).length > 0;
 
   if (!isOpen) return null;
 
@@ -516,7 +525,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                 </h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
-                Utiliza este espacio para cualquier otra aclaración sobre tu situación académica (ej: "Cursando el TIF", "Realizando la Práctica Clínica de Adultos", etc.). Mínimo 10 caracteres.
+                Utiliza este espacio para cualquier otra aclaración sobre tu situación académica (ej. "Cursando el TIF", "Realizando la Práctica Clínica de Adultos", etc.). Mínimo 10 caracteres.
               </p>
               <textarea
                 id="otraSituacionAcademica"
@@ -545,6 +554,11 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
         {/* Footer */}
         <div className="p-6 flex-shrink-0 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border-t border-slate-200/60 dark:border-slate-700/60">
           <div className="flex flex-col sm:flex-row justify-end items-center gap-3">
+             {hasErrors && (
+                <span className="text-xs font-bold text-red-600 dark:text-red-400 animate-pulse mr-2 hidden sm:block">
+                    Faltan completar datos ↑
+                </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -571,6 +585,13 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
               )}
             </button>
           </div>
+           {hasErrors && (
+                <div className="mt-2 text-center sm:hidden">
+                    <span className="text-xs font-bold text-red-600 dark:text-red-400 animate-pulse">
+                        ⚠️ Faltan completar datos requeridos arriba
+                    </span>
+                </div>
+            )}
         </div>
       </form>
     </div>
