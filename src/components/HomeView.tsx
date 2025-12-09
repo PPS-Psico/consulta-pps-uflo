@@ -339,8 +339,9 @@ const HomeView: React.FC<HomeViewProps> = ({
                         const enrollmentStatus = enrollment ? enrollment[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] : null;
 
                         const ppsName = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
-                        const groupName = ppsName.split(' - ')[0].trim();
-                        const isCompleted = completedLanzamientoIds.has(lanzamiento.id) || completedLanzamientoIds.has(normalizeStringForComparison(groupName));
+                        
+                        // Check ID match OR Full Name match (not just group name)
+                        const isCompleted = completedLanzamientoIds.has(lanzamiento.id) || completedLanzamientoIds.has(normalizeStringForComparison(ppsName));
                         
                         const lanzamientoDireccion = lanzamiento[FIELD_DIRECCION_LANZAMIENTOS];
                         const institutionName = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS];

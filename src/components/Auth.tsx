@@ -45,8 +45,6 @@ const Auth: React.FC = () => {
       return toTitleCase(foundStudent[FIELD_NOMBRE_ESTUDIANTES] || '');
   };
 
-  const inputClasses = ``; // Classes are now handled inside Input.tsx default
-
   const renderLogin = () => (
     <>
       <div className="text-left mb-10">
@@ -141,9 +139,6 @@ const Auth: React.FC = () => {
     </>
   );
 
-  // ... (Rest of render functions like renderRegister, renderMigration, renderRecover remain largely similar but will inherit new styles automatically)
-  // Simplified for brevity, logic is preserved.
-
   const renderRegister = () => (
     <form onSubmit={handleFormSubmit} className="space-y-6 animate-fade-in-up">
         {registerStep === 1 ? (
@@ -187,7 +182,6 @@ const Auth: React.FC = () => {
     </form>
   );
   
-  // Reusing renderLogin logic for others to save space in XML but ensuring they work
   const renderMigration = () => (
     <form onSubmit={handleFormSubmit} className="space-y-6 animate-fade-in-up">
       {migrationStep === 1 ? (
@@ -322,7 +316,7 @@ const Auth: React.FC = () => {
     <div className="w-full min-h-[85vh] flex items-center justify-center p-4">
       <div className="w-full h-full flex items-center justify-center relative">
         
-        {/* Background Ambience - Lighter and Cleaner */}
+        {/* Background Ambience */}
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-slate-200/50 dark:bg-slate-800/20 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob pointer-events-none"></div>
         <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-blue-100/50 dark:bg-blue-900/10 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000 pointer-events-none"></div>
 
@@ -330,20 +324,14 @@ const Auth: React.FC = () => {
         <div className="w-full max-w-6xl relative">
             <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[680px] relative z-10 transition-all duration-500 bg-white dark:bg-slate-950/80 rounded-[2rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
             
-                {/* LEFT SIDE: Brand & Visuals - REDESIGNED */}
+                {/* LEFT SIDE: Brand & Visuals */}
                 <div className="hidden lg:flex relative flex-col justify-between p-16 z-0 overflow-hidden bg-slate-50 dark:bg-[#0B1120] transition-colors duration-500 border-r border-slate-200 dark:border-slate-800">
-                    
-                    {/* Subtle Grid Pattern */}
                     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
-                    
-                    {/* Minimalist Abstract Shapes */}
                     <div className="absolute top-20 right-20 w-64 h-64 bg-gradient-to-br from-blue-100 to-slate-200 dark:from-blue-900/20 dark:to-slate-800/20 rounded-full blur-3xl opacity-60"></div>
                     <div className="absolute bottom-20 left-20 w-80 h-80 bg-gradient-to-tr from-indigo-100 to-white dark:from-indigo-900/20 dark:to-slate-900/20 rounded-full blur-3xl opacity-60"></div>
                     
-                    {/* Content */}
                     <div className="relative z-10 h-full flex flex-col justify-between">
                         <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
-                            {/* Use 'light' variant to get dark text on light background */}
                             <MiPanelLogo className="h-12 w-auto" variant={resolvedTheme === 'dark' ? 'dark' : 'light'} />
                         </div>
 
@@ -384,8 +372,6 @@ const Auth: React.FC = () => {
 
                 {/* RIGHT SIDE: Forms */}
                 <div className="flex flex-col justify-center p-8 sm:p-12 lg:p-16 relative z-10 bg-white dark:bg-gray-950">
-                    
-                    {/* Mobile Header Logo */}
                     <div className="flex lg:hidden justify-center items-center gap-6 mb-10">
                         <UfloLogo className="h-10 w-auto opacity-80 grayscale" variant={resolvedTheme} />
                         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
@@ -395,15 +381,15 @@ const Auth: React.FC = () => {
                     <main className="w-full max-w-sm mx-auto">
                         {renderContent()}
                         
-                        <div aria-live="assertive" className="mt-8">
+                        <div aria-live="assertive" className="mt-8 min-h-[80px]">
                         {error && (
-                            <div className="flex items-start gap-4 p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800 rounded-xl animate-shake shadow-sm">
-                                <div className="p-1.5 bg-white dark:bg-rose-950 rounded-full text-rose-600 dark:text-rose-400 mt-0.5 shadow-sm border border-rose-100 dark:border-rose-900">
-                                    <span className="material-icons !text-lg">priority_high</span>
+                             <div className="flex items-start gap-4 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl shadow-sm animate-shake transition-all duration-300">
+                                <div className="p-2 bg-white dark:bg-rose-950 rounded-full text-rose-500 dark:text-rose-400 shadow-sm border border-rose-100 dark:border-rose-900/50 flex-shrink-0">
+                                    <span className="material-icons !text-lg">error</span>
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-rose-700 dark:text-rose-300">Atención</h4>
-                                    <p className="text-sm text-rose-600 dark:text-rose-400 mt-0.5 leading-snug">{error}</p>
+                                    <h4 className="text-sm font-bold text-rose-800 dark:text-rose-200">Atención</h4>
+                                    <p className="text-sm text-rose-600 dark:text-rose-300 mt-1 leading-snug font-medium">{error}</p>
                                 </div>
                             </div>
                         )}

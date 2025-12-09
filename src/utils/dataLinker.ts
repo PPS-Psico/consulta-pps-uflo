@@ -65,16 +65,18 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
     practicas.forEach(practica => {
         const estadoPractica = normalizeStringForComparison(practica[FIELD_ESTADO_PRACTICA]);
         if (finalizadaStatuses.includes(estadoPractica)) {
+            // Block by ID
             const linkedId = practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string;
             if (linkedId) {
                 completedLanzamientoIds.add(linkedId);
             }
             
+            // Block by Name (Legacy & Duplicate Prevention)
             const pNameRaw = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
             const pName = String(pNameRaw || '');
             if (pName.trim()) {
-                const groupName = pName.split(' - ')[0].trim();
-                completedLanzamientoIds.add(normalizeStringForComparison(groupName));
+                // FIXED: Use full name instead of splitting by group to allow different PPS in same institution
+                completedLanzamientoIds.add(normalizeStringForComparison(pName));
             }
         }
     });
