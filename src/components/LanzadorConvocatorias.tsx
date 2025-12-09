@@ -125,33 +125,41 @@ const NewInstitutionModal: React.FC<{
                     </p>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <Input 
-                        label="Nombre Institución *" 
-                        value={newData.nombre} 
-                        onChange={e => setNewData({...newData, nombre: e.target.value})} 
-                        placeholder="Ej: Fundación Crecer" 
-                        required 
-                    />
-                    <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 ml-1">Nombre Institución *</label>
                         <Input 
-                            label="Dirección" 
-                            value={newData.direccion} 
-                            onChange={e => setNewData({...newData, direccion: e.target.value})} 
-                            placeholder="Calle y Altura" 
-                        />
-                        <Input 
-                            label="Teléfono" 
-                            value={newData.telefono} 
-                            onChange={e => setNewData({...newData, telefono: e.target.value})} 
-                            placeholder="Cod. Área + Nro" 
+                            value={newData.nombre} 
+                            onChange={e => setNewData({...newData, nombre: e.target.value})} 
+                            placeholder="Ej: Fundación Crecer" 
+                            required 
                         />
                     </div>
-                    <Input 
-                        label="Tutor (Lic. en Psicología)" 
-                        value={newData.tutor} 
-                        onChange={e => setNewData({...newData, tutor: e.target.value})} 
-                        placeholder="Nombre y Apellido" 
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 ml-1">Dirección</label>
+                            <Input 
+                                value={newData.direccion} 
+                                onChange={e => setNewData({...newData, direccion: e.target.value})} 
+                                placeholder="Calle y Altura" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 ml-1">Teléfono</label>
+                            <Input 
+                                value={newData.telefono} 
+                                onChange={e => setNewData({...newData, telefono: e.target.value})} 
+                                placeholder="Cod. Área + Nro" 
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 ml-1">Tutor (Lic. en Psicología)</label>
+                        <Input 
+                            value={newData.tutor} 
+                            onChange={e => setNewData({...newData, tutor: e.target.value})} 
+                            placeholder="Nombre y Apellido" 
+                        />
+                    </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 ml-1">Orientación Sugerida</label>
                         <Select 
