@@ -44,7 +44,6 @@ import { parseToUTCDate, normalizeStringForComparison } from './utils/formatters
 
 // Views
 const StudentView = lazy(() => import('./views/StudentView'));
-// StudentHome is now a named export from StudentDashboard
 import StudentDashboard, { StudentHome } from './views/StudentDashboard';
 
 const AdminView = lazy(() => import('./views/AdminView'));
@@ -52,13 +51,12 @@ const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const LanzadorView = lazy(() => import('./views/admin/LanzadorView'));
 const GestionView = lazy(() => import('./views/admin/GestionView'));
 const HerramientasView = lazy(() => import('./views/admin/HerramientasView'));
-const MetricsView = lazy(() => import('./views/admin/MetricsView')); // Imported
+const MetricsView = lazy(() => import('./views/admin/MetricsView'));
 const SolicitudesManager = lazy(() => import('./components/SolicitudesManager'));
 const JefeView = lazy(() => import('./views/JefeView'));
 const DirectivoView = lazy(() => import('./views/DirectivoView'));
 const ReporteroView = lazy(() => import('./views/ReporteroView'));
 const AdminTestingView = lazy(() => import('./views/AdminTestingView'));
-
 
 // Internal wrappers using hooks
 import PracticasTable from './components/PracticasTable';
@@ -66,27 +64,7 @@ import SolicitudesList from './components/SolicitudesList';
 import InformesList from './components/InformesList';
 import ProfileView from './components/ProfileView';
 import Card from './components/Card';
-
-// --- COMPONENTS FOR MOBILE LAYOUT ---
-
-const MobileSectionHeader: React.FC<{ title: React.ReactNode; description?: string }> = ({ title, description }) => (
-    <div className="relative p-6 rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-lg overflow-hidden bg-gradient-to-br from-blue-50/80 via-white/70 to-slate-50/80 dark:from-blue-900/30 dark:via-slate-900/20 dark:to-black/30 backdrop-blur-lg animate-fade-in-up group mb-6">
-      {/* Decoraciones de fondo idénticas al Banner de Bienvenida */}
-      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
-      <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
-
-      <div className="relative z-10 flex flex-col gap-3">
-        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight">
-            {title}
-        </h2>
-        {description && (
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
-            {description}
-            </p>
-        )}
-      </div>
-    </div>
-);
+import MobileSectionHeader from './components/MobileSectionHeader';
 
 const PageWrapper: React.FC<{ title: React.ReactNode; icon: string; children: React.ReactNode; description?: string }> = ({ title, icon, children, description }) => {
     return (
@@ -136,8 +114,6 @@ const StudentSolicitudesWrapper = () => {
         return authenticatedUser?.id || null;
     };
 
-    // Use the institution map keys AND current year launches to get ALL existing institutions
-    // to prevent students from requesting already existing agreements.
     const existingInstitutions = useMemo(() => {
         const namesSet = new Set<string>();
         const currentYear = new Date().getFullYear();
@@ -146,20 +122,16 @@ const StudentSolicitudesWrapper = () => {
             "jornada universitaria de salud mental"
         ];
         
-        // allLanzamientos now includes ALL items (even hidden ones) due to dataService change
         allLanzamientos.forEach(l => {
             const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS];
             const dateStr = l[FIELD_FECHA_INICIO_LANZAMIENTOS];
             
             if (name && dateStr) {
                 const date = parseToUTCDate(dateStr);
-                // Filtramos por el año actual para reflejar "Instituciones Activas"
                 if (date && date.getUTCFullYear() === currentYear) {
                     const lowerName = normalizeStringForComparison(name);
                     
-                    // Excluir eventos internos específicos
                     if (!excludedTerms.some(term => lowerName.includes(term))) {
-                         // Extraer nombre base "Hospital X - Mañana" -> "Hospital X"
                          const groupName = name.split(' - ')[0].trim();
                          namesSet.add(groupName);
                     }
@@ -167,9 +139,8 @@ const StudentSolicitudesWrapper = () => {
             }
         });
 
-        // Final cleanup and sort
         return Array.from(namesSet)
-            .map(name => name.charAt(0).toUpperCase() + name.slice(1)) // Capitalize
+            .map(name => name.charAt(0).toUpperCase() + name.slice(1))
             .sort((a, b) => a.localeCompare(b));
     }, [allLanzamientos]);
 
@@ -294,7 +265,6 @@ const StudentProfileWrapper = () => {
 const AdminStudentWrapper = () => {
     const { legajo } = useParams();
     if (!legajo) return null;
-    // Reusing StudentDashboard (Full Widget) for admin view of student
     return (
         <StudentPanelProvider legajo={legajo}>
             <StudentDashboard user={{ legajo, nombre: 'Estudiante' } as any} showExportButton />
@@ -310,13 +280,10 @@ const AppRoutes = () => {
     
     return (
         <Routes>
-             {/* Public */}
             <Route path="/login" element={!authenticatedUser ? <Auth /> : <Navigate to="/" />} />
             
-            {/* Root Redirect */}
             <Route path="/" element={<ProtectedRoute><Navigate to={authenticatedUser?.role === 'SuperUser' ? "/admin" : authenticatedUser?.role === 'Jefe' ? "/jefe" : authenticatedUser?.role === 'Directivo' ? "/directivo" : authenticatedUser?.role === 'Reportero' ? "/reportero" : "/student"} replace /></ProtectedRoute>} />
 
-            {/* Student Routes */}
             <Route path="/student" element={<ProtectedRoute allowedRoles={['Student']}><StudentView /></ProtectedRoute>}>
                 <Route index element={<StudentHome />} />
                 <Route path="practicas" element={<StudentPracticasWrapper />} />
@@ -325,7 +292,6 @@ const AppRoutes = () => {
                 <Route path="perfil" element={<StudentProfileWrapper />} />
             </Route>
 
-            {/* Admin Routes */}
             <Route path="/admin" element={<ProtectedRoute allowedRoles={['SuperUser', 'AdminTester']}><AdminView /></ProtectedRoute>}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
@@ -333,19 +299,16 @@ const AppRoutes = () => {
                 <Route path="lanzador" element={<LanzadorView />} />
                 <Route path="gestion" element={<GestionView />} />
                 <Route path="solicitudes" element={<SolicitudesManager />} />
-                <Route path="herramientas" element={<HerramientasView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s.legajo}`)} />} />
+                <Route path="herramientas" element={<HerramientasView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s[FIELD_LEGAJO_ESTUDIANTES]}`)} />} />
                 <Route path="estudiantes/:legajo" element={<AdminStudentWrapper />} />
             </Route>
 
-            {/* Other Roles */}
             <Route path="/jefe" element={<ProtectedRoute allowedRoles={['Jefe']}><JefeView /></ProtectedRoute>} />
             <Route path="/directivo" element={<ProtectedRoute allowedRoles={['Directivo']}><DirectivoView /></ProtectedRoute>} />
             <Route path="/reportero" element={<ProtectedRoute allowedRoles={['Reportero']}><ReporteroView /></ProtectedRoute>} />
             
-            {/* Testing */}
             <Route path="/testing" element={<ProtectedRoute allowedRoles={['SuperUser', 'AdminTester']}><AdminTestingView /></ProtectedRoute>} />
 
-            {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

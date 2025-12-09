@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import CriteriosPanel from '../components/CriteriosPanel';
 import PracticasTable from '../components/PracticasTable';
@@ -23,7 +22,6 @@ import FinalizacionForm from '../components/FinalizacionForm';
 import { 
     FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, 
     FIELD_NOMBRE_ESTUDIANTES, 
-    TABLE_NAME_PPS,
     FIELD_LEGAJO_PPS,
     FIELD_ESTADO_PPS,
     FIELD_ULTIMA_ACTUALIZACION_PPS,
@@ -53,10 +51,29 @@ import { db } from '../lib/db';
 import { addBusinessDays } from '../utils/formatters';
 import FinalizationStatusCard from './FinalizationStatusCard';
 import MobileSectionHeader from './MobileSectionHeader';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 // Export individual views for Router
 export { default as StudentPracticas } from '../components/PracticasTable';
 export { default as StudentSolicitudes } from '../components/SolicitudesList';
+
+// --- COMPONENT: Simulation Banner ---
+const SimulationBanner: React.FC<{ onExit?: () => void }> = ({ onExit }) => (
+    <div className="bg-amber-100 dark:bg-amber-900/40 border-b border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100 px-4 py-2 flex items-center justify-between shadow-sm sticky top-[60px] md:top-[80px] z-40">
+        <div className="flex items-center gap-2">
+            <span className="material-icons text-amber-600 dark:text-amber-400 !text-xl animate-pulse">visibility</span>
+            <span className="text-xs font-bold uppercase tracking-wide">Modo Simulación: Estás actuando como este estudiante</span>
+        </div>
+        {onExit && (
+            <button 
+                onClick={onExit}
+                className="text-xs font-bold underline hover:text-amber-700 dark:hover:text-amber-300"
+            >
+                Salir
+            </button>
+        )}
+    </div>
+);
 
 // --- COMPONENT: StudentHome (For Router Index) ---
 export const StudentHome: React.FC = () => {
@@ -81,7 +98,7 @@ export const StudentHome: React.FC = () => {
     }, []);
 
     return (
-        <>
+        <ErrorBoundary>
              {isFinalizationModalOpen && (
                 <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                 <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
@@ -113,10 +130,9 @@ export const StudentHome: React.FC = () => {
                 criterios={criterios}
                 onOpenFinalization={handleOpenFinalization}
             />
-        </>
+        </ErrorBoundary>
     );
 };
-
 
 // --- COMPONENT: StudentDashboard (Standalone Widget) ---
 interface StudentDashboardProps {
@@ -127,14 +143,16 @@ interface StudentDashboardProps {
 }
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, onTabChange, showExportButton = false }) => {
-  const { isSuperUserMode, authenticatedUser } = useAuth();
+  const { isSuperUserMode, isJefeMode, authenticatedUser } = useAuth();
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   const [isFinalizationModalOpen, setIsFinalizationModalOpen] = useState(false);
+  const [forceInteractiveMode, setForceInteractiveMode] = useState(false); // New state to override empty view
   const { openSolicitudPPSModal, showModal } = useModal();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const currentUser = user || authenticatedUser;
+  const isAdminViewing = isSuperUserMode || isJefeMode;
 
   const {
     studentDetails,
@@ -233,26 +251,49 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       });
   }, [openSolicitudPPSModal, createSolicitudMutation]);
   
-  // Tab Contents
-  const homeContent = useMemo(() => <HomeView 
-      myEnrollments={enrollmentMap ? Array.from(enrollmentMap.values()) : []} 
-      allLanzamientos={allLanzamientos} 
-      informeTasks={informeTasks} 
-      lanzamientos={lanzamientos} 
-      onNavigate={(id) => setCurrentActiveTab(id)}
-      student={studentDetails}
-      onInscribir={enrollStudent.mutate}
-      institutionAddressMap={institutionAddressMap}
-      enrollmentMap={enrollmentMap}
-      completedLanzamientoIds={completedLanzamientoIds}
-      criterios={criterios}
-      onOpenFinalization={handleOpenFinalization}
-  />, [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
+  // Tab Contents Wrappers with ErrorBoundary
+  const homeContent = useMemo(() => (
+    <ErrorBoundary>
+        <HomeView 
+            myEnrollments={enrollmentMap ? Array.from(enrollmentMap.values()) : []} 
+            allLanzamientos={allLanzamientos} 
+            informeTasks={informeTasks} 
+            lanzamientos={lanzamientos} 
+            onNavigate={(id) => setCurrentActiveTab(id)}
+            student={studentDetails}
+            onInscribir={enrollStudent.mutate}
+            institutionAddressMap={institutionAddressMap}
+            enrollmentMap={enrollmentMap}
+            completedLanzamientoIds={completedLanzamientoIds}
+            criterios={criterios}
+            onOpenFinalization={handleOpenFinalization}
+        />
+    </ErrorBoundary>
+  ), [enrollmentMap, allLanzamientos, informeTasks, lanzamientos, studentDetails, enrollStudent.mutate, institutionAddressMap, completedLanzamientoIds, criterios, handleOpenFinalization]);
   
-  const informesContent = useMemo(() => <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />, [informeTasks, confirmInforme]);
-  const solicitudesContent = useMemo(() => <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} criterios={criterios} />, [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios]);
-  const practicasContent = useMemo(() => <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />, [practicas, handleNotaChange]);
-  const profileContent = useMemo(() => <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />, [studentDetails, isLoading, updateInternalNotes]);
+  const informesContent = useMemo(() => (
+    <ErrorBoundary>
+        <InformesList tasks={informeTasks} onConfirmar={confirmInforme.mutate} />
+    </ErrorBoundary>
+  ), [informeTasks, confirmInforme]);
+
+  const solicitudesContent = useMemo(() => (
+    <ErrorBoundary>
+        <SolicitudesList solicitudes={solicitudes} onCreateSolicitud={handleCreateSolicitud} onRequestFinalization={handleOpenFinalization} criterios={criterios} />
+    </ErrorBoundary>
+  ), [solicitudes, handleCreateSolicitud, handleOpenFinalization, criterios]);
+
+  const practicasContent = useMemo(() => (
+    <ErrorBoundary>
+        <PracticasTable practicas={practicas} handleNotaChange={handleNotaChange} />
+    </ErrorBoundary>
+  ), [practicas, handleNotaChange]);
+
+  const profileContent = useMemo(() => (
+    <ErrorBoundary>
+        <ProfileView studentDetails={studentDetails} isLoading={isLoading} updateInternalNotes={updateInternalNotes} />
+    </ErrorBoundary>
+  ), [studentDetails, isLoading, updateInternalNotes]);
 
   const studentDataTabs = useMemo(() => {
     const tabs: { id: TabId; label: string; icon: string; content: React.ReactNode; badge?: number }[] = [
@@ -262,10 +303,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
       { id: 'practicas', label: `Mis Prácticas`, icon: 'work_history', content: practicasContent, badge: practicas.length > 0 ? practicas.length : undefined }
     ];
 
-    if (showExportButton) {
-      return tabs.filter(tab => tab.id === 'informes' || tab.id === 'solicitudes' || tab.id === 'practicas');
-    }
-    
     tabs.push({
         id: 'profile' as TabId,
         label: 'Mi Perfil',
@@ -288,7 +325,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   }, [studentDataTabs, currentActiveTab, setCurrentActiveTab]);
 
   const hasData = useMemo(() => practicas.length > 0 || solicitudes.length > 0 || lanzamientos.length > 0 || informeTasks.length > 0, [practicas, solicitudes, lanzamientos, informeTasks]);
-  const showEmptyState = useMemo(() => !isLoading && !hasData && isSuperUserMode, [isLoading, hasData, isSuperUserMode]);
+  
+  // Logic updated: Allow forceInteractiveMode to override the Empty State
+  const showEmptyState = useMemo(() => !isLoading && !hasData && isAdminViewing && !forceInteractiveMode, [isLoading, hasData, isAdminViewing, forceInteractiveMode]);
 
   if (isLoading) return <DashboardLoadingSkeleton />;
   if (error) return <ErrorState error={error.message} onRetry={() => refetchAll()} />;
@@ -296,6 +335,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
   if (showEmptyState) {
     return (
       <>
+        {isAdminViewing && <SimulationBanner />}
         <div className="print-only">
           <PrintableReport studentDetails={studentDetails} criterios={criterios} practicas={practicas} />
         </div>
@@ -304,7 +344,25 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
             <WelcomeBanner studentName={studentNameForPanel} studentDetails={studentDetails} isLoading={false} />
             <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
             <Card className="border-slate-300/50 bg-slate-50/30">
-              <EmptyState icon="search_off" title="Sin Resultados" message="No se encontró información de prácticas o solicitudes para este estudiante." action={<button onClick={refetchAll} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105">Actualizar Datos</button>} />
+              <EmptyState 
+                  icon="search_off" 
+                  title="Sin Resultados" 
+                  message="No se encontró información de prácticas o solicitudes para este estudiante." 
+                  action={
+                    <div className="flex gap-3 justify-center mt-4">
+                        <button onClick={refetchAll} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm">
+                            Actualizar Datos
+                        </button>
+                        <button 
+                            onClick={() => setForceInteractiveMode(true)} 
+                            className="px-6 py-2 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2"
+                        >
+                            <span className="material-icons !text-base">input</span>
+                            Gestionar / Inscribir
+                        </button>
+                    </div>
+                  } 
+              />
             </Card>
           </div>
           <WhatsAppExportButton practicas={practicas} criterios={criterios} selectedOrientacion={selectedOrientacion} studentNameForPanel={studentNameForPanel} studentDetails={studentDetails} isLoading={isLoading} />
@@ -312,28 +370,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
              <span className="material-icons !text-2xl">print</span>
            </button>
         </div>
-        {isFinalizationModalOpen && (
-            <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
-                <button 
-                    onClick={() => setIsFinalizationModalOpen(false)}
-                    className="absolute top-4 right-4 z-10 p-2 bg-white/80 dark:bg-slate-700/80 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-50 dark:text-slate-300 transition-colors shadow-sm backdrop-blur-sm"
-                >
-                    <span className="material-icons">close</span>
-                </button>
-                <FinalizacionForm 
-                    studentAirtableId={getStudentId()} 
-                    onClose={() => setIsFinalizationModalOpen(false)}
-                />
-            </div>
-            </div>
-        )}
       </>
     );
   }
   
   return (
     <>
+      {/* Banner de Simulación para Admins */}
+      {isAdminViewing && <SimulationBanner />}
+      
       {isFinalizationModalOpen && (
         <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
@@ -369,41 +414,18 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                 requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
             />
         ) : (
-            <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+            <ErrorBoundary>
+                <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+            </ErrorBoundary>
         )}
         
-        {hasData ? (
-          <Card>
+        <Card>
             <Tabs
-              tabs={studentDataTabs}
-              activeTabId={currentActiveTab}
-              onTabChange={(id) => setCurrentActiveTab(id as TabId)}
+                tabs={studentDataTabs}
+                activeTabId={currentActiveTab}
+                onTabChange={(id) => setCurrentActiveTab(id as TabId)}
             />
-          </Card>
-        ) : (
-           <div className="space-y-8">
-                <Card icon="list_alt" title="Comenzar">
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-                         <button 
-                            onClick={handleCreateSolicitud}
-                            className="p-6 rounded-xl border border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center text-center group"
-                         >
-                             <span className="material-icons !text-4xl text-slate-400 group-hover:text-blue-600 mb-3">add_business</span>
-                             <h4 className="font-bold text-slate-700 group-hover:text-blue-700">Solicitar Nueva PPS</h4>
-                             <p className="text-sm text-slate-500 mt-1">Autogestión de práctica</p>
-                         </button>
-                         <button 
-                            onClick={handleOpenFinalization}
-                            className="p-6 rounded-xl border border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center text-center group"
-                         >
-                             <span className="material-icons !text-4xl text-slate-400 group-hover:text-emerald-600 mb-3">school</span>
-                             <h4 className="font-bold text-slate-700 group-hover:text-emerald-700">Solicitar Acreditación</h4>
-                             <p className="text-sm text-slate-500 mt-1">Finalización de carrera</p>
-                         </button>
-                   </div>
-                </Card>
-           </div>
-        )}
+        </Card>
       </div>
 
       {/* --- VISTA MÓVIL --- */}
@@ -422,30 +444,34 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           )}
 
           {currentActiveTab === 'informes' && (
-              <Card icon="assignment_turned_in" title="Entrega de Informes Finales" description="Sube tu informe final al campus y luego confirma la entrega aquí.">
-                  {informesContent}
-              </Card>
+              <ErrorBoundary>
+                <MobileSectionHeader title="Entrega de Informes Finales" description="Sube tu informe final al campus y luego confirma la entrega aquí." />
+                {informesContent}
+              </ErrorBoundary>
           )}
 
           {currentActiveTab === 'solicitudes' && (
-              <Card icon="list_alt" title="Mis Solicitudes de PPS" description="Seguimiento del estado de las Prácticas Profesionales Supervisadas que has solicitado.">
-                  {solicitudesContent}
-              </Card>
+              <ErrorBoundary>
+                 <MobileSectionHeader title="Mis Solicitudes de PPS" description="Seguimiento del estado de las Prácticas Profesionales Supervisadas que has solicitado." />
+                 {solicitudesContent}
+              </ErrorBoundary>
           )}
           
           {currentActiveTab === 'practicas' && (
-              <>
+              <ErrorBoundary>
                   {!finalizacionRequest && <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />}
-                  <Card icon="work_history" title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones.">
-                    {practicasContent}
-                  </Card>
-              </>
+                  <MobileSectionHeader title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones." />
+                  {practicasContent}
+              </ErrorBoundary>
           )}
 
           {currentActiveTab === 'profile' && (
-                <Card icon="person" title="Mi Perfil">
-                  {profileContent}
-              </Card>
+                <ErrorBoundary>
+                  <MobileSectionHeader title="Mi Perfil" />
+                  <Card>
+                    {profileContent}
+                  </Card>
+                </ErrorBoundary>
           )}
       </div>
       

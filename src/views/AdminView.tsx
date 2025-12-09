@@ -4,6 +4,7 @@ import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import WelcomeBannerAdmin from '../components/WelcomeBannerAdmin';
 import Loader from '../components/Loader';
+import AppModals from '../components/AppModals';
 
 // Components for Testing Mode
 import AdminDashboard from '../components/AdminDashboard';
@@ -112,6 +113,8 @@ const AdminView: React.FC<AdminViewProps> = ({ isTestingMode = false }) => {
             <div className="pt-6">
                 {renderContent()}
             </div>
+            
+            <AppModals />
         </div>
     );
 };
