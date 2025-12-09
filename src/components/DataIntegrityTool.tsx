@@ -96,6 +96,7 @@ interface Issue {
 
 const DataIntegrityTool: React.FC = () => {
     const [isScanning, setIsScanning] = useState(false);
+    const [isFixingAll, setIsFixingAll] = useState(false);
     const [issues, setIssues] = useState<Issue[]>([]);
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [fixedCount, setFixedCount] = useState(0);
@@ -376,7 +377,40 @@ const DataIntegrityTool: React.FC = () => {
         }
     };
 
+    const handleFixAll = async () => {
+        const fixableIssues = issues.filter(i => i.action === 'auto-fix');
+        if (fixableIssues.length === 0) {
+            setToastInfo({ message: 'No hay problemas corregibles automáticamente.', type: 'error' });
+            return;
+        }
+        
+        if (!window.confirm(`Se van a corregir ${fixableIssues.length} problemas automáticamente. ¿Continuar?`)) {
+            return;
+        }
+
+        setIsFixingAll(true);
+        let successCount = 0;
+
+        for (const issue of fixableIssues) {
+            if (issue.autoFixAction) {
+                try {
+                    await issue.autoFixAction();
+                    successCount++;
+                    // Remove from list immediately to show progress
+                    setIssues(prev => prev.filter(i => i.id !== issue.id));
+                } catch (e) {
+                    console.error(`Error fixing ${issue.id}:`, e);
+                }
+            }
+        }
+
+        setFixedCount(prev => prev + successCount);
+        setToastInfo({ message: `${successCount} problemas corregidos exitosamente.`, type: 'success' });
+        setIsFixingAll(false);
+    };
+
     const filteredIssues = filterType === 'all' ? issues : issues.filter(i => i.type === filterType);
+    const autoFixCount = issues.filter(i => i.action === 'auto-fix').length;
 
     const getSeverityStyles = (type: string) => {
         switch (type) {
@@ -412,12 +446,25 @@ const DataIntegrityTool: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex gap-3">
+                    {autoFixCount > 0 && (
+                        <Button 
+                            variant="secondary" 
+                            icon="auto_fix_high"
+                            onClick={handleFixAll}
+                            isLoading={isFixingAll}
+                            disabled={isScanning || isFixingAll}
+                            className="bg-emerald-600 text-white hover:bg-emerald-700 border-transparent shadow-md"
+                        >
+                            {isFixingAll ? 'Corrigiendo...' : `Corregir Todo (${autoFixCount})`}
+                        </Button>
+                    )}
                     <Button 
                         variant="primary" 
                         icon="radar" 
                         onClick={runScan}
                         isLoading={isScanning}
+                        disabled={isFixingAll}
                     >
                         {isScanning ? 'Analizando...' : 'Iniciar Escaneo Inteligente'}
                     </Button>
@@ -467,7 +514,8 @@ const DataIntegrityTool: React.FC = () => {
                                     </div>
                                     <button 
                                         onClick={() => handleAction(issue)}
-                                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2 whitespace-nowrap ${
+                                        disabled={isFixingAll}
+                                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-50 ${
                                             issue.action === 'delete' 
                                                 ? 'bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 dark:bg-slate-800 dark:border-rose-900 dark:text-rose-400' 
                                                 : isFixable
