@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
@@ -107,8 +108,8 @@ const DataIntegrityTool: React.FC = () => {
     
     const queryClient = useQueryClient();
 
-    const updateMutation = useMutation({
-        mutationFn: ({ table, id, fields }: { table: string, id: string, fields: any }) => {
+    const updateMutation = useMutation<any, Error, { table: string, id: string, fields: any }>({
+        mutationFn: ({ table, id, fields }) => {
              // @ts-ignore
              return db[getTableKey(table)].update(id, fields);
         },

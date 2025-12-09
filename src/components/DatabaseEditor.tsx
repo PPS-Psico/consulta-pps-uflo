@@ -1051,7 +1051,16 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     initialData={'isCreating' in editingRecord ? editingRecord.initialData : undefined}
                     tableConfig={activeTableConfig} 
                     onSave={(recordId, fields) => {
-                        if (recordId) { updateMutation.mutate({ recordId, fields }); } else { createMutation.mutate(fields); }
+                        // FIX: Clean fields starting with '__'
+                        const cleanFields = { ...fields };
+                        Object.keys(cleanFields).forEach(key => {
+                            if (key.startsWith('__')) {
+                                delete cleanFields[key];
+                            }
+                        });
+                        
+                        if (recordId) { updateMutation.mutate({ recordId, fields: cleanFields }); } 
+                        else { createMutation.mutate(cleanFields); }
                     }} 
                     isSaving={updateMutation.isPending || createMutation.isPending} 
                 />
