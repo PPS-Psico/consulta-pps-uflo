@@ -12,6 +12,7 @@ import type { AirtableRecord, EstudianteFields } from '../types';
 import WelcomeBannerAdmin from '../components/WelcomeBannerAdmin';
 import { StudentPanelProvider } from '../contexts/StudentPanelContext';
 import { FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES } from '../constants';
+import AppModals from '../components/AppModals';
 
 interface StudentTabInfo {
     id: string; // legajo
@@ -123,6 +124,7 @@ const DirectivoView: React.FC = () => {
                     onTabClose={handleCloseTab}
                 />
             </div>
+            <AppModals />
         </div>
     );
 };

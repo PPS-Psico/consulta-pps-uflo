@@ -44,6 +44,7 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
     const queryClient = useQueryClient();
     const { 
         showModal, 
+        openEnrollmentForm,
         closeEnrollmentForm, 
         setIsSubmittingEnrollment,
     } = useModal();
@@ -172,35 +173,20 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
     // Enroll function to be called from UI
     const enrollStudent = {
         mutate: (lanzamiento: LanzamientoPPS) => {
-            // Dynamically import openEnrollmentForm logic or trigger it via context from here is tricky
-            // Better to expose the mutation triggering logic and let the UI handle the form opening
-            // But for now, to match the context interface, we trigger the context's openForm, which then calls our mutation.
-            // HOWEVER, to avoid circular deps or complex wiring, the context usually calls enrollStudent.mutate.
-            // Let's assume `openEnrollmentForm` is passed to us or available via context in the component using this hook.
-            // ACTUALLY, we are inside the hook. We have access to `openEnrollmentForm` from context above.
-            
-            // openEnrollmentForm expects (lanzamiento, onSubmit). 
-            // The onSubmit passed to it will be the async wrapper around our mutation.
-            // This is what `useStudentPanel` expects `enrollStudent.mutate` to do: open the form.
-            
-            // Wait, `openEnrollmentForm` from context sets state. It doesn't return a promise.
-            // The onSubmit passed to `openEnrollmentForm` is called when the USER clicks submit in the modal.
-            
-            // @ts-ignore: The type mismatch in useStudentPanelContext is tricky. 
-            // The context expects `enrollStudent: { mutate: ... }`.
-            // We are defining that object here.
-            // When `enrollStudent.mutate(lanzamiento)` is called from UI:
-            // 1. It calls openEnrollmentForm from context.
-            // 2. It passes the lanzamiento.
-            // 3. It passes an async callback that receives formData.
-            // 4. That callback calls enrollmentMutation.mutateAsync.
-            
-            const handleSubmit = async (formData: any) => {
-                await enrollmentMutation.mutateAsync({ formData, selectedLanzamiento: lanzamiento });
-            };
-            
-            // @ts-ignore
-            openEnrollmentForm(lanzamiento, handleSubmit);
+            try {
+                if (!openEnrollmentForm) {
+                    throw new Error("La función para abrir el formulario no está disponible. Intenta recargar la página.");
+                }
+                const handleSubmit = async (formData: any) => {
+                    await enrollmentMutation.mutateAsync({ formData, selectedLanzamiento: lanzamiento });
+                };
+                
+                // @ts-ignore
+                openEnrollmentForm(lanzamiento, handleSubmit);
+            } catch (e: any) {
+                console.error("Error al intentar inscribir:", e);
+                showModal("Error de Sistema", `No se pudo iniciar el proceso de inscripción: ${e.message}`);
+            }
         },
         isPending: enrollmentMutation.isPending
     };
