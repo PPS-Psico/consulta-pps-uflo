@@ -183,7 +183,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                      const email = String(foundStudent[FIELD_CORREO_ESTUDIANTES]).trim().toLowerCase();
                      
                      // 1. Intentamos CREAR el usuario
-                     // Si el usuario "zombie" fue borrado de Auth, esto funcionará y devolverá un user nuevo.
                      const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
                         email: email,
                         password: password,
@@ -194,7 +193,8 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     if (signUpError) {
                         if (signUpError.message.includes("already registered") || signUpError.status === 422 || signUpError.status === 400) {
                              console.log("Usuario ya existe en Auth, intentando forzar actualización de clave...");
-                             // Si ya existe, usamos RPC para resetear la clave
+                             
+                             // Si ya existe, usamos RPC para resetear la clave Y REPARAR EL VINCULO
                              const { error: rpcResetError } = await supabase.rpc('admin_reset_password', {
                                  legajo_input: legajoTrimmed,
                                  new_password: password
@@ -202,15 +202,10 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                              
                              if (rpcResetError) {
                                  console.error("RPC Reset Error:", rpcResetError);
-                                 // Fallback: Intenta loguear con la contraseña provista, tal vez el reset funcionó o ya era esa
-                                 const { error: fallbackLoginError } = await supabase.auth.signInWithPassword({
-                                     email: email,
-                                     password: password
-                                 });
-                                 
-                                 if (fallbackLoginError) {
-                                     throw new Error("Tu usuario ya existe pero no pudimos actualizar la contraseña. Contacta a soporte.");
+                                 if (rpcResetError.message.includes("No existe usuario") || rpcResetError.message.includes("not found")) {
+                                     throw new Error("Error de integridad: El email de tu legajo no coincide con el usuario registrado. Contacta soporte.");
                                  }
+                                 throw new Error("No se pudo actualizar tu usuario existente. Intenta 'Recuperar Acceso'.");
                              }
                         } else {
                              throw new Error(`Error al crear usuario: ${signUpError.message}`);
@@ -227,29 +222,16 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                         setMode('login');
                         setError('Cuenta configurada, pero el inicio de sesión automático falló. Por favor ingresa manualmente.');
                     } else if (loginData.user) {
-                        // 4. Asegurar vínculo en DB (Self-healing para Zombies)
-                        // Usamos un RPC privilegiado para esto, ya que un UPDATE directo fallaría por RLS si el ID viejo no coincide.
-                        if (!foundStudent[FIELD_USER_ID_ESTUDIANTES] || foundStudent[FIELD_USER_ID_ESTUDIANTES] !== loginData.user.id) {
-                             
-                             // Usamos register_new_student que tiene permisos de admin (Security Definer)
-                             // para sobrescribir el user_id viejo (zombie) con el nuevo.
-                             const { error: linkError } = await supabase.rpc('register_new_student', {
-                                legajo_input: legajoTrimmed,
-                                userid_input: loginData.user.id,
-                                dni_input: foundStudent[FIELD_DNI_ESTUDIANTES] || 0,
-                                correo_input: email,
-                                telefono_input: foundStudent[FIELD_TELEFONO_ESTUDIANTES] || ''
-                             });
-
-                             if (linkError) {
-                                 console.error("Error reparando vínculo zombie:", linkError);
-                                 // Fallback a update directo por si acaso
-                                 await supabase
-                                    .from('estudiantes')
-                                    .update({ [FIELD_USER_ID_ESTUDIANTES]: loginData.user.id })
-                                    .eq('id', foundStudent.id);
-                             }
-                        }
+                        // 4. Asegurar vínculo en DB (Self-healing por si acaso)
+                         const { error: linkError } = await supabase.rpc('register_new_student', {
+                            legajo_input: legajoTrimmed,
+                            userid_input: loginData.user.id,
+                            dni_input: foundStudent[FIELD_DNI_ESTUDIANTES] || 0,
+                            correo_input: email,
+                            telefono_input: foundStudent[FIELD_TELEFONO_ESTUDIANTES] || ''
+                         });
+                         
+                         if (linkError) console.warn("Link RPC warning (non-critical):", linkError);
                     }
                 }
 
@@ -297,36 +279,41 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                     // MANEJO ROBUSTO DE "USUARIO YA EXISTE"
                     if (signUpError || !userId) {
-                         console.warn("SignUp failed, attempting fallback login:", signUpError?.message);
+                         console.warn("SignUp failed, attempting fix via admin_reset_password");
                          
+                         // Si falla signUp porque existe, intentamos repararlo con admin_reset_password
+                         // Esta funcion ahora busca por EMAIL y repara el vinculo.
+                         const { error: fixError } = await supabase.rpc('admin_reset_password', {
+                             legajo_input: legajoTrimmed,
+                             new_password: password
+                         });
+
+                         if (fixError) {
+                             console.error("Fix failed:", fixError);
+                             throw new Error("Este correo ya está registrado y no se pudo vincular a tu legajo. Contacta soporte.");
+                         }
+
+                         // Si la reparación funcionó, intentamos loguear para obtener el ID
                          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ 
                              email: inputEmail, 
                              password 
                          });
                          
                          if (loginError || !loginData.user) {
-                             throw new Error("Este correo ya está registrado. Si olvidaste la clave, usa 'Recuperar Acceso'.");
+                             throw new Error("Cuenta reparada pero falló el inicio de sesión. Intenta ingresar normalmente.");
                          }
-                         
                          userId = loginData.user.id;
                     }
 
                     if (userId) {
-                        const { error: rpcLinkError } = await supabase.rpc('register_new_student', {
+                        // Garantizar datos actualizados
+                        await supabase.rpc('register_new_student', {
                             legajo_input: legajoTrimmed,
                             userid_input: userId,
                             dni_input: parseInt(dni, 10),
                             correo_input: inputEmail,
                             telefono_input: telefono
                         });
-                        
-                        if (rpcLinkError) {
-                            console.error("Link Error:", rpcLinkError);
-                            // Intentamos fallback manual si el RPC falla
-                            await supabase.from('estudiantes').update({ user_id: userId }).eq('legajo', legajoTrimmed);
-                        }
-                    } else {
-                        throw new Error("No se pudo crear ni verificar el usuario.");
                     }
                 }
             } catch (err: any) {
@@ -384,7 +371,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                      if (rpcResetError) {
                          console.error("RPC Reset Error", rpcResetError);
-                         throw new Error("Error del servidor al actualizar la contraseña. Contacta a soporte.");
+                         throw new Error("Error del servidor. Si el problema persiste, pide al administrador que actualice la base de datos.");
                      }
 
                      setResetStep('success');
