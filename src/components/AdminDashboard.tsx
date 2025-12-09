@@ -93,7 +93,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
             {/* --- SMART BRIEFING (Artificial Intelligence UI) --- */}
             <SmartBriefing 
-                status={analysis.status}
+                status={analysis.status === 'loading' ? 'stable' : analysis.status}
                 summary={analysis.summary}
                 insights={analysis.insights}
                 score={analysis.systemScore}

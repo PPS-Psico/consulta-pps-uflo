@@ -47,8 +47,8 @@ Espero que estés muy bien.
 
 Nos complace informarte que has sido seleccionado/a para realizar tu Práctica Profesional Supervisada en:
 
-📍 Institución: {{nombre_pps}}
-🗓️ Horario/Comisión asignada: {{horario}}
+Institución: {{nombre_pps}}
+Horario/Comisión asignada: {{horario}}
 
 💡 Recomendaciones para tu Práctica
 
@@ -57,8 +57,6 @@ Nos complace informarte que has sido seleccionado/a para realizar tu Práctica P
 **Ética y Confidencialidad:** Vas a trabajar con personas y, en muchos casos, con información sensible. El secreto profesional y el respeto por la privacidad son fundamentales desde el primer momento.
 
 **Rol Activo:** No te quedes solo con "observar". Preguntá, mostrá interés, llevá cuaderno para anotar y participá de los espacios de supervisión. La PPS te devuelve lo que vos le pongas de energía.
-
-**Disfrutalo:** No olvides que es tu primer acercamiento real al rol profesional. Aprovechá cada instancia para aprender, incluso de las dificultades.
 
 **Documentación Final:** No te olvides de terminar la PPS con tu planilla de asistencia firmada y conservarla (exceptuando las Online que no se firma). Recordá que tenés 30 días para la entrega del informe final una vez finalizada la PPS.
 
