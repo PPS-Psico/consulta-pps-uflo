@@ -1,5 +1,5 @@
 
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import AppHeader from './Header';
 import { useModal } from '../contexts/ModalContext';
@@ -11,6 +11,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
     const location = useLocation();
     const { showModal } = useModal();
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
 
     // Rutas que deben ocupar todo el ancho de la pantalla
     const fullWidthRoutes = ['/admin', '/jefe', '/directivo', '/reportero', '/testing'];
@@ -35,17 +36,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             );
         };
 
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
         window.addEventListener('error', handleGlobalError);
         window.addEventListener('unhandledrejection', handlePromiseRejection);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
 
         return () => {
             window.removeEventListener('error', handleGlobalError);
             window.removeEventListener('unhandledrejection', handlePromiseRejection);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
         };
     }, [showModal]);
 
     return (
         <div className="flex flex-col min-h-screen">
+             {!isOnline && (
+                <div className="bg-red-500 text-white text-center text-xs font-bold py-1 px-4 fixed top-0 left-0 right-0 z-[2000] animate-pulse shadow-md flex items-center justify-center gap-2">
+                    <span className="material-icons !text-sm">wifi_off</span>
+                    Sin conexión a internet. Verificando red...
+                </div>
+            )}
             <AppHeader />
             <main className={`flex-grow w-full px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-8 ${
                 isFullWidth ? '' : 'max-w-7xl mx-auto'

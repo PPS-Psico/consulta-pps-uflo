@@ -7,6 +7,7 @@ interface Tab {
   icon?: string;
   content: ReactNode;
   isClosable?: boolean;
+  badge?: number;
 }
 
 interface TabsProps {
@@ -15,52 +16,96 @@ interface TabsProps {
   onTabChange: (tabId: string) => void;
   onTabClose?: (tabId: string) => void;
   className?: string;
+  variant?: 'default' | 'segmented';
 }
 
-const Tabs: React.FC<TabsProps> = ({ tabs, activeTabId, onTabChange, onTabClose, className = '' }) => {
+const Tabs: React.FC<TabsProps> = ({ tabs, activeTabId, onTabChange, onTabClose, className = '', variant = 'default' }) => {
   const tabsRef = useRef<HTMLDivElement>(null);
-  const [gliderStyle, setGliderStyle] = useState({});
+  const [indicatorStyle, setIndicatorStyle] = useState({});
 
   useLayoutEffect(() => {
-    const activeTabNode = tabsRef.current?.querySelector(`[data-tab-id="${activeTabId}"]`);
-    if (activeTabNode) {
-      const { offsetLeft, offsetWidth } = activeTabNode as HTMLElement;
-      setGliderStyle({
-        transform: `translateX(${offsetLeft}px)`,
-        width: `${offsetWidth}px`,
-      });
+    if (variant === 'default') {
+        const activeTabNode = tabsRef.current?.querySelector(`[data-tab-id="${activeTabId}"]`);
+        if (activeTabNode) {
+        const { offsetLeft, offsetWidth } = activeTabNode as HTMLElement;
+        setIndicatorStyle({
+            transform: `translateX(${offsetLeft}px)`,
+            width: `${offsetWidth}px`,
+        });
+        }
     }
-  }, [activeTabId, tabs]); // Re-calculate on tab change or when tabs themselves change
+  }, [activeTabId, tabs, variant]);
 
+  if (variant === 'segmented') {
+    return (
+        <div className={className}>
+            <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                {tabs.map(tab => {
+                    const isActive = activeTabId === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => onTabChange(tab.id)}
+                            className={`
+                                relative flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all duration-200
+                                ${isActive 
+                                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10' 
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+                                }
+                            `}
+                        >
+                            {tab.icon && <span className={`material-icons !text-lg ${isActive ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'}`}>{tab.icon}</span>}
+                            <span>{tab.label}</span>
+                            {tab.badge !== undefined && (
+                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] leading-none ${isActive ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                                    {tab.badge}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+            <div className="mt-6">
+                {tabs.map(tab => (
+                    <div
+                        key={tab.id}
+                        role="tabpanel"
+                        hidden={activeTabId !== tab.id}
+                        className="focus:outline-none animate-fade-in"
+                    >
+                        {tab.content}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+  }
+
+  // Default Variant (Line)
   return (
     <div className={className}>
       <div className="relative border-b border-slate-200 dark:border-slate-800">
-        <nav ref={tabsRef} className="-mb-px flex space-x-2 sm:space-x-4 overflow-x-auto" aria-label="Tabs">
+        <nav ref={tabsRef} className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
           {tabs.map(tab => {
              const isActive = activeTabId === tab.id;
-
             return (
               <div key={tab.id} data-tab-id={tab.id} className="relative group flex-shrink-0">
                 <button
-                  id={`tab-${tab.id}`}
                   onClick={() => onTabChange(tab.id)}
-                  role="tab"
-                  aria-selected={isActive}
-                  aria-controls={`tabpanel-${tab.id}`}
                   className={`
-                    whitespace-nowrap text-sm transition-colors duration-300 rounded-t-lg
-                    flex items-center gap-2 py-4 px-6
-                    focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 z-10
+                    whitespace-nowrap text-sm transition-colors duration-300
+                    flex items-center gap-2 py-4 px-4
+                    focus:outline-none 
                     ${
                       isActive
                         ? 'font-bold text-blue-600 dark:text-blue-400'
                         : 'font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }
-                    ${tab.isClosable && onTabClose ? 'pr-9' : ''}
+                    ${tab.isClosable && onTabClose ? 'pr-8' : ''}
                   `}
                 >
                   {tab.icon && <span className={`material-icons !text-lg ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}>{tab.icon}</span>}
-                  <span className="truncate max-w-[150px] sm:max-w-none">{tab.label}</span>
+                  <span>{tab.label}</span>
                 </button>
                 {tab.isClosable && onTabClose && (
                   <button
@@ -68,8 +113,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, activeTabId, onTabChange, onTabClose,
                       e.stopPropagation();
                       onTabClose(tab.id);
                     }}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 dark:text-slate-500 hover:bg-rose-100 dark:hover:bg-rose-900/30 hover:text-rose-600 dark:hover:text-rose-400 transition-colors opacity-50 group-hover:opacity-100 focus:opacity-100 z-20"
-                    aria-label={`Cerrar pestaña ${tab.label}`}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors opacity-0 group-hover:opacity-100"
                   >
                     <span className="material-icons !text-base">close</span>
                   </button>
@@ -79,20 +123,16 @@ const Tabs: React.FC<TabsProps> = ({ tabs, activeTabId, onTabChange, onTabClose,
           })}
         </nav>
         <div 
-           className="absolute bottom-0 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full transition-all duration-500 ease-in-out z-20"
-           style={gliderStyle}
+           className="absolute bottom-0 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full transition-all duration-300 ease-out z-20"
+           style={indicatorStyle}
         />
       </div>
       <div className="pt-6">
         {tabs.map(tab => (
           <div
             key={tab.id}
-            id={`tabpanel-${tab.id}`}
-            role="tabpanel"
             hidden={activeTabId !== tab.id}
             className="focus:outline-none animate-fade-in"
-            aria-labelledby={`tab-${tab.id}`}
-            tabIndex={0}
           >
             {tab.content}
           </div>

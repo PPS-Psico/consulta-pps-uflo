@@ -1,19 +1,14 @@
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { differenceInDays } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
 import { GEMINI_API_KEY } from '../constants/configConstants';
-import { 
-    FIELD_NOMBRE_PPS_LANZAMIENTOS, 
-    FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS,
-    FIELD_NOTAS_GESTION_LANZAMIENTOS
-} from '../constants';
+import { FIELD_NOMBRE_PPS_LANZAMIENTOS } from '../constants';
 
 interface DashboardData {
     endingLaunches: any[];
     pendingFinalizations: any[];
     pendingRequests: any[];
-    confirmedRelaunches: any[];
 }
 
 export type PriorityLevel = 'critical' | 'warning' | 'stable' | 'optimal';
@@ -26,12 +21,9 @@ export interface SmartInsight {
     icon: string;
 }
 
-const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-
 export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boolean) => {
     const [aiSummary, setAiSummary] = useState<string | null>(null);
     const [isAiLoading, setIsAiLoading] = useState(false);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // 1. Algorithmic Analysis (Instant & Deterministic)
     const algorithmicAnalysis = useMemo(() => {
@@ -47,185 +39,136 @@ export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boo
         const insights: SmartInsight[] = [];
         let systemScore = 100;
         const now = new Date();
-        const currentMonthName = MONTH_NAMES[now.getMonth()];
-        const currentYear = now.getFullYear();
 
-        // --- REGLA 1: Relanzamientos Pendientes (NUEVO) ---
-        // Detecta si estamos en la fecha (mes) de relanzamiento y aún no se abrió
-        const overdueRelaunches = data.confirmedRelaunches.filter((r: any) => {
-            const dateStr = String(r[FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS] || '').toLowerCase();
-            const notes = String(r[FIELD_NOTAS_GESTION_LANZAMIENTOS] || '').toLowerCase();
-            
-            // Check exact match with current month name in date field or notes
-            const isMonthMatch = dateStr.includes(currentMonthName.toLowerCase()) || notes.includes(currentMonthName.toLowerCase());
-            
-            // Check date object if it's a valid date string
-            let isDateMatch = false;
-            const parsedDate = new Date(dateStr);
-            if (!isNaN(parsedDate.getTime())) {
-                // If it's a date in the past or today
-                if (parsedDate <= now) isDateMatch = true;
-            }
-
-            return isMonthMatch || isDateMatch;
+        // --- REGLA 1: Gestión de Cierre (Prioridad Crítica) ---
+        // Buscamos lanzamientos vencidos (daysLeft < 0) que sigan "Pendiente de Gestión"
+        // NOTA: 'daysLeft' viene calculado desde useOperationalData
+        const overdueClosures = data.endingLaunches.filter((l: any) => {
+            const isPendingManagement = String(l.estado_gestion) === 'Pendiente de Gestión' || !l.estado_gestion;
+            const isExpired = l.daysLeft < 0;
+            return isExpired && isPendingManagement;
         });
 
-        // --- REGLA 2: Análisis de Solicitudes (Distinción Interna vs Externa) ---
-        const terminalStates = ['finalizada', 'cancelada', 'rechazada', 'archivado', 'pps realizada', 'no se pudo concretar'];
-        const internalActionStates = ['pendiente', 'realizando convenio']; 
-        
-        let internalStagnantCount = 0;
-        let externalStagnantCount = 0;
+        // Buscamos lanzamientos por vencerse en breve (7 días) sin gestión
+        const upcomingClosures = data.endingLaunches.filter((l: any) => {
+            const isPendingManagement = String(l.estado_gestion) === 'Pendiente de Gestión' || !l.estado_gestion;
+            const isEndingSoon = l.daysLeft >= 0 && l.daysLeft <= 14; // Aumentado a 14 días para mayor previsión
+            return isEndingSoon && isPendingManagement;
+        });
 
+        // --- REGLA 2: Solicitudes Estancadas ---
+        let stagnantCount = 0;
         data.pendingRequests.forEach((r: any) => {
-            const status = String(r.estado_seguimiento || '').toLowerCase();
-            if (terminalStates.includes(status)) return;
-            
             if (!r.updated) return;
             const lastUpdate = new Date(r.updated);
-            const daysDiff = differenceInDays(now, lastUpdate);
-
-            if (internalActionStates.includes(status)) {
-                if (daysDiff > 5) internalStagnantCount++;
-            } else {
-                if (daysDiff > 7) externalStagnantCount++;
+            if (differenceInDays(now, lastUpdate) > 5) { 
+                stagnantCount++;
             }
         });
 
-        // --- REGLA 3: Vencimientos de PPS ---
-        const unmanagedClosures = data.endingLaunches.filter((l: any) => {
-            const isEndingSoon = l.daysLeft <= 7; 
-            const managementStatus = String(l.estado_gestion || 'Pendiente de Gestión');
-            return isEndingSoon && (managementStatus === 'Pendiente de Gestión' || managementStatus === 'Esperando Respuesta');
-        });
-
-        const overdueClosures = data.endingLaunches.filter((l: any) => l.daysLeft < 0 && String(l.estado_gestion) === 'Pendiente de Gestión');
-
-        // --- REGLA 4: Carga de Acreditaciones ---
-        const pendingAccreditationsCount = data.pendingFinalizations ? data.pendingFinalizations.length : 0;
-
+        // --- REGLA 3: Acreditaciones ---
+        const pendingAccreditations = data.pendingFinalizations.length;
 
         // --- CÁLCULO DE PUNTAJE ---
-        if (overdueRelaunches.length > 0) systemScore -= 20; // Penalización por no lanzar a tiempo
-        if (overdueClosures.length > 0) systemScore -= 30;
-        if (internalStagnantCount > 0) systemScore -= (internalStagnantCount * 5);
-        if (pendingAccreditationsCount > 0) systemScore -= (pendingAccreditationsCount * 3);
-        if (unmanagedClosures.length > 0) systemScore -= 10;
+        // Un cierre vencido sin gestionar es muy grave para la operativa
+        if (overdueClosures.length > 0) systemScore -= (overdueClosures.length * 15); 
+        if (upcomingClosures.length > 0) systemScore -= 5;
+        if (stagnantCount > 0) systemScore -= (stagnantCount * 3);
+        if (pendingAccreditations > 0) systemScore -= (pendingAccreditations * 2);
         
         systemScore = Math.max(0, Math.min(100, systemScore));
 
-        // --- GENERACIÓN DE INSIGHTS PRIORIZADOS ---
+        // --- GENERACIÓN DE INSIGHTS (Ordenados por importancia) ---
+        
+        // 1. Vencidas (Top Priority)
+        if (overdueClosures.length > 0) {
+            const firstName = overdueClosures[0][FIELD_NOMBRE_PPS_LANZAMIENTOS];
+            const msg = overdueClosures.length === 1 
+                ? `"${firstName}" finalizó y sigue como 'Pendiente'. Debe archivarse o relanzarse.`
+                : `${overdueClosures.length} convocatorias finalizaron sin gestión de cierre.`;
 
-        // 1. RELANZAMIENTOS (Top Priority if due)
-        if (overdueRelaunches.length > 0) {
-            const names = overdueRelaunches.slice(0, 2).map((r: any) => r[FIELD_NOMBRE_PPS_LANZAMIENTOS]).join(', ');
-            const suffix = overdueRelaunches.length > 2 ? ` y ${overdueRelaunches.length - 2} más` : '';
             insights.push({
                 type: 'critical',
-                message: `Es ${currentMonthName} y debes relanzar: ${names}${suffix}. Revisa tus notas.`,
+                message: msg,
                 actionLabel: 'Gestionar',
-                actionLink: '/admin/gestion?filter=all', // Go to manager to launch
-                icon: 'rocket_launch'
+                actionLink: '/admin/gestion?filter=vencidas',
+                icon: 'event_busy'
             });
         }
 
-        if (pendingAccreditationsCount > 0) {
+        // 2. Acreditaciones (High Priority - Student Blocking)
+        if (pendingAccreditations > 0) {
              insights.push({
-                type: pendingAccreditationsCount > 5 ? 'warning' : 'optimal',
-                message: `${pendingAccreditationsCount} trámites de acreditación esperan tu revisión.`,
-                actionLabel: 'Procesar',
+                type: 'warning',
+                message: `${pendingAccreditations} alumnos enviaron documentación final y esperan acreditación.`,
+                actionLabel: 'Acreditar',
                 actionLink: '/admin/solicitudes?tab=egreso',
                 icon: 'verified'
             });
         }
 
-        if (unmanagedClosures.length > 0 || overdueClosures.length > 0) {
-            const total = unmanagedClosures.length + overdueClosures.length;
+        // 3. Próximos Vencimientos
+        if (upcomingClosures.length > 0) {
             insights.push({
-                type: 'critical',
-                message: `${total} Convenios vencen esta semana sin gestión definida.`,
-                actionLabel: 'Resolver',
+                type: 'stable',
+                message: `${upcomingClosures.length} PPS finalizan en las próximas 2 semanas. Define su continuidad.`,
+                actionLabel: 'Ver Próximas',
                 actionLink: '/admin/gestion?filter=proximas',
-                icon: 'event_busy'
+                icon: 'timer'
             });
         }
 
-        if (internalStagnantCount > 0) {
+        // 4. Solicitudes Estancadas
+        if (stagnantCount > 0) {
             insights.push({
-                type: 'warning',
-                message: `${internalStagnantCount} solicitudes nuevas llevan +5 días sin respuesta.`,
-                actionLabel: 'Atender',
+                type: 'stable',
+                message: `${stagnantCount} solicitudes de ingreso no tienen movimiento hace +5 días.`,
+                actionLabel: 'Revisar',
                 actionLink: '/admin/solicitudes?tab=ingreso',
-                icon: 'person_alert'
+                icon: 'hourglass_empty'
             });
         }
-        
+
         let status: PriorityLevel = 'optimal';
-        if (systemScore < 60) status = 'critical';
-        else if (systemScore < 85) status = 'warning';
+        if (systemScore < 70) status = 'critical';
+        else if (systemScore < 90) status = 'warning';
         else if (systemScore < 98) status = 'stable';
 
+        // Prepare data for AI summary
         const rawData = {
-            fecha_actual: now.toLocaleDateString(),
-            mes_actual: currentMonthName,
-            relanzamientos_confirmados: data.confirmedRelaunches.map((r: any) => ({
-                institucion: r[FIELD_NOMBRE_PPS_LANZAMIENTOS],
-                fecha_pautada: r[FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS],
-                notas: r[FIELD_NOTAS_GESTION_LANZAMIENTOS]
-            })),
-            metricas: {
-                acreditaciones_pendientes: pendingAccreditationsCount,
-                solicitudes_estancadas: internalStagnantCount,
-                puntaje_salud: systemScore
-            }
+            prioridad_critica_vencidas: overdueClosures.map((l: any) => l[FIELD_NOMBRE_PPS_LANZAMIENTOS]),
+            acreditaciones_pendientes: pendingAccreditations,
+            proximos_cierres: upcomingClosures.length,
+            puntaje_salud: systemScore
         };
 
-        return { status, insights: insights.slice(0, 3), systemScore, rawData };
+        return { status, insights, systemScore, rawData };
     }, [data, isLoading]);
-
-    const refreshAnalysis = useCallback(() => {
-        setAiSummary(null);
-        setRefreshTrigger(prev => prev + 1);
-    }, []);
 
     // 2. AI Analysis (Gemini)
     useEffect(() => {
         const fetchAiInsight = async () => {
-            if (!algorithmicAnalysis.rawData) return;
-
-            const dataSignature = JSON.stringify(algorithmicAnalysis.rawData);
-            const CACHE_KEY = 'smart_analysis_cache_v6'; 
+            if (!algorithmicAnalysis.rawData || !GEMINI_API_KEY || GEMINI_API_KEY.includes('PEGAR_AQUI')) return;
             
-            if (refreshTrigger === 0) {
-                const cachedData = sessionStorage.getItem(CACHE_KEY);
-                if (cachedData) {
-                    const { signature, summary } = JSON.parse(cachedData);
-                    if (signature === dataSignature) {
-                        setAiSummary(summary);
-                        return;
-                    }
-                }
-            }
-
-            if (!GEMINI_API_KEY || GEMINI_API_KEY.includes('PEGAR_AQUI')) return;
-
             setIsAiLoading(true);
             try {
                 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
                 
                 const prompt = `
-                    Actúa como un Jefe de Operaciones Académicas (PPS). 
-                    Hoy es: ${algorithmicAnalysis.rawData.fecha_actual} (${algorithmicAnalysis.rawData.mes_actual}).
-                    
-                    Analiza estos datos:
-                    ${JSON.stringify(algorithmicAnalysis.rawData)}
-                    
-                    TUS OBJETIVOS PRIORITARIOS (En orden):
-                    1. Lee las 'notas' y 'fecha_pautada' de 'relanzamientos_confirmados'. Si la fecha coincide con el mes actual (o ya pasó) o las notas dicen "Llamar en [Mes Actual]", tu ALERTA PRINCIPAL debe ser: "Es momento de lanzar [Nombre Institución] según lo pautado".
-                    2. Si no hay relanzamientos urgentes, mira 'acreditaciones_pendientes'.
-                    3. Si todo está calmo, da un mensaje motivador breve.
+                    Eres un Asistente Ejecutivo de Operaciones Académicas.
+                    Datos del sistema: ${JSON.stringify(algorithmicAnalysis.rawData)}
 
-                    RESPUESTA: Máximo 20 palabras. Texto plano. Imperativo. Sé inteligente leyendo las notas.
+                    Genera UNA frase breve (máx 20 palabras) para el encabezado del Dashboard.
+                    Reglas:
+                    1. Si hay 'prioridad_critica_vencidas', DEBES mencionar que hay cierres pendientes de gestión. Usa tono de urgencia profesional.
+                    2. Si hay 'acreditaciones_pendientes', menciónalo como tarea prioritaria.
+                    3. Si el puntaje es alto (>90) y no hay alertas, da un mensaje positivo sobre la eficiencia operativa.
+                    
+                    Formato: Texto plano, directo, sin saludos.
+                    Ejemplos:
+                    - "Atención: 3 convocatorias vencidas requieren decisión inmediata de relanzamiento o archivo."
+                    - "Enfoque principal: Gestionar 7 acreditaciones pendientes para optimizar la salud operativa."
+                    - "Operaciones estables. Todo el ciclo de prácticas está al día."
                 `;
 
                 const response = await ai.models.generateContent({
@@ -233,35 +176,28 @@ export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boo
                     contents: prompt,
                 });
                 
-                if (response.text) {
-                    const cleanText = response.text.replace(/[\*#_`]/g, '').trim();
-                    setAiSummary(cleanText);
-                    sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-                        signature: dataSignature,
-                        summary: cleanText,
-                        timestamp: Date.now()
-                    }));
-                } 
-
-            } catch (error: any) {
-                console.error("AI Generation Error:", error);
-                setAiSummary("Modo offline: Revisa el calendario de relanzamientos.");
+                setAiSummary(response.text.trim());
+            } catch (error) {
+                console.error("AI Generation Error", error);
             } finally {
                 setIsAiLoading(false);
             }
         };
 
-        const timer = setTimeout(fetchAiInsight, 500);
+        const timer = setTimeout(fetchAiInsight, 1000);
         return () => clearTimeout(timer);
 
-    }, [algorithmicAnalysis.rawData, refreshTrigger]);
+    }, [algorithmicAnalysis.rawData]);
 
     return {
         status: algorithmicAnalysis.status,
         insights: algorithmicAnalysis.insights,
         systemScore: algorithmicAnalysis.systemScore,
-        summary: aiSummary || (isAiLoading ? "Analizando notas y fechas..." : "Sistema sincronizado."),
-        isAiLoading,
-        refreshAnalysis
+        summary: aiSummary || (
+            algorithmicAnalysis.status === 'critical' ? "Se detectaron ciclos vencidos sin cerrar. Requiere atención." :
+            algorithmicAnalysis.status === 'warning' ? "Hay tareas pendientes acumuladas." : 
+            "El sistema opera con normalidad."
+        ),
+        isAiLoading
     };
 };

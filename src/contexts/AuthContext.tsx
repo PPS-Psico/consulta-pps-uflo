@@ -44,29 +44,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const refreshLoopCounter = useRef(0);
   const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Función de limpieza profunda
+  const deepCleanup = useCallback(() => {
+     console.log("🧹 Ejecutando limpieza profunda de sesión...");
+     localStorage.removeItem('sb-qxnxtnhtbpsgzprqtrjl-auth-token');
+     sessionStorage.clear();
+     queryClient.clear();
+     setAuthenticatedUser(null);
+  }, [queryClient]);
+
   const logout = useCallback(async () => {
     try {
-        console.log("🧹 Logging out...");
+        console.log("🚪 Cerrando sesión...");
         
         // 1. Cancel React Query fetching
         queryClient.cancelQueries();
-        queryClient.clear();
         
-        // 2. Clear local state first to update UI immediately
+        // 2. Clear local state first
         setAuthenticatedUser(null);
         
         // 3. Sign out from Supabase
         const { error } = await (supabase.auth as any).signOut();
-        if (error) console.error("Supabase signOut error:", error.message);
+        if (error) console.warn("Supabase signOut warning:", error.message);
 
-        // 4. Clear storage explicitly if needed (optional, Supabase handles its own keys)
-        localStorage.removeItem('sb-qxnxtnhtbpsgzprqtrjl-auth-token'); 
+        // 4. Force cleanup
+        deepCleanup();
         
     } catch (error) {
         console.error("Error during forced logout:", error);
-        setAuthenticatedUser(null);
+        deepCleanup();
     }
-  }, [queryClient]);
+  }, [queryClient, deepCleanup]);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,7 +83,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
 
     // Safety Timeout: If nothing happens in 8 seconds, stop loading.
-    // We do NOT force logout here automatically to avoid loops. We just stop the spinner.
     safetyTimeoutRef.current = setTimeout(() => {
         if (isMounted && isAuthLoading) {
             console.warn("⚠️ Auth check timed out. Stopping spinner.");
@@ -116,8 +123,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 } else {
                     // Orphaned session (User exists in Auth but not in DB)
                     // Check if it's a special admin account or really an error
-                    console.warn("Profile not found for authenticated user.");
-                    await logout();
+                    // Si el usuario es el admin "hardcoded", no lo deslogueamos aquí, lo maneja el hook useAuthLogic o el login manual.
+                    // Pero si es un estudiante huérfano, hay que limpiar.
+                    console.warn("Profile not found for authenticated user. Posible Admin o Error de Integridad.");
+                    
+                    // Si no es un usuario especial, forzamos logout para evitar estado zombie
+                    if (session.user.email !== 'admin@uflo.edu.ar') { // Ejemplo de check
+                         // No forzamos logout inmediato para no romper logins de admin manuales, 
+                         // pero dejamos el estado null para que la UI pida login.
+                         setAuthenticatedUser(null);
+                    }
                 }
             }
         } catch (err) {
@@ -131,21 +146,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Initialize: Get current session
     supabase.auth.getSession().then(({ data, error }) => {
         if (error) {
-            // Handle "Invalid Refresh Token" gracefully (treat as logged out instead of error)
             const msg = error.message.toLowerCase();
-            const isRefreshError = msg.includes("refresh token") || msg.includes("not found") || msg.includes("invalid");
-            
-            if (isRefreshError) {
-                console.log("ℹ️ Sesión anterior expirada (Refresh Token inválido). Limpiando estado.");
-                localStorage.removeItem('sb-qxnxtnhtbpsgzprqtrjl-auth-token');
-                // Intentamos un signOut limpio para purgar estado interno del cliente
-                supabase.auth.signOut().catch(() => {});
-            } else {
-                console.error("GetSession Error:", error.message);
+            // DETECCIÓN CRÍTICA DE TOKEN INVÁLIDO
+            if (msg.includes("refresh token") || msg.includes("not found") || msg.includes("invalid")) {
+                console.error("🚨 Token corrupto detectado. Limpiando almacenamiento.");
+                deepCleanup();
             }
-            
             if (isMounted) setIsAuthLoading(false);
-            // If invalid refresh token, Supabase usually triggers SIGNED_OUT event next
         } else {
             processSession(data.session);
         }
@@ -156,15 +163,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       async (event: string, session: any) => {
         console.log(`AUTH EVENT: ${event}`);
 
-        // Clear safety timeout on any event, as we are communicating
         if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
 
         if (event === 'TOKEN_REFRESHED') {
             refreshLoopCounter.current += 1;
-            if (refreshLoopCounter.current > 5) {
-                console.error("🔄 Refresh loop detected. Forcing logout.");
+            // Si hay muchos refrescos seguidos, es un bucle infinito -> Kill session
+            if (refreshLoopCounter.current > 3) {
+                console.error("🔄 Bucle de refresco detectado. Forzando salida.");
                 refreshLoopCounter.current = 0;
-                await logout();
+                deepCleanup();
                 if (isMounted) setIsAuthLoading(false);
                 return;
             }
@@ -187,7 +194,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
         subscription.unsubscribe();
     };
-  }, [queryClient, logout]);
+  }, [queryClient, deepCleanup]);
 
   const login = useCallback((user: AuthUser) => {
     setAuthenticatedUser(user);

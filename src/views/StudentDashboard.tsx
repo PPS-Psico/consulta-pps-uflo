@@ -177,7 +177,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
     finalizacionRequest // New from context
   } = useStudentPanel();
 
-  const [internalActiveTab, setInternalActiveTab] = useState<TabId>('inicio');
+  const [internalActiveTab, setInternalActiveTab] = useState<TabId>(showExportButton ? 'practicas' : 'inicio');
   const currentActiveTab = activeTab ?? internalActiveTab;
   const setCurrentActiveTab = onTabChange ?? setInternalActiveTab;
   
@@ -299,15 +299,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
     const tabs: { id: TabId; label: string; icon: string; content: React.ReactNode; badge?: number }[] = [
       { id: 'inicio', label: 'Inicio', icon: 'home', content: homeContent },
       { id: 'informes', label: `Informes`, icon: 'assignment_turned_in', content: informesContent, badge: informeTasks.length > 0 ? informeTasks.length : undefined },
-      { id: 'solicitudes', label: `Mis Solicitudes`, icon: 'list_alt', content: solicitudesContent, badge: solicitudes.length > 0 ? solicitudes.length : undefined },
-      { id: 'practicas', label: `Mis Prácticas`, icon: 'work_history', content: practicasContent, badge: practicas.length > 0 ? practicas.length : undefined }
+      { id: 'solicitudes', label: `Solicitudes`, icon: 'list_alt', content: solicitudesContent, badge: solicitudes.length > 0 ? solicitudes.length : undefined },
+      { id: 'practicas', label: `Prácticas`, icon: 'work_history', content: practicasContent, badge: practicas.length > 0 ? practicas.length : undefined }
     ];
 
     tabs.push({
         id: 'profile' as TabId,
         label: 'Mi Perfil',
         icon: 'person',
-        content: profileContent,
+        content: <Card>{profileContent}</Card>,
         badge: undefined
     });
     return tabs;
@@ -419,13 +419,15 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
             </ErrorBoundary>
         )}
         
-        <Card>
+        {/* REMOVED Card Wrapper here, replaced with direct Tabs render */}
+        <div className="mt-8">
             <Tabs
+                variant="segmented"
                 tabs={studentDataTabs}
                 activeTabId={currentActiveTab}
                 onTabChange={(id) => setCurrentActiveTab(id as TabId)}
             />
-        </Card>
+        </div>
       </div>
 
       {/* --- VISTA MÓVIL --- */}
