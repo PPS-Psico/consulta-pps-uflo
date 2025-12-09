@@ -61,6 +61,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         if (!((newMode === 'migration' || newMode === 'recover') && mode === 'login')) {
              resetFormState();
         } else {
+            // Keep legajo if switching from login failure
             setMigrationStep(1);
             setRegisterStep(1);
             setResetStep('verify');
@@ -92,11 +93,12 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         
         if (mode === 'login') {
             try {
-                // LIMPIEZA PREVENTIVA: Asegurar que no haya sesión basura
+                // LIMPIEZA PREVENTIVA
                 await supabase.auth.signOut();
 
                 if (!legajoTrimmed || !passwordTrimmed) throw new Error('Por favor, completa todos los campos.');
 
+                // 1. Intentar obtener datos del estudiante
                 const { data: rpcData, error: rpcError } = await supabase
                     .rpc('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
 
@@ -106,10 +108,10 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                 if (!studentData) throw new Error('Legajo no encontrado. Verificá el número o creá una cuenta nueva.');
 
                 const email = studentData[FIELD_CORREO_ESTUDIANTES];
-                const hasAuthUser = !!studentData[FIELD_USER_ID_ESTUDIANTES];
-
+                
                 if (!email) throw new Error('Tu usuario parece incompleto. Por favor, ve a "Crear Cuenta" para actualizar tus datos.');
 
+                // 2. Intentar Login
                 const { error: signInError } = await (supabase.auth as any).signInWithPassword({
                     email: email,
                     password: passwordTrimmed,
@@ -117,14 +119,14 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                 if (signInError) {
                     if (signInError.message.includes('Invalid login credentials')) {
-                        if (hasAuthUser) {
-                            setFieldError('password');
-                            throw new Error('Contraseña incorrecta.');
-                        }
-                        // Usuario legacy sin AuthID -> Mover a migración
+                        // LOGICA INTELIGENTE: Si falla el login, pero el estudiante existe en DB,
+                        // lo mandamos a validar sus datos para resetear/crear su clave.
                         setMode('migration');
                         setMigrationStep(1);
-                        setError('Para acceder por primera vez al nuevo sistema, necesitamos que valides tu identidad.');
+                        setError('No pudimos iniciar sesión con esa clave. Por favor, validá tu identidad para configurar tu acceso.');
+                        // No lanzamos error, cambiamos de modo y el UI se actualiza
+                        setIsLoading(false);
+                        return;
                     } else {
                         throw signInError;
                     }
@@ -133,6 +135,107 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             } catch (err: any) {
                 console.error("Login error:", err);
                 setError(err.message || 'Error al iniciar sesión.');
+            } finally {
+                setIsLoading(false);
+            }
+
+        } else if (mode === 'migration') {
+            // === LOGICA DE MIGRACIÓN / ACTIVACIÓN ===
+            try {
+                if (migrationStep === 1) {
+                    // Paso 1: Validar Identidad
+                    if (!legajoTrimmed || !verificationData.dni || !verificationData.correo) {
+                        throw new Error("Por favor completa los campos para validar tu identidad.");
+                    }
+
+                    const { data: rpcData, error: rpcError } = await supabase
+                        .rpc('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
+
+                    if (rpcError) throw new Error("Error de conexión. Intenta más tarde.");
+                    const studentData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+                    
+                    if (!studentData) throw new Error("No encontramos un estudiante con ese legajo.");
+
+                    // Verificar coincidencia de datos
+                    const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim();
+                    const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
+                    
+                    const inputDni = verificationData.dni.trim();
+                    const inputEmail = verificationData.correo.trim().toLowerCase();
+
+                    if (dbDni !== inputDni || dbEmail !== inputEmail) {
+                         throw new Error("Los datos ingresados no coinciden con nuestros registros.");
+                    }
+                    
+                    setFoundStudent(studentData as unknown as AirtableRecord<EstudianteFields>);
+                    setMigrationStep(2);
+                    setIsLoading(false);
+                    return;
+                }
+
+                if (migrationStep === 2) {
+                    // Paso 2: Establecer Contraseña y Crear/Vincular Usuario
+                     if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
+                     if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
+                     
+                     if (!foundStudent) throw new Error("Sesión de validación expirada. Por favor comienza de nuevo.");
+
+                     const email = String(foundStudent[FIELD_CORREO_ESTUDIANTES]).trim().toLowerCase();
+                     let userId: string | null = null;
+
+                     // 1. Intentamos CREAR el usuario
+                     const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
+                        email: email,
+                        password: password,
+                        options: { data: { legajo: legajoTrimmed } }
+                    });
+
+                    // 2. Manejo de Errores: ¿Ya existe?
+                    if (signUpError) {
+                        if (signUpError.message.includes("already registered") || signUpError.status === 422 || signUpError.status === 400) {
+                             console.log("Usuario ya existe en Auth, intentando forzar actualización de clave...");
+                             // Si ya existe, usamos RPC para resetear la clave sin necesidad de link de email (admin override)
+                             const { error: rpcResetError } = await supabase.rpc('admin_reset_password', {
+                                 legajo_input: legajoTrimmed,
+                                 new_password: password
+                             });
+                             
+                             if (rpcResetError) {
+                                 console.error("RPC Reset Error:", rpcResetError);
+                                 throw new Error("No pudimos actualizar tu contraseña. Por favor contacta a soporte técnico.");
+                             }
+                             // Si el reset funcionó, necesitamos el ID para asegurar el vínculo
+                             // Intentamos login silencioso para obtener el ID
+                        } else {
+                             throw new Error(`Error al crear usuario: ${signUpError.message}`);
+                        }
+                    } else if (authData?.user) {
+                        userId = authData.user.id;
+                    }
+
+                    // 3. Intento de Login final para confirmar y obtener sesión
+                     const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+                        email: email,
+                        password: password,
+                    });
+
+                    if (loginError) {
+                        setMode('login');
+                        setError('Cuenta configurada, pero el inicio de sesión automático falló. Por favor ingresa manualmente.');
+                    } else if (loginData.user) {
+                        // 4. Asegurar vínculo en DB (Self-healing)
+                        if (!foundStudent[FIELD_USER_ID_ESTUDIANTES] || foundStudent[FIELD_USER_ID_ESTUDIANTES] !== loginData.user.id) {
+                             await supabase
+                                .from('estudiantes')
+                                .update({ [FIELD_USER_ID_ESTUDIANTES]: loginData.user.id })
+                                .eq('id', foundStudent.id);
+                        }
+                    }
+                }
+
+            } catch (err: any) {
+                console.error("Migration error:", err);
+                setError(err.message || "Error del servidor al procesar la solicitud.");
             } finally {
                 setIsLoading(false);
             }
@@ -174,7 +277,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                     // MANEJO ROBUSTO DE "USUARIO YA EXISTE"
                     if (signUpError || !userId) {
-                         // Si ya existe (error 400 o similar), intentamos loguear para recuperar el ID y vincularlo
                          console.warn("SignUp failed, attempting fallback login:", signUpError?.message);
                          
                          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ 
@@ -183,7 +285,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                          });
                          
                          if (loginError || !loginData.user) {
-                             // Si falla el login con la contraseña que acaba de poner, significa que la cuenta existe PERO con otra clave.
                              throw new Error("Este correo ya está registrado con otra contraseña. Por favor ve a 'Iniciar Sesión'.");
                          }
                          
@@ -203,7 +304,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                             console.error("Link Error:", rpcLinkError);
                             throw new Error("Error al vincular tu cuenta. Contacta a soporte.");
                         }
-                        // Éxito: AuthContext actualizará el estado automáticamente
                     } else {
                         throw new Error("No se pudo crear ni verificar el usuario.");
                     }
@@ -240,6 +340,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     let mismatch = false;
                     if (dbDni !== inputDni) mismatch = true;
                     if (dbEmail !== inputEmail) mismatch = true;
+                    // Phone validation is loose (check last 6 digits)
                     if (!dbPhone || !inputPhone.includes(dbPhone.slice(-6))) mismatch = true;
 
                     if (mismatch) {
@@ -262,7 +363,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                      if (rpcResetError) {
                          console.error("RPC Reset Error", rpcResetError);
-                         throw new Error("Error técnico al actualizar. Por favor contacta a soporte o intenta más tarde.");
+                         throw new Error("Error del servidor al actualizar la contraseña. Contacta a soporte.");
                      }
 
                      setResetStep('success');
