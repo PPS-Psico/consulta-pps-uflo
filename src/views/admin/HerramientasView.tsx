@@ -11,6 +11,7 @@ import EmailAutomationManager from '../../components/EmailAutomationManager';
 import NuevosConvenios from '../../components/NuevosConvenios';
 import StudentDiagnostics from '../../components/StudentDiagnostics';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import DataIntegrityTool from '../../components/DataIntegrityTool';
 
 const ExecutiveReportGenerator = lazy(() => import('../../components/ExecutiveReportGenerator'));
 const ActiveInstitutionsReport = lazy(() => import('../../components/ActiveInstitutionsReport'));
@@ -35,6 +36,7 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
     { id: 'convenios', label: 'Convenios Nuevos', icon: 'handshake' },
     { id: 'penalizaciones', label: 'Penalizaciones', icon: 'gavel' },
     { id: 'automation', label: 'Automatizaciones', icon: 'auto_fix_high' },
+    { id: 'integrity', label: 'Integridad', icon: 'health_and_safety' },
     { id: 'search', label: 'Buscar Alumno', icon: 'person_search' },
     { id: 'diagnostico', label: 'Diagnóstico', icon: 'troubleshoot' },
     { id: 'insurance', label: 'Seguros', icon: 'shield' },
@@ -69,6 +71,12 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({ onStudentSelect, is
           {activeTabId === 'automation' && (
             <ErrorBoundary>
               <EmailAutomationManager />
+            </ErrorBoundary>
+          )}
+
+          {activeTabId === 'integrity' && (
+            <ErrorBoundary>
+              <DataIntegrityTool />
             </ErrorBoundary>
           )}
           

@@ -16,18 +16,26 @@ import {
   FIELD_FECHA_FIN_LANZAMIENTOS,
   FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
   FIELD_ESTADO_GESTION_LANZAMIENTOS,
-  FIELD_NOTAS_GESTION_LANZAMIENTOS
+  FIELD_NOTAS_GESTION_LANZAMIENTOS,
+  FIELD_CONVENIO_NUEVO_INSTITUCIONES,
+  FIELD_DIRECCION_INSTITUCIONES,
+  FIELD_TELEFONO_INSTITUCIONES,
+  FIELD_TUTOR_INSTITUCIONES,
+  TABLE_NAME_INSTITUCIONES
 } from '../constants';
 import Card from './Card';
 import Loader from './Loader';
 import Toast from './Toast';
-import { ALL_ORIENTACIONES } from '../types';
+import { ALL_ORIENTACIONES, Orientacion } from '../types';
 import { normalizeStringForComparison, formatDate, getEspecialidadClasses } from '../utils/formatters';
 import SubTabs from './SubTabs';
 import EmptyState from './EmptyState';
 import RecordEditModal from './RecordEditModal';
 import { schema } from '../lib/dbSchema';
 import CollapsibleSection from './CollapsibleSection';
+import Input from './Input';
+import Select from './Select';
+import Button from './Button';
 
 const mockInstitutions = [
   { id: 'recInstMock1', [FIELD_NOMBRE_INSTITUCIONES]: 'Hospital de Juguete' },
@@ -53,7 +61,6 @@ type FormData = {
     horasAcreditadas: number | undefined;
     cuposDisponibles: number | undefined;
     informe: string | undefined;
-    // horarioSeleccionado se maneja via estado 'schedules'
     estadoConvocatoria: string | undefined;
 };
 
@@ -73,17 +80,98 @@ interface LanzadorConvocatoriasProps {
   forcedTab?: 'new' | 'history';
 }
 
-const InputWrapper: React.FC<{ label: string; icon: string; children: React.ReactNode }> = ({ label, icon, children }) => (
-    <div className="group">
-        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">{label}</label>
-        <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="material-icons text-slate-400 group-focus-within:text-blue-500 transition-colors !text-xl">{icon}</span>
-            </div>
-            {children}
-        </div>
+const InputWrapper: React.FC<{ label: string; icon: string; children: React.ReactNode; className?: string }> = ({ label, icon, children, className = "" }) => (
+    <div className={`group ${className}`}>
+        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 ml-1 flex items-center gap-2">
+            <span className="material-icons text-slate-300 dark:text-slate-600 group-focus-within:text-blue-500 transition-colors !text-sm">{icon}</span>
+            {label}
+        </label>
+        {children}
     </div>
 );
+
+// --- MODAL PARA NUEVA INSTITUCIÓN ---
+const NewInstitutionModal: React.FC<{ 
+    isOpen: boolean; 
+    onClose: () => void; 
+    onConfirm: (data: any) => void; 
+    isLoading: boolean;
+}> = ({ isOpen, onClose, onConfirm, isLoading }) => {
+    const [newData, setNewData] = useState({
+        nombre: '',
+        direccion: '',
+        telefono: '',
+        tutor: '',
+        orientacionSugerida: '' as Orientacion | ''
+    });
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onConfirm(newData);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <span className="material-icons text-blue-600">add_business</span>
+                        Registrar Nueva Institución
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        Esta institución se guardará como "Convenio Nuevo".
+                    </p>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <Input 
+                        label="Nombre Institución *" 
+                        value={newData.nombre} 
+                        onChange={e => setNewData({...newData, nombre: e.target.value})} 
+                        placeholder="Ej: Fundación Crecer" 
+                        required 
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                            label="Dirección" 
+                            value={newData.direccion} 
+                            onChange={e => setNewData({...newData, direccion: e.target.value})} 
+                            placeholder="Calle y Altura" 
+                        />
+                        <Input 
+                            label="Teléfono" 
+                            value={newData.telefono} 
+                            onChange={e => setNewData({...newData, telefono: e.target.value})} 
+                            placeholder="Cod. Área + Nro" 
+                        />
+                    </div>
+                    <Input 
+                        label="Tutor (Lic. en Psicología)" 
+                        value={newData.tutor} 
+                        onChange={e => setNewData({...newData, tutor: e.target.value})} 
+                        placeholder="Nombre y Apellido" 
+                    />
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 ml-1">Orientación Sugerida</label>
+                        <Select 
+                            value={newData.orientacionSugerida} 
+                            onChange={e => setNewData({...newData, orientacionSugerida: e.target.value as any})}
+                        >
+                            <option value="">Seleccionar para pre-llenar...</option>
+                            {ALL_ORIENTACIONES.map(o => <option key={o} value={o}>{o}</option>)}
+                        </Select>
+                    </div>
+                    
+                    <div className="pt-4 flex justify-end gap-3">
+                        <Button variant="secondary" onClick={onClose} type="button">Cancelar</Button>
+                        <Button variant="primary" type="submit" isLoading={isLoading} disabled={!newData.nombre}>Guardar Institución</Button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 const LAUNCH_TABLE_CONFIG = {
     label: 'Lanzamientos',
@@ -113,7 +201,8 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const queryClient = useQueryClient();
     
-    // Edit Modal State
+    // UI States
+    const [isNewInstitutionModalOpen, setIsNewInstitutionModalOpen] = useState(false);
     const [editingLaunch, setEditingLaunch] = useState<AirtableRecord<LanzamientoPPSFields> | null>(null);
 
     const { data: institutions = [], isLoading: isLoadingInstitutions } = useQuery<AirtableRecord<InstitucionFields>[]>({
@@ -122,7 +211,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             if (isTestingMode) {
                 return Promise.resolve(mockInstitutions as unknown as AirtableRecord<InstitucionFields>[]);
             }
-            return db.instituciones.getAll({ fields: [FIELD_NOMBRE_INSTITUCIONES] });
+            return db.instituciones.getAll({ fields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_CONVENIO_NUEVO_INSTITUCIONES] });
         },
     });
 
@@ -137,10 +226,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                 return null;
             }
             
-            // Updated query using native filters object
             const records = await db.lanzamientos.get({
                 filters: {
-                    [FIELD_NOMBRE_PPS_LANZAMIENTOS]: selectedInstitution[FIELD_NOMBRE_INSTITUCIONES] // Exact match logic implicit in service update
+                    [FIELD_NOMBRE_PPS_LANZAMIENTOS]: selectedInstitution[FIELD_NOMBRE_INSTITUCIONES]
                 },
                 sort: [{ field: 'fecha_inicio', direction: 'desc' }],
                 maxRecords: 1,
@@ -150,7 +238,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         enabled: !!selectedInstitution,
     });
     
-    const { data: launchHistory = [], isLoading: isLoadingHistory, refetch: refetchHistory } = useQuery({
+    const { data: launchHistory = [], isLoading: isLoadingHistory } = useQuery({
         queryKey: ['launchHistory', isTestingMode],
         queryFn: async () => {
             if (isTestingMode) return [];
@@ -162,7 +250,6 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
     // SORTING AND GROUPING LOGIC FOR HISTORY TAB
     const { visibleHistory, hiddenHistory } = useMemo(() => {
         const sorted = [...launchHistory].sort((a, b) => {
-            // Priority: Abierta vs Rest
             const statusA = normalizeStringForComparison(a[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
             const statusB = normalizeStringForComparison(b[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
             
@@ -172,7 +259,6 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             if (isOpenA && !isOpenB) return -1;
             if (!isOpenA && isOpenB) return 1;
             
-            // Secondary: Date Descending
             const dateA = new Date(a[FIELD_FECHA_INICIO_LANZAMIENTOS] || 0).getTime();
             const dateB = new Date(b[FIELD_FECHA_INICIO_LANZAMIENTOS] || 0).getTime();
             
@@ -194,8 +280,40 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         return { visibleHistory: visible, hiddenHistory: hidden };
     }, [launchHistory]);
 
+    // MUTATIONS
+    const createInstitutionMutation = useMutation({
+        mutationFn: async (data: any) => {
+             if (isTestingMode) {
+                 return { id: 'new-mock', ...data, [FIELD_NOMBRE_INSTITUCIONES]: data.nombre };
+             }
+             return db.instituciones.create({
+                 [FIELD_NOMBRE_INSTITUCIONES]: data.nombre,
+                 [FIELD_DIRECCION_INSTITUCIONES]: data.direccion,
+                 [FIELD_TELEFONO_INSTITUCIONES]: data.telefono,
+                 [FIELD_TUTOR_INSTITUCIONES]: data.tutor,
+                 [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true
+             });
+        },
+        onSuccess: (newInst, variables) => {
+             setToastInfo({ message: 'Institución registrada con éxito.', type: 'success' });
+             setSelectedInstitution(newInst as any);
+             setInstiSearch(newInst[FIELD_NOMBRE_INSTITUCIONES] as string);
+             
+             // Auto-fill launch form
+             setFormData(prev => ({
+                 ...prev,
+                 nombrePPS: newInst[FIELD_NOMBRE_INSTITUCIONES] as string,
+                 orientacion: variables.orientacionSugerida
+             }));
+             
+             setIsNewInstitutionModalOpen(false);
+             if (!isTestingMode) queryClient.invalidateQueries({ queryKey: ['allInstitutionsForLauncher'] });
+        },
+        onError: (err: any) => setToastInfo({ message: `Error: ${err.message}`, type: 'error' })
+    });
+
     const createLaunchMutation = useMutation({
-        mutationFn: (newLaunchData: any) => {
+        mutationFn: async (newLaunchData: any) => {
             if (isTestingMode) {
                 console.log('TEST MODE: Simulating launch creation with data:', newLaunchData);
                 return new Promise(resolve => setTimeout(() => resolve(null), 1000));
@@ -211,6 +329,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             if (!isTestingMode) {
                 queryClient.invalidateQueries({ queryKey: ['allLanzamientos'] });
                 queryClient.invalidateQueries({ queryKey: ['launchHistory'] });
+                queryClient.invalidateQueries({ queryKey: ['conveniosData'] });
             }
         },
         onError: (error: any) => {
@@ -265,17 +384,13 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Manejo de Horarios
     const handleScheduleChange = (index: number, value: string) => {
         const newSchedules = [...schedules];
         newSchedules[index] = value;
         setSchedules(newSchedules);
     };
 
-    const addSchedule = () => {
-        setSchedules([...schedules, '']);
-    };
-
+    const addSchedule = () => setSchedules([...schedules, '']);
     const removeSchedule = (index: number) => {
         const newSchedules = schedules.filter((_, i) => i !== index);
         setSchedules(newSchedules.length ? newSchedules : ['']);
@@ -283,15 +398,12 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
     
     const handleLoadLastData = useCallback(() => {
         if (!lastLanzamiento) return;
-        
-        // Cargar horarios anteriores (separados por punto y coma)
         const prevSchedulesString = lastLanzamiento[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS];
         let prevSchedulesList = [''];
         if (prevSchedulesString) {
             prevSchedulesList = prevSchedulesString.split(';').map(s => s.trim()).filter(Boolean);
             if (prevSchedulesList.length === 0) prevSchedulesList = [''];
         }
-
         setFormData(prev => ({
             ...prev,
             orientacion: lastLanzamiento[FIELD_ORIENTACION_LANZAMIENTOS],
@@ -299,12 +411,10 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             cuposDisponibles: lastLanzamiento[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS],
             informe: lastLanzamiento[FIELD_INFORME_LANZAMIENTOS],
         }));
-        
         setSchedules(prevSchedulesList);
-        setToastInfo({ message: 'Datos de la última convocatoria cargados automáticamente.', type: 'success' });
+        setToastInfo({ message: 'Datos de la última convocatoria cargados.', type: 'success' });
     }, [lastLanzamiento]);
 
-    // Automatically load data when institution is selected and last launch is fetched
     useEffect(() => {
         if (lastLanzamiento && selectedInstitution) {
             handleLoadLastData();
@@ -317,12 +427,8 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             setToastInfo({ message: 'Por favor, complete los campos requeridos.', type: 'error' });
             return;
         }
-
-        // Unir horarios en un solo string
         const horarioFinal = schedules.map(s => s.trim()).filter(Boolean).join('; ');
-
         const finalPayload = {
-            // Map formData keys to DB columns using constants
             [FIELD_NOMBRE_PPS_LANZAMIENTOS]: formData.nombrePPS,
             [FIELD_FECHA_INICIO_LANZAMIENTOS]: formData.fechaInicio,
             [FIELD_FECHA_FIN_LANZAMIENTOS]: formData.fechaFin,
@@ -331,9 +437,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: formData.cuposDisponibles,
             [FIELD_INFORME_LANZAMIENTOS]: formData.informe,
             [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: horarioFinal,
-            [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: formData.estadoConvocatoria
+            [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: formData.estadoConvocatoria,
+            [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Relanzamiento Confirmado' 
         };
-
         createLaunchMutation.mutate(finalPayload);
     };
 
@@ -342,7 +448,6 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         if (action === 'cerrar') newStatus = 'Cerrado';
         if (action === 'abrir') newStatus = 'Abierta';
         if (action === 'ocultar') newStatus = 'Oculto';
-        
         updateStatusMutation.mutate({ id, status: newStatus });
     };
 
@@ -367,24 +472,19 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                     <button onClick={() => setEditingLaunch(launch)} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
                         <span className="material-icons !text-xl">edit</span>
                     </button>
-                    
                     {isOculta ? (
-                        // Restaurar (Hacer Cerrada para que sea visible)
                         <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'cerrar')} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Hacer Visible (Cerrada)">
                             <span className="material-icons !text-xl">visibility</span>
                         </button>
                     ) : isAbierta ? (
-                        // Cerrar
                         <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'cerrar')} className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Cerrar Convocatoria">
                             <span className="material-icons !text-xl">lock</span>
                         </button>
                     ) : (
-                        // Reabrir
                         <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'abrir')} className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Reabrir Convocatoria">
                             <span className="material-icons !text-xl">lock_open</span>
                         </button>
                     )}
-
                     {!isOculta && (
                         <button onClick={() => handleStatusAction(launch.id, launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS], 'ocultar')} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Ocultar">
                              <span className="material-icons !text-xl">visibility_off</span>
@@ -395,7 +495,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         );
     }, []);
 
-    const inputClass = "w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all";
+    const inputClass = "w-full px-4 py-2.5 bg-white dark:bg-slate-800/50 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all";
 
     return (
         <Card 
@@ -406,6 +506,14 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         >
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             
+            {/* NEW INSTITUTION MODAL */}
+            <NewInstitutionModal 
+                isOpen={isNewInstitutionModalOpen}
+                onClose={() => setIsNewInstitutionModalOpen(false)}
+                onConfirm={createInstitutionMutation.mutate}
+                isLoading={createInstitutionMutation.isPending}
+            />
+
             {!forcedTab && (
                 <div className="mt-4">
                     <SubTabs 
@@ -420,156 +528,196 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             )}
 
             {activeTab === 'new' && (
-                <form onSubmit={handleSubmit} className="mt-6 space-y-8 animate-fade-in">
+                <form onSubmit={handleSubmit} className="mt-8 space-y-8 animate-fade-in">
                     
-                    {/* SECCIÓN 1: INSTITUCIÓN */}
-                    <div className="bg-slate-50/50 dark:bg-slate-800/50 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                                <span className="material-icons text-blue-500 !text-lg">apartment</span>
-                                Seleccionar Institución
+                    {/* BLOQUE 1: SELECCIÓN DE INSTITUCIÓN (PREMIUM UI) */}
+                    <div className="relative">
+                        <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-blue-600 rounded-l-md shadow-sm"></div>
+                        <div className="pl-6">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
+                                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 text-sm font-bold shadow-sm border border-blue-200 dark:border-blue-800">1</span>
+                                Institución
                             </h3>
                             
-                            {/* Botón Mágico de Carga */}
-                            {lastLanzamiento && (
-                                <button 
-                                    type="button" 
-                                    onClick={handleLoadLastData} 
-                                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-1"
-                                >
-                                    <span className="material-icons !text-sm">auto_fix_high</span>
-                                    Copiar datos anteriores
-                                </button>
-                            )}
-                        </div>
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
 
-                        <div className="relative">
-                            <input
-                                id="instiSearch"
-                                type="text"
-                                value={instiSearch}
-                                onChange={(e) => {
-                                    setInstiSearch(e.target.value);
-                                    setSelectedInstitution(null);
-                                    setIsDropdownOpen(true);
-                                }}
-                                onFocus={() => setIsDropdownOpen(true)}
-                                placeholder="Escribe el nombre de la institución..."
-                                className="w-full pl-12 pr-4 py-3 text-lg font-medium bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:border-blue-500 focus:ring-0 transition-colors shadow-sm placeholder:font-normal"
-                                autoComplete="off"
-                                required
-                            />
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-2xl">search</span>
-                            
-                            {isDropdownOpen && filteredInstitutions.length > 0 && (
-                                <div className="absolute z-20 mt-2 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden animate-fade-in-up">
-                                    <ul>
-                                        {filteredInstitutions.map(inst => (
-                                            <li 
-                                                key={inst.id} 
-                                                onClick={() => handleSelectInstitution(inst)} 
-                                                className="px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors flex items-center gap-3"
-                                            >
-                                                <span className="material-icons text-slate-400 !text-lg">business</span>
-                                                <span className="text-slate-700 dark:text-slate-200">{inst[FIELD_NOMBRE_INSTITUCIONES]}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                                <div className="flex flex-col md:flex-row gap-4 items-end">
+                                    <div className="relative flex-grow w-full">
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Buscar Institución Existente</label>
+                                        <div className="relative">
+                                            <input
+                                                id="instiSearch"
+                                                type="text"
+                                                value={instiSearch}
+                                                onChange={(e) => {
+                                                    setInstiSearch(e.target.value);
+                                                    setSelectedInstitution(null);
+                                                    setIsDropdownOpen(true);
+                                                }}
+                                                onFocus={() => setIsDropdownOpen(true)}
+                                                placeholder="Escribe para buscar..."
+                                                className="w-full pl-12 pr-4 py-3 text-lg font-medium bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:border-blue-500 focus:ring-0 transition-colors shadow-sm placeholder:font-normal"
+                                                autoComplete="off"
+                                                required
+                                            />
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-2xl">search</span>
+                                        </div>
 
-                    {/* SECCIÓN 2: CRONOGRAMA Y DETALLES */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Columna Izquierda */}
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                                <span className="material-icons text-slate-400 !text-lg">date_range</span>
-                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Cronograma</h4>
-                            </div>
-                            
-                            <InputWrapper label="Fecha de Inicio" icon="event">
-                                <input type="date" name="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className={inputClass} required />
-                            </InputWrapper>
-
-                            <InputWrapper label="Fecha de Finalización" icon="event_busy">
-                                <input type="date" name="fechaFin" value={formData.fechaFin} onChange={handleChange} className={inputClass} required />
-                            </InputWrapper>
-
-                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700 mt-8">
-                                <span className="material-icons text-slate-400 !text-lg">info</span>
-                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Detalles Académicos</h4>
-                            </div>
-
-                            <InputWrapper label="Orientación" icon="school">
-                                <select name="orientacion" value={formData.orientacion} onChange={handleChange} className={inputClass} required>
-                                    <option value="">Seleccionar...</option>
-                                    {ALL_ORIENTACIONES.map(o => <option key={o} value={o}>{o}</option>)}
-                                </select>
-                            </InputWrapper>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <InputWrapper label="Horas Acreditadas" icon="schedule">
-                                    <input type="number" name="horasAcreditadas" value={formData.horasAcreditadas} onChange={handleChange} className={inputClass} required min="1" />
-                                </InputWrapper>
-                                <InputWrapper label="Cupos Disponibles" icon="group_add">
-                                    <input type="number" name="cuposDisponibles" value={formData.cuposDisponibles} onChange={handleChange} className={inputClass} required min="1" />
-                                </InputWrapper>
-                            </div>
-                        </div>
-
-                        {/* Columna Derecha */}
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                                <span className="material-icons text-slate-400 !text-lg">schedule</span>
-                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Horarios y Recursos</h4>
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">
-                                    Opciones de Horarios
-                                </label>
-                                {schedules.map((schedule, idx) => (
-                                    <div key={idx} className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={schedule}
-                                            onChange={(e) => handleScheduleChange(idx, e.target.value)}
-                                            placeholder="Ej: Lunes 9 a 13hs"
-                                            className={inputClass}
-                                            required
-                                        />
-                                        {schedules.length > 1 && (
-                                            <button type="button" onClick={() => removeSchedule(idx)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-                                                <span className="material-icons">remove_circle_outline</span>
-                                            </button>
+                                        {/* Dropdown de Resultados */}
+                                        {isDropdownOpen && filteredInstitutions.length > 0 && (
+                                            <div className="absolute z-20 mt-2 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden animate-fade-in-up max-h-60 overflow-y-auto">
+                                                <ul>
+                                                    {filteredInstitutions.map(inst => (
+                                                        <li 
+                                                            key={inst.id} 
+                                                            onClick={() => handleSelectInstitution(inst)} 
+                                                            className="px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors flex items-center gap-3"
+                                                        >
+                                                            <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-300">
+                                                                <span className="material-icons !text-lg">business</span>
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <span className="block text-slate-700 dark:text-slate-200 font-medium">{inst[FIELD_NOMBRE_INSTITUCIONES]}</span>
+                                                                {inst[FIELD_CONVENIO_NUEVO_INSTITUCIONES] && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">Convenio Nuevo</span>}
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         )}
                                     </div>
-                                ))}
-                                <button type="button" onClick={addSchedule} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 mt-2">
-                                    <span className="material-icons !text-lg">add</span> Agregar otro horario
-                                </button>
-                            </div>
+                                    
+                                    <div className="flex-shrink-0 w-full md:w-auto">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setIsNewInstitutionModalOpen(true)}
+                                            className="w-full md:w-auto h-[52px] px-6 bg-white dark:bg-slate-700 border-2 border-dashed border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-300 rounded-xl font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-400 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <span className="material-icons !text-xl">add</span>
+                                            Nueva Institución
+                                        </button>
+                                    </div>
+                                </div>
 
-                            <div className="mt-6">
-                                <InputWrapper label="Link al Programa / Informe (Opcional)" icon="link">
-                                    <input type="url" name="informe" value={formData.informe} onChange={handleChange} placeholder="https://..." className={inputClass} />
-                                </InputWrapper>
+                                {lastLanzamiento && (
+                                    <div className="mt-4 flex justify-end">
+                                        <button 
+                                            type="button" 
+                                            onClick={handleLoadLastData} 
+                                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-2 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center gap-2 shadow-sm border border-indigo-100 dark:border-indigo-800"
+                                        >
+                                            <span className="material-icons !text-sm">auto_fix_high</span>
+                                            Copiar datos del último lanzamiento
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    <div className="pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                    {/* BLOQUE 2: DETALLES ACADÉMICOS (PREMIUM UI) */}
+                    <div className="relative">
+                        <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-400 to-indigo-600 rounded-l-md shadow-sm"></div>
+                        <div className="pl-6">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
+                                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-sm font-bold shadow-sm border border-indigo-200 dark:border-indigo-800">2</span>
+                                Detalles Académicos
+                            </h3>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/5 rounded-full -ml-10 -mb-10 pointer-events-none"></div>
+
+                                <InputWrapper label="Orientación" icon="school">
+                                    <select name="orientacion" value={formData.orientacion} onChange={handleChange} className={inputClass} required>
+                                        <option value="">Seleccionar...</option>
+                                        {ALL_ORIENTACIONES.map(o => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                </InputWrapper>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <InputWrapper label="Horas Acreditadas" icon="schedule">
+                                        <input type="number" name="horasAcreditadas" value={formData.horasAcreditadas} onChange={handleChange} className={inputClass} required min="1" />
+                                    </InputWrapper>
+                                    <InputWrapper label="Cupos Disponibles" icon="group_add">
+                                        <input type="number" name="cuposDisponibles" value={formData.cuposDisponibles} onChange={handleChange} className={inputClass} required min="1" />
+                                    </InputWrapper>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* BLOQUE 3: LOGÍSTICA (PREMIUM UI) */}
+                    <div className="relative">
+                        <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-l-md shadow-sm"></div>
+                        <div className="pl-6">
+                             <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
+                                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-300 text-sm font-bold shadow-sm border border-emerald-200 dark:border-emerald-800">3</span>
+                                Cronograma y Logística
+                            </h3>
+
+                            <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-6 shadow-sm relative overflow-hidden">
+                                 <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                                    <InputWrapper label="Fecha de Inicio" icon="event">
+                                        <input type="date" name="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className={inputClass} required />
+                                    </InputWrapper>
+
+                                    <InputWrapper label="Fecha de Finalización" icon="event_busy">
+                                        <input type="date" name="fechaFin" value={formData.fechaFin} onChange={handleChange} className={inputClass} required />
+                                    </InputWrapper>
+                                </div>
+
+                                <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                        <span className="material-icons text-slate-300 dark:text-slate-600 !text-sm">schedule</span>
+                                        Opciones de Horarios
+                                    </label>
+                                    {schedules.map((schedule, idx) => (
+                                        <div key={idx} className="flex gap-2 items-center">
+                                            <div className="flex-grow">
+                                                 <input
+                                                    type="text"
+                                                    value={schedule}
+                                                    onChange={(e) => handleScheduleChange(idx, e.target.value)}
+                                                    placeholder="Ej: Lunes 9 a 13hs"
+                                                    className={inputClass}
+                                                    required
+                                                />
+                                            </div>
+                                            {schedules.length > 1 && (
+                                                <button type="button" onClick={() => removeSchedule(idx)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                                                    <span className="material-icons !text-xl">remove_circle_outline</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <button type="button" onClick={addSchedule} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 mt-2 pl-1">
+                                        <span className="material-icons !text-lg">add</span> Agregar otro horario
+                                    </button>
+                                </div>
+
+                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
+                                    <InputWrapper label="Link al Programa / Informe (Opcional)" icon="link">
+                                        <input type="url" name="informe" value={formData.informe} onChange={handleChange} placeholder="https://..." className={inputClass} />
+                                    </InputWrapper>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ACTION FOOTER */}
+                    <div className="pt-6 flex justify-end sticky bottom-6 z-30">
                         <button 
                             type="submit" 
                             disabled={createLaunchMutation.isPending}
-                            className="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-blue-700 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                            className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-4 px-10 rounded-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-3 ring-4 ring-white dark:ring-slate-950"
                         >
                             {createLaunchMutation.isPending ? (
-                                <><div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"/> Lanzando...</>
+                                <><div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"/> Procesando...</>
                             ) : (
-                                <><span className="material-icons">rocket_launch</span> Publicar Convocatoria</>
+                                <><span className="material-icons !text-xl">rocket_launch</span> Publicar Convocatoria</>
                             )}
                         </button>
                     </div>

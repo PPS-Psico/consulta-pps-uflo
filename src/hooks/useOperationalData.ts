@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import {
     TABLE_NAME_LANZAMIENTOS_PPS,
-    FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
     FIELD_ESTADO_GESTION_LANZAMIENTOS,
     FIELD_FECHA_FIN_LANZAMIENTOS,
     FIELD_NOTAS_GESTION_LANZAMIENTOS,
@@ -11,16 +10,13 @@ import {
     FIELD_ESTADO_PPS,
     FIELD_ULTIMA_ACTUALIZACION_PPS,
     TABLE_NAME_FINALIZACION,
-    FIELD_ESTADO_FINALIZACION,
-    FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS,
-    FIELD_NOMBRE_PPS_LANZAMIENTOS
+    FIELD_ESTADO_FINALIZACION
 } from '../constants';
 
 export interface OperationalData {
     endingLaunches: any[];
     pendingRequests: any[];
     pendingFinalizations: any[];
-    confirmedRelaunches: any[]; // New field
 }
 
 export const useOperationalData = (isTestingMode = false) => {
@@ -31,38 +27,53 @@ export const useOperationalData = (isTestingMode = false) => {
                  return {
                     endingLaunches: [],
                     pendingFinalizations: [],
-                    pendingRequests: [],
-                    confirmedRelaunches: []
+                    pendingRequests: []
                  };
             }
 
             const now = new Date();
+            // Normalizar el "ahora" al inicio del día para comparaciones de fecha justas
+            now.setHours(0, 0, 0, 0);
             
-            // 1. Lanzamientos closing soon (Active & Open) OR Recently Closed but Unmanaged
+            // 1. Lanzamientos
+            // Traemos TODOS los lanzamientos que no estén explícitamente archivados o cancelados.
             const { data: launches } = await supabase
                 .from(TABLE_NAME_LANZAMIENTOS_PPS)
-                .select(`*, ${FIELD_NOTAS_GESTION_LANZAMIENTOS}`) 
-                .in(FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS, ['Abierta', 'Abierto', 'Cerrado']) 
-                .not(FIELD_ESTADO_GESTION_LANZAMIENTOS, 'in', '("Archivado")'); 
+                .select(`*, ${FIELD_NOTAS_GESTION_LANZAMIENTOS}`)
+                .not(FIELD_ESTADO_GESTION_LANZAMIENTOS, 'in', '("Archivado","No se Relanza")');
 
             const endingLaunches = (launches || []).map((l: any) => {
                  const endDate = new Date(l[FIELD_FECHA_FIN_LANZAMIENTOS]);
-                 const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 3600 * 24));
+                 endDate.setHours(23, 59, 59, 999);
+                 
+                 const diffTime = endDate.getTime() - now.getTime();
+                 const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                 
                  return { 
                      ...l, 
                      daysLeft,
                      estado_gestion: l[FIELD_ESTADO_GESTION_LANZAMIENTOS],
                      notas_gestion: l[FIELD_NOTAS_GESTION_LANZAMIENTOS]
                  };
+            }).filter((l: any) => {
+                // Check if truly managed
+                const isConfirmed = l.estado_gestion === 'Relanzamiento Confirmado';
+                
+                // Si ya está confirmado, no nos preocupa operativamente A MENOS que haya algo raro.
+                if (isConfirmed) return false; 
+
+                // Si no está confirmado (es NULL, Pendiente, o En Conversación)...
+                
+                // a) Ya venció (fecha fin < hoy) -> CRÍTICO
+                if (l.daysLeft < 0) return true; 
+                
+                // b) Vence pronto (hoy a 30 días) -> ALERTA
+                if (l.daysLeft <= 30) return true; 
+
+                return false;
             });
 
-            // 2. Confirmed Relaunches (Future planning)
-            const { data: relaunches } = await supabase
-                .from(TABLE_NAME_LANZAMIENTOS_PPS)
-                .select(`id, ${FIELD_NOMBRE_PPS_LANZAMIENTOS}, ${FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS}, ${FIELD_NOTAS_GESTION_LANZAMIENTOS}, ${FIELD_ESTADO_GESTION_LANZAMIENTOS}`)
-                .eq(FIELD_ESTADO_GESTION_LANZAMIENTOS, 'Relanzamiento Confirmado');
-
-            // 3. Requests pending or stagnant
+            // 2. Requests pending or stagnant
             const { data: requests } = await supabase
                 .from(TABLE_NAME_PPS)
                 .select('*')
@@ -74,7 +85,7 @@ export const useOperationalData = (isTestingMode = false) => {
                 estado_seguimiento: r[FIELD_ESTADO_PPS]
             }));
 
-            // 4. Pending Accreditations
+            // 3. Pending Accreditations
             const { data: finals } = await supabase
                 .from(TABLE_NAME_FINALIZACION)
                 .select('*')
@@ -83,8 +94,7 @@ export const useOperationalData = (isTestingMode = false) => {
             return {
                 endingLaunches,
                 pendingRequests,
-                pendingFinalizations: finals || [],
-                confirmedRelaunches: relaunches || []
+                pendingFinalizations: finals || []
             };
         }
     });

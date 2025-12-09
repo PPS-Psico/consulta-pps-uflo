@@ -40,15 +40,13 @@ const OperationalCard: React.FC<{
     return (
         <button 
             onClick={onClick}
-            className={`flex flex-col items-start p-5 rounded-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg w-full group ${colors[color]}`}
+            className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg w-full group ${colors[color]}`}
         >
-            <div className="flex justify-between w-full mb-3">
-                <div className={`p-2 bg-white dark:bg-black/30 rounded-lg backdrop-blur-sm shadow-sm ${iconColors[color]}`}>
-                    <span className="material-icons !text-2xl">{icon}</span>
-                </div>
-                <span className="text-3xl font-black">{count}</span>
+            <div className={`mb-3 p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm ${iconColors[color]}`}>
+                <span className="material-icons !text-3xl">{icon}</span>
             </div>
-            <span className="font-bold text-sm text-left uppercase tracking-wide opacity-90">{title}</span>
+            <span className="text-3xl font-black mb-1">{count}</span>
+            <span className="font-bold text-xs uppercase tracking-wider opacity-80">{title}</span>
         </button>
     );
 };
@@ -62,11 +60,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
     const targetYear = new Date().getFullYear();
     const { data: metrics, isLoading: isMetricsLoading, error: metricsError } = useMetricsData({ targetYear, isTestingMode });
     
-    // 2. Fetch Operational Data (For Smart Analysis / AI / Cards)
-    // The hook has been updated to include 'confirmedRelaunches' which useSmartAnalysis now consumes.
+    // 2. Fetch Operational Data (For Smart Analysis / AI)
     const { data: opData, isLoading: isOpLoading, error: opError } = useOperationalData(isTestingMode);
 
-    // Smart Analysis Hook (Uses Operational Data)
+    // Smart Analysis Hook
     const analysis = useSmartAnalysis(opData, isOpLoading);
 
     // Show loading only if initial critical data is loading
@@ -96,19 +93,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
             {/* --- SMART BRIEFING (Artificial Intelligence UI) --- */}
             <SmartBriefing 
-                status={analysis.status === 'loading' ? 'stable' : analysis.status}
+                status={analysis.status}
                 summary={analysis.summary}
                 insights={analysis.insights}
                 score={analysis.systemScore}
                 userName={authenticatedUser?.nombre || 'Admin'}
-                onRefresh={analysis.refreshAnalysis}
-                isLoading={analysis.isAiLoading}
             />
             
             {/* --- GESTIÓN INMEDIATA (Operational Cards) --- */}
             <div>
                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 px-1">Gestión Inmediata</h3>
-                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <OperationalCard 
                         title="Vencidas" 
                         count={expiredCount} 

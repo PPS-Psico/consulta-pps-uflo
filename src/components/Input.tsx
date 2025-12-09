@@ -10,8 +10,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ id, type, value, onChange, placeholder, icon, disabled = false, className = '', wrapperClassName = '', ...props }, ref) => (
     <div className={`relative group ${wrapperClassName}`}>
       {icon && (
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 transition-colors duration-300 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400">
-          <span className="material-icons text-slate-400 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400">{icon}</span>
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 transition-colors duration-300 text-slate-400 group-focus-within:text-slate-800 dark:group-focus-within:text-white">
+          <span className="material-icons !text-lg">{icon}</span>
         </div>
       )}
       <input
@@ -22,7 +22,19 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         onChange={onChange}
         disabled={disabled}
         ref={ref}
-        className={`w-full rounded-lg border border-slate-300 dark:border-slate-700 py-3 pr-4 text-base text-slate-900 dark:text-slate-100 bg-white/50 dark:bg-[#0f172a] shadow-sm placeholder-slate-500 dark:placeholder-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500/50 dark:focus:ring-offset-slate-900 outline-none transition-all disabled:bg-slate-100 dark:disabled:bg-slate-800/50 ${icon ? 'pl-12' : 'pl-4'} ${className}`}
+        className={`
+            w-full rounded-xl border-2 border-slate-200 dark:border-slate-700 
+            py-3.5 pr-4 text-sm font-medium text-slate-900 dark:text-white 
+            bg-white dark:bg-slate-900/50 
+            shadow-sm transition-all duration-200 ease-out
+            placeholder:text-slate-400 dark:placeholder:text-slate-500
+            focus:border-slate-800 dark:focus:border-white 
+            focus:ring-4 focus:ring-slate-200 dark:focus:ring-slate-700/50 
+            focus:outline-none 
+            disabled:bg-slate-50 dark:disabled:bg-slate-800/50 disabled:opacity-70
+            ${icon ? 'pl-11' : 'pl-4'} 
+            ${className}
+        `}
         placeholder={placeholder}
         {...props}
       />
