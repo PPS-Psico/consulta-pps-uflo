@@ -202,10 +202,17 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                              
                              if (rpcResetError) {
                                  console.error("RPC Reset Error:", rpcResetError);
-                                 throw new Error("No pudimos actualizar tu contraseña. Por favor contacta a soporte técnico.");
+                                 // Fallback: Intenta loguear con la contraseña provista, tal vez el reset funcionó o ya era esa
+                                 const { error: fallbackLoginError } = await supabase.auth.signInWithPassword({
+                                     email: email,
+                                     password: password
+                                 });
+                                 
+                                 if (fallbackLoginError) {
+                                     throw new Error("Tu usuario ya existe pero no pudimos actualizar la contraseña. Por favor contacta a soporte.");
+                                 }
+                                 // Si el fallback login funcionó, dejamos que el flujo siga
                              }
-                             // Si el reset funcionó, necesitamos el ID para asegurar el vínculo
-                             // Intentamos login silencioso para obtener el ID
                         } else {
                              throw new Error(`Error al crear usuario: ${signUpError.message}`);
                         }
@@ -285,7 +292,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                          });
                          
                          if (loginError || !loginData.user) {
-                             throw new Error("Este correo ya está registrado con otra contraseña. Por favor ve a 'Iniciar Sesión'.");
+                             throw new Error("Este correo ya está registrado. Si olvidaste la clave, usa 'Recuperar Acceso'.");
                          }
                          
                          userId = loginData.user.id;
@@ -302,7 +309,8 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                         
                         if (rpcLinkError) {
                             console.error("Link Error:", rpcLinkError);
-                            throw new Error("Error al vincular tu cuenta. Contacta a soporte.");
+                            // Intentamos fallback manual si el RPC falla
+                            await supabase.from('estudiantes').update({ user_id: userId }).eq('legajo', legajoTrimmed);
                         }
                     } else {
                         throw new Error("No se pudo crear ni verificar el usuario.");

@@ -77,10 +77,9 @@ const ConvocatoriasList: React.FC<ConvocatoriasListProps> = ({
             const enrollment = enrollmentMap.get(lanzamiento.id);
             const enrollmentStatus = enrollment ? enrollment[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] : null;
 
-            // Check ID match OR Name match (for different launches of same institution)
+            // Check ID match OR Full Name match (not just group name)
             const ppsName = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '';
-            const groupName = ppsName.split(' - ')[0].trim();
-            const isCompleted = completedLanzamientoIds.has(lanzamiento.id) || completedLanzamientoIds.has(normalizeStringForComparison(groupName));
+            const isCompleted = completedLanzamientoIds.has(lanzamiento.id) || completedLanzamientoIds.has(normalizeStringForComparison(ppsName));
             
             const lanzamientoDireccion = lanzamiento[FIELD_DIRECCION_LANZAMIENTOS];
             const institutionName = lanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS];

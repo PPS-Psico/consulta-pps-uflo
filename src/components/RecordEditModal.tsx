@@ -1,6 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import type { AirtableRecord } from '../types';
+import { 
+    FIELD_ESTUDIANTE_LINK_PRACTICAS, 
+    FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
+    FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
+    FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS
+} from '../constants';
 
 interface FieldConfig {
     key: string;
@@ -72,6 +78,40 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
         const isTextarea = field.type === 'textarea';
         
         const inputClasses = `w-full rounded-lg border border-slate-300 dark:border-slate-600 p-2.5 bg-slate-50 dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow ${isCheckbox ? 'h-5 w-5 text-blue-600 rounded cursor-pointer' : ''}`;
+
+        // INTELLIGENT RELATION DISPLAY
+        // If this is an existing record and the field is a relation ID, try to show the human name instead
+        if (!isCreateMode && record) {
+            let displayValue = null;
+            let icon = 'link';
+            
+            if (field.key === FIELD_ESTUDIANTE_LINK_PRACTICAS || field.key === FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS) {
+                displayValue = (record as any).__studentName;
+                icon = 'person';
+            } else if (field.key === FIELD_LANZAMIENTO_VINCULADO_PRACTICAS || field.key === FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS) {
+                displayValue = (record as any).__lanzamientoName;
+                icon = 'rocket_launch';
+            }
+
+            if (displayValue) {
+                return (
+                    <div className="col-span-1">
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{field.label}</label>
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300 flex items-center justify-center flex-shrink-0">
+                                 <span className="material-icons !text-sm">{icon}</span>
+                             </div>
+                             <div className="min-w-0">
+                                 <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{displayValue}</p>
+                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">ID: {value}</p>
+                             </div>
+                        </div>
+                        {/* Hidden input to maintain form state integrity */}
+                        <input type="hidden" name={field.key} value={value} />
+                    </div>
+                );
+            }
+        }
 
         if (isTextarea) {
              return (

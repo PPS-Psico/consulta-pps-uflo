@@ -203,16 +203,6 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
          <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between p-6 pl-8">
             <div className="flex-1 min-w-0 w-full">
                
-               {/* Status Badge Only (Orientation tag removed as redundant with color bar) */}
-               {enrollmentState !== 'none' && (
-                  <div className="mb-3">
-                       <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border ${statusInfo.style}`}>
-                         <span className="material-icons !text-xs">{statusInfo.icon}</span>
-                         <span className="text-[10px] font-bold uppercase">{statusInfo.text}</span>
-                      </div>
-                  </div>
-               )}
-               
                {/* Title */}
                <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white leading-tight tracking-tight mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
                   {nombre || 'Convocatoria sin nombre'}
