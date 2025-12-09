@@ -21,6 +21,7 @@ import {
     FIELD_ESPECIALIDAD_PRACTICAS,
     FIELD_FECHA_FINALIZACION_ESTUDIANTES,
     FIELD_FINALIZARON_ESTUDIANTES,
+    FIELD_USER_ID_ESTUDIANTES,
 } from '../constants';
 import { fetchAllData } from '../services/supabaseService';
 import { parseToUTCDate, formatDate, normalizeStringForComparison } from '../utils/formatters';
@@ -106,7 +107,7 @@ const processLaunchesForYear = (
 
 const fetchAllDataForReport = async () => {
     const [estudiantesRes, practicasRes, lanzamientosRes, institucionesRes] = await Promise.all([
-        fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES, FIELD_FECHA_FINALIZACION_ESTUDIANTES]),
+        fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES, FIELD_FECHA_FINALIZACION_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES]),
         fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_FECHA_FIN_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_ESPECIALIDAD_PRACTICAS]),
         fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ORIENTACION_LANZAMIENTOS]),
         fetchAllData<InstitucionFields>(TABLE_NAME_INSTITUCIONES, institucionArraySchema, [FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_NOMBRE_INSTITUCIONES])
@@ -135,12 +136,30 @@ const getMetricsSnapshot = (
     snapshotDay.setUTCHours(23, 59, 59, 999);
 
     const activeStudentRecords = allEstudiantes.filter(student => {
+        // FILTER: Future students (no account, no history) should not be counted
+        const hasUserAccount = !!student[FIELD_USER_ID_ESTUDIANTES];
+        
         // Use effective entry date (from practice history if earlier than created_at)
-        // This fixes 0 count in 2024 when DB migration happened in 2025
         const entryDate = studentEntryMap.get(student.id);
         
+        // If they entered AFTER the snapshot date, they weren't active then
         if (!entryDate || entryDate > snapshotDay) {
             return false;
+        }
+        
+        // If they have no account AND no practices within the period, they are ghosts/future imports
+        // We only check this for the *current* snapshot to filter out future-year students
+        const snapshotYear = snapshotDay.getFullYear();
+        if (!hasUserAccount) {
+            // Check if they have ANY activity in this year to justify inclusion
+             const hasActivity = allPracticas.some(p => {
+                 const pDate = parseToUTCDate(p[FIELD_FECHA_INICIO_PRACTICAS]);
+                 const links = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                 const isLinked = Array.isArray(links) ? links.includes(student.id) : links === student.id;
+                 return isLinked && pDate && pDate.getFullYear() <= snapshotYear;
+             });
+             
+             if (!hasActivity) return false;
         }
 
         const finalizationDate = parseToUTCDate(student[FIELD_FECHA_FINALIZACION_ESTUDIANTES]);
@@ -192,6 +211,10 @@ const calculateFlowMetrics = (
     studentEntryMap: Map<string, Date>
 ) => {
     const newStudents = allEstudiantes.filter(s => {
+        // Only count new students if they have an account or activity
+        const hasUserAccount = !!s[FIELD_USER_ID_ESTUDIANTES];
+        if (!hasUserAccount) return false;
+
         const entryDate = studentEntryMap.get(s.id);
         return entryDate && entryDate >= yearStartDate && entryDate <= snapshotEndDate;
     }).length;

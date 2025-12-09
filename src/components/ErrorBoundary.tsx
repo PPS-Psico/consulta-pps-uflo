@@ -1,4 +1,3 @@
-
 import React, { ErrorInfo, ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
@@ -12,7 +11,7 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
+  state: ErrorBoundaryState = {
     hasError: false,
     error: undefined
   };
