@@ -16,6 +16,7 @@ import {
     FIELD_ESTADO_GESTION_LANZAMIENTOS,
     TABLE_NAME_CONVOCATORIAS,
     FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
+    FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
     FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
     TABLE_NAME_PRACTICAS,
     FIELD_NOTA_PRACTICAS,
@@ -33,7 +34,12 @@ import {
     FIELD_DIRECCION_INSTITUCIONES,
     FIELD_TELEFONO_INSTITUCIONES,
     FIELD_CONVENIO_NUEVO_INSTITUCIONES,
-    FIELD_TUTOR_INSTITUCIONES
+    FIELD_TUTOR_INSTITUCIONES,
+    FIELD_USER_ID_ESTUDIANTES,
+    TABLE_NAME_PPS,
+    FIELD_LEGAJO_PPS,
+    TABLE_NAME_FINALIZACION,
+    FIELD_ESTUDIANTE_FINALIZACION
 } from '../constants';
 import Card from './Card';
 import Button from './Button';
@@ -203,7 +209,7 @@ const DataIntegrityTool: React.FC = () => {
             const { data: students } = await supabase.from(TABLE_NAME_ESTUDIANTES).select('*');
 
             if (students) {
-                const legajoMap = new Map<string, string[]>();
+                const legajoMap = new Map<string, any[]>();
                 
                 students.forEach((s: any) => {
                     const legajo = String(s[FIELD_LEGAJO_ESTUDIANTES] || '').trim();
@@ -223,11 +229,11 @@ const DataIntegrityTool: React.FC = () => {
                         });
                     } else {
                         if (!legajoMap.has(legajo)) legajoMap.set(legajo, []);
-                        legajoMap.get(legajo)!.push(s.id);
+                        legajoMap.get(legajo)!.push(s);
                     }
 
                     // WARNING: Missing Contact Info
-                    if (!correo || correo.trim() === '') {
+                    if (legajo && (!correo || correo.trim() === '')) {
                         newIssues.push({
                             id: `st-nomail-${s.id}`,
                             table: TABLE_NAME_ESTUDIANTES,
@@ -242,17 +248,59 @@ const DataIntegrityTool: React.FC = () => {
                 });
 
                 // CRITICAL: Duplicates
-                legajoMap.forEach((ids, legajo) => {
-                    if (ids.length > 1) {
+                legajoMap.forEach((duplicates, legajo) => {
+                    if (duplicates.length > 1) {
+                        // Logic to determine winner and losers
+                        const withUser = duplicates.filter(d => d[FIELD_USER_ID_ESTUDIANTES]);
+                        const winner = withUser.length > 0 ? withUser[0] : duplicates[0]; // Prefer active user, else first one
+                        const losers = duplicates.filter(d => d.id !== winner.id);
+                        
                         newIssues.push({
                             id: `st-dupe-${legajo}`,
                             table: TABLE_NAME_ESTUDIANTES,
-                            recordId: ids[0], 
+                            recordId: winner.id, 
                             type: 'critical',
                             title: `Legajo Duplicado: ${legajo}`,
-                            description: `Existen ${ids.length} registros con el mismo legajo. Esto bloquea el login.`,
-                            action: 'manual', // Requires careful merging/deleting
-                            recordData: students.find(s => s.id === ids[0])
+                            description: `Se encontraron ${duplicates.length} registros. Se conservará el ID ${winner.id} (${winner[FIELD_NOMBRE_ESTUDIANTES]}) y se fusionarán los datos.`,
+                            action: 'auto-fix',
+                            autoFixAction: async () => {
+                                // 1. Re-link foreign keys to winner
+                                const loserIds = losers.map(l => l.id);
+                                
+                                // Update Convocatorias (Inscripciones)
+                                await supabase
+                                    .from(TABLE_NAME_CONVOCATORIAS)
+                                    .update({ [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: winner.id })
+                                    .in(FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS, loserIds);
+
+                                // Update Solicitudes PPS
+                                await supabase
+                                    .from(TABLE_NAME_PPS)
+                                    .update({ [FIELD_LEGAJO_PPS]: winner.id })
+                                    .in(FIELD_LEGAJO_PPS, loserIds);
+                                    
+                                // Update Finalizaciones
+                                await supabase
+                                    .from(TABLE_NAME_FINALIZACION)
+                                    .update({ [FIELD_ESTUDIANTE_FINALIZACION]: winner.id })
+                                    .in(FIELD_ESTUDIANTE_FINALIZACION, loserIds);
+
+                                // Update Practicas (Link Array handling is tricky in raw SQL, but standard ID link is simpler)
+                                // If practicas use a standard foreign key (uuid), this works. 
+                                // If they use array of strings (legacy), we assume standard FK for new system.
+                                await supabase
+                                    .from(TABLE_NAME_PRACTICAS)
+                                    .update({ [FIELD_ESTUDIANTE_LINK_PRACTICAS]: winner.id })
+                                    .in(FIELD_ESTUDIANTE_LINK_PRACTICAS, loserIds);
+
+                                // 2. Delete losers
+                                const { error } = await supabase
+                                    .from(TABLE_NAME_ESTUDIANTES)
+                                    .delete()
+                                    .in('id', loserIds);
+                                
+                                if (error) throw new Error(`Error al eliminar duplicados: ${error.message}`);
+                            }
                         });
                     }
                 });
@@ -358,7 +406,7 @@ const DataIntegrityTool: React.FC = () => {
                 <div className="text-sm text-slate-600 dark:text-slate-300 flex-grow">
                     <p className="mb-2">Escaneo profundo de integridad de base de datos:</p>
                     <div className="flex gap-2 text-xs">
-                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Críticos</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Críticos (Duplicados)</span>
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Advertencias</span>
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Sugerencias</span>
                     </div>
@@ -398,6 +446,7 @@ const DataIntegrityTool: React.FC = () => {
                     <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
                         {filteredIssues.map(issue => {
                             const styles = getSeverityStyles(issue.type);
+                            const isFixable = issue.action === 'auto-fix';
                             return (
                                 <div key={issue.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:shadow-md ${styles.bg} ${styles.border}`}>
                                     <div className="flex-grow">
@@ -421,15 +470,15 @@ const DataIntegrityTool: React.FC = () => {
                                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2 whitespace-nowrap ${
                                             issue.action === 'delete' 
                                                 ? 'bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 dark:bg-slate-800 dark:border-rose-900 dark:text-rose-400' 
-                                                : issue.action === 'auto-fix'
-                                                ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
+                                                : isFixable
+                                                ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-md'
                                                 : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200'
                                         }`}
                                     >
                                         <span className="material-icons !text-sm">
-                                            {issue.action === 'delete' ? 'delete' : issue.action === 'auto-fix' ? 'auto_fix_high' : 'edit'}
+                                            {issue.action === 'delete' ? 'delete' : isFixable ? 'auto_fix_high' : 'edit'}
                                         </span>
-                                        {issue.action === 'manual' ? 'Editar / Corregir' : issue.action === 'auto-fix' ? 'Corregir Auto' : 'Eliminar'}
+                                        {issue.action === 'manual' ? 'Editar / Corregir' : isFixable ? 'Corregir Auto' : 'Eliminar'}
                                     </button>
                                 </div>
                             );

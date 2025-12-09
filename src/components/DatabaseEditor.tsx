@@ -11,7 +11,7 @@ import Toast from './Toast';
 import RecordEditModal from './RecordEditModal';
 import DuplicateToStudentModal from './DuplicateToStudentModal';
 import AdminSearch from './AdminSearch';
-import { formatDate, getEspecialidadClasses, normalizeStringForComparison } from '../utils/formatters';
+import { formatDate, getEspecialidadClasses, normalizeStringForComparison, getStatusVisuals } from '../utils/formatters';
 import Card from './Card';
 import { ALL_ORIENTACIONES } from '../types';
 import { 
@@ -60,29 +60,29 @@ interface FieldConfig {
     label: string;
     type: 'text' | 'textarea' | 'number' | 'date' | 'email' | 'tel' | 'select' | 'checkbox';
     options?: readonly string[] | { value: string; label: string }[];
-    width?: string; // New: Intelligent width control
-    align?: 'left' | 'center' | 'right'; // New: Alignment control
+    width?: string;
+    align?: 'left' | 'center' | 'right';
 }
 
 interface TableConfig {
     label: string;
     icon: string;
-    tableName: string; // Real DB table name
+    tableName: string;
     schema: any;
     fieldConfig: FieldConfig[];
     displayFields: string[];
     searchFields: string[];
 }
 
-// Base configuration without dynamic data
 const EDITABLE_TABLES: Record<string, TableConfig> = {
     estudiantes: { 
         label: 'Estudiantes', 
         icon: 'school', 
         tableName: TABLE_NAME_ESTUDIANTES,
         schema: schema.estudiantes,
-        displayFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_DNI_ESTUDIANTES, FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES],
-        searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_NOMBRE_SEPARADO_ESTUDIANTES, FIELD_APELLIDO_SEPARADO_ESTUDIANTES],
+        // Added Email, Phone, and Computed Hours to display fields
+        displayFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_TELEFONO_ESTUDIANTES, '__totalHours', FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES],
+        searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_NOMBRE_SEPARADO_ESTUDIANTES, FIELD_APELLIDO_SEPARADO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES],
         fieldConfig: [
             { key: FIELD_LEGAJO_ESTUDIANTES, label: 'Legajo', type: 'text', width: 'w-24' },
             { key: FIELD_NOMBRE_SEPARADO_ESTUDIANTES, label: 'Nombre (Pila)', type: 'text' },
@@ -90,10 +90,11 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
             { key: FIELD_DNI_ESTUDIANTES, label: 'DNI', type: 'number' },
             { key: FIELD_CORREO_ESTUDIANTES, label: 'Correo', type: 'email' },
             { key: FIELD_TELEFONO_ESTUDIANTES, label: 'Teléfono', type: 'tel' },
-            { key: FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, label: 'Orientación', type: 'select', options: ['', 'Clinica', 'Educacional', 'Laboral', 'Comunitaria'] },
+            { key: FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES, label: 'Orientación', type: 'select', options: ['', 'Clinica', 'Educacional', 'Laboral', 'Comunitaria'], width: 'w-32' },
             { key: FIELD_NOTAS_INTERNAS_ESTUDIANTES, label: 'Notas Internas', type: 'textarea' },
             { key: FIELD_FINALIZARON_ESTUDIANTES, label: 'Finalizó PPS', type: 'checkbox' },
-            { key: FIELD_NOMBRE_ESTUDIANTES, label: 'Nombre Completo', type: 'text' }, 
+            { key: FIELD_NOMBRE_ESTUDIANTES, label: 'Nombre Completo', type: 'text', width: 'w-64' },
+            { key: '__totalHours', label: 'Horas', type: 'number', width: 'w-24', align: 'center' }, // Virtual config
         ]
     },
     convocatorias: {
@@ -101,7 +102,7 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
         icon: 'how_to_reg',
         tableName: TABLE_NAME_CONVOCATORIAS,
         schema: schema.convocatorias,
-        displayFields: ['__studentName', '__lanzamientoName', FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS, FIELD_HORARIO_FORMULA_CONVOCATORIAS, FIELD_FECHA_INICIO_CONVOCATORIAS],
+        displayFields: ['__studentName', '__lanzamientoName', FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS, FIELD_HORARIO_FORMULA_CONVOCATORIAS],
         searchFields: [FIELD_NOMBRE_PPS_CONVOCATORIAS], 
         fieldConfig: [
             { key: FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS, label: 'Estudiante', type: 'text' },
@@ -123,11 +124,11 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
         fieldConfig: [
             { key: FIELD_ESTUDIANTE_LINK_PRACTICAS, label: 'Estudiante', type: 'text' }, 
             { key: FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, label: 'Lanzamiento/Institución', type: 'text' },
-            { key: FIELD_FECHA_INICIO_PRACTICAS, label: 'Inicio', type: 'date', width: 'w-28' },
-            { key: FIELD_FECHA_FIN_PRACTICAS, label: 'Fin', type: 'date', width: 'w-28' },
-            { key: FIELD_HORAS_PRACTICAS, label: 'Horas', type: 'number', width: 'w-20', align: 'center' },
+            { key: FIELD_FECHA_INICIO_PRACTICAS, label: 'Inicio', type: 'date', width: 'w-32' },
+            { key: FIELD_FECHA_FIN_PRACTICAS, label: 'Fin', type: 'date', width: 'w-32' },
+            { key: FIELD_HORAS_PRACTICAS, label: 'Horas', type: 'number', width: 'w-24', align: 'center' },
             { key: FIELD_ESTADO_PRACTICA, label: 'Estado', type: 'select', options: ['En curso', 'Finalizada', 'Convenio Realizado', 'No se pudo concretar', 'Pendiente', 'En proceso'] },
-            { key: FIELD_ESPECIALIDAD_PRACTICAS, label: 'Especialidad', type: 'select', options: ALL_ORIENTACIONES, width: 'w-32' },
+            { key: FIELD_ESPECIALIDAD_PRACTICAS, label: 'Especialidad', type: 'select', options: ALL_ORIENTACIONES, width: 'w-40' },
             { key: FIELD_NOTA_PRACTICAS, label: 'Nota', type: 'select', options: ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'] },
         ]
     },
@@ -136,7 +137,7 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
         icon: 'apartment', 
         tableName: TABLE_NAME_INSTITUCIONES,
         schema: schema.instituciones,
-        displayFields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_DIRECCION_INSTITUCIONES, FIELD_TELEFONO_INSTITUCIONES, FIELD_TUTOR_INSTITUCIONES, FIELD_CONVENIO_NUEVO_INSTITUCIONES],
+        displayFields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_DIRECCION_INSTITUCIONES, FIELD_TELEFONO_INSTITUCIONES, FIELD_CONVENIO_NUEVO_INSTITUCIONES],
         searchFields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_DIRECCION_INSTITUCIONES],
         fieldConfig: [
             { key: FIELD_NOMBRE_INSTITUCIONES, label: 'Nombre', type: 'text' },
@@ -150,7 +151,14 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
 
 type TableKey = keyof typeof EDITABLE_TABLES;
 
-interface ContextMenuProps {
+interface DatabaseEditorProps {
+  isTestingMode?: boolean;
+}
+
+const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50];
+
+// Improved Context Menu with cleaner look
+const ContextMenu: React.FC<{
     x: number;
     y: number;
     onEdit: () => void;
@@ -158,9 +166,7 @@ interface ContextMenuProps {
     onDelete: () => void;
     onClose: () => void;
     isPracticaTable?: boolean;
-}
-
-const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onEdit, onDuplicate, onDelete, onClose, isPracticaTable }) => {
+}> = ({ x, y, onEdit, onDuplicate, onDelete, onClose, isPracticaTable }) => {
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -176,28 +182,25 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onEdit, onDuplicate, on
     return (
         <div 
             ref={menuRef}
-            className="fixed z-[100] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1 min-w-[180px] animate-fade-in text-sm"
+            className="fixed z-[9999] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl py-1 min-w-[200px] animate-fade-in text-sm ring-1 ring-black/5"
             style={{ top: y, left: x }}
         >
-            <button onClick={onEdit} className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                <span className="material-icons !text-base">edit</span> Editar
+            <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 mb-1">
+                Acciones
+            </div>
+            <button onClick={onEdit} className="w-full text-left px-4 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-slate-700 dark:text-slate-200 flex items-center gap-3 transition-colors">
+                <span className="material-icons text-blue-500 !text-lg">edit</span> Editar Registro
             </button>
-            <button onClick={onDuplicate} className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                <span className="material-icons !text-base">content_copy</span> {isPracticaTable ? 'Duplicar a otro Alumno' : 'Duplicar'}
+            <button onClick={onDuplicate} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 flex items-center gap-3 transition-colors">
+                <span className="material-icons text-slate-400 !text-lg">content_copy</span> {isPracticaTable ? 'Duplicar a otro Alumno' : 'Duplicar'}
             </button>
-            <div className="h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
-            <button onClick={onDelete} className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center gap-2">
-                <span className="material-icons !text-base">delete</span> Eliminar
+            <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2"></div>
+            <button onClick={onDelete} className="w-full text-left px-4 py-2.5 hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center gap-3 transition-colors">
+                <span className="material-icons !text-lg">delete</span> Eliminar
             </button>
         </div>
     );
 };
-
-interface DatabaseEditorProps {
-  isTestingMode?: boolean;
-}
-
-const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50];
 
 const SortableHeader: React.FC<{
   label: string;
@@ -216,7 +219,7 @@ const SortableHeader: React.FC<{
   return (
     <th
       scope="col"
-      className={`px-4 py-3 select-none group hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${className}`}
+      className={`px-6 py-4 select-none group bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800 ${className}`}
     >
         <div className={`flex items-center gap-2 ${align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'}`}>
             {hasCheckbox && (
@@ -227,9 +230,13 @@ const SortableHeader: React.FC<{
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
                 />
             )}
-            <button onClick={() => requestSort(sortKey)} className="flex items-center gap-1 focus:outline-none">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</span>
-                <span className={`material-icons !text-xs transition-opacity ${isActive ? 'opacity-100 text-blue-600 dark:text-blue-400' : 'opacity-30 group-hover:opacity-70'}`}>{icon}</span>
+            <button onClick={() => requestSort(sortKey)} className="flex items-center gap-1.5 focus:outline-none group/btn">
+                <span className={`text-[11px] font-extrabold uppercase tracking-widest transition-colors ${isActive ? 'text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 group-hover/btn:text-slate-700 dark:group-hover/btn:text-slate-200'}`}>
+                    {label}
+                </span>
+                <span className={`material-icons !text-xs transition-all duration-200 ${isActive ? 'opacity-100 text-blue-600 dark:text-blue-400 transform scale-110' : 'opacity-0 -ml-2 group-hover/btn:opacity-40 group-hover/btn:ml-0'}`}>
+                    {icon}
+                </span>
             </button>
         </div>
     </th>
@@ -244,36 +251,40 @@ const PaginationControls: React.FC<{
     onItemsPerPageChange: (items: number) => void;
     totalItems: number;
 }> = ({ currentPage, totalPages, onPageChange, itemsPerPage, onItemsPerPageChange, totalItems }) => (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 py-4 px-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-        <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 font-medium">
-            <span>Filas por pág:</span>
-            <select 
-                value={itemsPerPage} 
-                onChange={(e) => { onItemsPerPageChange(Number(e.target.value)); onPageChange(1); }}
-                className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
-            >
-                {ITEMS_PER_PAGE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-            <span className="hidden sm:inline opacity-70">
-                | Total: {totalItems}
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 py-3 px-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-2">
+                <span>Mostrar</span>
+                <select 
+                    value={itemsPerPage} 
+                    onChange={(e) => { onItemsPerPageChange(Number(e.target.value)); onPageChange(1); }}
+                    className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer text-slate-700 dark:text-slate-200"
+                >
+                    {ITEMS_PER_PAGE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+                <span>filas</span>
+            </div>
+            <span className="hidden sm:inline w-px h-4 bg-slate-200 dark:bg-slate-700 mx-2"></span>
+            <span className="hidden sm:inline">
+                <strong>{totalItems}</strong> registros encontrados
             </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
             <button 
                 onClick={() => onPageChange(currentPage - 1)} 
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-600 dark:text-slate-300"
+                className="p-1.5 rounded-md hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all shadow-sm disabled:shadow-none text-slate-600 dark:text-slate-300"
             >
                 <span className="material-icons !text-lg">chevron_left</span>
             </button>
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 min-w-[60px] text-center">
-                {currentPage} / {totalPages || 1}
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 min-w-[80px] text-center">
+                Pág {currentPage} / {totalPages || 1}
             </span>
             <button 
                 onClick={() => onPageChange(currentPage + 1)} 
                 disabled={currentPage === totalPages || totalPages === 0}
-                className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-600 dark:text-slate-300"
+                className="p-1.5 rounded-md hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all shadow-sm disabled:shadow-none text-slate-600 dark:text-slate-300"
             >
                 <span className="material-icons !text-lg">chevron_right</span>
             </button>
@@ -299,7 +310,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     
-    const [estudianteSearchSelection, setEstudianteSearchSelection] = useState<string>(''); // Legajo para el filtro de Estudiantes
+    const [estudianteSearchSelection, setEstudianteSearchSelection] = useState<string>(''); 
 
     const [filterStudentId, setFilterStudentId] = useState<string>('');
     const [selectedStudentLabel, setSelectedStudentLabel] = useState<string>('');
@@ -435,34 +446,21 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
             if (error) throw new Error(error.error as string);
 
-            // Enrich records if needed (practicas/convocatorias)
+            // Fetch related data for richer display
             if ((activeTable === 'practicas' || activeTable === 'convocatorias') && records.length > 0) {
-                const studentIdField = activeTable === 'practicas' ? FIELD_ESTUDIANTE_LINK_PRACTICAS : FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS;
-                const launchIdField = activeTable === 'practicas' ? FIELD_LANZAMIENTO_VINCULADO_PRACTICAS : FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS;
-
-                const studentIds = [...new Set(records.map(r => {
-                    const raw = r[studentIdField];
-                    return Array.isArray(raw) ? raw[0] : raw;
-                }).filter(Boolean))] as string[];
-
-                const launchIds = [...new Set(records.map(r => {
-                    const raw = r[launchIdField];
-                    return Array.isArray(raw) ? raw[0] : raw;
-                }).filter(Boolean))] as string[];
-
                 const [estudiantesRes, lanzamientosRes] = await Promise.all([
-                    db.estudiantes.getAll({ filters: { id: studentIds }, fields: [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES] }),
-                    db.lanzamientos.getAll({ filters: { id: launchIds }, fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS] })
+                    db.estudiantes.getAll({ fields: [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES] }),
+                    db.lanzamientos.getAll({ fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS] })
                 ]);
     
                 const estudiantesMap = new Map(estudiantesRes.map(r => [r.id, r]));
                 const lanzamientosMap = new Map(lanzamientosRes.map(r => [r.id, r]));
     
                 const enrichedRecords = records.map(p => {
-                    const rawStudentId = p[studentIdField];
+                    const rawStudentId = p[activeTable === 'practicas' ? FIELD_ESTUDIANTE_LINK_PRACTICAS : FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
                     const studentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
                     
-                    const rawLanzamientoId = p[launchIdField];
+                    const rawLanzamientoId = p[activeTable === 'practicas' ? FIELD_LANZAMIENTO_VINCULADO_PRACTICAS : FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
                     const lanzamientoId = Array.isArray(rawLanzamientoId) ? rawLanzamientoId[0] : rawLanzamientoId;
                     
                     const student = estudiantesMap.get(studentId as string);
@@ -477,10 +475,30 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     
                     return {
                         ...p,
-                        __studentName: `${studentName} (${studentLegajo})`,
+                        __studentName: `${studentName}`, // We will display legajo separately in the table
+                        __studentLegajo: studentLegajo,
                         __lanzamientoName: lanzamientoName
                     };
                 });
+                return { records: enrichedRecords, total };
+            }
+            // Enhance students table with total hours
+            else if (activeTable === 'estudiantes' && records.length > 0) {
+                const studentIds = records.map(r => r.id);
+                // Fetch all practices for these students to calculate hours
+                const allPractices = await db.practicas.getAll({
+                    filters: { [FIELD_ESTUDIANTE_LINK_PRACTICAS]: studentIds }
+                });
+                
+                const enrichedRecords = records.map(s => {
+                    const studentPractices = allPractices.filter(p => {
+                        const link = p[FIELD_ESTUDIANTE_LINK_PRACTICAS];
+                        return Array.isArray(link) ? link.includes(s.id) : link === s.id;
+                    });
+                    const totalHours = studentPractices.reduce((sum, p) => sum + (p[FIELD_HORAS_PRACTICAS] || 0), 0);
+                    return { ...s, __totalHours: totalHours };
+                });
+                
                 return { records: enrichedRecords, total };
             }
             
@@ -493,7 +511,6 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     const totalItems = queryResult?.total || 0;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-    // Mutations (update, create, delete) remain the same...
     const updateMutation = useMutation({
         mutationFn: ({ recordId, fields }: { recordId: string, fields: any }) => db[activeTable].update(recordId, fields),
         onSuccess: () => {
@@ -589,6 +606,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         newFields[FIELD_ESTUDIANTE_LINK_PRACTICAS] = [studentId];
         delete newFields['__studentName'];
         delete newFields['__lanzamientoName'];
+        delete newFields['__studentLegajo'];
         createMutation.mutate(newFields);
     };
     
@@ -601,6 +619,8 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
          }
          delete newFields['__studentName'];
          delete newFields['__lanzamientoName'];
+         delete newFields['__studentLegajo'];
+         delete newFields['__totalHours'];
          createMutation.mutate(newFields);
     };
     
@@ -633,45 +653,100 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
         if (key === FIELD_ESTADO_PRACTICA) {
             const status = String(value || '');
-            let color = 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400';
-            if (normalizeStringForComparison(status) === 'finalizada') color = 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800';
-            else if (normalizeStringForComparison(status) === 'en curso') color = 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800';
-            else if (normalizeStringForComparison(status) === 'convenio realizado') color = 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800';
-            
-            return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${color} whitespace-nowrap shadow-sm`}>{status}</span>;
+            const visuals = getStatusVisuals(status);
+            return (
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-sm ${visuals.labelClass} whitespace-nowrap`}>
+                    <span className="material-icons !text-xs">{visuals.icon}</span>
+                    {status}
+                </span>
+            );
         }
 
         if (key === FIELD_HORAS_PRACTICAS) {
-            return <div className="font-mono font-bold text-slate-700 dark:text-slate-200">{value}</div>;
+            return <div className="font-mono font-bold text-slate-700 dark:text-slate-200">{value || '-'}</div>;
+        }
+
+        if (key === '__totalHours') {
+            const hours = Number(value || 0);
+            const isTargetReached = hours >= 250;
+            return (
+                <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold border ${isTargetReached ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200' : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200'}`}>
+                    {hours} hs
+                </span>
+            );
         }
 
         if (fieldConfig.type === 'checkbox') {
-            return value ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">Sí</span> : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">No</span>;
+            return value ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">Sí</span> : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">No</span>;
         }
 
         if (fieldConfig.type === 'date') {
-            return <span className="font-mono text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">{formatDate(value)}</span>;
+            return <span className="font-mono text-[13px] whitespace-nowrap text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">{formatDate(value)}</span>;
         }
         
         if (key === FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES || key === FIELD_ESPECIALIDAD_PRACTICAS) {
             if (!value) return <span className="text-slate-300">-</span>;
             const visuals = getEspecialidadClasses(String(value));
-            return <span className={`${visuals.tag} whitespace-nowrap shadow-none border-0`}>{String(value)}</span>;
+            return <span className={`${visuals.tag} whitespace-nowrap shadow-none`}>{String(value)}</span>;
+        }
+
+        // Student Name cell with Avatar (Used in both Estudiantes and Practicas/Convocatorias tables)
+        if (key === FIELD_NOMBRE_ESTUDIANTES || key === '__studentName') {
+             const displayValue = String(value || 'Desconocido');
+             const legajo = activeTable === 'estudiantes' ? record[FIELD_LEGAJO_ESTUDIANTES] : record['__studentLegajo'];
+             const initial = displayValue.charAt(0);
+             const colors = ['bg-blue-100 text-blue-600', 'bg-emerald-100 text-emerald-600', 'bg-violet-100 text-violet-600', 'bg-amber-100 text-amber-600', 'bg-rose-100 text-rose-600'];
+             const colorClass = colors[displayValue.length % colors.length];
+
+             return (
+                <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border border-white/50 dark:border-slate-700 shadow-sm ${colorClass} dark:bg-opacity-20`}>
+                        {initial}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                         <span className="font-bold text-slate-800 dark:text-slate-100 truncate text-[14px]" title={displayValue}>{displayValue}</span>
+                         {/* Show Legajo here if we are not in Students table where it has its own column */}
+                         {activeTable !== 'estudiantes' && <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono leading-none">{legajo}</span>}
+                    </div>
+                </div>
+             );
         }
         
-        if (key === '__studentName') {
-             return <div className="font-medium text-slate-900 dark:text-white truncate" title={String(value)}>{String(value)}</div>;
+        if (key === FIELD_CORREO_ESTUDIANTES) {
+             if (!value) return <span className="text-slate-300">-</span>;
+             return (
+                 <a href={`mailto:${value}`} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 text-xs font-medium group">
+                     <span className="material-icons !text-sm text-slate-400 group-hover:text-blue-500">email</span>
+                     <span className="truncate max-w-[150px]" title={String(value)}>{String(value)}</span>
+                 </a>
+             );
+        }
+
+        if (key === FIELD_TELEFONO_ESTUDIANTES) {
+             if (!value) return <span className="text-slate-300">-</span>;
+             return (
+                 <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                     <span className="material-icons !text-sm text-slate-400">smartphone</span>
+                     <span className="font-mono">{String(value)}</span>
+                 </div>
+             );
         }
         
         if (key === '__lanzamientoName') {
-            return <div className="text-slate-600 dark:text-slate-300 text-sm truncate" title={String(value)}>{String(value)}</div>;
+            return (
+                <div className="flex items-center gap-2">
+                    <span className="material-icons text-slate-400 !text-sm">business</span>
+                    <div className="text-slate-700 dark:text-slate-300 text-[14px] truncate font-medium" title={String(value)}>{String(value)}</div>
+                </div>
+            );
         }
-
-        return <span className="truncate block max-w-[200px]" title={String(value || '')}>{String(value || '')}</span>;
+        
+        // Default text render
+        return <span className="truncate block max-w-[200px] text-[13px] font-medium text-slate-600 dark:text-slate-300" title={String(value || '')}>{String(value || '')}</span>;
     };
 
     return (
-        <Card title="Editor de Base de Datos" icon="storage" className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0F172A]">
+        <Card title="Editor de Base de Datos" icon="storage" className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0F172A] shadow-lg">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             
             {contextMenu && (
@@ -707,57 +782,61 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 />
             </div>
 
-            <div className="mt-6 border-t border-slate-200/60 dark:border-slate-700/60 pt-6 space-y-6">
+            <div className="mt-6 pt-6 space-y-6">
                 
                 {/* --- FILTROS INTELIGENTES --- */}
                 {(activeTable === 'practicas' || activeTable === 'convocatorias') && (
-                    <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-                        
+                    <div className="bg-slate-50 dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in relative overflow-hidden">
+                        {/* Decorative Background */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+
                         {/* Student Filter */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                                <span className="material-icons !text-sm">person_search</span>
+                        <div className="relative z-10">
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
+                                <span className="material-icons !text-sm text-blue-500">person_search</span>
                                 Filtrar por Estudiante
                             </label>
                             
                             {filterStudentId ? (
-                                <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-blue-200 dark:border-blue-800/50 shadow-sm animate-fade-in ring-1 ring-blue-500/20">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold">
+                                <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-xl border border-blue-200 dark:border-blue-700/50 shadow-sm animate-fade-in ring-1 ring-blue-500/10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 flex items-center justify-center text-sm font-bold shadow-inner">
                                             {selectedStudentLabel.charAt(0)}
                                         </div>
-                                        <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">
+                                        <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate max-w-[200px]">
                                             {selectedStudentLabel}
                                         </span>
                                     </div>
                                     <button 
                                         onClick={clearStudentFilter}
-                                        className="p-1.5 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
+                                        className="p-2 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
                                         title="Quitar filtro"
                                     >
                                         <span className="material-icons !text-lg">close</span>
                                     </button>
                                 </div>
                             ) : (
-                                <AdminSearch 
-                                    onStudentSelect={handleStudentSelect}
-                                    isTestingMode={isTestingMode}
-                                />
+                                <div className="bg-white dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700 shadow-sm">
+                                    <AdminSearch 
+                                        onStudentSelect={handleStudentSelect}
+                                        isTestingMode={isTestingMode}
+                                    />
+                                </div>
                             )}
                         </div>
                         
                         {/* Institution/Date Filters */}
                         {activeTable === 'practicas' && (
-                            <div className="space-y-4">
+                            <div className="relative z-10 space-y-4">
                                  <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                                        <span className="material-icons !text-sm">apartment</span>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
+                                        <span className="material-icons !text-sm text-indigo-500">apartment</span>
                                         Filtrar por Institución
                                     </label>
                                     <select 
                                         value={filterInstitutionId} 
                                         onChange={(e) => { setFilterInstitutionId(e.target.value); }}
-                                        className="w-full p-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/50 outline-none transition-shadow"
+                                        className="w-full p-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow shadow-sm cursor-pointer"
                                     >
                                         <option value="">Todas las instituciones</option>
                                         {allInstitutions.map(i => (
@@ -767,14 +846,14 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                 </div>
                                 {filterInstitutionId && (
                                     <div className="animate-fade-in">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                                            <span className="material-icons !text-sm">event</span>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
+                                            <span className="material-icons !text-sm text-emerald-500">event</span>
                                             Convocatoria Específica
                                         </label>
                                         <select 
                                             value={filterLaunchId} 
                                             onChange={(e) => setFilterLaunchId(e.target.value)}
-                                            className="w-full p-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/50 outline-none transition-shadow"
+                                            className="w-full p-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow shadow-sm cursor-pointer"
                                         >
                                             <option value="">Cualquier fecha</option>
                                             {availableLaunches.map(l => (
@@ -790,50 +869,37 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                     </div>
                 )}
                 
-                {/* --- ESTUDIANTES SEARCH --- */}
-                {activeTable === 'estudiantes' && (
-                    <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 animate-fade-in">
-                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Buscador Rápido</label>
-                         <AdminSearch 
-                            onStudentSelect={handleStudentSearchSelect}
-                            isTestingMode={isTestingMode}
-                         />
-                         {(searchTerm || estudianteSearchSelection) && (
-                             <div className="flex justify-end mt-2">
-                                <button onClick={clearEstudianteFilter} className="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 flex items-center gap-1">
-                                    <span className="material-icons !text-sm">backspace</span>
-                                    Limpiar búsqueda {estudianteSearchSelection ? `(${estudianteSearchSelection})` : ''}
-                                </button>
-                             </div>
-                         )}
-                    </div>
-                )}
-
                 {/* --- TOOLBAR & ACTIONS --- */}
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 py-2">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm sticky top-0 z-20">
                     
-                    {/* Left: Generic Search (Hidden for practicas/students/convocatorias) */}
-                    {activeTable !== 'estudiantes' && activeTable !== 'convocatorias' && activeTable !== 'practicas' && (
-                        <div className="relative w-full md:w-72 group">
-                            <input 
-                                type="search" 
-                                placeholder="Buscar..." 
-                                value={searchTerm} 
-                                onChange={e => setSearchTerm(e.target.value)} 
-                                className="w-full pl-10 pr-10 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl text-sm bg-white dark:bg-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm" 
-                            />
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none">search</span>
-                        </div>
-                    )}
+                    {/* Left: Generic Search */}
+                    <div className="relative w-full md:w-80 group">
+                        <input 
+                            type="search" 
+                            placeholder={activeTable === 'estudiantes' ? "Buscar por nombre, legajo o DNI..." : "Buscar..."}
+                            value={searchTerm} 
+                            onChange={e => setSearchTerm(e.target.value)} 
+                            className="w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" 
+                        />
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none group-focus-within:text-blue-500 transition-colors">search</span>
+                        {searchTerm && (
+                            <button 
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            >
+                                <span className="material-icons !text-lg">close</span>
+                            </button>
+                        )}
+                    </div>
                     
                     {/* Right: Actions */}
-                    <div className={`flex items-center gap-3 w-full md:w-auto ${['estudiantes','convocatorias','practicas'].includes(activeTable) ? 'ml-auto' : ''}`}>
+                    <div className="flex items-center gap-2 w-full md:w-auto justify-end">
                         {isBulkEditMode && (
-                            <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 animate-scale-in origin-right shadow-sm">
+                            <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 animate-scale-in origin-right">
                                 <select 
                                     value={bulkStatus} 
                                     onChange={e => setBulkStatus(e.target.value)}
-                                    className="text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 outline-none"
+                                    className="text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1.5 outline-none focus:border-blue-500"
                                 >
                                     <option value="">Cambiar Estado...</option>
                                     <option value="Finalizada">Finalizada</option>
@@ -842,45 +908,47 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                 <button 
                                     onClick={handleBulkUpdateStatus}
                                     disabled={selectedRowIds.size === 0 || !bulkStatus}
-                                    className="text-xs font-bold text-white bg-blue-600 px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                    className="text-xs font-bold text-white bg-blue-600 px-3 py-1.5 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
                                 >
                                     Aplicar ({selectedRowIds.size})
                                 </button>
-                                <button onClick={() => {setIsBulkEditMode(false); setSelectedRowIds(new Set())}} className="text-slate-500 hover:text-slate-700 ml-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 p-1"><span className="material-icons !text-base">close</span></button>
+                                <button onClick={() => {setIsBulkEditMode(false); setSelectedRowIds(new Set())}} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 ml-1"><span className="material-icons !text-lg">close</span></button>
                             </div>
                         )}
 
                         {!isBulkEditMode && activeTable === 'practicas' && (
                             <button 
                                 onClick={() => setIsBulkEditMode(true)}
-                                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-bold py-2.5 px-4 rounded-xl text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-all"
+                                className="p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                                title="Edición masiva"
                             >
-                                <span className="material-icons !text-lg">library_add_check</span>
-                                Editar Lote
+                                <span className="material-icons !text-xl">playlist_add_check</span>
                             </button>
                         )}
 
-                        <button onClick={() => setEditingRecord({ isCreating: true })} className="w-full md:w-auto bg-blue-600 text-white font-bold py-2.5 px-6 rounded-xl text-sm flex items-center justify-center gap-2 hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 transition-all shrink-0">
+                        <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+                        <button onClick={() => setEditingRecord({ isCreating: true })} className="bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700 hover:shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 transition-all active:scale-95">
                             <span className="material-icons !text-lg">add</span>
-                            Nuevo
+                            <span className="hidden sm:inline">Nuevo</span>
                         </button>
                     </div>
                 </div>
                 
-                {isLoading && records.length === 0 && <div className="py-12"><Loader /></div>}
+                {isLoading && records.length === 0 && <div className="py-20"><Loader /></div>}
                 {error && <EmptyState icon="error" title="Error de Carga" message={error.message} />}
                 
                 {(!isLoading || records.length > 0) && !error && (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden ring-1 ring-black/5">
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[900px] text-sm text-left">
-                                <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                                    <tr>
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900 ring-1 ring-black/5 dark:ring-white/5 relative z-0">
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full min-w-[900px] text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800">
                                         {activeTableConfig.displayFields.map((key, idx) => {
                                             const fieldConfig = activeTableConfig.fieldConfig.find(f => f.key === key);
                                             const label = fieldConfig ? fieldConfig.label : (key.startsWith('__') ? key.substring(2).replace(/([A-Z])/g, ' $1') : key);
                                             
-                                            // Dynamic widths from config
+                                            // Dynamic widths
                                             let widthClass = fieldConfig?.width || "";
                                             if (!widthClass) {
                                                 if (key === '__studentName') widthClass = "w-64";
@@ -895,7 +963,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                                     sortKey={key} 
                                                     sortConfig={sortConfig} 
                                                     requestSort={requestSort} 
-                                                    className={widthClass}
+                                                    className={`${widthClass} sticky top-0 backdrop-blur-md bg-slate-50/90 dark:bg-slate-900/90 z-10`}
                                                     hasCheckbox={idx === 0 && isBulkEditMode}
                                                     onSelectAll={handleSelectAll}
                                                     allSelected={selectedRowIds.size > 0 && selectedRowIds.size === records.length}
@@ -905,7 +973,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                         })}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                                     {records.length > 0 ? records.map((record, idx) => {
                                         const isSelected = selectedRowIds.has(record.id);
                                         const isContextOpen = contextMenu?.record.id === record.id;
@@ -916,28 +984,37 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                                 onClick={() => isBulkEditMode ? handleRowSelect(record.id) : setSelectedRowId(selectedRowId === record.id ? null : record.id)}
                                                 onDoubleClick={() => setEditingRecord(record)}
                                                 onContextMenu={(e) => handleRowContextMenu(e, record)}
-                                                className={`group transition-all duration-200 cursor-pointer ${
+                                                className={`group transition-all duration-150 cursor-pointer ${
                                                     isSelected || selectedRowId === record.id
-                                                        ? 'bg-blue-50 dark:bg-blue-900/20' 
+                                                        ? 'bg-blue-50/60 dark:bg-blue-900/20' 
                                                         : isContextOpen
                                                             ? 'bg-slate-100 dark:bg-slate-800'
-                                                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 bg-white dark:bg-slate-900'
+                                                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40 bg-white dark:bg-slate-900'
                                                 }`}
                                             >
                                                 {activeTableConfig.displayFields.map((key, colIdx) => {
                                                     const fieldConfig = activeTableConfig.fieldConfig.find(f => f.key === key) || { key } as FieldConfig;
                                                     return (
-                                                        <td key={key} className={`px-4 py-3 align-middle ${colIdx === 0 ? 'font-medium text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'} ${fieldConfig.align === 'center' ? 'text-center' : fieldConfig.align === 'right' ? 'text-right' : 'text-left'}`}>
-                                                            {colIdx === 0 && isBulkEditMode && (
-                                                                <input 
-                                                                    type="checkbox" 
-                                                                    checked={isSelected} 
-                                                                    onChange={() => handleRowSelect(record.id)}
-                                                                    className="mr-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer align-middle"
-                                                                    onClick={e => e.stopPropagation()}
-                                                                />
+                                                        <td key={key} className={`px-4 py-4 align-middle border-b border-transparent group-hover:border-slate-100 dark:group-hover:border-slate-800 ${colIdx === 0 ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'} ${fieldConfig.align === 'center' ? 'text-center' : fieldConfig.align === 'right' ? 'text-right' : 'text-left'}`}>
+                                                            {colIdx === 0 && (
+                                                                <div className="flex items-center gap-3">
+                                                                    {isBulkEditMode && (
+                                                                        <input 
+                                                                            type="checkbox" 
+                                                                            checked={isSelected} 
+                                                                            onChange={() => handleRowSelect(record.id)}
+                                                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                                                                            onClick={e => e.stopPropagation()}
+                                                                        />
+                                                                    )}
+                                                                    {/* Row Indicator */}
+                                                                    {selectedRowId === record.id && !isBulkEditMode && (
+                                                                        <div className="w-1 h-8 absolute left-0 bg-blue-500 rounded-r-md"></div>
+                                                                    )}
+                                                                    {renderCellValue(record, fieldConfig)}
+                                                                </div>
                                                             )}
-                                                            {renderCellValue(record, fieldConfig)}
+                                                            {colIdx !== 0 && renderCellValue(record, fieldConfig)}
                                                         </td>
                                                     );
                                                 })}
@@ -946,7 +1023,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                                     }) : (
                                         <tr>
                                             <td colSpan={activeTableConfig.displayFields.length}>
-                                                <div className="py-12"><EmptyState icon="search_off" title="Sin Resultados" message="No hay registros que coincidan con tu búsqueda." /></div>
+                                                <div className="py-16"><EmptyState icon="search_off" title="Sin Resultados" message="No se encontraron registros." /></div>
                                             </td>
                                         </tr>
                                     )}

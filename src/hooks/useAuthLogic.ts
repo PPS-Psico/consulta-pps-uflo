@@ -181,9 +181,9 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                      if (!foundStudent) throw new Error("Sesión de validación expirada. Por favor comienza de nuevo.");
 
                      const email = String(foundStudent[FIELD_CORREO_ESTUDIANTES]).trim().toLowerCase();
-                     let userId: string | null = null;
-
+                     
                      // 1. Intentamos CREAR el usuario
+                     // Si el usuario "zombie" fue borrado de Auth, esto funcionará y devolverá un user nuevo.
                      const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
                         email: email,
                         password: password,
@@ -194,7 +194,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     if (signUpError) {
                         if (signUpError.message.includes("already registered") || signUpError.status === 422 || signUpError.status === 400) {
                              console.log("Usuario ya existe en Auth, intentando forzar actualización de clave...");
-                             // Si ya existe, usamos RPC para resetear la clave sin necesidad de link de email (admin override)
+                             // Si ya existe, usamos RPC para resetear la clave
                              const { error: rpcResetError } = await supabase.rpc('admin_reset_password', {
                                  legajo_input: legajoTrimmed,
                                  new_password: password
@@ -209,15 +209,12 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                                  });
                                  
                                  if (fallbackLoginError) {
-                                     throw new Error("Tu usuario ya existe pero no pudimos actualizar la contraseña. Por favor contacta a soporte.");
+                                     throw new Error("Tu usuario ya existe pero no pudimos actualizar la contraseña. Contacta a soporte.");
                                  }
-                                 // Si el fallback login funcionó, dejamos que el flujo siga
                              }
                         } else {
                              throw new Error(`Error al crear usuario: ${signUpError.message}`);
                         }
-                    } else if (authData?.user) {
-                        userId = authData.user.id;
                     }
 
                     // 3. Intento de Login final para confirmar y obtener sesión
@@ -230,12 +227,28 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                         setMode('login');
                         setError('Cuenta configurada, pero el inicio de sesión automático falló. Por favor ingresa manualmente.');
                     } else if (loginData.user) {
-                        // 4. Asegurar vínculo en DB (Self-healing)
+                        // 4. Asegurar vínculo en DB (Self-healing para Zombies)
+                        // Usamos un RPC privilegiado para esto, ya que un UPDATE directo fallaría por RLS si el ID viejo no coincide.
                         if (!foundStudent[FIELD_USER_ID_ESTUDIANTES] || foundStudent[FIELD_USER_ID_ESTUDIANTES] !== loginData.user.id) {
-                             await supabase
-                                .from('estudiantes')
-                                .update({ [FIELD_USER_ID_ESTUDIANTES]: loginData.user.id })
-                                .eq('id', foundStudent.id);
+                             
+                             // Usamos register_new_student que tiene permisos de admin (Security Definer)
+                             // para sobrescribir el user_id viejo (zombie) con el nuevo.
+                             const { error: linkError } = await supabase.rpc('register_new_student', {
+                                legajo_input: legajoTrimmed,
+                                userid_input: loginData.user.id,
+                                dni_input: foundStudent[FIELD_DNI_ESTUDIANTES] || 0,
+                                correo_input: email,
+                                telefono_input: foundStudent[FIELD_TELEFONO_ESTUDIANTES] || ''
+                             });
+
+                             if (linkError) {
+                                 console.error("Error reparando vínculo zombie:", linkError);
+                                 // Fallback a update directo por si acaso
+                                 await supabase
+                                    .from('estudiantes')
+                                    .update({ [FIELD_USER_ID_ESTUDIANTES]: loginData.user.id })
+                                    .eq('id', foundStudent.id);
+                             }
                         }
                     }
                 }
