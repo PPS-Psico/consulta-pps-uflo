@@ -33,6 +33,8 @@ export const FIELD_FINALIZARON_ESTUDIANTES = 'finalizaron';
 export const FIELD_USER_ID_ESTUDIANTES = 'user_id';
 export const FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES = 'must_change_password';
 export const FIELD_ROLE_ESTUDIANTES = 'role';
+export const FIELD_TRABAJA_ESTUDIANTES = 'trabaja';
+export const FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES = 'certificado_trabajo';
 
 // Prácticas
 export const FIELD_NOMBRE_BUSQUEDA_PRACTICAS = 'legajo_busqueda';
@@ -127,6 +129,8 @@ export const FIELD_TELEFONO_CONVOCATORIAS = 'telefono';
 export const FIELD_INFORME_SUBIDO_CONVOCATORIAS = 'informe_subido';
 export const FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS = 'fecha_entrega_informe';
 export const FIELD_CERTIFICADO_CONVOCATORIAS = 'certificado_url';
+export const FIELD_TRABAJA_CONVOCATORIAS = 'trabaja';
+export const FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS = 'certificado_trabajo';
 
 // Finalizacion PPS
 export const FIELD_ESTUDIANTE_FINALIZACION = 'estudiante_id';

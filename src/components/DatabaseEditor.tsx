@@ -80,7 +80,6 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
         icon: 'school', 
         tableName: TABLE_NAME_ESTUDIANTES,
         schema: schema.estudiantes,
-        // Added Email, Phone, and Computed Hours to display fields
         displayFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES, FIELD_CORREO_ESTUDIANTES, FIELD_TELEFONO_ESTUDIANTES, '__totalHours', FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES],
         searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_NOMBRE_SEPARADO_ESTUDIANTES, FIELD_APELLIDO_SEPARADO_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES],
         fieldConfig: [
@@ -157,7 +156,6 @@ interface DatabaseEditorProps {
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50];
 
-// Improved Context Menu with cleaner look
 const ContextMenu: React.FC<{
     x: number;
     y: number;
@@ -333,6 +331,9 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
     const queryClient = useQueryClient();
+    
+    // Determine if we are in a "complex" table that uses specific filters
+    const hasSpecificFilters = activeTable === 'practicas' || activeTable === 'convocatorias';
 
     // Debounce search
     useEffect(() => {
@@ -437,7 +438,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 currentPage,
                 itemsPerPage,
                 {
-                    searchTerm: debouncedSearch,
+                    searchTerm: hasSpecificFilters ? undefined : debouncedSearch, // Disable search text for complex tables if they rely on filters
                     searchFields: activeTableConfig.searchFields,
                     sort: sortConfig.key ? { field: sortConfig.key, direction: sortConfig.direction } : undefined,
                     filters: dbFilters
@@ -630,12 +631,6 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         setCurrentPage(1);
     };
     
-    const clearEstudianteFilter = () => {
-        setEstudianteSearchSelection('');
-        setSearchTerm('');
-        setDebouncedSearch('');
-    };
-
     const handleStudentSelect = (student: AirtableRecord<any>) => {
         setFilterStudentId(student.id);
         setSelectedStudentLabel(`${student[FIELD_NOMBRE_ESTUDIANTES]} (${student[FIELD_LEGAJO_ESTUDIANTES]})`);
@@ -745,6 +740,56 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         return <span className="truncate block max-w-[200px] text-[13px] font-medium text-slate-600 dark:text-slate-300" title={String(value || '')}>{String(value || '')}</span>;
     };
 
+    const ActionButtons = () => (
+        <div className="flex items-center gap-2">
+            {isBulkEditMode && (
+                <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 animate-scale-in origin-right">
+                    <select 
+                        value={bulkStatus} 
+                        onChange={e => setBulkStatus(e.target.value)}
+                        className="text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1.5 outline-none focus:border-blue-500"
+                    >
+                        <option value="">Cambiar Estado...</option>
+                        <option value="Finalizada">Finalizada</option>
+                        <option value="En curso">En curso</option>
+                    </select>
+                    <button 
+                        onClick={handleBulkUpdateStatus}
+                        disabled={selectedRowIds.size === 0 || !bulkStatus}
+                        className="text-xs font-bold text-white bg-blue-600 px-3 py-1.5 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                        Aplicar ({selectedRowIds.size})
+                    </button>
+                    <button onClick={() => {setIsBulkEditMode(false); setSelectedRowIds(new Set())}} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 ml-1"><span className="material-icons !text-lg">close</span></button>
+                </div>
+            )}
+
+            {!isBulkEditMode && activeTable === 'practicas' && (
+                <button 
+                    onClick={() => setIsBulkEditMode(true)}
+                    className="p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                    title="Edición masiva"
+                >
+                    <span className="material-icons !text-xl">playlist_add_check</span>
+                </button>
+            )}
+
+            <button 
+                onClick={() => selectedRowId && handleDelete(selectedRowId)} 
+                disabled={!selectedRowId}
+                className={`px-4 py-2.5 bg-white border border-rose-300 text-rose-600 font-bold rounded-lg text-sm flex items-center justify-center gap-2 transition-all shrink-0 ${!selectedRowId ? 'opacity-50 cursor-not-allowed hidden md:flex' : 'hover:bg-rose-50 shadow-sm'}`}
+            >
+                <span className="material-icons !text-lg">delete</span>
+                <span className="hidden sm:inline">Eliminar</span>
+            </button>
+
+            <button onClick={() => setEditingRecord({ isCreating: true })} className="bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700 hover:shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 transition-all active:scale-95">
+                <span className="material-icons !text-lg">add_circle</span>
+                <span className="hidden sm:inline">Nuevo</span>
+            </button>
+        </div>
+    );
+
     return (
         <Card title="Editor de Base de Datos" icon="storage" className="border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0F172A] shadow-lg">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
@@ -784,156 +829,131 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
 
             <div className="mt-6 pt-6 space-y-6">
                 
-                {/* --- FILTROS INTELIGENTES --- */}
-                {(activeTable === 'practicas' || activeTable === 'convocatorias') && (
-                    <div className="bg-slate-50 dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in relative overflow-hidden">
-                        {/* Decorative Background */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+                {/* --- FILTROS INTELIGENTES Y ACCIONES (Tablas Complejas) --- */}
+                {hasSpecificFilters && (
+                    <div className="space-y-4 mb-6">
+                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                             <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                <span className="material-icons text-blue-500">filter_list</span>
+                                Filtros de Búsqueda
+                             </h3>
+                             <ActionButtons />
+                         </div>
 
-                        {/* Student Filter */}
-                        <div className="relative z-10">
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
-                                <span className="material-icons !text-sm text-blue-500">person_search</span>
-                                Filtrar por Estudiante
-                            </label>
-                            
-                            {filterStudentId ? (
-                                <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-xl border border-blue-200 dark:border-blue-700/50 shadow-sm animate-fade-in ring-1 ring-blue-500/10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 flex items-center justify-center text-sm font-bold shadow-inner">
-                                            {selectedStudentLabel.charAt(0)}
+                        <div className="bg-slate-50 dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in relative overflow-hidden">
+                            {/* Decorative Background */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+
+                            {/* Student Filter */}
+                            <div className="relative z-10">
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
+                                    <span className="material-icons !text-sm text-blue-500">person_search</span>
+                                    Filtrar por Estudiante
+                                </label>
+                                
+                                {filterStudentId ? (
+                                    <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-xl border border-blue-200 dark:border-blue-700/50 shadow-sm animate-fade-in ring-1 ring-blue-500/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 flex items-center justify-center text-sm font-bold shadow-inner">
+                                                {selectedStudentLabel.charAt(0)}
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate max-w-[200px]">
+                                                {selectedStudentLabel}
+                                            </span>
                                         </div>
-                                        <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate max-w-[200px]">
-                                            {selectedStudentLabel}
-                                        </span>
-                                    </div>
-                                    <button 
-                                        onClick={clearStudentFilter}
-                                        className="p-2 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                                        title="Quitar filtro"
-                                    >
-                                        <span className="material-icons !text-lg">close</span>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="bg-white dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700 shadow-sm">
-                                    <AdminSearch 
-                                        onStudentSelect={handleStudentSelect}
-                                        isTestingMode={isTestingMode}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        
-                        {/* Institution/Date Filters */}
-                        {activeTable === 'practicas' && (
-                            <div className="relative z-10 space-y-4">
-                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
-                                        <span className="material-icons !text-sm text-indigo-500">apartment</span>
-                                        Filtrar por Institución
-                                    </label>
-                                    <select 
-                                        value={filterInstitutionId} 
-                                        onChange={(e) => { setFilterInstitutionId(e.target.value); }}
-                                        className="w-full p-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow shadow-sm cursor-pointer"
-                                    >
-                                        <option value="">Todas las instituciones</option>
-                                        {allInstitutions.map(i => (
-                                            <option key={i.id} value={i.id}>{i[FIELD_NOMBRE_INSTITUCIONES]}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                {filterInstitutionId && (
-                                    <div className="animate-fade-in">
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
-                                            <span className="material-icons !text-sm text-emerald-500">event</span>
-                                            Convocatoria Específica
-                                        </label>
-                                        <select 
-                                            value={filterLaunchId} 
-                                            onChange={(e) => setFilterLaunchId(e.target.value)}
-                                            className="w-full p-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow shadow-sm cursor-pointer"
+                                        <button 
+                                            onClick={clearStudentFilter}
+                                            className="p-2 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                                            title="Quitar filtro"
                                         >
-                                            <option value="">Cualquier fecha</option>
-                                            {availableLaunches.map(l => (
-                                                <option key={l.id} value={l.id}>
-                                                    {l[FIELD_NOMBRE_PPS_LANZAMIENTOS]} - {formatDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS])}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            <span className="material-icons !text-lg">close</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700 shadow-sm">
+                                        <AdminSearch 
+                                            onStudentSelect={handleStudentSelect}
+                                            isTestingMode={isTestingMode}
+                                        />
                                     </div>
                                 )}
                             </div>
-                        )}
+                            
+                            {/* Institution/Date Filters */}
+                            {activeTable === 'practicas' && (
+                                <div className="relative z-10 space-y-4">
+                                     <div>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
+                                            <span className="material-icons !text-sm text-indigo-500">apartment</span>
+                                            Filtrar por Institución
+                                        </label>
+                                        <select 
+                                            value={filterInstitutionId} 
+                                            onChange={(e) => { setFilterInstitutionId(e.target.value); }}
+                                            className="w-full p-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow shadow-sm cursor-pointer"
+                                        >
+                                            <option value="">Todas las instituciones</option>
+                                            {allInstitutions.map(i => (
+                                                <option key={i.id} value={i.id}>{i[FIELD_NOMBRE_INSTITUCIONES]}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    {filterInstitutionId && (
+                                        <div className="animate-fade-in">
+                                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
+                                                <span className="material-icons !text-sm text-emerald-500">event</span>
+                                                Convocatoria Específica
+                                            </label>
+                                            <select 
+                                                value={filterLaunchId} 
+                                                onChange={(e) => setFilterLaunchId(e.target.value)}
+                                                className="w-full p-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow shadow-sm cursor-pointer"
+                                            >
+                                                <option value="">Cualquier fecha</option>
+                                                {availableLaunches.map(l => (
+                                                    <option key={l.id} value={l.id}>
+                                                        {l[FIELD_NOMBRE_PPS_LANZAMIENTOS]} - {formatDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS])}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
                 
-                {/* --- TOOLBAR & ACTIONS --- */}
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm sticky top-0 z-20">
-                    
-                    {/* Left: Generic Search */}
-                    <div className="relative w-full md:w-80 group">
-                        <input 
-                            type="search" 
-                            placeholder={activeTable === 'estudiantes' ? "Buscar por nombre, legajo o DNI..." : "Buscar..."}
-                            value={searchTerm} 
-                            onChange={e => setSearchTerm(e.target.value)} 
-                            className="w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" 
-                        />
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none group-focus-within:text-blue-500 transition-colors">search</span>
-                        {searchTerm && (
-                            <button 
-                                onClick={() => setSearchTerm('')}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                            >
-                                <span className="material-icons !text-lg">close</span>
-                            </button>
-                        )}
-                    </div>
-                    
-                    {/* Right: Actions */}
-                    <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                        {isBulkEditMode && (
-                            <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 animate-scale-in origin-right">
-                                <select 
-                                    value={bulkStatus} 
-                                    onChange={e => setBulkStatus(e.target.value)}
-                                    className="text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1.5 outline-none focus:border-blue-500"
-                                >
-                                    <option value="">Cambiar Estado...</option>
-                                    <option value="Finalizada">Finalizada</option>
-                                    <option value="En curso">En curso</option>
-                                </select>
+                {/* --- TOOLBAR & ACTIONS (Tablas Simples) --- */}
+                {!hasSpecificFilters && (
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm sticky top-0 z-20">
+                        
+                        {/* Left: Generic Search */}
+                        <div className="relative w-full md:w-80 group">
+                            <input 
+                                type="search" 
+                                placeholder={activeTable === 'estudiantes' ? "Buscar por nombre, legajo o DNI..." : "Buscar..."}
+                                value={searchTerm} 
+                                onChange={e => setSearchTerm(e.target.value)} 
+                                className="w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" 
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-lg pointer-events-none group-focus-within:text-blue-500 transition-colors">search</span>
+                            {searchTerm && (
                                 <button 
-                                    onClick={handleBulkUpdateStatus}
-                                    disabled={selectedRowIds.size === 0 || !bulkStatus}
-                                    className="text-xs font-bold text-white bg-blue-600 px-3 py-1.5 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                                 >
-                                    Aplicar ({selectedRowIds.size})
+                                    <span className="material-icons !text-lg">close</span>
                                 </button>
-                                <button onClick={() => {setIsBulkEditMode(false); setSelectedRowIds(new Set())}} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 ml-1"><span className="material-icons !text-lg">close</span></button>
-                            </div>
-                        )}
-
-                        {!isBulkEditMode && activeTable === 'practicas' && (
-                            <button 
-                                onClick={() => setIsBulkEditMode(true)}
-                                className="p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-                                title="Edición masiva"
-                            >
-                                <span className="material-icons !text-xl">playlist_add_check</span>
-                            </button>
-                        )}
-
-                        <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-
-                        <button onClick={() => setEditingRecord({ isCreating: true })} className="bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700 hover:shadow-lg shadow-blue-500/20 hover:-translate-y-0.5 transition-all active:scale-95">
-                            <span className="material-icons !text-lg">add</span>
-                            <span className="hidden sm:inline">Nuevo</span>
-                        </button>
+                            )}
+                        </div>
+                        
+                        {/* Right: Actions */}
+                        <div className="w-full md:w-auto flex justify-end">
+                            <ActionButtons />
+                        </div>
                     </div>
-                </div>
+                )}
                 
                 {isLoading && records.length === 0 && <div className="py-20"><Loader /></div>}
                 {error && <EmptyState icon="error" title="Error de Carga" message={error.message} />}

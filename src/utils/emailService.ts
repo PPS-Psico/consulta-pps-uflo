@@ -122,24 +122,26 @@ export const stripGreeting = (text: string): string => {
 };
 
 /**
- * Configuración visual para las TARJETAS DE RECOMENDACIONES (Estilo Premium)
+ * Configuración visual para las TARJETAS DE RECOMENDACIONES (Estilo Premium Minimalista)
+ * Se eliminaron los iconos para maximizar espacio en móvil.
+ * Se usa 'titleColor' para el borde de acento izquierdo.
  */
 const getBlockConfig = (title: string) => {
     const lower = title.toLowerCase();
     if (lower.includes('puntualidad') || lower.includes('asistencia')) {
-        return { icon: '⏰', titleColor: '#1e40af', bg: '#eff6ff', border: '#bfdbfe' }; // Blue-100 theme
+        return { titleColor: '#1e40af', bg: '#eff6ff', border: '#bfdbfe' }; // Blue-100 theme
     }
     if (lower.includes('ética') || lower.includes('confidencialidad')) {
-        return { icon: '🔒', titleColor: '#065f46', bg: '#ecfdf5', border: '#a7f3d0' }; // Emerald-100 theme
+        return { titleColor: '#047857', bg: '#ecfdf5', border: '#a7f3d0' }; // Emerald-100 theme
     }
     if (lower.includes('rol') || lower.includes('activo')) {
-        return { icon: '🚀', titleColor: '#6b21a8', bg: '#faf5ff', border: '#e9d5ff' }; // Purple-100 theme
+        return { titleColor: '#7e22ce', bg: '#faf5ff', border: '#e9d5ff' }; // Purple-100 theme
     }
     if (lower.includes('documentación')) {
-        return { icon: '📄', titleColor: '#9f1239', bg: '#fff1f2', border: '#fecdd3' }; // Rose-100 theme
+        return { titleColor: '#be123c', bg: '#fff1f2', border: '#fecdd3' }; // Rose-100 theme
     }
     // Default
-    return { icon: '📌', titleColor: '#1e293b', bg: '#f8fafc', border: '#e2e8f0' };
+    return { titleColor: '#334155', bg: '#f8fafc', border: '#e2e8f0' };
 };
 
 /**
@@ -153,7 +155,7 @@ const getDataConfig = (label: string) => {
 };
 
 /**
- * Genera un HTML realmente Premium y estructurado.
+ * Genera un HTML realmente Premium, estructurado y RESPONSIVE.
  */
 export const generateHtmlTemplate = (textBody: string, title: string = "Comunicación Institucional"): string => {
     const cleanText = stripGreeting(textBody)
@@ -167,7 +169,7 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) {
-            contentHtml += `<div style="height: 12px; font-size: 1px;">&nbsp;</div>`;
+            contentHtml += `<div style="height: 12px; font-size: 1px; line-height: 12px;">&nbsp;</div>`;
             continue;
         }
 
@@ -186,50 +188,36 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
 
             const style = getBlockConfig(blockTitle);
             
-            // Renderizado estilo TARJETA PREMIUM
-            // Se usa un contenedor blanco circular para el ícono para asegurar centrado y contraste.
+            // Renderizado estilo "Callout" Premium (Sin icono, borde de acento izquierdo)
             contentHtml += `
-            <div style="margin-bottom: 16px; background-color: ${style.bg}; border: 1px solid ${style.border}; border-radius: 12px; padding: 24px;">
-                <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                    <tr>
-                        <td width="60" valign="top" align="center" style="padding-right: 20px;">
-                            <!-- Icon Container for Perfect Centering -->
-                            <div style="background-color: #ffffff; width: 48px; height: 48px; border-radius: 50%; text-align: center; line-height: 48px; font-size: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); border: 1px solid ${style.border};">
-                                ${style.icon}
-                            </div>
-                        </td>
-                        <td valign="top">
-                            <div style="color: ${style.titleColor}; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; margin-top: 4px;">
-                                ${blockTitle}
-                            </div>
-                            <div style="color: #475569; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6;">
-                                ${blockContent}
-                            </div>
-                        </td>
-                    </tr>
-                </table>
+            <div class="content-block" style="margin-bottom: 12px; background-color: ${style.bg}; border: 1px solid ${style.border}; border-left: 4px solid ${style.titleColor}; border-radius: 6px; padding: 16px 20px;">
+                <div style="color: ${style.titleColor}; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                    ${blockTitle}
+                </div>
+                <div style="color: #334155; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.5;">
+                    ${blockContent}
+                </div>
             </div>`;
         } 
         else if (dataMatch && (line.includes('Institución') || line.includes('Horario') || line.includes('Estado') || line.includes('Comisión'))) {
             const label = dataMatch[1].trim();
             let value = dataMatch[2].trim();
             
-            // Cleanup common parsing artifacts
             if (value.startsWith('/')) value = value.substring(1).trim();
 
             const config = getDataConfig(label);
 
-            // Renderizado estilo TICKET limpio y moderno
+            // Renderizado estilo TICKET limpio
             contentHtml += `
-            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid ${config.color}; border-radius: 8px; padding: 18px 24px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid ${config.color}; border-radius: 8px; padding: 15px 20px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                 <table width="100%" border="0" cellspacing="0" cellpadding="0">
                     <tr>
-                        <td width="40" valign="middle" align="center" style="padding-right: 16px;">
-                             <div style="font-size: 20px;">${config.icon}</div>
+                        <td width="24" valign="middle" align="center" style="padding-right: 10px;">
+                             <div style="font-size: 16px;">${config.icon}</div>
                         </td>
                         <td valign="middle" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
-                            <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px;">${label}</div>
-                            <div style="font-size: 16px; color: #0f172a; font-weight: 700; letter-spacing: -0.3px;">${value}</div>
+                            <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 2px;">${label}</div>
+                            <div style="font-size: 15px; color: #0f172a; font-weight: 700;">${value}</div>
                         </td>
                     </tr>
                 </table>
@@ -240,9 +228,8 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
         } 
         else {
             const boldLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // Detectar si es un título de sección
             if (line.includes('Recomendaciones') || line.includes('💡')) {
-                 contentHtml += `<h3 style="color: #334155; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; margin: 30px 0 15px 0; font-weight: 700; display: flex; align-items: center; letter-spacing: -0.3px;">${boldLine}</h3>`;
+                 contentHtml += `<h3 style="color: #334155; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; margin: 25px 0 15px 0; font-weight: 700; letter-spacing: -0.3px;">${boldLine}</h3>`;
             } else {
                  contentHtml += `<p style="margin: 0 0 12px 0; color: #475569; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.6;">${boldLine}</p>`;
             }
@@ -255,47 +242,64 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
 
     return `
     <!DOCTYPE html>
-    <html>
+    <html lang="es">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            /* Client-specific resets */
+            body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+            table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+            img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+            table { border-collapse: collapse !important; }
+            body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+
+            /* Mobile Responsive Styles */
+            @media screen and (max-width: 600px) {
+                .email-container {
+                    width: 100% !important;
+                    margin: auto !important;
+                }
+                .content-padding {
+                    padding: 20px !important;
+                }
+                .header-padding {
+                    padding: 20px !important;
+                }
+                h1 {
+                    font-size: 20px !important;
+                }
+            }
+        </style>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
             <tr>
-                <td align="center" style="padding: 30px 10px;">
+                <td align="center" style="padding: 20px 10px;">
                     
-                    <!-- Main Card -->
-                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01); width: 100%; max-width: 600px;">
+                    <!-- Main Container -->
+                    <table class="email-container" role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
                         
-                        <!-- Premium Compact Banner -->
+                        <!-- Header Banner -->
                         <tr>
-                            <td style="background: linear-gradient(135deg, #00B2A9 0%, #1e40af 100%); padding: 0;">
-                                <div style="padding: 24px 32px;">
-                                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                                        <tr>
-                                            <td align="left" valign="middle">
-                                                <div style="font-family: 'Arial', sans-serif; line-height: 1;">
-                                                    <span style="display: block; font-weight: 900; font-size: 28px; color: #ffffff; letter-spacing: -1px; margin-bottom: 4px;">UFLO</span>
-                                                    <span style="display: block; font-weight: 500; font-size: 10px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 3px;">Universidad</span>
-                                                </div>
-                                            </td>
-                                            <!-- Geometric Decoration (CSS only) -->
-                                            <td align="right" valign="middle">
-                                                <div style="width: 40px; height: 40px; border-radius: 50%; background-color: rgba(255,255,255,0.1);"></div>
-                                                <div style="width: 20px; height: 20px; border-radius: 50%; background-color: rgba(255,255,255,0.1); margin-top: -10px; margin-right: 10px;"></div>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
+                            <td class="header-padding" style="background: linear-gradient(135deg, #00B2A9 0%, #1e40af 100%); padding: 30px;">
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td align="left">
+                                            <div style="font-family: Arial, sans-serif; line-height: 1;">
+                                                <span style="display: block; font-weight: 900; font-size: 28px; color: #ffffff; letter-spacing: -1px; margin-bottom: 4px;">UFLO</span>
+                                                <span style="display: block; font-weight: 500; font-size: 10px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 3px;">Universidad</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
                             </td>
                         </tr>
                         
-                        <!-- Content Body -->
+                        <!-- Main Content -->
                         <tr>
-                            <td style="padding: 40px;">
-                                <!-- Centered Title with color -->
-                                <h1 style="color: #1e293b; font-size: 22px; font-weight: 800; margin: 0 0 25px 0; text-align: center; line-height: 1.3; letter-spacing: -0.5px;">
+                            <td class="content-padding" style="padding: 40px;">
+                                <h1 style="color: #1e293b; font-size: 24px; font-weight: 800; margin: 0 0 25px 0; text-align: left; line-height: 1.3; letter-spacing: -0.5px;">
                                     ${title}
                                 </h1>
                                 ${contentHtml}
@@ -313,7 +317,7 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
                         </tr>
                     </table>
                     
-                    <!-- Legal Sub-footer -->
+                    <!-- Sub-footer -->
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
                         <tr>
                             <td align="center" style="padding: 20px; font-size: 11px; color: #cbd5e1;">
@@ -360,15 +364,13 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
         .replace(/{{estado_nuevo}}/g, data.newState || '')
         .replace(/{{notas}}/g, data.notes || '');
 
-    // Extract title from subject for the internal card header (removes tags like [PRUEBA])
     const emailHeaderTitle = finalSubject.replace(/^[\[\(].*?[\]\)]\s*/, ''); 
     
-    // Generamos el HTML con el nuevo diseño PREMIUM
     const htmlBody = generateHtmlTemplate(textBody, emailHeaderTitle);
     const cleanTextBody = stripGreeting(textBody);
 
     try {
-        console.log(`[Email] Sending to ${data.studentEmail} with UFLO Branded HTML (Premium v3).`);
+        console.log(`[Email] Sending to ${data.studentEmail} with Responsive Design.`);
         const { error } = await supabase.functions.invoke('send-email', {
             body: {
                 to: data.studentEmail,

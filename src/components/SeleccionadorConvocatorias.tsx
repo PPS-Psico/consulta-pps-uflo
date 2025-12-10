@@ -22,6 +22,7 @@ const StudentRow: React.FC<{
 }> = ({ student, onToggleSelection, onUpdateSchedule, isUpdating, isReviewMode = false }) => {
     const [localSchedule, setLocalSchedule] = React.useState(student.horarioSeleccionado);
     const [isScheduleDirty, setIsScheduleDirty] = React.useState(false);
+    // Estado de nota expandida eliminado: ahora se muestra siempre completa.
     const isSelected = normalizeStringForComparison(student.status) === 'seleccionado';
 
     const handleScheduleBlur = () => {
@@ -79,6 +80,21 @@ const StudentRow: React.FC<{
                         </span>
                     )}
                     
+                    {/* Trabaja */}
+                    {student.trabaja && (
+                         <a 
+                             href={student.certificadoTrabajo || '#'} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800 whitespace-nowrap hover:bg-indigo-100 transition-colors"
+                             title="Ver certificado de trabajo"
+                             onClick={(e) => !student.certificadoTrabajo && e.preventDefault()}
+                         >
+                            <span className="material-icons !text-[10px] mr-1">work</span>
+                            Trabaja
+                        </a>
+                    )}
+                    
                     {/* Penalización */}
                     {student.penalizacionAcumulada > 0 && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800 whitespace-nowrap">
@@ -86,11 +102,15 @@ const StudentRow: React.FC<{
                         </span>
                     )}
 
-                    {/* Nota del alumno (integrada) */}
+                    {/* Nota del alumno (siempre visible completa) */}
                     {student.notasEstudiante && (
-                         <div className="inline-flex items-center gap-1.5 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-800/30 rounded px-2 py-0.5 text-xs text-slate-700 dark:text-slate-300 max-w-full">
-                            <span className="font-bold text-[10px] uppercase text-yellow-700 dark:text-yellow-500 shrink-0">Nota:</span>
-                            <span className="italic truncate max-w-[250px] leading-tight" title={student.notasEstudiante}>"{student.notasEstudiante}"</span>
+                         <div 
+                            className="inline-flex items-start gap-1.5 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-800/30 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-300 w-full break-words mt-1"
+                         >
+                            <span className="font-bold text-[10px] uppercase text-yellow-700 dark:text-yellow-500 shrink-0 mt-[1px]">Nota:</span>
+                            <span className="italic leading-tight whitespace-pre-wrap">
+                                "{student.notasEstudiante}"
+                            </span>
                         </div>
                     )}
                 </div>
@@ -248,6 +268,7 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({ isTestingMod
                             <ul className="space-y-1 list-disc pl-3">
                                 <li>Terminó de cursar: <strong>+100 pts</strong></li>
                                 <li>Cursando electivas: <strong>+50 pts</strong></li>
+                                <li>Trabaja (c/certificado): <strong>+20 pts</strong></li>
                                 <li>Adeuda finales: <strong>+30 pts</strong></li>
                                 <li>Horas acumuladas: <strong>+0.5 pts/hora</strong></li>
                                 <li>Penalizaciones: <strong>- Puntos</strong></li>

@@ -3,6 +3,9 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Checkbox from './Checkbox';
 import { z } from 'zod';
 import Input from './Input';
+import { EstudianteFields } from '../types';
+import { FIELD_TRABAJA_ESTUDIANTES, FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES } from '../constants';
+import { supabase } from '../lib/supabaseClient';
 
 interface EnrollmentFormProps {
   isOpen: boolean;
@@ -12,6 +15,7 @@ interface EnrollmentFormProps {
   isSubmitting: boolean;
   horariosDisponibles?: string[];
   permiteCertificado?: boolean;
+  studentProfile: EstudianteFields | null;
 }
 
 const finalesOptions = [
@@ -117,8 +121,11 @@ type FormData = {
     otraSituacionAcademica: string;
     horarios: string[];
     certificadoLink?: string;
+    // New fields
+    trabaja: boolean;
+    certificadoTrabajoFile?: File | null;
+    existingCertificadoTrabajo?: string | null;
 };
-
 
 const initialFormData: FormData = {
     terminoDeCursar: null,
@@ -127,6 +134,9 @@ const initialFormData: FormData = {
     otraSituacionAcademica: '',
     horarios: [],
     certificadoLink: '',
+    trabaja: false,
+    certificadoTrabajoFile: null,
+    existingCertificadoTrabajo: null,
 };
 
 export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
@@ -137,12 +147,15 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
   isSubmitting,
   horariosDisponibles = [],
   permiteCertificado = false,
+  studentProfile
 }) => {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData | 'submit', string>>>({});
+  const [fileUploadProgress, setFileUploadProgress] = useState(0);
   
   const formRef = useRef<HTMLFormElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showHorariosSection = Array.isArray(horariosDisponibles) && horariosDisponibles.length > 0;
   const hasMultipleHorarios = Array.isArray(horariosDisponibles) && horariosDisponibles.length > 1;
@@ -155,6 +168,9 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
         otraSituacionAcademica: z.string(),
         horarios: z.array(z.string()),
         certificadoLink: z.string().url({ message: "Por favor, ingresa una URL válida." }).optional().or(z.literal('')),
+        trabaja: z.boolean(),
+        certificadoTrabajoFile: z.any().optional(),
+        existingCertificadoTrabajo: z.string().nullable().optional(),
     }).superRefine((data, ctx) => {
         // Validation for terminoDeCursar
         if (data.terminoDeCursar === null) {
@@ -178,12 +194,19 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
         if (showHorariosSection && hasMultipleHorarios && data.horarios.length === 0) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['horarios'], message: 'Por favor, selecciona al menos una opción de horario.' });
         }
+        
+        // Validation for Works
+        if (data.trabaja) {
+             if (!data.certificadoTrabajoFile && !data.existingCertificadoTrabajo) {
+                 ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['trabaja'], message: 'Si indicas que trabajas, debes adjuntar un certificado laboral.' });
+             }
+        }
     });
   }, [showHorariosSection, hasMultipleHorarios]);
 
   const getProgress = useCallback(() => {
     let completed = 0;
-    let total = 2; // terminoDeCursar, otraSituacionAcademica
+    let total = 3; // terminoDeCursar, otraSituacionAcademica, trabaja (checked logic)
 
     if (showHorariosSection && hasMultipleHorarios) total++;
     if (formData.terminoDeCursar !== null) total++;
@@ -193,18 +216,35 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     if (formData.otraSituacionAcademica.trim().length >= 10) completed++;
     if (formData.terminoDeCursar === true && formData.finalesAdeudados) completed++;
     if (formData.terminoDeCursar === false && formData.cursandoElectivas !== null) completed++;
+    
+    // Work Logic
+    if (formData.trabaja) {
+         if (formData.certificadoTrabajoFile || formData.existingCertificadoTrabajo) completed++;
+    } else {
+         completed++; // Counts as done if not working
+    }
 
-    // Ensure completed does not exceed total
     return { current: Math.min(completed, total), total };
   }, [formData, showHorariosSection, hasMultipleHorarios]);
   
   useEffect(() => {
     if (isOpen) {
       const initialHorarios = (horariosDisponibles && horariosDisponibles.length === 1) ? [horariosDisponibles[0]] : [];
-      setFormData({ ...initialFormData, horarios: initialHorarios });
+      
+      // Load initial state from profile
+      const works = studentProfile?.[FIELD_TRABAJA_ESTUDIANTES] || false;
+      const cert = studentProfile?.[FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES] || null;
+
+      setFormData({ 
+          ...initialFormData, 
+          horarios: initialHorarios,
+          trabaja: works,
+          existingCertificadoTrabajo: cert
+      });
       setErrors({});
+      setFileUploadProgress(0);
     }
-  }, [isOpen, horariosDisponibles]);
+  }, [isOpen, horariosDisponibles, studentProfile]);
 
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
@@ -242,6 +282,54 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
       setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleWorkCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const checked = e.target.checked;
+      setFormData(prev => ({ 
+          ...prev, 
+          trabaja: checked,
+          // If unchecking, we don't clear the file immediately in case it was a mistake, logic handles submission
+      }));
+  };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+          const file = e.target.files[0];
+          if (file.size > 5 * 1024 * 1024) { // 5MB limit
+              setErrors(prev => ({ ...prev, submit: "El archivo es demasiado grande (máx 5MB)." }));
+              return;
+          }
+          setFormData(prev => ({ ...prev, certificadoTrabajoFile: file }));
+          setErrors(prev => ({ ...prev, trabaja: undefined })); // Clear work error
+      }
+  };
+
+  const uploadCertificado = async (file: File): Promise<string> => {
+      if (!studentProfile?.id) throw new Error("No student ID for upload");
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${studentProfile.id}/certificado_trabajo_${Date.now()}.${fileExt}`;
+      const filePath = fileName;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documentos_estudiantes') // Assuming this bucket exists or using a generic one
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+           // Fallback to documentos_finalizacion if specific bucket doesn't exist (simulated environment)
+           const { error: fallbackError } = await supabase.storage
+            .from('documentos_finalizacion')
+            .upload(filePath, file, { upsert: true });
+            
+           if (fallbackError) throw fallbackError;
+           
+           const { data } = supabase.storage.from('documentos_finalizacion').getPublicUrl(filePath);
+           return data.publicUrl;
+      }
+
+      const { data } = supabase.storage.from('documentos_estudiantes').getPublicUrl(filePath);
+      return data.publicUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -256,14 +344,10 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
       }
       setErrors(newErrors);
       
-      // UX Mejorada para Móvil: Scroll al primer error
       setTimeout(() => {
-        // Buscamos elementos marcados como inválidos o con borde rojo (clase de error visual)
         const firstErrorElement = formRef.current?.querySelector('[aria-invalid="true"], .border-red-400') as HTMLElement;
         if (firstErrorElement) {
-            // Scroll suave y centrado, crucial en pantallas pequeñas
             firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Intentar enfocar sin scrollear de nuevo (evita saltos)
             firstErrorElement.focus({ preventScroll: true });
         }
       }, 100);
@@ -271,9 +355,32 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     }
     
     try {
-      await onSubmit(result.data as any);
-    } catch (error) {
-      setErrors({ submit: 'Hubo un error al enviar el formulario. Por favor, intenta nuevamente.' });
+      let certificadoUrl = formData.existingCertificadoTrabajo;
+
+      // Upload if new file
+      if (formData.trabaja && formData.certificadoTrabajoFile) {
+           setFileUploadProgress(10);
+           // Simulate progress
+           const timer = setInterval(() => setFileUploadProgress(p => Math.min(p + 10, 90)), 200);
+           certificadoUrl = await uploadCertificado(formData.certificadoTrabajoFile);
+           clearInterval(timer);
+           setFileUploadProgress(100);
+      } else if (!formData.trabaja) {
+          // If they unchecked work, we might want to clear the cert or keep it history.
+          // For now, let's keep the logic simple: if not working, no cert needed in THIS enrollment,
+          // but we might update profile to not working.
+          certificadoUrl = null; 
+      }
+
+      const finalData = {
+          ...result.data,
+          certificadoTrabajoUrl: certificadoUrl // Pass the URL to the parent handler
+      };
+
+      await onSubmit(finalData);
+    } catch (error: any) {
+      console.error(error);
+      setErrors({ submit: `Error: ${error.message || 'Hubo un error al enviar.'}` });
     }
   };
 
@@ -346,6 +453,71 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                     </p>
                 </div>
             </div>
+            
+            {/* Situación Laboral */}
+            <div className={`bg-white dark:bg-slate-800 p-6 rounded-2xl border ${errors.trabaja ? 'border-red-300 dark:border-red-800' : 'border-slate-200/70 dark:border-slate-700'} shadow-sm transition-all duration-300 hover:shadow-lg`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-icons text-blue-500 !text-xl">work</span>
+                  <h3 className="text-slate-800 dark:text-slate-100 font-semibold text-base leading-tight">
+                    Situación Laboral
+                  </h3>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
+                    Si trabajas, esto se tendrá en cuenta para la asignación de cupos y sumará puntos a tu perfil. 
+                    <br/><span className="text-xs italic opacity-80">* Esta información quedará guardada en tu perfil para futuras inscripciones.</span>
+                </p>
+
+                <div className="space-y-4">
+                    <Checkbox
+                        id="check-trabaja"
+                        name="trabaja"
+                        checked={formData.trabaja}
+                        onChange={handleWorkCheckboxChange}
+                        label="Actualmente me encuentro trabajando"
+                        disabled={isSubmitting}
+                    />
+
+                    {formData.trabaja && (
+                        <div className="animate-fade-in pl-2 border-l-2 border-blue-100 dark:border-slate-700 ml-3">
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Comprobante Laboral</label>
+                            
+                            {formData.existingCertificadoTrabajo && !formData.certificadoTrabajoFile && (
+                                <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-800 mb-3">
+                                    <div className="flex items-center gap-2 text-sm text-emerald-800 dark:text-emerald-200">
+                                        <span className="material-icons !text-lg">check_circle</span>
+                                        <span>Certificado guardado previamente</span>
+                                    </div>
+                                    <a href={formData.existingCertificadoTrabajo} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">Ver</a>
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-3">
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    onChange={handleFileChange} 
+                                    accept=".pdf,.jpg,.png,.jpeg"
+                                    className="hidden" 
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg transition-colors border border-slate-300 dark:border-slate-600"
+                                >
+                                    {formData.certificadoTrabajoFile ? 'Cambiar Archivo' : (formData.existingCertificadoTrabajo ? 'Actualizar Certificado' : 'Subir Certificado')}
+                                </button>
+                                {formData.certificadoTrabajoFile && (
+                                    <span className="text-sm text-slate-600 dark:text-slate-400 truncate max-w-[200px]">
+                                        {formData.certificadoTrabajoFile.name}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">Formatos: PDF o Imagen. Máx 5MB.</p>
+                            {errors.trabaja && <p className="text-xs text-red-500 mt-1 font-bold">{errors.trabaja}</p>}
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {showHorariosSection && (
               <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/70 dark:border-slate-700 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-slate-300/80 dark:hover:border-slate-600">
@@ -400,13 +572,13 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
             {permiteCertificado && (
               <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/70 dark:border-slate-700 shadow-sm">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="material-icons text-blue-500 !text-xl">work</span>
+                  <span className="material-icons text-blue-500 !text-xl">link</span>
                   <h3 className="text-slate-800 dark:text-slate-100 font-semibold text-base leading-tight">
-                    Certificado de Trabajo (Opcional)
+                    Enlace Adicional (Opcional)
                   </h3>
                 </div>
                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
-                    Si trabajas en un horario que podría superponerse, pega aquí un enlace a tu certificado de trabajo (ej. desde Google Drive, Dropbox). Asegúrate de que el enlace sea público.
+                    Si necesitas adjuntar otra documentación específica (ej. enlace a portfolio, CV, etc.), pégalo aquí.
                 </p>
                 <Input
                   id="certificadoLink"
@@ -553,6 +725,18 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
 
         {/* Footer */}
         <div className="p-6 flex-shrink-0 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border-t border-slate-200/60 dark:border-slate-700/60">
+            {fileUploadProgress > 0 && fileUploadProgress < 100 && (
+                <div className="mb-4">
+                    <div className="flex justify-between mb-1">
+                        <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Subiendo certificado...</span>
+                        <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{fileUploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
+                        <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${fileUploadProgress}%` }}></div>
+                    </div>
+                </div>
+            )}
+            
           <div className="flex flex-col sm:flex-row justify-end items-center gap-3">
              {hasErrors && (
                 <span className="text-xs font-bold text-red-600 dark:text-red-400 animate-pulse mr-2 hidden sm:block">

@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { ErrorInfo, ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -10,7 +10,7 @@ interface ErrorBoundaryState {
   error?: Error;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = {
     hasError: false,
     error: undefined
@@ -24,14 +24,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     console.error("Uncaught error in component:", error, errorInfo);
   }
 
-  private handleRetry = () => {
+  handleRetry = () => {
     this.setState({ hasError: false, error: undefined });
     if (this.props.onRetry) {
       this.props.onRetry();
     }
   };
 
-  private handleRefresh = () => {
+  handleRefresh = () => {
       window.location.reload();
   }
 
