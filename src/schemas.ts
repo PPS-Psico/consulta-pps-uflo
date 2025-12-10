@@ -24,11 +24,9 @@ export const estudianteFieldsSchema = z.object({
     [C.FIELD_NOMBRE_SEPARADO_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_APELLIDO_SEPARADO_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_GENERO_ESTUDIANTES]: z.enum(['Varon', 'Mujer', 'Otro']).optional().nullable(),
-    // Se cambió de enum a string para tolerar "Clínica" con tilde u otros valores legacy
     [C.FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_DNI_ESTUDIANTES]: z.number().optional().nullable(),
     [C.FIELD_FECHA_NACIMIENTO_ESTUDIANTES]: z.string().optional().nullable(),
-    // Se quitó .email() para tolerar correos mal formados importados
     [C.FIELD_CORREO_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_TELEFONO_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_NOTAS_INTERNAS_ESTUDIANTES]: z.string().optional().nullable(),
@@ -36,7 +34,9 @@ export const estudianteFieldsSchema = z.object({
     [C.FIELD_FINALIZARON_ESTUDIANTES]: z.boolean().optional().nullable(),
     [C.FIELD_USER_ID_ESTUDIANTES]: z.string().uuid().optional().nullable(),
     [C.FIELD_MUST_CHANGE_PASSWORD_ESTUDIANTES]: z.boolean().optional().nullable(),
-    [C.FIELD_ROLE_ESTUDIANTES]: z.string().optional().nullable(), // Nuevo campo
+    [C.FIELD_ROLE_ESTUDIANTES]: z.string().optional().nullable(),
+    [C.FIELD_TRABAJA_ESTUDIANTES]: z.boolean().optional().nullable(),
+    [C.FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES]: z.string().optional().nullable(),
 });
 
 export const practicaFieldsSchema = z.object({
@@ -61,7 +61,7 @@ export const solicitudPPSFieldsSchema = z.object({
     [C.FIELD_LEGAJO_PPS]: z.string().or(z.array(z.string())).optional().nullable(),
     [C.FIELD_SOLICITUD_LEGAJO_ALUMNO]: z.string().or(z.number()).optional().nullable(),
     [C.FIELD_SOLICITUD_NOMBRE_ALUMNO]: z.string().optional().nullable(),
-    [C.FIELD_SOLICITUD_EMAIL_ALUMNO]: z.string().optional().nullable(), // Relaxed email check here too if needed, but keeping stricter for new requests
+    [C.FIELD_SOLICITUD_EMAIL_ALUMNO]: z.string().optional().nullable(),
     [C.FIELD_SOLICITUD_ORIENTACION_SUGERIDA]: z.string().optional().nullable(),
     [C.FIELD_SOLICITUD_LOCALIDAD]: z.string().optional().nullable(),
     [C.FIELD_SOLICITUD_DIRECCION]: z.string().optional().nullable(),
@@ -119,7 +119,9 @@ export const convocatoriaFieldsSchema = z.object({
     [C.FIELD_TELEFONO_CONVOCATORIAS]: z.string().optional().nullable(),
     [C.FIELD_INFORME_SUBIDO_CONVOCATORIAS]: z.boolean().optional().nullable(),
     [C.FIELD_FECHA_ENTREGA_INFORME_CONVOCATORIAS]: z.string().optional().nullable(),
-    [C.FIELD_CERTIFICADO_CONVOCATORIAS]: z.any().optional().nullable(), // attachment
+    [C.FIELD_CERTIFICADO_CONVOCATORIAS]: z.any().optional().nullable(),
+    [C.FIELD_TRABAJA_CONVOCATORIAS]: z.boolean().optional().nullable(),
+    [C.FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS]: z.string().optional().nullable(),
 });
 
 export const institucionFieldsSchema = z.object({

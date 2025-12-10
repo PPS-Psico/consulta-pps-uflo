@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { LanzamientoPPS, GroupedSeleccionados } from '../types';
+import { LanzamientoPPS, GroupedSeleccionados, EstudianteFields } from '../types';
 
 type OnSubmitEnrollment = (formData: any) => Promise<void>;
 type OnSubmitSolicitudPPS = (formData: any) => Promise<void>;
@@ -14,7 +14,8 @@ interface ModalContextType {
   // Enrollment Form Modal
   isEnrollmentFormOpen: boolean;
   selectedLanzamientoForEnrollment: LanzamientoPPS | null;
-  openEnrollmentForm: (lanzamiento: LanzamientoPPS, onSubmit: OnSubmitEnrollment) => void;
+  studentProfileForEnrollment: EstudianteFields | null; // Nuevo: datos del estudiante
+  openEnrollmentForm: (lanzamiento: LanzamientoPPS, studentProfile: EstudianteFields | null, onSubmit: OnSubmitEnrollment) => void;
   closeEnrollmentForm: () => void;
   onSubmitEnrollment: OnSubmitEnrollment | null;
   isSubmittingEnrollment: boolean;
@@ -41,6 +42,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   const [isEnrollmentFormOpen, setIsEnrollmentFormOpen] = useState(false);
   const [selectedLanzamientoForEnrollment, setSelectedLanzamientoForEnrollment] = useState<LanzamientoPPS | null>(null);
+  const [studentProfileForEnrollment, setStudentProfileForEnrollment] = useState<EstudianteFields | null>(null);
   const [onSubmitEnrollment, setOnSubmitEnrollment] = useState<OnSubmitEnrollment | null>(null);
   const [isSubmittingEnrollment, setIsSubmittingEnrollment] = useState(false);
   
@@ -59,8 +61,9 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setModalInfo(null);
   }, []);
 
-  const openEnrollmentForm = useCallback((lanzamiento: LanzamientoPPS, onSubmit: OnSubmitEnrollment) => {
+  const openEnrollmentForm = useCallback((lanzamiento: LanzamientoPPS, studentProfile: EstudianteFields | null, onSubmit: OnSubmitEnrollment) => {
     setSelectedLanzamientoForEnrollment(lanzamiento);
+    setStudentProfileForEnrollment(studentProfile);
     setOnSubmitEnrollment(() => onSubmit);
     setIsEnrollmentFormOpen(true);
   }, []);
@@ -68,6 +71,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const closeEnrollmentForm = useCallback(() => {
     setIsEnrollmentFormOpen(false);
     setSelectedLanzamientoForEnrollment(null);
+    setStudentProfileForEnrollment(null);
     setOnSubmitEnrollment(null);
   }, []);
   
@@ -99,6 +103,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     closeModal,
     isEnrollmentFormOpen,
     selectedLanzamientoForEnrollment,
+    studentProfileForEnrollment,
     openEnrollmentForm,
     closeEnrollmentForm,
     onSubmitEnrollment,

@@ -37,7 +37,11 @@ import {
     FIELD_DNI_ESTUDIANTES,
     FIELD_FECHA_NACIMIENTO_ESTUDIANTES,
     FIELD_FECHA_FIN_CONVOCATORIAS,
-    FIELD_DIRECCION_CONVOCATORIAS
+    FIELD_DIRECCION_CONVOCATORIAS,
+    FIELD_TRABAJA_ESTUDIANTES,
+    FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES,
+    FIELD_TRABAJA_CONVOCATORIAS,
+    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS
 } from '../constants';
 
 export const useConvocatorias = (legajo: string, studentAirtableId: string | null, studentDetails: EstudianteFields | null, isSuperUserMode: boolean) => {
@@ -84,7 +88,25 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
 
             if (!studentAirtableId) throw new Error("No se pudo identificar al estudiante.");
             
-            // Use actual DB column names (constants)
+            // 1. Update Student Profile if Work Status Changed or New Certificate Uploaded
+            // We check against current form data. If works, we update.
+            const studentUpdates: any = {};
+            let shouldUpdateStudent = false;
+
+            if (formData.trabaja !== undefined) {
+                studentUpdates[FIELD_TRABAJA_ESTUDIANTES] = formData.trabaja;
+                shouldUpdateStudent = true;
+            }
+            if (formData.certificadoTrabajoUrl) {
+                studentUpdates[FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES] = formData.certificadoTrabajoUrl;
+                shouldUpdateStudent = true;
+            }
+
+            if (shouldUpdateStudent) {
+                await db.estudiantes.update(studentAirtableId, studentUpdates);
+            }
+
+            // 2. Create Convocatoria Record
             const newRecordFields: any = {
                 [FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: selectedLanzamiento.id,
                 [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: studentAirtableId,
@@ -95,6 +117,10 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
                 [FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS]: formData.cursandoElectivas ? "Sí" : "No",
                 [FIELD_HORARIO_FORMULA_CONVOCATORIAS]: formData.horarios.join('; '),
                 
+                // Snapshots for this specific application
+                [FIELD_TRABAJA_CONVOCATORIAS]: formData.trabaja,
+                [FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS]: formData.certificadoTrabajoUrl || studentDetails?.[FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES] || null,
+
                 // Snapshots
                 [FIELD_NOMBRE_PPS_CONVOCATORIAS]: selectedLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS],
                 [FIELD_FECHA_INICIO_CONVOCATORIAS]: selectedLanzamiento[FIELD_FECHA_INICIO_LANZAMIENTOS],
@@ -136,6 +162,8 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
             if (data) {
                 showModal('¡Inscripción Exitosa!', 'Tu solicitud ha sido registrada correctamente. Te notificaremos cuando haya novedades.');
                 queryClient.invalidateQueries({ queryKey: ['convocatorias', legajo, studentAirtableId] });
+                // Also invalidate student profile to reflect work status changes
+                queryClient.invalidateQueries({ queryKey: ['student', legajo] });
                 closeEnrollmentForm();
             }
         },
@@ -181,8 +209,8 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
                     await enrollmentMutation.mutateAsync({ formData, selectedLanzamiento: lanzamiento });
                 };
                 
-                // @ts-ignore
-                openEnrollmentForm(lanzamiento, handleSubmit);
+                // Pass studentDetails to form so it can check work status
+                openEnrollmentForm(lanzamiento, studentDetails, handleSubmit);
             } catch (e: any) {
                 console.error("Error al intentar inscribir:", e);
                 showModal("Error de Sistema", `No se pudo iniciar el proceso de inscripción: ${e.message}`);

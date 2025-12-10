@@ -23,9 +23,13 @@ import {
     FIELD_PENALIZACION_PUNTAJE,
     FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
     FIELD_ORIENTACION_LANZAMIENTOS,
+    FIELD_TRABAJA_CONVOCATORIAS,
+    FIELD_TRABAJA_ESTUDIANTES,
+    FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES,
+    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS
 } from '../constants';
 import { normalizeStringForComparison } from '../utils/formatters';
-import type { LanzamientoPPS, ConvocatoriaFields, AirtableRecord, EnrichedStudent } from '../types';
+import type { LanzamientoPPS, ConvocatoriaFields, AirtableRecord, EnrichedStudent, EstudianteFields } from '../types';
 import { sendSmartEmail } from '../utils/emailService';
 
 const SCORE_WEIGHTS = {
@@ -33,12 +37,14 @@ const SCORE_WEIGHTS = {
     CURSANDO_ELECTIVAS: 50,
     BASE_FINALES: 30,
     PER_HOUR: 0.5,
+    TRABAJA: 20, // Nuevos puntos por trabajar
 };
 
 const calculateScore = (
     enrollment: AirtableRecord<ConvocatoriaFields>,
     hours: number,
-    penalties: number
+    penalties: number,
+    works: boolean
 ): number => {
     let academicScore = 0;
     const termino = enrollment[FIELD_TERMINO_CURSAR_CONVOCATORIAS] === 'Sí';
@@ -53,9 +59,10 @@ const calculateScore = (
     }
 
     const hoursScore = hours * SCORE_WEIGHTS.PER_HOUR;
+    const workScore = works ? SCORE_WEIGHTS.TRABAJA : 0;
     const penaltyScore = penalties; 
 
-    return Math.round(academicScore + hoursScore - penaltyScore);
+    return Math.round(academicScore + hoursScore + workScore - penaltyScore);
 };
 
 export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsurance?: (id: string) => void) => {
@@ -135,8 +142,13 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
                     return Array.isArray(links) ? links.includes(String(sId)) : links === String(sId);
                 });
                 const penalizacionAcumulada = studentPenalties.reduce((sum, p) => sum + (p[FIELD_PENALIZACION_PUNTAJE] || 0), 0);
+                
+                // Determine work status - Use snapshot in enrollment if available, else current profile
+                // Enrollment field priority for snapshot accuracy
+                const works = !!enrollment[FIELD_TRABAJA_CONVOCATORIAS] || !!studentDetails[FIELD_TRABAJA_ESTUDIANTES];
+                const cert = enrollment[FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS] || studentDetails[FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES];
 
-                const puntajeTotal = calculateScore(enrollment, totalHoras, penalizacionAcumulada);
+                const puntajeTotal = calculateScore(enrollment, totalHoras, penalizacionAcumulada, works);
 
                 return {
                     enrollmentId: enrollment.id,
@@ -152,7 +164,9 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
                     horarioSeleccionado: enrollment[FIELD_HORARIO_FORMULA_CONVOCATORIAS] || '',
                     totalHoras,
                     penalizacionAcumulada,
-                    puntajeTotal
+                    puntajeTotal,
+                    trabaja: works,
+                    certificadoTrabajo: cert as string
                 };
             }).filter((item): item is EnrichedStudent => item !== null);
 

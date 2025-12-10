@@ -18,6 +18,7 @@ const AppModals: React.FC = () => {
         isEnrollmentFormOpen,
         closeEnrollmentForm,
         selectedLanzamientoForEnrollment,
+        studentProfileForEnrollment,
         isSeleccionadosModalOpen,
         closeSeleccionadosModal,
         seleccionadosData,
@@ -55,6 +56,7 @@ const AppModals: React.FC = () => {
               horariosDisponibles={horariosArray}
               isSubmitting={isSubmittingEnrollment}
               permiteCertificado={permiteCertificado}
+              studentProfile={studentProfileForEnrollment} // Pasar perfil para pre-cargar datos de trabajo
             />
 
             <SeleccionadosModal

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { AirtableRecord } from '../types';
 import { 
     FIELD_ESTUDIANTE_LINK_PRACTICAS, 
@@ -34,6 +34,9 @@ interface RecordEditModalProps {
 const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, record, initialData, tableConfig, onSave, isSaving }) => {
     const [formData, setFormData] = useState<any>({});
     const isCreateMode = !record;
+    
+    // Ref para rastrear dónde se inició el clic (para evitar cierre al seleccionar texto)
+    const mouseDownTarget = useRef<EventTarget | null>(null);
 
     useEffect(() => {
         const data: { [key: string]: any } = {};
@@ -160,8 +163,23 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
     };
     
     return (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+        <div 
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" 
+            onMouseDown={(e) => { mouseDownTarget.current = e.target; }}
+            onMouseUp={(e) => {
+                // Solo cerramos si el clic empezó Y terminó en el fondo.
+                // Esto evita cierres al seleccionar texto y soltar el mouse fuera.
+                if (mouseDownTarget.current === e.currentTarget && e.target === e.currentTarget) {
+                    onClose();
+                }
+                mouseDownTarget.current = null;
+            }}
+        >
+            <div 
+                className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] transform transition-all scale-100" 
+                onClick={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()} // Detener propagación para que el fondo no registre clics internos
+            >
                 <header className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 rounded-t-xl">
                     <div className="flex items-center gap-3">
                          <div className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg">
