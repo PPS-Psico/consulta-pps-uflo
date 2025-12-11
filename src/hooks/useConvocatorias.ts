@@ -41,7 +41,8 @@ import {
     FIELD_TRABAJA_ESTUDIANTES,
     FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES,
     FIELD_TRABAJA_CONVOCATORIAS,
-    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS
+    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS,
+    FIELD_CV_CONVOCATORIAS
 } from '../constants';
 
 export const useConvocatorias = (legajo: string, studentAirtableId: string | null, studentDetails: EstudianteFields | null, isSuperUserMode: boolean) => {
@@ -117,9 +118,10 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
                 [FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS]: formData.cursandoElectivas ? "Sí" : "No",
                 [FIELD_HORARIO_FORMULA_CONVOCATORIAS]: formData.horarios.join('; '),
                 
-                // Snapshots for this specific application
+                // Snapshots for this specific application (Work info specific to this enrollment)
                 [FIELD_TRABAJA_CONVOCATORIAS]: formData.trabaja,
                 [FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS]: formData.certificadoTrabajoUrl || studentDetails?.[FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES] || null,
+                [FIELD_CV_CONVOCATORIAS]: formData.cvUrl || null,
 
                 // Snapshots
                 [FIELD_NOMBRE_PPS_CONVOCATORIAS]: selectedLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS],
