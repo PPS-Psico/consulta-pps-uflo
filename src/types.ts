@@ -118,6 +118,7 @@ export interface EnrichedStudent {
     horarioSeleccionado: string;
     trabaja: boolean;
     certificadoTrabajo: string | null;
+    cvUrl: string | null;
 }
 
 export interface InformeCorreccionStudent {

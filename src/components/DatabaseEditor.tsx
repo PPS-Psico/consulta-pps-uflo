@@ -52,7 +52,9 @@ import {
     FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
     FIELD_TERMINO_CURSAR_CONVOCATORIAS,
     FIELD_FINALES_ADEUDA_CONVOCATORIAS,
-    FIELD_NOMBRE_PPS_CONVOCATORIAS
+    FIELD_NOMBRE_PPS_CONVOCATORIAS,
+    FIELD_CV_CONVOCATORIAS,
+    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS
 } from '../constants';
 
 interface FieldConfig {
@@ -111,6 +113,8 @@ const EDITABLE_TABLES: Record<string, TableConfig> = {
             { key: FIELD_TERMINO_CURSAR_CONVOCATORIAS, label: 'Terminó Cursar', type: 'select', options: ['Sí', 'No'] },
             { key: FIELD_FINALES_ADEUDA_CONVOCATORIAS, label: 'Finales Adeudados', type: 'text' },
             { key: FIELD_FECHA_INICIO_CONVOCATORIAS, label: 'Inicio', type: 'date' },
+            { key: FIELD_CV_CONVOCATORIAS, label: 'Link CV', type: 'text' },
+            { key: FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS, label: 'Link Cert. Trabajo', type: 'text' },
         ]
     },
     practicas: {
@@ -573,9 +577,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     };
 
     const handleDelete = (recordId: string) => {
-        if (window.confirm('¿Estás seguro de que quieres eliminar este registro? Esta acción no se puede deshacer.')) {
-            deleteMutation.mutate(recordId);
-        }
+        deleteMutation.mutate(recordId);
     };
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {

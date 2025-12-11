@@ -26,7 +26,8 @@ import {
     FIELD_TRABAJA_CONVOCATORIAS,
     FIELD_TRABAJA_ESTUDIANTES,
     FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES,
-    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS
+    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS,
+    FIELD_CV_CONVOCATORIAS
 } from '../constants';
 import { normalizeStringForComparison } from '../utils/formatters';
 import type { LanzamientoPPS, ConvocatoriaFields, AirtableRecord, EnrichedStudent, EstudianteFields } from '../types';
@@ -37,7 +38,7 @@ const SCORE_WEIGHTS = {
     CURSANDO_ELECTIVAS: 50,
     BASE_FINALES: 30,
     PER_HOUR: 0.5,
-    TRABAJA: 20, // Nuevos puntos por trabajar
+    TRABAJA: 20,
 };
 
 const calculateScore = (
@@ -143,10 +144,12 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
                 });
                 const penalizacionAcumulada = studentPenalties.reduce((sum, p) => sum + (p[FIELD_PENALIZACION_PUNTAJE] || 0), 0);
                 
-                // Determine work status - Use snapshot in enrollment if available, else current profile
-                // Enrollment field priority for snapshot accuracy
+                // Determine work status
                 const works = !!enrollment[FIELD_TRABAJA_CONVOCATORIAS] || !!studentDetails[FIELD_TRABAJA_ESTUDIANTES];
                 const cert = enrollment[FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS] || studentDetails[FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES];
+                
+                // Get CV Url if exists
+                const cvUrl = enrollment[FIELD_CV_CONVOCATORIAS] as string | null;
 
                 const puntajeTotal = calculateScore(enrollment, totalHoras, penalizacionAcumulada, works);
 
@@ -166,7 +169,8 @@ export const useSeleccionadorLogic = (isTestingMode = false, onNavigateToInsuran
                     penalizacionAcumulada,
                     puntajeTotal,
                     trabaja: works,
-                    certificadoTrabajo: cert as string
+                    certificadoTrabajo: cert as string,
+                    cvUrl: cvUrl
                 };
             }).filter((item): item is EnrichedStudent => item !== null);
 

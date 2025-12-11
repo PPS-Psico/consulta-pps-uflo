@@ -95,6 +95,20 @@ const StudentRow: React.FC<{
                         </a>
                     )}
                     
+                    {/* NEW: CV Badge */}
+                    {student.cvUrl && (
+                        <a 
+                             href={student.cvUrl} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-200 dark:bg-fuchsia-900/20 dark:text-fuchsia-300 dark:border-fuchsia-800 whitespace-nowrap hover:bg-fuchsia-100 transition-colors"
+                             title="Ver Curriculum Vitae"
+                         >
+                            <span className="material-icons !text-[10px] mr-1">description</span>
+                            CV
+                        </a>
+                    )}
+                    
                     {/* Penalización */}
                     {student.penalizacionAcumulada > 0 && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800 whitespace-nowrap">

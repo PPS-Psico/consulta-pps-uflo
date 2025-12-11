@@ -54,7 +54,7 @@ const mockLastLanzamiento = {
   [FIELD_INFORME_LANZAMIENTOS]: 'http://example.com/informe-mock',
   [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: 'Lunes 9 a 13hs; Miércoles 14 a 18hs',
   [FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS]: true,
-  [FIELD_REQ_CV_LANZAMIENTOS]: false
+  [FIELD_REQ_CV_LANZAMIENTOS]: false 
 };
 
 type FormData = {
@@ -68,7 +68,7 @@ type FormData = {
     informe: string | undefined;
     estadoConvocatoria: string | undefined;
     reqCertificadoTrabajo: boolean;
-    reqCv: boolean;
+    reqCv: boolean; 
 };
 
 const initialState: FormData = {
@@ -80,7 +80,7 @@ const initialState: FormData = {
     cuposDisponibles: 1,
     informe: '',
     estadoConvocatoria: 'Abierta',
-    reqCertificadoTrabajo: true, // Default to true as it is common
+    reqCertificadoTrabajo: true,
     reqCv: false,
 };
 
@@ -352,7 +352,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             }
         },
         onError: (error: any) => {
-            setToastInfo({ message: `Error al lanzar: ${error.message}`, type: 'error' });
+            // FIX: Ensure we extract the message string correctly from potentially nested error objects
+            const msg = error?.error?.message || error?.message || JSON.stringify(error);
+            setToastInfo({ message: `Error al lanzar: ${msg}`, type: 'error' });
         },
     });
     
@@ -459,8 +461,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             [FIELD_FECHA_INICIO_LANZAMIENTOS]: formData.fechaInicio,
             [FIELD_FECHA_FIN_LANZAMIENTOS]: formData.fechaFin,
             [FIELD_ORIENTACION_LANZAMIENTOS]: formData.orientacion,
-            [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: formData.horasAcreditadas,
-            [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: formData.cuposDisponibles,
+            // FIX: Ensure numeric types for numbers
+            [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: Number(formData.horasAcreditadas),
+            [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: Number(formData.cuposDisponibles),
             [FIELD_INFORME_LANZAMIENTOS]: formData.informe,
             [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: horarioFinal,
             [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: formData.estadoConvocatoria,
@@ -559,16 +562,19 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                 <form onSubmit={handleSubmit} className="mt-8 space-y-8 animate-fade-in">
                     
                     {/* BLOQUE 1: SELECCIÓN DE INSTITUCIÓN (PREMIUM UI) */}
-                    <div className="relative">
+                    <div className={`relative group ${isDropdownOpen ? 'z-50' : 'z-30'}`}>
+                        <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+                        </div>
+
                         <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-blue-600 rounded-l-md shadow-sm"></div>
-                        <div className="pl-6">
+                        <div className="pl-6 relative z-20">
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
                                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 text-sm font-bold shadow-sm border border-blue-200 dark:border-blue-800">1</span>
                                 Institución
                             </h3>
                             
-                            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative">
 
                                 <div className="flex flex-col md:flex-row gap-4 items-end">
                                     <div className="relative flex-grow w-full">
@@ -592,9 +598,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 material-icons text-slate-400 !text-2xl">search</span>
                                         </div>
 
-                                        {/* Dropdown de Resultados */}
+                                        {/* Dropdown de Resultados - Increased z-index to fly above everything */}
                                         {isDropdownOpen && filteredInstitutions.length > 0 && (
-                                            <div className="absolute z-20 mt-2 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden animate-fade-in-up max-h-60 overflow-y-auto">
+                                            <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden animate-fade-in-up max-h-60 overflow-y-auto">
                                                 <ul>
                                                     {filteredInstitutions.map(inst => (
                                                         <li 
@@ -645,17 +651,20 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                     </div>
 
                     {/* BLOQUE 2: DETALLES ACADÉMICOS (PREMIUM UI) */}
-                    <div className="relative">
+                    <div className="relative group z-20">
+                         <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                             <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/5 rounded-full -ml-10 -mb-10 pointer-events-none"></div>
+                         </div>
+                        
                         <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-400 to-indigo-600 rounded-l-md shadow-sm"></div>
-                        <div className="pl-6">
+                        <div className="pl-6 relative z-20">
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
                                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-sm font-bold shadow-sm border border-indigo-200 dark:border-indigo-800">2</span>
                                 Detalles Académicos
                             </h3>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
-                                <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/5 rounded-full -ml-10 -mb-10 pointer-events-none"></div>
-
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative">
+                                
                                 <InputWrapper label="Orientación" icon="school">
                                     <select name="orientacion" value={formData.orientacion as string} onChange={handleChange} className={inputClass} required>
                                         <option value="">Seleccionar...</option>
@@ -697,16 +706,19 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                     </div>
 
                     {/* BLOQUE 3: LOGÍSTICA (PREMIUM UI) */}
-                    <div className="relative">
+                    <div className="relative group z-10">
+                         <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+                              <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+                         </div>
+
                         <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-l-md shadow-sm"></div>
-                        <div className="pl-6">
+                        <div className="pl-6 relative z-20">
                              <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
                                 <span className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-300 text-sm font-bold shadow-sm border border-emerald-200 dark:border-emerald-800">3</span>
                                 Cronograma y Logística
                             </h3>
 
-                            <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-6 shadow-sm relative overflow-hidden">
-                                 <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+                            <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-6 shadow-sm relative">
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                                     <InputWrapper label="Fecha de Inicio" icon="event">
@@ -757,7 +769,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                     </div>
 
                     {/* ACTION FOOTER */}
-                    <div className="pt-6 flex justify-end sticky bottom-6 z-30">
+                    <div className="pt-6 flex justify-end sticky bottom-6 z-40">
                         <button 
                             type="submit" 
                             disabled={createLaunchMutation.isPending}
