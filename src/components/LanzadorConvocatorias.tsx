@@ -21,7 +21,9 @@ import {
   FIELD_DIRECCION_INSTITUCIONES,
   FIELD_TELEFONO_INSTITUCIONES,
   FIELD_TUTOR_INSTITUCIONES,
-  TABLE_NAME_INSTITUCIONES
+  TABLE_NAME_INSTITUCIONES,
+  FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS,
+  FIELD_REQ_CV_LANZAMIENTOS
 } from '../constants';
 import Card from './Card';
 import Loader from './Loader';
@@ -36,6 +38,7 @@ import CollapsibleSection from './CollapsibleSection';
 import Input from './Input';
 import Select from './Select';
 import Button from './Button';
+import Checkbox from './Checkbox';
 
 const mockInstitutions = [
   { id: 'recInstMock1', [FIELD_NOMBRE_INSTITUCIONES]: 'Hospital de Juguete' },
@@ -50,10 +53,12 @@ const mockLastLanzamiento = {
   [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: 5,
   [FIELD_INFORME_LANZAMIENTOS]: 'http://example.com/informe-mock',
   [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: 'Lunes 9 a 13hs; Miércoles 14 a 18hs',
+  [FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS]: true,
+  [FIELD_REQ_CV_LANZAMIENTOS]: false
 };
 
 type FormData = {
-    [key: string]: string | number | undefined | null | string[];
+    [key: string]: string | number | undefined | null | string[] | boolean;
     nombrePPS: string | undefined;
     fechaInicio: string | undefined;
     fechaFin: string | undefined;
@@ -62,6 +67,8 @@ type FormData = {
     cuposDisponibles: number | undefined;
     informe: string | undefined;
     estadoConvocatoria: string | undefined;
+    reqCertificadoTrabajo: boolean;
+    reqCv: boolean;
 };
 
 const initialState: FormData = {
@@ -73,6 +80,8 @@ const initialState: FormData = {
     cuposDisponibles: 1,
     informe: '',
     estadoConvocatoria: 'Abierta',
+    reqCertificadoTrabajo: true, // Default to true as it is common
+    reqCv: false,
 };
 
 interface LanzadorConvocatoriasProps {
@@ -194,6 +203,8 @@ const LAUNCH_TABLE_CONFIG = {
         { key: FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS, label: 'Estado Convocatoria', type: 'select' as const, options: ['Abierta', 'Cerrado', 'Oculto'] },
         { key: FIELD_ESTADO_GESTION_LANZAMIENTOS, label: 'Estado Gestión', type: 'select' as const, options: ['Pendiente de Gestión', 'En Conversación', 'Relanzamiento Confirmado', 'No se Relanza', 'Archivado'] },
         { key: FIELD_NOTAS_GESTION_LANZAMIENTOS, label: 'Notas de Gestión', type: 'textarea' as const },
+        { key: FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS, label: 'Pedir Cert. Trabajo', type: 'checkbox' as const },
+        { key: FIELD_REQ_CV_LANZAMIENTOS, label: 'Pedir CV', type: 'checkbox' as const },
     ]
 };
 
@@ -388,8 +399,13 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const { name, value, type } = e.target;
+        const checked = (e.target as HTMLInputElement).checked;
+        
+        setFormData(prev => ({ 
+            ...prev, 
+            [name]: type === 'checkbox' ? checked : value 
+        }));
     };
 
     const handleScheduleChange = (index: number, value: string) => {
@@ -418,6 +434,8 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             horasAcreditadas: lastLanzamiento[FIELD_HORAS_ACREDITADAS_LANZAMIENTOS],
             cuposDisponibles: lastLanzamiento[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS],
             informe: lastLanzamiento[FIELD_INFORME_LANZAMIENTOS],
+            reqCertificadoTrabajo: lastLanzamiento[FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS] !== false, // Default true if undefined
+            reqCv: !!lastLanzamiento[FIELD_REQ_CV_LANZAMIENTOS]
         }));
         setSchedules(prevSchedulesList);
         setToastInfo({ message: 'Datos de la última convocatoria cargados.', type: 'success' });
@@ -446,7 +464,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             [FIELD_INFORME_LANZAMIENTOS]: formData.informe,
             [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: horarioFinal,
             [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: formData.estadoConvocatoria,
-            [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Relanzamiento Confirmado' 
+            [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Relanzamiento Confirmado',
+            [FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS]: formData.reqCertificadoTrabajo,
+            [FIELD_REQ_CV_LANZAMIENTOS]: formData.reqCv
         };
         createLaunchMutation.mutate(finalPayload);
     };
@@ -637,7 +657,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/5 rounded-full -ml-10 -mb-10 pointer-events-none"></div>
 
                                 <InputWrapper label="Orientación" icon="school">
-                                    <select name="orientacion" value={formData.orientacion} onChange={handleChange} className={inputClass} required>
+                                    <select name="orientacion" value={formData.orientacion as string} onChange={handleChange} className={inputClass} required>
                                         <option value="">Seleccionar...</option>
                                         {ALL_ORIENTACIONES.map(o => <option key={o} value={o}>{o}</option>)}
                                     </select>
@@ -645,11 +665,32 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <InputWrapper label="Horas Acreditadas" icon="schedule">
-                                        <input type="number" name="horasAcreditadas" value={formData.horasAcreditadas} onChange={handleChange} className={inputClass} required min="1" />
+                                        <input type="number" name="horasAcreditadas" value={formData.horasAcreditadas as number} onChange={handleChange} className={inputClass} required min="1" />
                                     </InputWrapper>
                                     <InputWrapper label="Cupos Disponibles" icon="group_add">
-                                        <input type="number" name="cuposDisponibles" value={formData.cuposDisponibles} onChange={handleChange} className={inputClass} required min="1" />
+                                        <input type="number" name="cuposDisponibles" value={formData.cuposDisponibles as number} onChange={handleChange} className={inputClass} required min="1" />
                                     </InputWrapper>
+                                </div>
+
+                                {/* CHECKBOXES PARA REQUISITOS */}
+                                <div className="col-span-1 md:col-span-2 space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Requisitos de Documentación</label>
+                                    <div className="flex flex-col sm:flex-row gap-6">
+                                        <Checkbox 
+                                            id="check-certificado" 
+                                            name="reqCertificadoTrabajo" 
+                                            label="Solicitar Certificado de Trabajo (si aplica)" 
+                                            checked={formData.reqCertificadoTrabajo as boolean} 
+                                            onChange={handleChange} 
+                                        />
+                                        <Checkbox 
+                                            id="check-cv" 
+                                            name="reqCv" 
+                                            label="Solicitar Curriculum Vitae (CV)" 
+                                            checked={formData.reqCv as boolean} 
+                                            onChange={handleChange} 
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -669,11 +710,11 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                                     <InputWrapper label="Fecha de Inicio" icon="event">
-                                        <input type="date" name="fechaInicio" value={formData.fechaInicio} onChange={handleChange} className={inputClass} required />
+                                        <input type="date" name="fechaInicio" value={formData.fechaInicio as string} onChange={handleChange} className={inputClass} required />
                                     </InputWrapper>
 
                                     <InputWrapper label="Fecha de Finalización" icon="event_busy">
-                                        <input type="date" name="fechaFin" value={formData.fechaFin} onChange={handleChange} className={inputClass} required />
+                                        <input type="date" name="fechaFin" value={formData.fechaFin as string} onChange={handleChange} className={inputClass} required />
                                     </InputWrapper>
                                 </div>
 
@@ -708,7 +749,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
                                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
                                     <InputWrapper label="Link al Programa / Informe (Opcional)" icon="link">
-                                        <input type="url" name="informe" value={formData.informe} onChange={handleChange} placeholder="https://..." className={inputClass} />
+                                        <input type="url" name="informe" value={formData.informe as string} onChange={handleChange} placeholder="https://..." className={inputClass} />
                                     </InputWrapper>
                                 </div>
                             </div>

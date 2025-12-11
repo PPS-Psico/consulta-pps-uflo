@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import Input from './Input';
@@ -178,8 +177,10 @@ const EmailAutomationManager: React.FC = () => {
                 .replace('{{nombre_pps}}', 'Clínica Demo');
 
             // 1. Generar HTML Premium
-            // Usamos el Subject como título del encabezado
-            const htmlBody = generateHtmlTemplate(rawTextBody, subject);
+            // Construir el título interno (H1) como un saludo personal, igual que en producción
+            const firstName = studentName.split(' ')[0];
+            const htmlTitle = `Hola, ${firstName}`;
+            const htmlBody = generateHtmlTemplate(rawTextBody, htmlTitle);
             
             // 2. Generar texto plano limpio (sin saludo, para que no se duplique si el backend lo agrega)
             const cleanTextBody = stripGreeting(rawTextBody);

@@ -8,7 +8,9 @@ import SolicitudPPSForm from './SolicitudPPSForm'; // Import the new form
 import { 
     FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS, 
     FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS,
-    FIELD_NOMBRE_PPS_LANZAMIENTOS 
+    FIELD_NOMBRE_PPS_LANZAMIENTOS,
+    FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS,
+    FIELD_REQ_CV_LANZAMIENTOS
 } from '../constants';
 
 const AppModals: React.FC = () => {
@@ -36,6 +38,10 @@ const AppModals: React.FC = () => {
     const horariosArray = horariosStr ? horariosStr.split(';').map(h => h.trim()).filter(Boolean) : [];
     const permiteCertificado = !!selectedLanzamientoForEnrollment?.[FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS];
     
+    // New Config Flags
+    const reqCertificadoTrabajo = selectedLanzamientoForEnrollment?.[FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS] !== false; // Default true for legacy
+    const reqCv = !!selectedLanzamientoForEnrollment?.[FIELD_REQ_CV_LANZAMIENTOS];
+    
     // Fix: Use constant key instead of hardcoded string to ensure compatibility with snake_case DB response
     const convocatoriaName = selectedLanzamientoForEnrollment?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Convocatoria';
 
@@ -56,7 +62,9 @@ const AppModals: React.FC = () => {
               horariosDisponibles={horariosArray}
               isSubmitting={isSubmittingEnrollment}
               permiteCertificado={permiteCertificado}
-              studentProfile={studentProfileForEnrollment} // Pasar perfil para pre-cargar datos de trabajo
+              studentProfile={studentProfileForEnrollment} 
+              reqCertificadoTrabajo={reqCertificadoTrabajo}
+              reqCv={reqCv}
             />
 
             <SeleccionadosModal

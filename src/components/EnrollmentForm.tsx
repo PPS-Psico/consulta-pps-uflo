@@ -16,6 +16,8 @@ interface EnrollmentFormProps {
   horariosDisponibles?: string[];
   permiteCertificado?: boolean;
   studentProfile: EstudianteFields | null;
+  reqCertificadoTrabajo?: boolean;
+  reqCv?: boolean;
 }
 
 const finalesOptions = [
@@ -125,6 +127,7 @@ type FormData = {
     trabaja: boolean;
     certificadoTrabajoFile?: File | null;
     existingCertificadoTrabajo?: string | null;
+    cvFile?: File | null;
 };
 
 const initialFormData: FormData = {
@@ -137,6 +140,7 @@ const initialFormData: FormData = {
     trabaja: false,
     certificadoTrabajoFile: null,
     existingCertificadoTrabajo: null,
+    cvFile: null,
 };
 
 export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
@@ -147,7 +151,9 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
   isSubmitting,
   horariosDisponibles = [],
   permiteCertificado = false,
-  studentProfile
+  studentProfile,
+  reqCertificadoTrabajo = true,
+  reqCv = false,
 }) => {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData | 'submit', string>>>({});
@@ -155,7 +161,8 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
   
   const formRef = useRef<HTMLFormElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const certFileInputRef = useRef<HTMLInputElement>(null);
+  const cvFileInputRef = useRef<HTMLInputElement>(null);
 
   const showHorariosSection = Array.isArray(horariosDisponibles) && horariosDisponibles.length > 0;
   const hasMultipleHorarios = Array.isArray(horariosDisponibles) && horariosDisponibles.length > 1;
@@ -171,6 +178,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
         trabaja: z.boolean(),
         certificadoTrabajoFile: z.any().optional(),
         existingCertificadoTrabajo: z.string().nullable().optional(),
+        cvFile: z.any().optional(),
     }).superRefine((data, ctx) => {
         // Validation for terminoDeCursar
         if (data.terminoDeCursar === null) {
@@ -195,14 +203,21 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
             ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['horarios'], message: 'Por favor, selecciona al menos una opción de horario.' });
         }
         
-        // Validation for Works
-        if (data.trabaja) {
+        // Validation for Works - Only if required by launch AND user says they work
+        if (data.trabaja && reqCertificadoTrabajo) {
              if (!data.certificadoTrabajoFile && !data.existingCertificadoTrabajo) {
-                 ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['trabaja'], message: 'Si indicas que trabajas, debes adjuntar un certificado laboral.' });
+                 ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['trabaja'], message: 'Debes adjuntar un certificado laboral.' });
              }
         }
+
+        // Validation for CV - Only if required by launch
+        if (reqCv) {
+            if (!data.cvFile) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cvFile'], message: 'Es obligatorio adjuntar tu Curriculum Vitae.' });
+            }
+        }
     });
-  }, [showHorariosSection, hasMultipleHorarios]);
+  }, [showHorariosSection, hasMultipleHorarios, reqCertificadoTrabajo, reqCv]);
 
   const getProgress = useCallback(() => {
     let completed = 0;
@@ -210,6 +225,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
 
     if (showHorariosSection && hasMultipleHorarios) total++;
     if (formData.terminoDeCursar !== null) total++;
+    if (reqCv) total++;
 
     if (showHorariosSection && hasMultipleHorarios && formData.horarios.length > 0) completed++;
     if (formData.terminoDeCursar !== null) completed++;
@@ -219,13 +235,20 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     
     // Work Logic
     if (formData.trabaja) {
-         if (formData.certificadoTrabajoFile || formData.existingCertificadoTrabajo) completed++;
+        if (reqCertificadoTrabajo) {
+            if (formData.certificadoTrabajoFile || formData.existingCertificadoTrabajo) completed++;
+        } else {
+             completed++; // Counts as done if just checked "yes" and no cert required
+        }
     } else {
          completed++; // Counts as done if not working
     }
+    
+    // CV Logic
+    if (reqCv && formData.cvFile) completed++;
 
     return { current: Math.min(completed, total), total };
-  }, [formData, showHorariosSection, hasMultipleHorarios]);
+  }, [formData, showHorariosSection, hasMultipleHorarios, reqCertificadoTrabajo, reqCv]);
   
   useEffect(() => {
     if (isOpen) {
@@ -246,6 +269,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     }
   }, [isOpen, horariosDisponibles, studentProfile]);
 
+  // Focus trap logic...
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
     const modalNode = modalRef.current;
@@ -287,46 +311,43 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
       setFormData(prev => ({ 
           ...prev, 
           trabaja: checked,
-          // If unchecking, we don't clear the file immediately in case it was a mistake, logic handles submission
       }));
   };
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'certificadoTrabajoFile' | 'cvFile') => {
       if (e.target.files && e.target.files.length > 0) {
           const file = e.target.files[0];
           if (file.size > 5 * 1024 * 1024) { // 5MB limit
               setErrors(prev => ({ ...prev, submit: "El archivo es demasiado grande (máx 5MB)." }));
               return;
           }
-          setFormData(prev => ({ ...prev, certificadoTrabajoFile: file }));
-          setErrors(prev => ({ ...prev, trabaja: undefined })); // Clear work error
+          setFormData(prev => ({ ...prev, [fieldName]: file }));
+          
+          if (fieldName === 'certificadoTrabajoFile') setErrors(prev => ({ ...prev, trabaja: undefined }));
+          if (fieldName === 'cvFile') setErrors(prev => ({ ...prev, cvFile: undefined }));
       }
   };
 
-  const uploadCertificado = async (file: File): Promise<string> => {
+  const uploadFile = async (file: File, folder: string): Promise<string> => {
       if (!studentProfile?.id) throw new Error("No student ID for upload");
       
       const fileExt = file.name.split('.').pop();
-      const fileName = `${studentProfile.id}/certificado_trabajo_${Date.now()}.${fileExt}`;
-      const filePath = fileName;
+      const fileName = `${studentProfile.id}/${folder}_${Date.now()}.${fileExt}`;
+      
+      // Use 'documentos_estudiantes' for certs and cvs (as requested to store in same place)
+      // Fallback bucket logic handled here if needed
+      const bucketName = 'documentos_estudiantes';
 
       const { error: uploadError } = await supabase.storage
-        .from('documentos_estudiantes') // Assuming this bucket exists or using a generic one
-        .upload(filePath, file, { upsert: true });
+        .from(bucketName) 
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) {
-           // Fallback to documentos_finalizacion if specific bucket doesn't exist (simulated environment)
-           const { error: fallbackError } = await supabase.storage
-            .from('documentos_finalizacion')
-            .upload(filePath, file, { upsert: true });
-            
-           if (fallbackError) throw fallbackError;
-           
-           const { data } = supabase.storage.from('documentos_finalizacion').getPublicUrl(filePath);
-           return data.publicUrl;
+           // Fallback logic for testing environments if needed
+           throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
-      const { data } = supabase.storage.from('documentos_estudiantes').getPublicUrl(filePath);
+      const { data } = supabase.storage.from(bucketName).getPublicUrl(fileName);
       return data.publicUrl;
   };
 
@@ -356,25 +377,39 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     
     try {
       let certificadoUrl = formData.existingCertificadoTrabajo;
+      let cvUrl = null;
 
-      // Upload if new file
+      // Calculate progress steps for smoother UI feedback
+      let steps = 0;
+      if (formData.trabaja && formData.certificadoTrabajoFile) steps++;
+      if (formData.cvFile) steps++;
+      
+      let currentStep = 0;
+      const updateProgress = () => {
+          currentStep++;
+          setFileUploadProgress((currentStep / (steps || 1)) * 100);
+      }
+
+      // Upload Certificado if new file
       if (formData.trabaja && formData.certificadoTrabajoFile) {
-           setFileUploadProgress(10);
-           // Simulate progress
-           const timer = setInterval(() => setFileUploadProgress(p => Math.min(p + 10, 90)), 200);
-           certificadoUrl = await uploadCertificado(formData.certificadoTrabajoFile);
-           clearInterval(timer);
-           setFileUploadProgress(100);
+           if (steps > 0) setFileUploadProgress(10); 
+           certificadoUrl = await uploadFile(formData.certificadoTrabajoFile, 'certificado_trabajo');
+           updateProgress();
       } else if (!formData.trabaja) {
-          // If they unchecked work, we might want to clear the cert or keep it history.
-          // For now, let's keep the logic simple: if not working, no cert needed in THIS enrollment,
-          // but we might update profile to not working.
           certificadoUrl = null; 
+      }
+
+      // Upload CV if exists
+      if (formData.cvFile) {
+          if (steps > 0 && fileUploadProgress === 0) setFileUploadProgress(10);
+          cvUrl = await uploadFile(formData.cvFile, 'cv');
+          updateProgress();
       }
 
       const finalData = {
           ...result.data,
-          certificadoTrabajoUrl: certificadoUrl // Pass the URL to the parent handler
+          certificadoTrabajoUrl: certificadoUrl,
+          cvUrl: cvUrl
       };
 
       await onSubmit(finalData);
@@ -464,7 +499,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
                     Si trabajas, esto se tendrá en cuenta para la asignación de cupos y sumará puntos a tu perfil. 
-                    <br/><span className="text-xs italic opacity-80">* Esta información quedará guardada en tu perfil para futuras inscripciones.</span>
+                    <br/><span className="text-xs italic opacity-80">* Esta información quedará guardada en tu perfil.</span>
                 </p>
 
                 <div className="space-y-4">
@@ -477,7 +512,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                         disabled={isSubmitting}
                     />
 
-                    {formData.trabaja && (
+                    {formData.trabaja && reqCertificadoTrabajo && (
                         <div className="animate-fade-in pl-2 border-l-2 border-blue-100 dark:border-slate-700 ml-3">
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Comprobante Laboral</label>
                             
@@ -494,14 +529,14 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                             <div className="flex items-center gap-3">
                                 <input 
                                     type="file" 
-                                    ref={fileInputRef} 
-                                    onChange={handleFileChange} 
+                                    ref={certFileInputRef} 
+                                    onChange={(e) => handleFileChange(e, 'certificadoTrabajoFile')} 
                                     accept=".pdf,.jpg,.png,.jpeg"
                                     className="hidden" 
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => fileInputRef.current?.click()}
+                                    onClick={() => certFileInputRef.current?.click()}
                                     className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg transition-colors border border-slate-300 dark:border-slate-600"
                                 >
                                     {formData.certificadoTrabajoFile ? 'Cambiar Archivo' : (formData.existingCertificadoTrabajo ? 'Actualizar Certificado' : 'Subir Certificado')}
@@ -518,6 +553,46 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* CV Section (Optional/Required based on Launch) */}
+            {reqCv && (
+                <div className={`bg-white dark:bg-slate-800 p-6 rounded-2xl border ${errors.cvFile ? 'border-red-300 dark:border-red-800' : 'border-slate-200/70 dark:border-slate-700'} shadow-sm transition-all duration-300 hover:shadow-lg`}>
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="material-icons text-blue-500 !text-xl">description</span>
+                        <h3 className="text-slate-800 dark:text-slate-100 font-semibold text-base leading-tight">
+                            Curriculum Vitae
+                        </h3>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
+                        Esta convocatoria requiere la presentación de tu CV actualizado.
+                    </p>
+                    
+                    <div className="flex items-center gap-3">
+                         <input 
+                            type="file" 
+                            ref={cvFileInputRef} 
+                            onChange={(e) => handleFileChange(e, 'cvFile')} 
+                            accept=".pdf,.doc,.docx"
+                            className="hidden" 
+                        />
+                        <button
+                            type="button"
+                            onClick={() => cvFileInputRef.current?.click()}
+                            className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg transition-colors border border-slate-300 dark:border-slate-600 flex items-center gap-2"
+                        >
+                            <span className="material-icons !text-lg">upload_file</span>
+                            {formData.cvFile ? 'Cambiar CV' : 'Adjuntar CV'}
+                        </button>
+                        {formData.cvFile && (
+                            <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium truncate max-w-[200px] flex items-center gap-1">
+                                <span className="material-icons !text-sm">check</span>
+                                {formData.cvFile.name}
+                            </span>
+                        )}
+                    </div>
+                    {errors.cvFile && <p className="text-xs text-red-500 mt-2 font-bold">{errors.cvFile}</p>}
+                </div>
+            )}
 
             {showHorariosSection && (
               <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/70 dark:border-slate-700 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-slate-300/80 dark:hover:border-slate-600">
@@ -578,7 +653,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                   </h3>
                 </div>
                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
-                    Si necesitas adjuntar otra documentación específica (ej. enlace a portfolio, CV, etc.), pégalo aquí.
+                    Si necesitas adjuntar otra documentación específica (ej. enlace a portfolio, etc.), pégalo aquí.
                 </p>
                 <Input
                   id="certificadoLink"
@@ -728,8 +803,8 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
             {fileUploadProgress > 0 && fileUploadProgress < 100 && (
                 <div className="mb-4">
                     <div className="flex justify-between mb-1">
-                        <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Subiendo certificado...</span>
-                        <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{fileUploadProgress}%</span>
+                        <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Subiendo archivos...</span>
+                        <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{Math.round(fileUploadProgress)}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
                         <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${fileUploadProgress}%` }}></div>
