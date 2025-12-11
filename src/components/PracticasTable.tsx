@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Practica } from '../types';
 import {
@@ -17,7 +18,7 @@ import {
 } from '../utils/formatters';
 import EmptyState from './EmptyState';
 
-// Helper to clean weird JSON/Array string formats like ["Name"] or {Name}
+// Helper para limpiar nombres que vienen como arrays/JSON de Airtable
 const cleanInstitutionName = (val: any): string => {
     if (val === null || val === undefined) return 'N/A';
     if (Array.isArray(val)) return cleanInstitutionName(val[0]);
@@ -30,41 +31,11 @@ const cleanInstitutionName = (val: any): string => {
             }
         } catch (e) {}
     }
-    // Updated regex to include curly braces {}
     return str.replace(/[\[\]\{\}"]/g, '').trim();
 }
 
-const NOTA_OPTIONS = ['Sin calificar', 'Entregado (sin corregir)', 'No Entregado', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
-// Mobile options filtered as requested: Only numbers, Desaprobado, or reset to Sin calificar
-const MOBILE_NOTA_OPTIONS = ['Sin calificar', 'Desaprobado', '4', '5', '6', '7', '8', '9', '10'];
-
-const notaColors: Record<string, string> = {
-  '10': 'bg-gradient-to-r from-emerald-400 to-teal-400 text-white shadow-lg shadow-emerald-500/20 dark:from-emerald-500 dark:to-teal-500',
-  '9': 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30',
-  '8': 'bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30',
-  '7': 'bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30',
-  '6': 'bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-yellow-500/20 dark:text-yellow-300 dark:border-yellow-500/30',
-  '5': 'bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30',
-  '4': 'bg-red-100 text-red-800 border border-red-200 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30',
-  'Desaprobado': 'bg-red-100 text-red-800 font-bold border border-red-200 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30',
-  'No Entregado': 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
-  'Entregado (sin corregir)': 'bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30',
-  'Sin calificar': 'bg-slate-50 text-slate-500 border border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700'
-};
-
-const selectNotaColors: Record<string, string> = {
-  '10': 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200',
-  '9': 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200',
-  '8': 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200',
-  '7': 'bg-sky-50 dark:bg-sky-900/30 text-sky-900 dark:text-sky-200',
-  '6': 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-200',
-  '5': 'bg-orange-50 dark:bg-orange-900/30 text-orange-900 dark:text-orange-200',
-  '4': 'bg-red-50 dark:bg-red-900/30 text-red-900 dark:text-red-200',
-  'Desaprobado': 'bg-red-50 dark:bg-red-900/30 text-red-900 dark:text-red-200',
-  'No Entregado': 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-200',
-  'Entregado (sin corregir)': 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-200',
-  'Sin calificar': 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200'
-};
+// Opciones restringidas: Sin calificar y notas del 4 al 10
+const NOTA_OPTIONS = ['Sin calificar', '4', '5', '6', '7', '8', '9', '10'];
 
 interface PracticasTableProps {
     practicas: Practica[];
@@ -97,100 +68,84 @@ const SortableHeader: React.FC<{
   );
 };
 
+// --- COMPONENTE EDITOR DE NOTA (Nativo para evitar bugs de UI) ---
 const NotaEditor: React.FC<{
   practica: Practica;
   handleNotaChange: (practicaId: string, nota: string) => void;
   savingNotaId: string | null;
   justUpdatedPracticaId: string | null;
   compact?: boolean;
-  mobileLayout?: boolean;
-}> = ({ practica, handleNotaChange, savingNotaId, justUpdatedPracticaId, compact = false, mobileLayout = false }) => {
-    const nota = practica[FIELD_NOTA_PRACTICAS] || 'Sin calificar';
-    const institucion = cleanInstitutionName(practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
+}> = ({ practica, handleNotaChange, savingNotaId, justUpdatedPracticaId, compact = false }) => {
     
-    // Editable if it is "Sin calificar" OR any of the intermediate states ("No Entregado", "Entregado (sin corregir)")
-    const isEditable = nota === 'Sin calificar' || nota === 'Entregado (sin corregir)' || nota === 'No Entregado';
-    
-    // Mobile KPI Layout
-    if (mobileLayout) {
-         const isNumeric = !isNaN(parseInt(nota, 10)) || nota === 'Desaprobado';
-         
-         const getMobileColor = (n: string) => {
-            if (n === 'Desaprobado') return 'text-red-600 dark:text-red-400';
-            const num = parseInt(n, 10);
-            if (!isNaN(num)) {
-                return num >= 4 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
-            }
-            return 'text-slate-400 dark:text-slate-500';
-         };
+    const notaActual = practica[FIELD_NOTA_PRACTICAS] || 'Sin calificar';
+    const isSaving = savingNotaId === practica.id;
+    const isSuccess = justUpdatedPracticaId === practica.id;
 
-         // If it's numeric or "Desaprobado", show it. Otherwise show "Sin / Calif."
-         const displayNota = isNumeric ? nota : (
-             <>
-                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 leading-none mb-0.5">Sin</span>
-                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 leading-none">Calif.</span>
-             </>
-         );
+    // Determinar color basado en la nota numérica
+    const getBadgeColor = (n: string) => {
+        if (n === 'Sin calificar') return 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 border-dashed hover:border-blue-300';
+        
+        const num = parseInt(n, 10);
+        if (isNaN(num)) {
+             // Por si viene un "Desaprobado" antiguo u otro texto
+             if (n.toLowerCase().includes('desaprobado')) return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800';
+             return 'bg-slate-100 text-slate-600 border-slate-200';
+        }
+        
+        if (num >= 8) return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800'; // 8-10 (Verde)
+        if (num >= 6) return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800'; // 6-7 (Azul)
+        if (num >= 4) return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800'; // 4-5 (Amarillo/Aprobado bajo)
+        
+        return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800'; // < 4 (Rojo)
+    };
 
-         return (
-             <div className={`relative flex flex-col items-center justify-center rounded-xl w-16 h-14 border shadow-sm overflow-hidden transition-colors ${isEditable ? 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700'}`}>
-                  {/* Visual Layer */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0 p-1">
-                      {isNumeric ? (
-                           <span className={`font-black text-2xl leading-none ${nota === 'Desaprobado' ? 'text-[10px] break-all leading-tight' : ''} ${getMobileColor(nota)}`}>
-                               {nota === 'Desaprobado' ? 'DESAPROBADO' : nota}
-                           </span>
-                      ) : displayNota}
-                  </div>
+    const styleClass = getBadgeColor(notaActual);
+    const displayText = notaActual === 'Sin calificar' ? 'Calificar' : notaActual;
 
-                  {/* Interaction Layer - Overlay for selecting */}
-                  {isEditable && (
-                      <select
-                        value={(nota === 'No Entregado' || nota === 'Entregado (sin corregir)') ? 'Sin calificar' : nota}
-                        onChange={(e) => handleNotaChange(practica.id, e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 appearance-none"
-                        aria-label={`Calificación para ${institucion}`}
-                      >
-                         {MOBILE_NOTA_OPTIONS.map(option => (
-                            <option key={option} value={option}>{option}</option>
-                         ))}
-                      </select>
-                  )}
-              </div>
-         );
-    }
-
-    // Desktop / Read-only Standard Layout
-    if (!isEditable) {
-        const notaClass = `inline-block px-3 py-1 rounded-full text-xs font-bold transition-transform hover:scale-105 cursor-default ${notaColors[nota] || notaColors['Sin calificar']}`;
-        return <div className={notaClass} title={`Nota: ${nota}`}>{nota}</div>;
-    }
-
-    // Desktop Editable Layout
-    const dynamicSelectClasses = selectNotaColors[nota] || selectNotaColors['Sin calificar'];
+    const onSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newValue = e.target.value;
+        if (newValue !== notaActual) {
+             handleNotaChange(practica.id, newValue);
+        }
+    };
 
     return (
-        <div className={`flex items-center gap-2 w-full ${compact ? 'justify-end' : ''}`}>
-            <div className={`relative ${compact ? 'w-32' : 'flex-1'}`}>
-                <select
-                    value={nota}
-                    onChange={(e) => handleNotaChange(practica.id, e.target.value)}
-                    className={`appearance-none w-full text-sm font-semibold rounded-lg border border-gray-300 dark:border-slate-600 p-2.5 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-blue-400 dark:hover:border-blue-500
-                    ${savingNotaId === practica.id ? 'ring-2 ring-blue-500 border-blue-500 shadow-blue-100 dark:ring-blue-600 dark:border-blue-600 dark:shadow-blue-900/50 animate-pulse' : ''} ${dynamicSelectClasses}`}
-                    aria-label={`Calificación para ${institucion}`}
-                >
-                    {NOTA_OPTIONS.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                    ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
-                    <span className="material-icons !text-base text-gray-500 dark:text-slate-400">expand_more</span>
-                </div>
+        <div className={`relative group flex items-center ${compact ? 'justify-end' : 'justify-center'}`}>
+            <div className={`
+                relative flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-bold transition-all duration-200 w-full max-w-[110px]
+                ${styleClass}
+                ${isSaving ? 'opacity-70 cursor-wait' : 'hover:shadow-md cursor-pointer'}
+            `}>
+                {isSaving ? (
+                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                    <>
+                        <span className="truncate">{displayText}</span>
+                        <span className="material-icons !text-[14px] opacity-50 group-hover:opacity-100 -mr-1">expand_more</span>
+                    </>
+                )}
+                
+                {/* Selector nativo invisible posicionado encima para capturar el clic */}
+                {!isSaving && (
+                    <select
+                        value={NOTA_OPTIONS.includes(notaActual) ? notaActual : 'Sin calificar'}
+                        onChange={onSelectChange}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none z-20"
+                        title="Cambiar nota"
+                    >
+                        {NOTA_OPTIONS.map(option => (
+                            <option key={option} value={option}>
+                                {option}
+                            </option>
+                        ))}
+                    </select>
+                )}
             </div>
-            {justUpdatedPracticaId === practica.id && !compact && (
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-fade-in-up whitespace-nowrap" style={{ animationDuration: '300ms' }}>
-                    Guardado ✓
-                </span>
+
+            {isSuccess && !compact && (
+                <div className="absolute -right-6 text-emerald-500 animate-fade-in-up pointer-events-none">
+                    <span className="material-icons !text-base">check_circle</span>
+                </div>
             )}
         </div>
     );
@@ -201,12 +156,17 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
   const [savingNotaId, setSavingNotaId] = useState<string | null>(null);
   const [justUpdatedPracticaId, setJustUpdatedPracticaId] = useState<string | null>(null);
 
-  const handleLocalNotaChange = (practicaId: string, nota: string) => {
-    handleNotaChange(practicaId, nota);
+  const handleLocalNotaChange = async (practicaId: string, nota: string) => {
     setSavingNotaId(practicaId);
-    setJustUpdatedPracticaId(practicaId);
-    setTimeout(() => setSavingNotaId(null), 1000);
-    setTimeout(() => setJustUpdatedPracticaId(null), 1500);
+    try {
+        await handleNotaChange(practicaId, nota);
+        setJustUpdatedPracticaId(practicaId);
+        setTimeout(() => setJustUpdatedPracticaId(null), 2000);
+    } catch (error) {
+        console.error("Error actualizando nota:", error);
+    } finally {
+        setSavingNotaId(null);
+    }
   };
 
   const sortedPracticas = useMemo(() => {
@@ -273,7 +233,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
   return (
     <div>
       {/* Desktop Table View */}
-      <div className="overflow-x-auto hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="overflow-x-auto hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800"> 
         <table className="w-full min-w-[800px] text-sm">
           <thead className="bg-gray-50 dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800">
             <tr>
@@ -282,7 +242,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
               <SortableHeader label="Horas" sortKey="horas" sortConfig={sortConfig} requestSort={requestSort} />
               <SortableHeader label="Periodo" sortKey="fechaInicio" sortConfig={sortConfig} requestSort={requestSort} />
               <SortableHeader label="Estado" sortKey="estado" sortConfig={sortConfig} requestSort={requestSort} />
-              <th scope="col" className="p-4 text-center font-bold text-gray-600 dark:text-slate-400 text-xs uppercase tracking-wider">Nota</th>
+              <th scope="col" className="p-4 text-center font-bold text-gray-600 dark:text-slate-400 text-xs uppercase tracking-wider w-32">Nota</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
@@ -295,7 +255,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
                 <tr 
                   key={practica.id} 
                   className={`transition-colors duration-200 bg-white dark:bg-slate-900/30 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
-                    justUpdatedPracticaId === practica.id ? 'animate-flash-success' : ''
+                    justUpdatedPracticaId === practica.id ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''
                   }`}
                 >
                   <td className="p-4 align-middle text-slate-900 dark:text-slate-200 font-semibold break-words text-left">{institucion}</td>
@@ -318,8 +278,13 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
                       <span>{status || 'N/A'}</span>
                     </span>
                   </td>
-                  <td className="p-4 align-middle w-56 text-center">
-                    <NotaEditor practica={practica} handleNotaChange={handleLocalNotaChange} savingNotaId={savingNotaId} justUpdatedPracticaId={justUpdatedPracticaId} />
+                  <td className="p-4 align-middle w-32 text-center relative">
+                    <NotaEditor 
+                        practica={practica} 
+                        handleNotaChange={handleLocalNotaChange} 
+                        savingNotaId={savingNotaId} 
+                        justUpdatedPracticaId={justUpdatedPracticaId} 
+                    />
                   </td>
                 </tr>
               );
@@ -328,7 +293,7 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
         </table>
       </div>
 
-      {/* Mobile Compact List View - REDESIGNED for Metrics focus */}
+      {/* Mobile Compact List View */}
       <div className="md:hidden space-y-5">
         {sortedPracticas.map(practica => {
           const institucion = cleanInstitutionName(practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]);
@@ -337,9 +302,8 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
           const especialidadVisuals = getEspecialidadClasses(practica[FIELD_ESPECIALIDAD_PRACTICAS] || '');
 
           return (
-            <div key={practica.id} className={`relative bg-white dark:bg-slate-900/80 rounded-3xl shadow-lg shadow-slate-200/50 dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden transition-all duration-300 ${justUpdatedPracticaId === practica.id ? 'animate-flash-success ring-2 ring-emerald-400' : ''}`}>
+            <div key={practica.id} className={`relative bg-white dark:bg-slate-900/80 rounded-3xl shadow-lg shadow-slate-200/50 dark:shadow-black/40 border border-slate-100 dark:border-slate-800 overflow-hidden transition-all duration-300 ${justUpdatedPracticaId === practica.id ? 'ring-2 ring-emerald-400' : ''}`}>
               
-              {/* Sutil Decorative Side Bar */}
               <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${especialidadVisuals.gradient}`}></div>
 
               <div className="p-5 pl-6 flex gap-4">
@@ -366,22 +330,19 @@ const PracticasTable: React.FC<PracticasTableProps> = ({ practicas, handleNotaCh
                      </div>
                  </div>
                  
-                 {/* Right Column: Metrics (Hours & Grade) - Aligned Vertically */}
+                 {/* Right Column: Metrics (Hours & Grade) */}
                  <div className="flex flex-col gap-3 items-end justify-start min-w-[70px]">
-                    {/* Hours Box */}
                     <div className="flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-xl w-16 h-14 border border-blue-100 dark:border-blue-800/50 shadow-sm">
                         <span className="font-black text-lg leading-none">{practica[FIELD_HORAS_PRACTICAS] || 0}</span>
                         <span className="text-[9px] font-bold uppercase mt-0.5 opacity-80">Hs</span>
                     </div>
 
-                    {/* Grade Box - KPI Style */}
                     <NotaEditor 
                         practica={practica} 
                         handleNotaChange={handleLocalNotaChange} 
                         savingNotaId={savingNotaId} 
                         justUpdatedPracticaId={justUpdatedPracticaId} 
                         compact
-                        mobileLayout
                     />
                  </div>
               </div>

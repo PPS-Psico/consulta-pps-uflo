@@ -68,7 +68,7 @@ export const fetchSolicitudes = async (legajo: string, studentAirtableId: string
 
   const records = await db.solicitudes.getAll({
       filters: { [C.FIELD_LEGAJO_PPS]: targetId },
-      sort: [{ field: C.COL_SOLICITUD_UPDATED_AT, direction: 'desc' }]
+      sort: [{ field: C.FIELD_ULTIMA_ACTUALIZACION_PPS, direction: 'desc' }]
   });
   
   return records.filter(r => r[C.FIELD_ESTADO_PPS] !== 'Archivado');

@@ -2,22 +2,18 @@
 import { createClient } from '@supabase/supabase-js';
 
 // ==============================================================================
-// ⚙️ CONFIGURACIÓN MANUAL
-// ==============================================================================
-// Pega tus credenciales de Supabase aquí abajo dentro de las comillas.
-// Necesitas la URL y la KEY con permisos de "Service Role" (no la Anon).
+// ⚙️ CONFIGURACIÓN
 // ==============================================================================
 
 const SUPABASE_URL = "PEGAR_TU_URL_AQUI"; 
 const SERVICE_ROLE_KEY = "PEGAR_TU_SERVICE_ROLE_KEY_AQUI"; 
 
-// El legajo del estudiante que tiene problemas (CAMBIAR ESTO CADA VEZ)
-const TARGET_LEGAJO = '31341';
+const TARGET_LEGAJO = '33426'; // Legajo de Maria Azul
 
 // ==============================================================================
 
 if (SUPABASE_URL.includes("PEGAR") || SERVICE_ROLE_KEY.includes("PEGAR")) {
-    console.error("❌ ERROR: Debes editar el archivo scripts/fix-zombie-user.js y pegar tus credenciales reales.");
+    console.error("❌ ERROR: Edita el archivo y pega las credenciales (SERVICE ROLE KEY).");
     process.exit(1);
 }
 
@@ -25,88 +21,97 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
 });
 
-async function repairUser() {
-    console.log(`\n🚑 INICIANDO DIAGNÓSTICO PARA LEGAJO: ${TARGET_LEGAJO}`);
+async function fixStudent() {
+    console.log(`\n🕵️  DIAGNÓSTICO Y REPARACIÓN PARA LEGAJO: ${TARGET_LEGAJO}`);
 
-    // 1. Buscar al estudiante en la base de datos pública
-    const { data: student, error: studentError } = await supabase
+    // 1. Buscar datos en la Base de Datos (Tabla Pública)
+    const { data: students, error } = await supabase
         .from('estudiantes')
         .select('*')
-        .eq('legajo', TARGET_LEGAJO)
-        .single();
+        .eq('legajo', TARGET_LEGAJO);
 
-    if (studentError || !student) {
-        console.error(`❌ No se encontró al estudiante con legajo ${TARGET_LEGAJO} en la tabla 'estudiantes'.`);
-        if (studentError) console.error("Error DB:", studentError.message);
+    if (error || !students || students.length === 0) {
+        console.error("❌ No se encontró el legajo en la tabla 'estudiantes'.");
         return;
     }
 
-    console.log(`✅ Estudiante encontrado: ${student.nombre} (ID DB: ${student.id})`);
+    const student = students[0];
+    const email = student.correo;
 
-    // CASO 1: NO TIENE USUARIO VINCULADO
-    if (!student.user_id) {
-        console.log("\n🔍 RESULTADO: El alumno NO tiene una cuenta creada todavía.");
-        console.log("   (El campo user_id está vacío, lo cual es correcto para alumnos nuevos).");
-        
-        console.log("\n📢 --- INSTRUCCIONES PARA ENVIAR AL ALUMNO ---");
-        console.log("Dígale exactamente lo siguiente:");
-        console.log("---------------------------------------------------");
-        console.log(`1. Entrá a la web.`);
-        console.log(`2. Hacé clic en el botón "Crear Usuario" (NO uses "Iniciar Sesión").`);
-        console.log(`3. Ingresá tu Legajo: ${student.legajo}`);
-        console.log(`4. El sistema te pedirá validar tu identidad. Debés ingresar estos datos EXACTOS:`);
-        console.log(`   - DNI: ${student.dni}`);
-        console.log(`   - Correo: ${student.correo}`);
-        console.log(`5. Si los datos coinciden, podrás crear tu contraseña y entrar.`);
-        console.log("---------------------------------------------------");
+    console.log(`   👤 Alumno: ${student.nombre}`);
+    console.log(`   📧 Email DB: ${email}`);
+    console.log(`   🆔 DNI DB: ${student.dni}`);
+
+    if (!email) {
+        console.error("❌ El alumno no tiene email en la base de datos.");
         return;
     }
 
-    // 2. Verificar si ese user_id existe realmente en Auth
-    const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(student.user_id);
+    // 2. Buscar si el email existe en Supabase Auth (Sistema de Login)
+    console.log(`\n🔍 Buscando usuario en el sistema de Autenticación...`);
+    
+    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    
+    if (listError) {
+        console.error("❌ Error listando usuarios:", listError.message);
+        return;
+    }
 
-    // CASO 2: USUARIO EXISTE (NO ES ZOMBIE)
-    if (user) {
-        console.log(`\n✅ RESULTADO: El usuario YA EXISTE correctamente (Email: ${user.email}).`);
-        console.log("   El problema NO es de sistema. Probablemente olvidó su contraseña.");
+    const authUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+    if (authUser) {
+        console.log(`   ⚠️  USUARIO ENCONTRADO EN AUTH (ID: ${authUser.id})`);
+        console.log(`   🧹 Eliminando usuario de Auth para permitir re-registro...`);
         
-        console.log("\n📢 --- INSTRUCCIONES PARA ENVIAR AL ALUMNO ---");
-        console.log("---------------------------------------------------");
-        console.log("1. Tu usuario ya está creado y activo.");
-        console.log("2. En la pantalla de inicio, hacé clic en '¿Olvidaste tu contraseña?'.");
-        console.log("3. Ingresá tu Legajo, DNI, Correo y Celular para validar tu identidad.");
-        console.log("4. Si los datos son correctos, podrás escribir tu nueva contraseña ahí mismo.");
-        console.log("   (No hace falta esperar ningún correo electrónico).");
-        console.log("---------------------------------------------------");
-
+        const { error: deleteError } = await supabase.auth.admin.deleteUser(authUser.id);
+        
+        if (deleteError) {
+            console.error(`   ❌ Error eliminando usuario: ${deleteError.message}`);
+        } else {
+            console.log(`   ✅ Usuario de Auth eliminado correctamente.`);
+        }
     } else {
-        // CASO 3: ES UN ZOMBIE (Tiene ID en DB, pero no existe en Auth)
-        console.log(`\n⚠️ ALERTA CRÍTICA: Usuario Zombie detectado.`);
-        console.log(`   La base de datos apunta a un usuario (${student.user_id}) que FUE BORRADO.`);
-        console.log("   Esto impide que el alumno se registre de nuevo.");
-        
-        // 3. Reparar (Resetear a NULL)
-        console.log("🛠️  Reparando vínculo roto...");
-        const { error: fixError } = await supabase
+        console.log(`   ✅ No existe usuario en Auth (El email está libre).`);
+    }
+
+    // 3. Limpiar vínculo en la base de datos (poner user_id en NULL)
+    if (student.user_id !== null) {
+        console.log(`\n🔗 Desvinculando registro en base de datos...`);
+        const { error: updateError } = await supabase
             .from('estudiantes')
             .update({ user_id: null })
             .eq('id', student.id);
-
-        if (fixError) {
-            console.error(`   ❌ Falló la reparación: ${fixError.message}`);
-        } else {
-            console.log(`   ✅ ¡REPARACIÓN EXITOSA! Se limpió el registro.`);
             
-            console.log("\n📢 --- INSTRUCCIONES PARA ENVIAR AL ALUMNO ---");
-            console.log("---------------------------------------------------");
-            console.log("Hubo un error técnico con tu usuario anterior que ya fue solucionado.");
-            console.log("Por favor, volvé a registrarte como si fueras nuevo:");
-            console.log(`1. Clic en 'Crear Usuario'.`);
-            console.log(`2. Ingresá tu Legajo ${student.legajo}.`);
-            console.log("3. Validá tus datos y creá una contraseña nueva.");
-            console.log("---------------------------------------------------");
-        }
+        if (updateError) console.error(`   ❌ Error DB: ${updateError.message}`);
+        else console.log(`   ✅ Registro en DB puesto a NULL.`);
+    } else {
+        console.log(`   ✅ El registro en DB ya estaba libre (user_id era NULL).`);
     }
+
+    // ==============================================================================
+    // 📢 MENSAJE FINAL PARA EL ESTUDIANTE
+    // ==============================================================================
+    console.log("\n================================================================");
+    console.log("✅ REPARACIÓN EXITOSA. COPIA Y PEGA ESTE MENSAJE AL ESTUDIANTE:");
+    console.log("================================================================");
+    console.log(`
+Hola ${student.nombre.split(' ')[0]},
+
+Ya hemos reiniciado tu cuenta. Por favor seguí estos pasos exactos:
+
+1. Ingresá a la web de la aplicación.
+2. Hacé clic en "No tienes cuenta? Crear una nueva" (abajo de todo).
+3. Ingresá tu Legajo: ${TARGET_LEGAJO}
+
+⚠️ IMPORTANTE: Cuando te pida validar tus datos, ingresalos EXACTAMENTE así (tal cual figuran en nuestro sistema):
+
+• DNI: ${student.dni}
+• Correo: ${student.correo}
+• Teléfono: ${student.telefono || '(Dejar vacío o poner tu celular actual)'}
+
+Luego podrás crear tu nueva contraseña.
+    `);
+    console.log("================================================================\n");
 }
 
-repairUser();
+fixStudent();
