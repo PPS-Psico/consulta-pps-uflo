@@ -1,6 +1,14 @@
 
 import React from 'react';
+<<<<<<< HEAD
 import type { AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, TimelineMonthData, PPSRequestSummary } from '../types';
+=======
+<<<<<<< HEAD
+import type { AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, TimelineMonthData, PPSRequestSummary } from '../types';
+=======
+import type { AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, TimelineMonthData } from '../types';
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
 import DOMPurify from 'dompurify';
 
 const PrintableTimeline: React.FC<{ launchesByMonth: TimelineMonthData[]; year: number }> = ({ launchesByMonth, year }) => {
@@ -187,9 +195,18 @@ const ComparativeReport: React.FC<{ data: ComparativeExecutiveReportData }> = ({
     
     const sanitizedSummary = DOMPurify.sanitize(data.summary);
 
+<<<<<<< HEAD
     // Calculate Request Metrics only for 2025
     const req2025 = data.ppsRequests.year2025.length;
 
+=======
+<<<<<<< HEAD
+    // Calculate Request Metrics only for 2025
+    const req2025 = data.ppsRequests.year2025.length;
+
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     return (
          <>
             <header className="mb-10 printable-section">

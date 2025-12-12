@@ -1,16 +1,35 @@
 
 import { createClient } from '@supabase/supabase-js';
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+import dotenv from 'dotenv';
+
+// Cargar variables de entorno si se ejecuta localmente con dotenv
+dotenv.config();
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
 
 // ==============================================================================
 // ⚙️ CONFIGURACIÓN DE CREDENCIALES
 // ==============================================================================
 
+<<<<<<< HEAD
 const AIRTABLE_PAT = "PEGAR_AQUI_TU_AIRTABLE_PAT"; 
 const AIRTABLE_BASE_ID = "PEGAR_AQUI_TU_BASE_ID"; 
 
 const SUPABASE_URL = "PEGAR_AQUI_TU_SUPABASE_URL"; 
 // ¡IMPORTANTE! Usar la SERVICE_ROLE_KEY para tener permisos de escritura
 const SUPABASE_SERVICE_KEY = "PEGAR_AQUI_TU_SUPABASE_SERVICE_ROLE_KEY";
+=======
+const AIRTABLE_PAT = process.env.VITE_AIRTABLE_PAT || "PEGAR_AQUI_TU_AIRTABLE_PAT"; 
+const AIRTABLE_BASE_ID = process.env.VITE_AIRTABLE_BASE_ID || "PEGAR_AQUI_TU_BASE_ID"; 
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "PEGAR_AQUI_TU_SUPABASE_URL"; 
+// ¡IMPORTANTE! Usar la SERVICE_ROLE_KEY para tener permisos de escritura
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "PEGAR_AQUI_TU_SUPABASE_SERVICE_ROLE_KEY";
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
 
 // ==============================================================================
 // 🗺️ MAPEO DE TABLAS (Nombre en Supabase -> Nombre en Airtable)
@@ -29,7 +48,15 @@ const TABLE_MAPPING = {
 // ==============================================================================
 
 if (AIRTABLE_PAT.includes("PEGAR_AQUI") || SUPABASE_URL.includes("PEGAR_AQUI")) {
+<<<<<<< HEAD
     console.error("❌ ERROR: Edita el archivo scripts/migrate.js y pega las credenciales.");
+=======
+<<<<<<< HEAD
+    console.error("❌ ERROR: Edita el archivo scripts/migrate.js y pega las credenciales.");
+=======
+    console.error("❌ ERROR: Debes editar el archivo scripts/migrate.js o tener un archivo .env con las credenciales.");
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     process.exit(1);
 }
 

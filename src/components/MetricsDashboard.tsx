@@ -116,7 +116,15 @@ export const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ onStudentSel
   const chartsData = useMemo(() => {
     if (!metrics || !metrics.rawStudents) return { trend: [], distribution: [] };
 
+<<<<<<< HEAD
     // 1. Orientation Distribution
+=======
+<<<<<<< HEAD
+    // 1. Orientation Distribution
+=======
+    // 1. Orientation Distribution (Same as before)
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     const orientationCounts: Record<string, number> = {};
     metrics.rawStudents.forEach((s: any) => {
         // Only count ACTIVE students for distribution
@@ -132,6 +140,10 @@ export const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ onStudentSel
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     // 2. Active Students Evolution (Calculated monthly)
     const trendData: { month: string, value: number }[] = [];
     const now = new Date();
@@ -140,11 +152,29 @@ export const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ onStudentSel
 
     for (let i = 0; i <= currentMonthIndex; i++) {
         // Snapshot date: Last day of the month
+<<<<<<< HEAD
+=======
+=======
+    // 2. Active Students Evolution (Corrected Logic)
+    const trendData: { month: string, value: number }[] = [];
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    // We want to see up to the current month
+    const currentMonthIndex = now.getMonth();
+
+    for (let i = 0; i <= currentMonthIndex; i++) {
+        // The "Snapshot" date is the last day of month 'i'
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
         const monthEnd = new Date(currentYear, i + 1, 0, 23, 59, 59);
         
         let activeCount = 0;
         
         metrics.rawStudents.forEach((s: any) => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
             // FILTRO DE COHERENCIA: Solo contamos a los que tienen actividad este año.
             // Esto alinea el gráfico con la métrica "Alumnos Activos" (173 vs 184).
             // Si queremos ver matrícula pura (inactivos incluidos), quitar esta línea.
@@ -165,6 +195,22 @@ export const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ onStudentSel
 
             if (isActiveByDate && isNotFinalizedYet) {
                 activeCount++;
+<<<<<<< HEAD
+=======
+=======
+            const createdAt = s.createdAt ? new Date(s.createdAt) : null;
+            const finalizedAt = s.finalizedAt ? new Date(s.finalizedAt) : null;
+
+            // Student was active in month 'i' IF:
+            // 1. They were created ON or BEFORE the end of this month
+            // 2. They were NOT finalized BEFORE the end of this month (i.e. finalizedAt is null OR finalizedAt > monthEnd)
+            
+            if (createdAt && createdAt <= monthEnd) {
+                if (!finalizedAt || finalizedAt > monthEnd) {
+                    activeCount++;
+                }
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
             }
         });
 

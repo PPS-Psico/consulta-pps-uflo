@@ -1,5 +1,9 @@
 
 import { useQuery } from '@tanstack/react-query';
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
 import { supabase } from '../lib/supabaseClient';
 import { 
     TABLE_NAME_ESTUDIANTES, 
@@ -15,6 +19,18 @@ import {
     FIELD_ESTUDIANTE_LINK_PRACTICAS, 
     FIELD_FECHA_FINALIZACION_ESTUDIANTES,
     FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
+<<<<<<< HEAD
+=======
+=======
+import {
+    TABLE_NAME_ESTUDIANTES,
+    TABLE_NAME_PRACTICAS,
+    TABLE_NAME_LANZAMIENTOS_PPS,
+    TABLE_NAME_INSTITUCIONES,
+    FIELD_LEGAJO_ESTUDIANTES,
+    FIELD_NOMBRE_ESTUDIANTES,
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     FIELD_FECHA_INICIO_LANZAMIENTOS,
     FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
     FIELD_NOMBRE_PPS_LANZAMIENTOS,
@@ -36,8 +52,19 @@ import {
     FIELD_USER_ID_ESTUDIANTES,
     FIELD_FECHA_FIN_PRACTICAS,
     FIELD_ESPECIALIDAD_PRACTICAS,
+<<<<<<< HEAD
     FIELD_ORIENTACION_LANZAMIENTOS,
     TABLE_NAME_INSTITUCIONES
+=======
+<<<<<<< HEAD
+    FIELD_ORIENTACION_LANZAMIENTOS,
+    TABLE_NAME_INSTITUCIONES
+=======
+    FIELD_FECHA_FINALIZACION_ESTUDIANTES,
+    FIELD_FINALIZARON_ESTUDIANTES,
+    FIELD_USER_ID_ESTUDIANTES,
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
 } from '../constants';
 import { fetchAllData } from '../services/supabaseService';
 import { parseToUTCDate, formatDate, normalizeStringForComparison } from '../utils/formatters';
@@ -127,12 +154,26 @@ const processLaunchesForYear = (
 
 
 const fetchAllDataForReport = async () => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     const [estudiantesRes, practicasRes, lanzamientosRes, institucionesRes, solicitudesRes] = await Promise.all([
         fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES, FIELD_FECHA_FINALIZACION_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES]),
         fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_FECHA_FIN_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_ESPECIALIDAD_PRACTICAS]),
         fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ORIENTACION_LANZAMIENTOS]),
         fetchAllData<InstitucionFields>(TABLE_NAME_INSTITUCIONES, institucionArraySchema, [FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_NOMBRE_INSTITUCIONES]),
         fetchAllData<SolicitudPPSFields>(TABLE_NAME_PPS, solicitudPPSArraySchema, [FIELD_SOLICITUD_NOMBRE_ALUMNO, FIELD_SOLICITUD_LEGAJO_ALUMNO, FIELD_EMPRESA_PPS_SOLICITUD, FIELD_ESTADO_PPS])
+<<<<<<< HEAD
+=======
+=======
+    const [estudiantesRes, practicasRes, lanzamientosRes, institucionesRes] = await Promise.all([
+        fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES, FIELD_FECHA_FINALIZACION_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES]),
+        fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_FECHA_FIN_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_ESPECIALIDAD_PRACTICAS]),
+        fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ORIENTACION_LANZAMIENTOS]),
+        fetchAllData<InstitucionFields>(TABLE_NAME_INSTITUCIONES, institucionArraySchema, [FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_NOMBRE_INSTITUCIONES])
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     ]);
 
     const error = estudiantesRes.error || practicasRes.error || lanzamientosRes.error || institucionesRes.error || solicitudesRes.error;
@@ -361,6 +402,13 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
             const allData = await fetchAllDataForReport();
 
             // Pre-calculate Effective Entry Dates
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+            // Map student ID to earliest date found (Created At vs Earliest Practice Start)
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
             const studentEntryMap = new Map<string, Date>();
             
             // 1. Check Practices
@@ -384,6 +432,13 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
                 let date = parseToUTCDate(s.createdTime);
                 const activityDate = studentEntryMap.get(s.id);
                 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+                // If we found activity earlier than creation (common in migration), use that
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
                 if (activityDate && (!date || activityDate < date)) {
                     date = activityDate;
                 }
@@ -419,7 +474,15 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
                                    normalizeStringForComparison(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').startsWith(normalizedInstName);
                         });
                     })
+<<<<<<< HEAD
                     .map(i => getGroupName(i[FIELD_NOMBRE_INSTITUCIONES])); // Clean name
+=======
+<<<<<<< HEAD
+                    .map(i => getGroupName(i[FIELD_NOMBRE_INSTITUCIONES])); // Clean name
+=======
+                    .map(i => i[FIELD_NOMBRE_INSTITUCIONES] || 'N/A');
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
                 
                 const ppsRequests = processRequestsForYear(year, allData.solicitudes);
 

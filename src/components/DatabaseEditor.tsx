@@ -684,7 +684,15 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         if (key === FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES || key === FIELD_ESPECIALIDAD_PRACTICAS) {
             if (!value) return <span className="text-slate-300">-</span>;
             const visuals = getEspecialidadClasses(String(value));
+<<<<<<< HEAD
             return <span className={`${visuals.tag} whitespace-nowrap shadow-none border-0`}>{String(value)}</span>;
+=======
+<<<<<<< HEAD
+            return <span className={`${visuals.tag} whitespace-nowrap shadow-none border-0`}>{String(value)}</span>;
+=======
+            return <span className={`${visuals.tag} whitespace-nowrap shadow-none`}>{String(value)}</span>;
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
         }
 
         // Student Name cell with Avatar (Used in both Estudiantes and Practicas/Convocatorias tables)
@@ -842,13 +850,30 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                              <ActionButtons />
                          </div>
 
+<<<<<<< HEAD
                          {/* Removed overflow-hidden to allow AdminSearch dropdown to overflow */}
                         <div className="bg-slate-50 dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in relative z-30">
+=======
+<<<<<<< HEAD
+                         {/* Removed overflow-hidden to allow AdminSearch dropdown to overflow */}
+                        <div className="bg-slate-50 dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in relative z-30">
+=======
+                        <div className="bg-slate-50 dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in relative overflow-hidden">
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
                             {/* Decorative Background */}
                             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
 
                             {/* Student Filter */}
+<<<<<<< HEAD
                             <div className="relative z-30">
+=======
+<<<<<<< HEAD
+                            <div className="relative z-30">
+=======
+                            <div className="relative z-10">
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
                                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
                                     <span className="material-icons !text-sm text-blue-500">person_search</span>
                                     Filtrar por Estudiante
@@ -884,7 +909,15 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                             
                             {/* Institution/Date Filters */}
                             {activeTable === 'practicas' && (
+<<<<<<< HEAD
                                 <div className="relative z-20 space-y-4">
+=======
+<<<<<<< HEAD
+                                <div className="relative z-20 space-y-4">
+=======
+                                <div className="relative z-10 space-y-4">
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
                                      <div>
                                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
                                             <span className="material-icons !text-sm text-indigo-500">apartment</span>

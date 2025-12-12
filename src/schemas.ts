@@ -94,7 +94,14 @@ export const lanzamientoPPSFieldsSchema = z.object({
     [C.FIELD_TELEFONO_INSTITUCION_LANZAMIENTOS]: z.string().optional().nullable(),
     [C.FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS]: z.boolean().optional().nullable(),
     [C.FIELD_AIRTABLE_ID]: z.string().optional().nullable(),
+<<<<<<< HEAD
     [C.FIELD_CODIGO_CAMPUS_LANZAMIENTOS]: z.string().optional().nullable(),
+=======
+<<<<<<< HEAD
+    [C.FIELD_CODIGO_CAMPUS_LANZAMIENTOS]: z.string().optional().nullable(),
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
 });
 
 export const convocatoriaFieldsSchema = z.object({
@@ -131,7 +138,14 @@ export const institucionFieldsSchema = z.object({
     [C.FIELD_DIRECCION_INSTITUCIONES]: z.string().optional().nullable(),
     [C.FIELD_CONVENIO_NUEVO_INSTITUCIONES]: z.boolean().optional().nullable(),
     [C.FIELD_TUTOR_INSTITUCIONES]: z.string().optional().nullable(),
+<<<<<<< HEAD
     [C.FIELD_CODIGO_CAMPUS_INSTITUCIONES]: z.string().optional().nullable(),
+=======
+<<<<<<< HEAD
+    [C.FIELD_CODIGO_CAMPUS_INSTITUCIONES]: z.string().optional().nullable(),
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
 });
 
 export const penalizacionFieldsSchema = z.object({
@@ -172,4 +186,12 @@ export const convocatoriaArraySchema = z.array(baseRecordSchema.merge(convocator
 export const institucionArraySchema = z.array(baseRecordSchema.merge(institucionFieldsSchema));
 export const penalizacionArraySchema = z.array(baseRecordSchema.merge(penalizacionFieldsSchema));
 export const finalizacionPPSArraySchema = z.array(baseRecordSchema.merge(finalizacionPPSFieldsSchema));
+<<<<<<< HEAD
 export const authUserArraySchema = z.array(baseRecordSchema.merge(authUserFieldsSchema));
+=======
+<<<<<<< HEAD
+export const authUserArraySchema = z.array(baseRecordSchema.merge(authUserFieldsSchema));
+=======
+export const authUserArraySchema = z.array(baseRecordSchema.merge(authUserFieldsSchema));
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47

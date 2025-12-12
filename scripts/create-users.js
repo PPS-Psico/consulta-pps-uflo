@@ -5,12 +5,28 @@ import { createClient } from '@supabase/supabase-js';
 // ⚙️ CONFIGURACIÓN
 // ==============================================================================
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
 const SUPABASE_URL = "PEGAR_TU_URL_AQUI"; 
 const SERVICE_ROLE_KEY = "PEGAR_TU_SERVICE_ROLE_KEY_AQUI"; 
 
 // --- INICIALIZACIÓN ---
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || SUPABASE_URL.includes("PEGAR_AQUI") || SERVICE_ROLE_KEY.includes("PEGAR_AQUI")) {
     console.error("❌ ERROR: Edita el archivo scripts/create-users.js y pega las credenciales (VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY).");
+<<<<<<< HEAD
+=======
+=======
+// --- CONFIGURACIÓN ---
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
+
+// --- INICIALIZACIÓN ---
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY || SUPABASE_URL.includes("PEGAR_AQUI") || SERVICE_ROLE_KEY.includes("PEGAR_AQUI")) {
+    console.error("❌ ERROR: Faltan credenciales en .env (VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY).");
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
+>>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     process.exit(1);
 }
 
