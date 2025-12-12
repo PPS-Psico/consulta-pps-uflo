@@ -6,20 +6,20 @@ import { useStudentData } from '../hooks/useStudentData';
 import { useStudentPracticas } from '../hooks/useStudentPracticas';
 import { useStudentSolicitudes } from '../hooks/useStudentSolicitudes';
 import { useConvocatorias } from '../hooks/useConvocatorias';
-import { fetchFinalizacionRequest } from '../services/dataService';
-import { useQuery } from '@tanstack/react-query';
 import { calculateCriterios, initialCriterios } from '../utils/criteriaCalculations';
 import { processAndLinkStudentData } from '../utils/dataLinker';
 import { FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES } from '../constants';
+import { useQuery } from '@tanstack/react-query';
+import { fetchFinalizacionRequest } from '../services/dataService';
 
 import type { UseMutationResult } from '@tanstack/react-query';
 import type {
-    EstudianteFields, Practica, SolicitudPPS, LanzamientoPPS, Convocatoria, Orientacion, InformeTask, AirtableRecord, CriteriosCalculados, FinalizacionPPS
+    Estudiante, Practica, SolicitudPPS, LanzamientoPPS, Convocatoria, Orientacion, InformeTask, AirtableRecord, CriteriosCalculados, FinalizacionPPS
 } from '../types';
 
 interface StudentPanelContextType {
     // Data
-    studentDetails: EstudianteFields | null;
+    studentDetails: Estudiante | null;
     studentAirtableId: string | null;
     practicas: Practica[];
     solicitudes: SolicitudPPS[];

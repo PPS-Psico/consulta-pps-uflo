@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useModal } from '../contexts/ModalContext';
 import { fetchConvocatoriasData } from '../services/dataService';
 import { db } from '../lib/db';
-import type { LanzamientoPPS, InformeTask, Convocatoria, AirtableRecord, ConvocatoriaFields, EstudianteFields } from '../types';
+import type { LanzamientoPPS, InformeTask, Convocatoria, AirtableRecord, ConvocatoriaFields, Estudiante } from '../types';
 import { 
     FIELD_NOMBRE_PPS_LANZAMIENTOS, 
     FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS, 
@@ -45,7 +45,7 @@ import {
     FIELD_CV_CONVOCATORIAS
 } from '../constants';
 
-export const useConvocatorias = (legajo: string, studentAirtableId: string | null, studentDetails: EstudianteFields | null, isSuperUserMode: boolean) => {
+export const useConvocatorias = (legajo: string, studentAirtableId: string | null, studentDetails: Estudiante | null, isSuperUserMode: boolean) => {
     const queryClient = useQueryClient();
     const { 
         showModal, 

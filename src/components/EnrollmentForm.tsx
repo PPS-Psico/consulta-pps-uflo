@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Checkbox from './Checkbox';
 import { z } from 'zod';
 import Input from './Input';
-import { EstudianteFields } from '../types';
+import { Estudiante } from '../types';
 import { FIELD_TRABAJA_ESTUDIANTES, FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES } from '../constants';
 import { supabase } from '../lib/supabaseClient';
 
@@ -15,7 +15,7 @@ interface EnrollmentFormProps {
   isSubmitting: boolean;
   horariosDisponibles?: string[];
   permiteCertificado?: boolean;
-  studentProfile: EstudianteFields | null;
+  studentProfile: Estudiante | null;
   reqCertificadoTrabajo?: boolean;
   reqCv?: boolean;
 }

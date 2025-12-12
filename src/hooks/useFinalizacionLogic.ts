@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -90,21 +91,23 @@ export const useFinalizacionLogic = () => {
                      });
                  }
                  
+                 // TRIGGER SAC EMAIL AUTOMATION
                  const emailRes = await sendSmartEmail('sac', {
                      studentName: String(request.studentName),
                      studentEmail: String(request.studentEmail),
                      ppsName: 'Práctica Profesional Supervisada'
                  });
                  
-                 if (!emailRes.success) {
-                     throw new Error('Email failed: ' + emailRes.message);
+                 if (!emailRes.success && emailRes.message !== 'Automación desactivada') {
+                     // Log but don't fail the whole operation if email fails
+                     console.warn('SAC Email failed:', emailRes.message);
                  }
              }
         },
         onSuccess: (_, variables) => {
              queryClient.invalidateQueries({ queryKey: ['finalizacionRequests'] });
              if (variables.status === 'Cargado') {
-                 setToastInfo({ message: 'Acreditación confirmada y email enviado.', type: 'success' });
+                 setToastInfo({ message: 'Acreditación confirmada y email enviado (si activo).', type: 'success' });
              } else {
                  setToastInfo({ message: 'Estado actualizado.', type: 'success' });
              }

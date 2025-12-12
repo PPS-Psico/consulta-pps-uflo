@@ -8,10 +8,10 @@ import {
 import type { EstudianteFields, AirtableRecord } from '../types';
 import Input from './Input';
 
-const MOCK_STUDENTS_FOR_SEARCH: AirtableRecord<EstudianteFields>[] = [
-    { id: 'recTest1', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0001', [FIELD_NOMBRE_ESTUDIANTES]: 'Tester Alfa' } as any,
-    { id: 'recTest2', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0002', [FIELD_NOMBRE_ESTUDIANTES]: 'Beta Tester' } as any,
-    { id: 'recTest3', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0003', [FIELD_NOMBRE_ESTUDIANTES]: 'Gama Tester' } as any,
+const MOCK_STUDENTS_FOR_SEARCH: any[] = [
+    { id: 'recTest1', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0001', [FIELD_NOMBRE_ESTUDIANTES]: 'Tester Alfa' },
+    { id: 'recTest2', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0002', [FIELD_NOMBRE_ESTUDIANTES]: 'Beta Tester' },
+    { id: 'recTest3', createdTime: '', [FIELD_LEGAJO_ESTUDIANTES]: 'T0003', [FIELD_NOMBRE_ESTUDIANTES]: 'Gama Tester' },
 ];
 
 interface AdminSearchProps {
@@ -46,7 +46,7 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
                 (s[FIELD_NOMBRE_ESTUDIANTES] as string)?.toLowerCase().includes(lowerTerm) || 
                 (s[FIELD_LEGAJO_ESTUDIANTES] as string)?.toLowerCase().includes(lowerTerm)
             );
-            setResults(filtered);
+            setResults(filtered as unknown as AirtableRecord<EstudianteFields>[]);
             setIsLoading(false);
         }, 300);
         return;
@@ -59,7 +59,7 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
     });
     
     if (!error) {
-      setResults(records);
+      setResults(records as unknown as AirtableRecord<EstudianteFields>[]);
     }
     setIsLoading(false);
   }, [onSearchChange, isTestingMode]);

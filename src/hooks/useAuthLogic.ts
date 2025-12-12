@@ -1,4 +1,5 @@
 
+
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { db } from '../lib/db';
@@ -56,7 +57,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
     const handleModeChange = (newMode: any) => {
         setMode(newMode);
         // Clean session when switching modes to avoid lingering zombie states
-        supabase.auth.signOut().catch(() => {});
+        (supabase.auth as any).signOut().catch(() => {});
         
         if (!((newMode === 'migration' || newMode === 'recover') && mode === 'login')) {
              resetFormState();
@@ -94,16 +95,16 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         if (mode === 'login') {
             try {
                 // LIMPIEZA PREVENTIVA
-                await supabase.auth.signOut();
+                await (supabase.auth as any).signOut();
 
                 if (!legajoTrimmed || !passwordTrimmed) throw new Error('Por favor, completa todos los campos.');
 
                 // 1. Intentar obtener datos del estudiante
-                const { data: rpcData, error: rpcError } = await supabase
-                    .rpc('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
+                // Use cast to any to avoid RPC typing issues
+                const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
 
                 if (rpcError) throw new Error('Error de conexión al validar legajo. Intenta nuevamente.');
-                const studentData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+                const studentData = rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
 
                 if (!studentData) throw new Error('Legajo no encontrado. Verificá el número o creá una cuenta nueva.');
 
@@ -148,11 +149,10 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                         throw new Error("Por favor completa los campos para validar tu identidad.");
                     }
 
-                    const { data: rpcData, error: rpcError } = await supabase
-                        .rpc('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
+                    const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
 
                     if (rpcError) throw new Error("Error de conexión. Intenta más tarde.");
-                    const studentData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+                    const studentData = rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
                     
                     if (!studentData) throw new Error("No encontramos un estudiante con ese legajo.");
 
@@ -199,7 +199,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                              console.log("Usuario ya existe en Auth, intentando forzar actualización de clave...");
                              
                              // Si ya existe, usamos RPC para resetear la clave Y REPARAR EL VINCULO
-                             const { error: rpcResetError } = await supabase.rpc('admin_reset_password', {
+                             const { error: rpcResetError } = await (supabase.rpc as any)('admin_reset_password', {
                                  legajo_input: legajoTrimmed,
                                  new_password: password
                              });
@@ -217,7 +217,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     }
 
                     // 3. Intento de Login final para confirmar y obtener sesión
-                     const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+                     const { data: loginData, error: loginError } = await (supabase.auth as any).signInWithPassword({
                         email: email,
                         password: password,
                     });
@@ -227,7 +227,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                         setError('Cuenta configurada, pero el inicio de sesión automático falló. Por favor ingresa manualmente.');
                     } else if (loginData.user) {
                         // 4. Asegurar vínculo en DB (Self-healing por si acaso)
-                         const { error: linkError } = await supabase.rpc('register_new_student', {
+                         const { error: linkError } = await (supabase.rpc as any)('register_new_student', {
                             legajo_input: legajoTrimmed,
                             userid_input: loginData.user.id,
                             dni_input: parseInt(foundStudent[FIELD_DNI_ESTUDIANTES] as any || '0', 10),
@@ -250,11 +250,10 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
              try {
                 if (registerStep === 1) {
                      if (!legajoTrimmed) throw new Error("Por favor ingresa tu legajo.");
-                     const { data: rpcData, error: rpcError } = await supabase
-                         .rpc('get_student_for_signup', { legajo_input: legajoTrimmed });
+                     const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_student_for_signup', { legajo_input: legajoTrimmed });
                      
                      if (rpcError) throw new Error(rpcError.message);
-                     const student = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+                     const student = rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
                      
                      if (!student) throw new Error("El legajo no figura en la lista o ya tiene usuario. Prueba 'Recuperar Acceso'.");
                      if (student.user_id) throw new Error("Este legajo ya tiene cuenta activa. Usa 'Recuperar Acceso' si olvidaste la clave.");
@@ -292,7 +291,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     if (signUpError || !userId) {
                          console.warn("SignUp failed, attempting fix via admin_reset_password");
                          
-                         const { error: fixError } = await supabase.rpc('admin_reset_password', {
+                         const { error: fixError } = await (supabase.rpc as any)('admin_reset_password', {
                              legajo_input: legajoTrimmed,
                              new_password: password
                          });
@@ -302,7 +301,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                              throw new Error("Este correo ya está registrado y no se pudo vincular a tu legajo. Contacta soporte.");
                          }
 
-                         const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ 
+                         const { data: loginData, error: loginError } = await (supabase.auth as any).signInWithPassword({ 
                              email: inputEmail, 
                              password 
                          });
@@ -315,7 +314,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                     if (userId) {
                         // Garantizar datos actualizados con DNI limpio
-                        await supabase.rpc('register_new_student', {
+                        await (supabase.rpc as any)('register_new_student', {
                             legajo_input: legajoTrimmed,
                             userid_input: userId,
                             dni_input: cleanDniInt,
@@ -337,11 +336,10 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                         throw new Error("Por favor completa todos los campos para validar tu identidad.");
                     }
 
-                    const { data: rpcData, error: rpcError } = await supabase
-                        .rpc('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
+                    const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_student_details_by_legajo', { legajo_input: legajoTrimmed });
 
                     if (rpcError) throw new Error("Error de conexión. Intenta más tarde.");
-                    const studentData = rpcData && rpcData.length > 0 ? rpcData[0] : null;
+                    const studentData = rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
                     
                     if (!studentData) throw new Error("No encontramos un estudiante con ese legajo.");
 
@@ -372,7 +370,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                      if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
                      if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
 
-                     const { error: rpcResetError } = await supabase.rpc('admin_reset_password', {
+                     const { error: rpcResetError } = await (supabase.rpc as any)('admin_reset_password', {
                          legajo_input: legajoTrimmed,
                          new_password: password
                      });

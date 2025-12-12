@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import Input from './Input';
@@ -11,6 +12,7 @@ import {
     KEY_EMAIL_COUNT, KEY_EMAIL_MONTH
 } from '../constants';
 import { generateHtmlTemplate, stripGreeting } from '../utils/emailService';
+import Select from './Select';
 
 interface AutomationScenario {
     id: string;
@@ -104,53 +106,39 @@ Seguimos gestionando tu solicitud.`
             body: KEY_SAC_BODY,
             active: KEY_SAC_ACTIVE
         },
-        defaultSubject: "PPS Acreditada en SAC - UFLO",
+        defaultSubject: "Acreditación de Prácticas en SAC ✅",
         defaultBody: `Hola {{nombre_alumno}},
 
-Te informamos que tus horas de la PPS "{{nombre_pps}}" ya han sido cargadas y acreditadas en el sistema académico (SAC).
+Queremos avisarte que tus horas de la PPS "{{nombre_pps}}" fueron acreditadas correctamente y ya podés visualizarlas en el sistema SAC.
 
-¡Felicitaciones por completar esta etapa!`
+¡Felicitaciones por la finalización de esta etapa!
+
+Saludos,
+
+Blas
+Coordinador de Prácticas Profesionales Supervisadas
+Licenciatura en Psicología
+UFLO`
     }
 ];
 
 const EmailAutomationManager: React.FC = () => {
     const [toastInfo, setToastInfo] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-    
-    // Testing state
     const [testEmail, setTestEmail] = useState('');
+    const [testScenarioId, setTestScenarioId] = useState<string>('seleccion');
     const [isSendingTest, setIsSendingTest] = useState(false);
-
-    // Contador de Emails
-    const [emailCount, setEmailCount] = useState(0);
-
-    // Estado de edición de escenarios
     const [editingScenarioId, setEditingScenarioId] = useState<string | null>(null);
     const [currentSubject, setCurrentSubject] = useState('');
     const [currentBody, setCurrentBody] = useState('');
     const [activeStates, setActiveStates] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        // Cargar estados activos
         const states: Record<string, boolean> = {};
         SCENARIOS.forEach(s => {
             const stored = localStorage.getItem(s.storageKeys.active);
             states[s.id] = stored !== null ? stored === 'true' : false;
         });
         setActiveStates(states);
-
-        // Inicializar contador mensual
-        const now = new Date();
-        const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`; 
-        const storedMonthKey = localStorage.getItem(KEY_EMAIL_MONTH);
-        const storedCount = parseInt(localStorage.getItem(KEY_EMAIL_COUNT) || '0', 10);
-
-        if (storedMonthKey !== currentMonthKey) {
-            localStorage.setItem(KEY_EMAIL_MONTH, currentMonthKey);
-            localStorage.setItem(KEY_EMAIL_COUNT, '0');
-            setEmailCount(0);
-        } else {
-            setEmailCount(storedCount);
-        }
     }, []);
 
     const handleSendTest = async () => {
@@ -161,50 +149,50 @@ const EmailAutomationManager: React.FC = () => {
 
         setIsSendingTest(true);
         try {
-            // Obtenemos la plantilla ACTUAL
-            const selectionScenario = SCENARIOS[0]; 
-            const savedBody = localStorage.getItem(selectionScenario.storageKeys.body) || selectionScenario.defaultBody;
-            const savedSubject = localStorage.getItem(selectionScenario.storageKeys.subject) || selectionScenario.defaultSubject;
+            // Find the scenario matching the DROPDOWN selection, not necessarily the first one
+            const scenario = SCENARIOS.find(s => s.id === testScenarioId) || SCENARIOS[0];
+            
+            const savedBody = localStorage.getItem(scenario.storageKeys.body) || scenario.defaultBody;
+            const savedSubject = localStorage.getItem(scenario.storageKeys.subject) || scenario.defaultSubject;
             
             const studentName = 'Estudiante de Prueba';
+            let rawTextBody = savedBody.replace('{{nombre_alumno}}', studentName);
+            let subject = savedSubject;
 
-            const rawTextBody = savedBody
-                .replace('{{nombre_alumno}}', studentName)
-                .replace('{{nombre_pps}}', 'Clínica Demo UFLO')
-                .replace('{{horario}}', 'Lunes 14hs');
+            // Fill variables based on specific scenario ID
+            if (scenario.id === 'seleccion') {
+                rawTextBody = rawTextBody
+                    .replace('{{nombre_pps}}', 'Clínica Demo UFLO')
+                    .replace('{{horario}}', 'Lunes 14hs');
+                subject = subject.replace('{{nombre_pps}}', 'Clínica Demo');
+            } else if (scenario.id === 'solicitud') {
+                rawTextBody = rawTextBody
+                    .replace('{{institucion}}', 'Hospital Modelo')
+                    .replace('{{estado_nuevo}}', 'En conversaciones')
+                    .replace('{{notas}}', 'Hemos contactado a la institución y esperamos respuesta.');
+                subject = subject.replace('{{institucion}}', 'Hospital Modelo');
+            } else if (scenario.id === 'sac') {
+                 rawTextBody = rawTextBody.replace('{{nombre_pps}}', 'Práctica Profesional Supervisada');
+            }
 
-            const subject = savedSubject
-                .replace('{{nombre_pps}}', 'Clínica Demo');
-
-            // 1. Generar HTML Premium
-            // Construir el título interno (H1) como un saludo personal, igual que en producción
             const firstName = studentName.split(' ')[0];
-            const htmlTitle = `Hola, ${firstName}`;
+            const htmlTitle = `Hola, <span style="color: #2563eb;">${firstName}</span>`;
             const htmlBody = generateHtmlTemplate(rawTextBody, htmlTitle);
-            
-            // 2. Generar texto plano limpio (sin saludo, para que no se duplique si el backend lo agrega)
             const cleanTextBody = stripGreeting(rawTextBody);
-
-            console.log(">>> GENERATING TEST EMAIL <<<");
-            console.log("HTML Length:", htmlBody.length);
-            console.log("Subject:", subject);
 
             const { error } = await supabase.functions.invoke('send-email', {
                 body: {
                     to: testEmail,
                     subject: `[PRUEBA] ${subject}`,
                     text: cleanTextBody, 
-                    html: htmlBody, // IMPORTANTE: El frontend envía esto. El backend debe usarlo.
+                    html: htmlBody,
                     name: studentName
                 }
             });
 
-            if (error) {
-                console.error("Supabase Invoke Error:", error);
-                throw error;
-            }
+            if (error) throw error;
 
-            setToastInfo({ message: 'Correo de prueba enviado con formato Premium.', type: 'success' });
+            setToastInfo({ message: `Prueba de "${scenario.label}" enviada.`, type: 'success' });
         } catch (error: any) {
             console.error("Error sending test:", error);
             setToastInfo({ message: `Fallo el envío: ${error.message || 'Error desconocido'}`, type: 'error' });
@@ -253,7 +241,6 @@ const EmailAutomationManager: React.FC = () => {
         <div className="space-y-8 animate-fade-in-up pb-10">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
             
-            {/* PANEL DE CONTROL INTERNO */}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
                 <div className="flex items-center gap-4 mb-6">
                     <div className="p-3 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
@@ -262,26 +249,33 @@ const EmailAutomationManager: React.FC = () => {
                     <div>
                         <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Servidor de Correo Activo</h3>
                         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                            El sistema está configurado para enviar correos con diseño <strong>Premium</strong> (Tarjeta Digital).
+                            El sistema está configurado para enviar correos con diseño <strong>Premium</strong>.
                         </p>
                     </div>
                 </div>
 
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">Diagnóstico de Conexión</h4>
-                    <div className="flex flex-col sm:flex-row items-end gap-3">
-                        <div className="flex-grow w-full">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Enviar correo de prueba a:</label>
-                                <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="cualquier_correo@ejemplo.com" className="text-sm" />
+                    <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">Diagnóstico y Pruebas</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Plantilla a probar:</label>
+                             <Select value={testScenarioId} onChange={e => setTestScenarioId(e.target.value)} className="w-full text-sm">
+                                 {SCENARIOS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                             </Select>
                         </div>
-                        <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
-                            {isSendingTest ? 'Enviando...' : 'Probar Diseño'}
-                        </Button>
+                        <div className="flex gap-2 w-full">
+                            <div className="flex-grow">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Enviar a:</label>
+                                    <Input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="tu_correo@ejemplo.com" className="text-sm" />
+                            </div>
+                            <Button onClick={handleSendTest} disabled={isSendingTest} size="md" icon="send" variant="secondary">
+                                {isSendingTest ? '...' : 'Probar'}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* ESCENARIOS */}
             <div>
                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">Plantillas de Notificación</h3>
                 <div className="grid grid-cols-1 gap-6">
@@ -323,7 +317,6 @@ const EmailAutomationManager: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* EDITOR AREA */}
                                 {isEditing && (
                                     <div className="border-t border-slate-200 dark:border-slate-700 p-6 bg-slate-50/50 dark:bg-slate-900/30 animate-fade-in">
                                         <div className="space-y-4">

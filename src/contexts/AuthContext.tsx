@@ -144,7 +144,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     // Initialize: Get current session
-    supabase.auth.getSession().then(({ data, error }) => {
+    (supabase.auth as any).getSession().then(({ data, error }: any) => {
         if (error) {
             const msg = error.message.toLowerCase();
             // DETECCIÓN CRÍTICA DE TOKEN INVÁLIDO

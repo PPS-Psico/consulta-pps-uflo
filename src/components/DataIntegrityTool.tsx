@@ -138,7 +138,7 @@ const DataIntegrityTool: React.FC = () => {
 
         try {
             // --- 1. SCAN LANZAMIENTOS ---
-            const { data: lanzamientos } = await supabase.from(TABLE_NAME_LANZAMIENTOS_PPS).select('*');
+            const { data: lanzamientos } = await supabase.from(TABLE_NAME_LANZAMIENTOS_PPS as any).select('*');
             const now = new Date();
 
             if (lanzamientos) {
@@ -208,7 +208,7 @@ const DataIntegrityTool: React.FC = () => {
             }
 
             // --- 2. SCAN ESTUDIANTES ---
-            const { data: students } = await supabase.from(TABLE_NAME_ESTUDIANTES).select('*');
+            const { data: students } = await supabase.from(TABLE_NAME_ESTUDIANTES as any).select('*');
 
             if (students) {
                 const legajoMap = new Map<string, any[]>();
@@ -270,34 +270,33 @@ const DataIntegrityTool: React.FC = () => {
                                 const loserIds = losers.map(l => l.id);
                                 
                                 // Update Convocatorias (Inscripciones)
-                                await supabase
+                                // Use cast as any for dynamic update object
+                                await (supabase as any)
                                     .from(TABLE_NAME_CONVOCATORIAS)
                                     .update({ [FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: winner.id })
                                     .in(FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS, loserIds);
 
                                 // Update Solicitudes PPS
-                                await supabase
+                                await (supabase as any)
                                     .from(TABLE_NAME_PPS)
                                     .update({ [FIELD_LEGAJO_PPS]: winner.id })
                                     .in(FIELD_LEGAJO_PPS, loserIds);
                                     
                                 // Update Finalizaciones
-                                await supabase
+                                await (supabase as any)
                                     .from(TABLE_NAME_FINALIZACION)
                                     .update({ [FIELD_ESTUDIANTE_FINALIZACION]: winner.id })
                                     .in(FIELD_ESTUDIANTE_FINALIZACION, loserIds);
 
-                                // Update Practicas (Link Array handling is tricky in raw SQL, but standard ID link is simpler)
-                                // If practicas use a standard foreign key (uuid), this works. 
-                                // If they use array of strings (legacy), we assume standard FK for new system.
-                                await supabase
+                                // Update Practicas
+                                await (supabase as any)
                                     .from(TABLE_NAME_PRACTICAS)
                                     .update({ [FIELD_ESTUDIANTE_LINK_PRACTICAS]: winner.id })
                                     .in(FIELD_ESTUDIANTE_LINK_PRACTICAS, loserIds);
 
                                 // 2. Delete losers
                                 const { error } = await supabase
-                                    .from(TABLE_NAME_ESTUDIANTES)
+                                    .from(TABLE_NAME_ESTUDIANTES as any)
                                     .delete()
                                     .in('id', loserIds);
                                 
@@ -309,7 +308,7 @@ const DataIntegrityTool: React.FC = () => {
             }
 
             // --- 3. SCAN PRÁCTICAS ---
-            const { data: practicas } = await supabase.from(TABLE_NAME_PRACTICAS).select('*');
+            const { data: practicas } = await supabase.from(TABLE_NAME_PRACTICAS as any).select('*');
             if (practicas) {
                 practicas.forEach((p: any) => {
                      // CRITICAL: Orphaned Link
@@ -363,7 +362,7 @@ const DataIntegrityTool: React.FC = () => {
 
             try {
                 const { error } = await supabase
-                    .from(issue.table)
+                    .from(issue.table as any)
                     .delete()
                     .eq('id', issue.recordId);
 

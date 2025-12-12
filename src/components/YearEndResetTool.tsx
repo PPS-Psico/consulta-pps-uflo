@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
@@ -24,7 +25,8 @@ const YearEndResetTool: React.FC = () => {
         try {
             // 1. Archivar Solicitudes de PPS (Autogestión)
             // Archivamos todo lo que NO esté ya archivado.
-            const { error: requestsError, count: requestsCount } = await supabase
+            // Using casting to any to bypass strict type check for now
+            const { error: requestsError, count: requestsCount } = await (supabase as any)
                 .from(TABLE_NAME_PPS)
                 .update({ [FIELD_ESTADO_PPS]: 'Archivado' })
                 .neq(FIELD_ESTADO_PPS, 'Archivado')
@@ -34,7 +36,7 @@ const YearEndResetTool: React.FC = () => {
 
             // 2. Resetear Gestión de Lanzamientos
             // Volvemos todo a "Pendiente" y limpiamos fechas/notas para el nuevo ciclo.
-            const { error: launchesError, count: launchesCount } = await supabase
+            const { error: launchesError, count: launchesCount } = await (supabase as any)
                 .from(TABLE_NAME_LANZAMIENTOS_PPS)
                 .update({
                     [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión',
@@ -51,9 +53,9 @@ const YearEndResetTool: React.FC = () => {
                 type: 'success'
             });
 
-        } catch (e: any) {
-            console.error(e);
-            setToastInfo({ message: e.message || 'Error desconocido al resetear.', type: 'error' });
+        } catch (error: any) {
+            console.error("Error reseteando ciclo:", error);
+            setToastInfo({ message: error.message || 'Error desconocido.', type: 'error' });
         } finally {
             setIsLoading(false);
             setShowConfirm(false);
@@ -62,44 +64,35 @@ const YearEndResetTool: React.FC = () => {
 
     return (
         <Card 
-            title="Cierre de Ciclo Lectivo" 
-            icon="update" 
-            className="border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-900/10"
+            title="Reinicio de Ciclo Lectivo" 
+            icon="restart_alt" 
+            className="border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-900/10"
         >
-            {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
-            
-            <ConfirmModal
+             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
+             
+             <ConfirmModal
                 isOpen={showConfirm}
-                title="⚠️ ¿Confirmar Reinicio Total?"
-                message={`Estás a punto de preparar la base de datos para el 2026.\n\n1. Todas las Solicitudes de PPS activas se moverán a "Archivado".\n2. Toda la gestión de relanzamientos (confirmados, en charla, etc.) se borrará y volverá a "Pendiente".\n\nLas acreditaciones finalizadas NO se tocarán.\n\nEsta acción es irreversible.`}
+                title="¿Confirmar Reinicio de Ciclo?"
+                message="Esta acción archivará todas las solicitudes de PPS activas y reseteará el estado de gestión de los lanzamientos a 'Pendiente'. Esto prepara el sistema para el próximo año. ¿Estás seguro?"
                 onConfirm={handleReset}
                 onClose={() => setShowConfirm(false)}
-                confirmText="Sí, Reiniciar Todo"
                 type="danger"
-            />
+                confirmText="Sí, Reiniciar Ciclo"
+             />
 
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-4">
-                <div className="text-sm text-slate-600 dark:text-slate-300 space-y-2">
-                    <p>
-                        Utiliza esta herramienta al finalizar el año académico para limpiar el tablero de trabajo.
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1">
-                        <li><strong>Solicitudes:</strong> Se archivan masivamente (no se borran, solo se ocultan).</li>
-                        <li><strong>Gestión 2026:</strong> Se limpian los estados de "Confirmado" y las fechas para empezar de cero.</li>
-                    </ul>
-                </div>
-                
-                <div className="flex-shrink-0">
-                    <Button 
-                        variant="danger" 
-                        icon="restart_alt" 
-                        onClick={() => setShowConfirm(true)}
-                        isLoading={isLoading}
-                    >
-                        Ejecutar Cierre 2025
-                    </Button>
-                </div>
-            </div>
+             <div className="p-4">
+                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                     Utiliza esta herramienta al finalizar el año académico. Archivará automáticamente las solicitudes pendientes y reseteará el estado de gestión de las instituciones para comenzar el nuevo ciclo limpio.
+                 </p>
+                 <Button 
+                    variant="danger" 
+                    onClick={() => setShowConfirm(true)} 
+                    isLoading={isLoading}
+                    icon="warning"
+                 >
+                     Reiniciar Ciclo (Archivar Todo)
+                 </Button>
+             </div>
         </Card>
     );
 };

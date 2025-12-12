@@ -1,4 +1,5 @@
 
+
 export function addBusinessDays(startDate: Date, days: number): Date {
     let date = new Date(startDate.getTime());
     let added = 0;
@@ -153,14 +154,13 @@ export function getStatusVisuals(status?: string): { icon: string; iconContainer
 
     const states = {
         'convenio realizado': { icon: 'fact_check', color: 'primary' },
-        'pps realizada': { icon: 'check_circle', color: 'primary' },
         'finalizada': { icon: 'check_circle', color: 'primary' },
-        'realizada': { icon: 'check_circle', color: 'primary' },
-        'no se pudo concretar': { icon: 'cancel', color: 'danger' },
+        'realizada': { icon: 'check_circle', color: 'primary' }, // Nuevo Estado Unificado
+        'no se pudo concretar': { icon: 'cancel', color: 'danger' }, // Nuevo Estado Unificado
         'no seleccionado': { icon: 'cancel', color: 'danger' },
         'en curso': { icon: 'sync', color: 'warning', animation: 'animate-spin [animation-duration:3s]' },
         'en conversaciones': { icon: 'forum', color: 'warning' },
-        'realizando convenio': { icon: 'edit_document', color: 'warning' },
+        'realizando convenio': { icon: 'edit_document', color: 'warning' }, // Legacy check
         'puesta en contacto': { icon: 'send', color: 'secondary' },
         'abierta': { icon: 'door_open', color: 'success' },
         'abierto': { icon: 'door_open', color: 'success' },
@@ -171,6 +171,7 @@ export function getStatusVisuals(status?: string): { icon: string; iconContainer
         'pendiente': { icon: 'hourglass_empty', color: 'gray' },
         'cargado': { icon: 'verified', color: 'success' },
         'en proceso': { icon: 'pending_actions', color: 'primary' },
+        'archivado': { icon: 'archive', color: 'gray' }
     };
 
     const colorClasses: Record<string, { icon: string, label: string, accentBg: string }> = {

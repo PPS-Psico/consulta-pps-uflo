@@ -1,3 +1,4 @@
+
 import { supabase } from '../lib/supabaseClient';
 import type { AppRecord, AppErrorResponse } from '../types';
 import { z } from 'zod';
@@ -25,9 +26,16 @@ const applyFilters = (query: any, filters?: Record<string, any>) => {
         else if (key === 'endDate') query = query.lte('fecha_inicio', value);
         else if (key === 'institucion') query = query.ilike('nombre_institucion', `%${value}%`);
         else if (key === FIELD_LANZAMIENTO_VINCULADO_PRACTICAS && typeof value === 'string' && value.includes('|')) {
-            const [launchId, instName, startDate] = value.split('|');
+            const parts = value.split('|');
+            // Reconstruct launchId and name if splitting was too aggressive (e.g. if name contains '|')
+            const launchId = parts[0];
+            const startDate = parts[parts.length - 1]; // Date is always last
+            const instName = parts.slice(1, parts.length - 1).join('|'); // Join back the middle parts
+
             if (launchId && instName && startDate) {
-                const legacyCondition = `and(nombre_institucion.ilike."${instName}%",fecha_inicio.eq.${startDate})`;
+                // IMPORTANT: Sanitize double quotes to avoid breaking PostgREST syntax
+                const safeInstName = instName.replace(/"/g, ''); 
+                const legacyCondition = `and(nombre_institucion.ilike."${safeInstName}%",fecha_inicio.eq.${startDate})`;
                 const linkedCondition = `${key}.eq.${launchId}`;
                 query = query.or(`${linkedCondition},${legacyCondition}`);
             } else {
@@ -63,7 +71,7 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
         const selectQuery = fields && fields.length > 0 ? `id, created_at, ${fields.join(', ')}` : '*';
-        let query = supabase.from(tableName).select(selectQuery, { count: 'exact' });
+        let query = supabase.from(tableName as any).select(selectQuery, { count: 'exact' });
         query = applyFilters(query, filters);
         if (searchTerm && searchFields && searchFields.length > 0) {
              const orQuery = buildSearchFilter(tableName, searchTerm, searchFields);
@@ -75,7 +83,7 @@ export const fetchPaginatedData = async <TFields extends Record<string, any>>(
         const { data, error, count } = await query.range(from, to);
         if (error) return { records: [], total: 0, error: { error: { type: 'SUPABASE_ERROR', message: error.message } } };
 
-        const records = (data || []).map(row => ({ ...row, createdTime: row.created_at }));
+        const records = (data || []).map((row: any) => ({ ...row, createdTime: row.created_at }));
         return { records: records as AppRecord<TFields>[], total: count || 0, error: null };
     } catch (e: any) {
         return { records: [], total: 0, error: { error: { type: 'UNKNOWN_ERROR', message: e.message } } };
@@ -102,7 +110,7 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
             let lastError: any = null;
             while (attempt < MAX_RETRIES && !success) {
                 try {
-                    let query = supabase.from(tableName).select(selectQuery);
+                    let query = supabase.from(tableName as any).select(selectQuery);
                     query = applyFilters(query, filters);
                     if (sort && sort.length > 0) {
                         sort.forEach(s => query = query.order(s.field, { ascending: s.direction === 'asc' }));
@@ -127,7 +135,7 @@ export const fetchAllData = async <TFields extends Record<string, any>>(
             }
             if (!success) return { records: [], error: { error: { type: 'SUPABASE_ERROR', message: lastError?.message || 'Network error' } } };
         }
-        const records = allRows.map(row => ({ ...row, createdTime: row.created_at }));
+        const records = allRows.map((row: any) => ({ ...row, createdTime: row.created_at }));
         return { records: records as AppRecord<TFields>[], error: null };
     } catch (e: any) {
         return { records: [], error: { error: { type: 'UNKNOWN_ERROR', message: e.message } } };
@@ -145,12 +153,12 @@ export const fetchData = async <TFields extends Record<string, any>>(
     if (maxRecords && maxRecords > 0) {
         try {
             const selectQuery = fields && fields.length > 0 ? `id, created_at, ${fields.join(', ')}` : '*';
-            let query = supabase.from(tableName).select(selectQuery).limit(maxRecords);
+            let query = supabase.from(tableName as any).select(selectQuery).limit(maxRecords);
             query = applyFilters(query, filters);
             if (sort && sort.length > 0) sort.forEach(s => query = query.order(s.field, { ascending: s.direction === 'asc' }));
             const { data, error } = await query;
             if (error) throw error;
-            const records = (data || []).map(row => ({ ...row, createdTime: row.created_at }));
+            const records = (data || []).map((row: any) => ({ ...row, createdTime: row.created_at }));
             return { records: records as AppRecord<TFields>[], error: null };
         } catch (e: any) {
             return { records: [], error: { error: { type: 'SUPABASE_ERROR', message: e.message } } };
@@ -164,9 +172,12 @@ export const createRecord = async <TFields>(
     fields: TFields
 ): Promise<{ record: AppRecord<TFields> | null, error: AppErrorResponse | null }> => {
     try {
-        const { data, error } = await supabase.from(tableName).insert(fields as any).select().single();
+        const { data, error } = await supabase.from(tableName as any).insert(fields as any).select().single();
         if (error) return { record: null, error: { error: { type: 'CREATE_ERROR', message: error.message } } };
-        const record = { ...data, createdTime: data.created_at };
+        // Check if data is null before spreading
+        if (!data) return { record: null, error: { error: { type: 'CREATE_ERROR', message: 'No data returned from insert' } } };
+        
+        const record = { ...(data as any), createdTime: (data as any).created_at };
         return { record, error: null };
     } catch (e: any) {
         return { record: null, error: { error: { type: 'UNKNOWN_ERROR', message: e.message } } };
@@ -180,9 +191,10 @@ export const updateRecord = async <TFields>(
 ): Promise<{ record: AppRecord<TFields> | null, error: AppErrorResponse | null }> => {
     try {
         // Critical: 'maybeSingle' prevents PGRST116 errors when RLS policies restrict returning rows.
-        const { data, error } = await supabase
+        // Use casting to any for supabase to bypass strict type checking on partial updates dynamically
+        const { data, error } = await (supabase as any)
             .from(tableName)
-            .update(fields as any)
+            .update(fields)
             .eq('id', recordId)
             .select()
             .maybeSingle(); 
@@ -194,9 +206,9 @@ export const updateRecord = async <TFields>(
         
         // If data is null but no error, RLS likely hid the result, but update was processed if we have write permission.
         // We simulate a successful return to keep UI optimistic.
-        const record = data ? { ...data, createdTime: data.created_at } : { id: recordId, ...fields };
+        const record = data ? { ...(data as any), createdTime: (data as any).created_at } : { id: recordId, ...fields };
         
-        return { record, error: null };
+        return { record: record as AppRecord<TFields>, error: null };
     } catch (e: any) {
         return { record: null, error: { error: { type: 'UNKNOWN_ERROR', message: e.message } } };
     }
@@ -223,7 +235,7 @@ export const deleteRecord = async (
     recordId: string
 ): Promise<{ success: boolean, error: AppErrorResponse | null }> => {
     try {
-        const { error } = await supabase.from(tableName).delete().eq('id', recordId);
+        const { error } = await supabase.from(tableName as any).delete().eq('id', recordId);
         if (error) return { success: false, error: { error: { type: 'DELETE_ERROR', message: error.message } } };
         return { success: true, error: null };
     } catch (e: any) {

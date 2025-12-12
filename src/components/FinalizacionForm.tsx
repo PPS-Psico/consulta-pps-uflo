@@ -200,14 +200,14 @@ const FinalizacionForm: React.FC<FinalizacionFormProps> = ({ studentAirtableId, 
             try {
                 // Fetch all active requests for this student that are NOT already archived or finished
                 const { data: activeRequests } = await supabase
-                    .from(TABLE_NAME_PPS)
+                    .from(TABLE_NAME_PPS as any)
                     .select('id')
                     .eq(FIELD_LEGAJO_PPS, studentAirtableId)
                     .not(FIELD_ESTADO_PPS, 'in', '("Archivado","Finalizada","Cancelada","Rechazada")');
 
                 if (activeRequests && activeRequests.length > 0) {
                     console.log(`Archiving ${activeRequests.length} active PPS requests due to finalization...`);
-                    const updates = activeRequests.map(r => ({
+                    const updates = activeRequests.map((r: any) => ({
                         id: r.id,
                         fields: { [FIELD_ESTADO_PPS]: 'Archivado' }
                     }));

@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
@@ -29,25 +30,28 @@ const StudentDiagnostics: React.FC = () => {
         try {
             // 1. Check Student Record
             const { data: students, error: dbError } = await supabase
-                .from(TABLE_NAME_ESTUDIANTES)
+                .from(TABLE_NAME_ESTUDIANTES as any)
                 .select('*')
                 .eq(FIELD_LEGAJO_ESTUDIANTES, legajo);
 
             if (dbError) throw dbError;
 
+            // Ensure students is treated as an array of any to access properties safely
+            const safeStudents = (students || []) as any[];
+
             const studentData = {
-                exists: students && students.length > 0,
-                count: students?.length || 0,
-                records: students || []
+                exists: safeStudents.length > 0,
+                count: safeStudents.length,
+                records: safeStudents
             };
 
             let convocatoriasData = { count: 0, items: [] };
 
             // 2. Check Enrollments if student exists
-            if (students && students.length === 1) {
-                const studentId = students[0].id;
+            if (safeStudents.length === 1) {
+                const studentId = safeStudents[0].id;
                 const { data: convs, error: convError } = await supabase
-                    .from(TABLE_NAME_CONVOCATORIAS)
+                    .from(TABLE_NAME_CONVOCATORIAS as any)
                     .select('id, created_at, estado_inscripcion')
                     .eq(FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS, studentId);
                 

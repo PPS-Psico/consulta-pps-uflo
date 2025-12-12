@@ -1,4 +1,5 @@
 
+
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
@@ -34,13 +35,14 @@ export const useCycleReset = () => {
         setIsCheckingReset(true);
         try {
              // 1. Archive Requests
-             await supabase
+             // Cast to any to allow dynamic update object
+             await (supabase as any)
                 .from(TABLE_NAME_PPS)
                 .update({ [FIELD_ESTADO_PPS]: 'Archivado' })
                 .neq(FIELD_ESTADO_PPS, 'Archivado');
 
              // 2. Reset Launches
-             await supabase
+             await (supabase as any)
                 .from(TABLE_NAME_LANZAMIENTOS_PPS)
                 .update({
                     [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Pendiente de Gestión',

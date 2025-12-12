@@ -81,7 +81,7 @@ const RequestListItem: React.FC<{
     const statusVisuals = getStatusVisuals(req[FIELD_ESTADO_PPS]);
     // Normalizamos para comparar con los estados "finales"
     const normalizedStatus = normalizeStringForComparison(req[FIELD_ESTADO_PPS] || '');
-    const isStagnant = req._daysSinceUpdate > 4 && !['finalizada', 'cancelada', 'rechazada', 'archivado', 'realizada', 'pps realizada'].includes(normalizedStatus);
+    const isStagnant = req._daysSinceUpdate > 4 && !['finalizada', 'cancelada', 'rechazada', 'archivado', 'realizada', 'no se pudo concretar'].includes(normalizedStatus);
     const institucion = cleanValue(req[FIELD_EMPRESA_PPS_SOLICITUD]);
     const instEmail = cleanValue(req[FIELD_SOLICITUD_EMAIL_INSTITUCION]);
 
@@ -120,9 +120,9 @@ const RequestListItem: React.FC<{
         const mailto = `mailto:${instEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         window.open(mailto, '_blank');
         
-        // Sugerir cambio de estado
+        // Sugerir cambio de estado si estaba pendiente
         if (status === 'Pendiente') {
-            setStatus('Puesta en contacto');
+            setStatus('En conversaciones');
             setHasChanges(true);
         }
     };
@@ -244,11 +244,11 @@ const RequestListItem: React.FC<{
                                                 onChange={(e) => setStatus(e.target.value)}
                                                 className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-shadow text-slate-900 dark:text-white"
                                             >
-                                                <option value="Pendiente">Pendiente</option>
-                                                <option value="En conversaciones">En conversaciones</option>
-                                                <option value="Realizando convenio">Realizando convenio</option>
-                                                <option value="Puesta en contacto">Puesta en contacto</option>
-                                                <option value="Realizada">Realizada</option> {/* Unified "Done" Status */}
+                                                {/* Unified List */}
+                                                <option value="Pendiente">Pendiente (Inicio)</option>
+                                                <option value="En conversaciones">En conversaciones (En curso)</option>
+                                                <option value="Realizada">Realizada (Finalizado OK)</option>
+                                                <option value="No se pudo concretar">No se pudo concretar (Cancelado)</option>
                                                 <option value="Rechazada">Rechazada</option>
                                                 <option value="Cancelada">Cancelada</option>
                                                 <option value="Archivado">Archivado</option>
@@ -441,7 +441,8 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
         const active: any[] = [];
         const history: any[] = [];
         
-        const historyStatuses = ['finalizada', 'cancelada', 'rechazada', 'archivado', 'pps realizada', 'no se pudo concretar', 'realizada', 'solicitud invalida'];
+        // Define terminal states that go to history
+        const historyStatuses = ['finalizada', 'cancelada', 'rechazada', 'archivado', 'realizada', 'no se pudo concretar'];
 
         requestsData.forEach((req: any) => {
             if (!matchesSearch(req)) return;
@@ -508,9 +509,8 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
                                 <option value="requieren_atencion">⚠️ Requieren Atención (+4 días)</option>
                                 <option value="Pendiente">Pendiente</option>
                                 <option value="En conversaciones">En conversaciones</option>
-                                <option value="Realizando convenio">Realizando convenio</option>
-                                <option value="Puesta en contacto">Puesta en contacto</option>
                                 <option value="Realizada">Realizada</option>
+                                <option value="No se pudo concretar">No se pudo concretar</option>
                                 <option value="Archivado">Archivado</option>
                             </select>
                         </div>

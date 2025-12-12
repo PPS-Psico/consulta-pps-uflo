@@ -1,14 +1,14 @@
 
 // Table Names (Mapped to Supabase SQL Tables)
-export const TABLE_NAME_PPS = 'solicitudes_pps';
-export const TABLE_NAME_PRACTICAS = 'practicas';
-export const TABLE_NAME_ESTUDIANTES = 'estudiantes';
-export const TABLE_NAME_AUTH_USERS = 'auth_users';
-export const TABLE_NAME_LANZAMIENTOS_PPS = 'lanzamientos_pps';
-export const TABLE_NAME_CONVOCATORIAS = 'convocatorias';
-export const TABLE_NAME_INSTITUCIONES = 'instituciones';
-export const TABLE_NAME_FINALIZACION = 'finalizacion_pps';
-export const TABLE_NAME_PENALIZACIONES = 'penalizaciones';
+export const TABLE_NAME_PPS = 'solicitudes_pps' as const;
+export const TABLE_NAME_PRACTICAS = 'practicas' as const;
+export const TABLE_NAME_ESTUDIANTES = 'estudiantes' as const;
+export const TABLE_NAME_AUTH_USERS = 'auth_users' as const;
+export const TABLE_NAME_LANZAMIENTOS_PPS = 'lanzamientos_pps' as const;
+export const TABLE_NAME_CONVOCATORIAS = 'convocatorias' as const;
+export const TABLE_NAME_INSTITUCIONES = 'instituciones' as const;
+export const TABLE_NAME_FINALIZACION = 'finalizacion_pps' as const;
+export const TABLE_NAME_PENALIZACIONES = 'penalizaciones' as const;
 
 // --- DB COLUMN NAMES (PostgreSQL Actual Columns) ---
 export const COL_ID = 'id';

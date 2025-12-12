@@ -353,17 +353,43 @@ const mapPractica = (f) => ({
     nota: f['Nota']
 });
 
+// 🔥 LÓGICA DE UNIFICACIÓN DE ESTADOS 🔥
+const normalizeSolicitudStatus = (rawStatus) => {
+    if (!rawStatus) return 'Pendiente';
+    
+    const lower = String(rawStatus).trim().toLowerCase();
+
+    // Regla 1: Pendiente -> Archivado (Sin gestión)
+    if (lower === 'pendiente') return 'Archivado';
+
+    // Regla 2: En conversaciones / Puesta en contacto -> No se pudo concretar
+    if (lower === 'en conversaciones' || lower === 'puesta en contacto') return 'No se pudo concretar';
+
+    // Regla 3: Realizando convenio -> Realizada
+    if (lower === 'realizando convenio') return 'Realizada';
+
+    // Regla 4 (Generalización): Cualquier variante de "Realizada" o "Finalizada" -> Realizada
+    if (lower.includes('realizada') || lower.includes('finalizada') || lower.includes('pps realizada')) return 'Realizada';
+
+    // Si es "Rechazada", "Cancelada" o "Archivado", se mantiene
+    return rawStatus;
+};
+
 const mapSolicitud = (f) => {
     // Resolvemos el estudiante ID usando el mapa creado en el paso 'estudiantes'
     const estAirtableId = cleanArray(f['Legajo Link']);
     const supabaseEstId = idMap.get(estAirtableId);
+
+    // Aplicar transformación de estado
+    const estadoOriginal = f['Estado de seguimiento'];
+    const estadoUnificado = normalizeSolicitudStatus(estadoOriginal);
 
     return {
         estudiante_id: supabaseEstId, // Puede ser null si no se migró el estudiante (Orphan)
         
         // Mapeo directo a columnas snake_case
         nombre_institucion: f['Nombre de la Institución'],
-        estado_seguimiento: f['Estado de seguimiento'],
+        estado_seguimiento: estadoUnificado, // USAR ESTADO UNIFICADO
         actualizacion: cleanDate(f['Actualización']),
         notas: f['Notas'],
         
@@ -428,7 +454,7 @@ const mapFinalizacionAsync = async (rec, existingMap) => {
 // --- Ejecución Principal ---
 
 async function main() {
-    console.log("=== INICIANDO MIGRACIÓN A SUPABASE CON HYDRATION ===");
+    console.log("=== INICIANDO MIGRACIÓN A SUPABASE CON UNIFICACIÓN DE ESTADOS ===");
     let hasFailed = false;
     try {
         const order = [

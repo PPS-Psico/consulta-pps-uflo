@@ -1,3 +1,4 @@
+
 import { supabase } from '../lib/supabaseClient';
 import {
     KEY_SELECTION_SUBJECT, KEY_SELECTION_BODY, KEY_SELECTION_ACTIVE,
@@ -79,12 +80,19 @@ Comentarios:
 Seguimos gestionando tu solicitud.`
     },
     'sac': {
-        subject: "PPS Acreditada en SAC - UFLO",
+        subject: "Acreditación de Prácticas en SAC ✅",
         body: `Hola {{nombre_alumno}},
 
-Te informamos que tus horas de la PPS "{{nombre_pps}}" ya han sido cargadas y acreditadas en el sistema académico (SAC).
+Queremos avisarte que tus horas de la PPS "{{nombre_pps}}" fueron acreditadas correctamente y ya podés visualizarlas en el sistema SAC.
 
-¡Felicitaciones por completar esta etapa!`
+¡Felicitaciones por la finalización de esta etapa!
+
+Saludos,
+
+Blas
+Coordinador de Prácticas Profesionales Supervisadas
+Licenciatura en Psicología
+UFLO`
     }
 };
 
@@ -122,7 +130,7 @@ export const stripGreeting = (text: string): string => {
 };
 
 /**
- * Configuración visual para las TARJETAS DE RECOMENDACIONES (Estilo Premium Minimalista)
+ * Configuración visual para las TARJETAS DE RECOMENDACIONES
  */
 const getBlockConfig = (title: string) => {
     const lower = title.toLowerCase();
@@ -138,23 +146,18 @@ const getBlockConfig = (title: string) => {
     if (lower.includes('documentación')) {
         return { titleColor: '#be123c', bg: '#fff1f2', border: '#fecdd3' }; // Rose-100 theme
     }
-    // Default
     return { titleColor: '#334155', bg: '#f8fafc', border: '#e2e8f0' };
 };
 
-/**
- * Configuración visual para datos clave (Institución, Horario) - Estilo Clean Ticket
- */
 const getDataConfig = (label: string) => {
     const lower = label.toLowerCase();
-    if (lower.includes('instituci')) return { icon: '📍', color: '#dc2626' }; // Pin rojo
-    if (lower.includes('horario') || lower.includes('comisi')) return { icon: '📅', color: '#2563eb' }; // Cal azul
+    if (lower.includes('instituci')) return { icon: '📍', color: '#dc2626' }; 
+    if (lower.includes('horario') || lower.includes('comisi')) return { icon: '📅', color: '#2563eb' }; 
     return { icon: '👉', color: '#475569' };
 };
 
 /**
- * Genera un HTML realmente Premium, estructurado y RESPONSIVE.
- * Tipografía actualizada a System UI Stack para modernidad.
+ * Genera un HTML estilizado y responsive.
  */
 export const generateHtmlTemplate = (textBody: string, title: string = "Comunicación Institucional"): string => {
     const cleanText = stripGreeting(textBody)
@@ -165,32 +168,50 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
     const lines = cleanText.split(/\n/);
     let contentHtml = '';
     
-    // Fuente moderna y limpia (System Stack)
-    const fontStack = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    // Fuente moderna
+    const fontStack = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
     
+    let isSignatureBlock = false;
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
+        
+        // Detección de inicio de firma
+        if (line.match(/^(Saludos|Atentamente|Cariños),?$/i)) {
+            isSignatureBlock = true;
+            contentHtml += `<div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                <p style="margin: 0; color: #64748b; font-size: 14px; font-family: ${fontStack};">${line}</p>`;
+            continue;
+        }
+
+        if (isSignatureBlock) {
+             if (!line) continue;
+             // Blas en negrita y color oscuro
+             if (line.includes('Blas')) {
+                 contentHtml += `<p style="margin: 4px 0 0 0; color: #0f172a; font-weight: 700; font-size: 16px; font-family: ${fontStack};">${line}</p>`;
+             } else {
+                 // Cargos en gris y más pequeños
+                 contentHtml += `<p style="margin: 2px 0 0 0; color: #64748b; font-size: 13px; font-family: ${fontStack};">${line}</p>`;
+             }
+             continue;
+        }
+
         if (!line) {
             contentHtml += `<div style="height: 12px; font-size: 1px; line-height: 12px;">&nbsp;</div>`;
             continue;
         }
 
-        // 1. Detectar Bloques Destacados (**Título:** Texto)
+        // 1. Bloques destacados (**Título:**)
         const blockMatch = line.match(/^\*\*(.*?)\*\*[:]?\s*(.*)/);
-        
-        // 2. Detectar Datos Clave (Etiqueta: Valor)
+        // 2. Datos Clave (Etiqueta: Valor)
         const dataMatch = line.match(/^([^:]+):[:]?\s*(.*)/);
 
         if (blockMatch) {
             const blockTitle = blockMatch[1].trim();
             const blockContent = blockMatch[2].trim();
-            
-            // Filtro anti-spam visual
-            if (blockTitle.toLowerCase().includes('disfrutalo') || blockTitle.toLowerCase().includes('disfrútalo')) continue;
-
+            if (blockTitle.toLowerCase().includes('disfrutalo')) continue;
             const style = getBlockConfig(blockTitle);
             
-            // Renderizado estilo "Callout" Premium
             contentHtml += `
             <div class="content-block" style="margin-bottom: 12px; background-color: ${style.bg}; border: 1px solid ${style.border}; border-left: 4px solid ${style.titleColor}; border-radius: 6px; padding: 16px 20px;">
                 <div style="color: ${style.titleColor}; font-family: ${fontStack}; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
@@ -204,12 +225,9 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
         else if (dataMatch && (line.includes('Institución') || line.includes('Horario') || line.includes('Estado') || line.includes('Comisión'))) {
             const label = dataMatch[1].trim();
             let value = dataMatch[2].trim();
-            
             if (value.startsWith('/')) value = value.substring(1).trim();
-
             const config = getDataConfig(label);
 
-            // Renderizado estilo TICKET limpio
             contentHtml += `
             <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid ${config.color}; border-radius: 8px; padding: 15px 20px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                 <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -225,21 +243,28 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
                 </table>
             </div>`;
         }
-        else if (line.match(/^(Saludos|Atentamente|Cariños|Blas|Coordinador|Licenciatura)/i)) {
-             contentHtml += `<div style="color: #64748b; font-family: ${fontStack}; font-size: 14px; margin-top: 4px;">${line}</div>`;
-        } 
         else {
             const boldLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            if (line.includes('Recomendaciones') || line.includes('💡')) {
+            
+            // Estilo especial para "Felicitaciones"
+            if (line.includes('Felicitaciones')) {
+                 contentHtml += `
+                 <div style="margin: 24px 0; padding: 16px; background-color: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0; text-align: center;">
+                    <h3 style="color: #166534; font-family: ${fontStack}; font-size: 18px; margin: 0; font-weight: 700;">
+                        ✨ ${boldLine} ✨
+                    </h3>
+                 </div>`;
+            } 
+            else if (line.includes('Recomendaciones') || line.includes('💡')) {
                  contentHtml += `<h3 style="color: #1e293b; font-family: ${fontStack}; font-size: 17px; margin: 25px 0 15px 0; font-weight: 700; letter-spacing: -0.3px;">${boldLine}</h3>`;
             } else {
-                 contentHtml += `<p style="margin: 0 0 14px 0; color: #475569; font-family: ${fontStack}; font-size: 15px; line-height: 1.6;">${boldLine}</p>`;
+                 contentHtml += `<p style="margin: 0 0 16px 0; color: #475569; font-family: ${fontStack}; font-size: 15px; line-height: 1.6;">${boldLine}</p>`;
             }
         }
     }
-
-    if (contentHtml.includes('Saludos') || contentHtml.includes('Atentamente')) {
-         contentHtml = contentHtml.replace(/(<div.*?>(Saludos|Atentamente).*?<\/div>)/i, '<hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0 20px 0;" />$1');
+    
+    if (isSignatureBlock) {
+        contentHtml += `</div>`; // Cerrar el div de la firma si quedó abierto
     }
 
     return `
@@ -248,54 +273,24 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            /* Client-specific resets */
-            body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-            table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-            img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-            table { border-collapse: collapse !important; }
-            body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
-            
-            /* Modern Font Stack */
-            body, td, th, p, div, li, a, span, h1, h2, h3 {
-                font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
-            }
-
-            /* Mobile Responsive Styles */
-            @media screen and (max-width: 600px) {
-                .email-container {
-                    width: 100% !important;
-                    margin: auto !important;
-                }
-                .content-padding {
-                    padding: 24px !important;
-                }
-                .header-padding {
-                    padding: 24px !important;
-                }
-                h1 {
-                    font-size: 24px !important;
-                }
-            }
-        </style>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #f8fafc;">
+    <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: ${fontStack};">
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
             <tr>
-                <td align="center" style="padding: 20px 10px;">
+                <td align="center" style="padding: 40px 10px;">
                     
                     <!-- Main Container -->
-                    <table class="email-container" role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #f1f5f9;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);">
                         
                         <!-- Header Banner -->
                         <tr>
-                            <td class="header-padding" style="background: linear-gradient(135deg, #00B2A9 0%, #1e40af 100%); padding: 32px;">
+                            <td style="background: linear-gradient(135deg, #00B2A9 0%, #1e40af 100%); padding: 32px 40px;">
                                 <table width="100%" border="0" cellspacing="0" cellpadding="0">
                                     <tr>
                                         <td align="left">
-                                            <div style="line-height: 1;">
-                                                <span style="display: block; font-weight: 800; font-size: 32px; color: #ffffff; letter-spacing: -1px; margin-bottom: 6px;">UFLO</span>
-                                                <span style="display: block; font-weight: 600; font-size: 11px; color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: 2px;">Universidad</span>
+                                            <div style="color: #ffffff; font-family: ${fontStack};">
+                                                <span style="display: block; font-weight: 900; font-size: 28px; letter-spacing: -0.5px;">UFLO</span>
+                                                <span style="display: block; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 3px; opacity: 0.9;">Universidad</span>
                                             </div>
                                         </td>
                                     </tr>
@@ -305,30 +300,24 @@ export const generateHtmlTemplate = (textBody: string, title: string = "Comunica
                         
                         <!-- Main Content -->
                         <tr>
-                            <td class="content-padding" style="padding: 40px;">
-                                <h1 style="margin: 0 0 24px 0; text-align: left; line-height: 1.2; color: #1e293b; font-size: 28px; font-weight: 700;">
+                            <td style="padding: 40px;">
+                                <h1 style="margin: 0 0 24px 0; text-align: left; line-height: 1.2; color: #0f172a; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">
                                     ${title}
                                 </h1>
-                                ${contentHtml}
+                                <div style="font-size: 15px; color: #334155;">
+                                    ${contentHtml}
+                                </div>
                             </td>
                         </tr>
 
                         <!-- Footer -->
                         <tr>
-                            <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-                                <p style="margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.6; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
-                                    Facultad de Psicología y Ciencias Sociales<br>
-                                    <span style="color: #cbd5e1;">Prácticas Profesionales Supervisadas</span>
+                            <td style="background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+                                <p style="margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.5; font-family: ${fontStack};">
+                                    <strong>Facultad de Psicología y Ciencias Sociales</strong><br>
+                                    Prácticas Profesionales Supervisadas<br>
+                                    <span style="color: #cbd5e1;">&copy; ${new Date().getFullYear()} Universidad de Flores</span>
                                 </p>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <!-- Sub-footer -->
-                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
-                        <tr>
-                            <td align="center" style="padding: 20px; font-size: 11px; color: #cbd5e1;">
-                                &copy; ${new Date().getFullYear()} Universidad de Flores.
                             </td>
                         </tr>
                     </table>
@@ -371,15 +360,13 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
         .replace(/{{estado_nuevo}}/g, data.newState || '')
         .replace(/{{notas}}/g, data.notes || '');
 
-    // Construir el título interno (H1) con dos tonos usando spans
     const firstName = data.studentName.split(' ')[0];
-    const htmlTitle = `<span style="color: #64748b; font-weight: 400;">Hola,</span> <span style="color: #2563eb; font-weight: 800;">${firstName}</span>`;
+    const htmlTitle = `Hola, <span style="color: #2563eb;">${firstName}</span>`;
     
     const htmlBody = generateHtmlTemplate(textBody, htmlTitle);
     const cleanTextBody = stripGreeting(textBody);
 
     try {
-        console.log(`[Email] Sending to ${data.studentEmail} with Responsive Design.`);
         const { error } = await supabase.functions.invoke('send-email', {
             body: {
                 to: data.studentEmail,
@@ -390,10 +377,7 @@ export const sendSmartEmail = async (scenario: EmailScenario, data: EmailData): 
             }
         });
 
-        if (error) {
-            console.error("Supabase Function Error:", error);
-            throw new Error(error.message || "Error en el servidor de correo");
-        }
+        if (error) throw new Error(error.message || "Error en el servidor de correo");
 
         incrementCounter();
         return { success: true };

@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { LanzamientoPPS, GroupedSeleccionados, EstudianteFields } from '../types';
+import { LanzamientoPPS, GroupedSeleccionados, Estudiante } from '../types';
 
 type OnSubmitEnrollment = (formData: any) => Promise<void>;
 type OnSubmitSolicitudPPS = (formData: any) => Promise<void>;
@@ -14,8 +14,8 @@ interface ModalContextType {
   // Enrollment Form Modal
   isEnrollmentFormOpen: boolean;
   selectedLanzamientoForEnrollment: LanzamientoPPS | null;
-  studentProfileForEnrollment: EstudianteFields | null; // Nuevo: datos del estudiante
-  openEnrollmentForm: (lanzamiento: LanzamientoPPS, studentProfile: EstudianteFields | null, onSubmit: OnSubmitEnrollment) => void;
+  studentProfileForEnrollment: Estudiante | null; // Nuevo: datos del estudiante
+  openEnrollmentForm: (lanzamiento: LanzamientoPPS, studentProfile: Estudiante | null, onSubmit: OnSubmitEnrollment) => void;
   closeEnrollmentForm: () => void;
   onSubmitEnrollment: OnSubmitEnrollment | null;
   isSubmittingEnrollment: boolean;
@@ -42,7 +42,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   const [isEnrollmentFormOpen, setIsEnrollmentFormOpen] = useState(false);
   const [selectedLanzamientoForEnrollment, setSelectedLanzamientoForEnrollment] = useState<LanzamientoPPS | null>(null);
-  const [studentProfileForEnrollment, setStudentProfileForEnrollment] = useState<EstudianteFields | null>(null);
+  const [studentProfileForEnrollment, setStudentProfileForEnrollment] = useState<Estudiante | null>(null);
   const [onSubmitEnrollment, setOnSubmitEnrollment] = useState<OnSubmitEnrollment | null>(null);
   const [isSubmittingEnrollment, setIsSubmittingEnrollment] = useState(false);
   
@@ -61,7 +61,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setModalInfo(null);
   }, []);
 
-  const openEnrollmentForm = useCallback((lanzamiento: LanzamientoPPS, studentProfile: EstudianteFields | null, onSubmit: OnSubmitEnrollment) => {
+  const openEnrollmentForm = useCallback((lanzamiento: LanzamientoPPS, studentProfile: Estudiante | null, onSubmit: OnSubmitEnrollment) => {
     setSelectedLanzamientoForEnrollment(lanzamiento);
     setStudentProfileForEnrollment(studentProfile);
     setOnSubmitEnrollment(() => onSubmit);

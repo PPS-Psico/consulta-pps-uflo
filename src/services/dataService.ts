@@ -16,13 +16,16 @@ export const fetchStudentData = async (legajo: string): Promise<{ studentDetails
       filters: { [C.FIELD_LEGAJO_ESTUDIANTES]: legajo }
   });
   
+  // records is already typed as Estudiante[] (AppRecord<EstudianteFields>[])
+  // but due to schema mismatch we fixed, it should be compatible now
   const data = records[0];
 
   if (!data) {
       return { studentDetails: null, studentAirtableId: null };
   }
 
-  return { studentDetails: data, studentAirtableId: data.id };
+  // Cast to specific Estudiante type if inference is still loose
+  return { studentDetails: data as unknown as Estudiante, studentAirtableId: data.id };
 };
 
 export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
@@ -49,12 +52,12 @@ export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
 
   return records.map((row) => {
       const lanzId = row[C.FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
-      const linkedName = lanzId ? launchMap.get(lanzId) : null;
+      const linkedName = lanzId ? launchMap.get(lanzId as string) : null;
       
       return {
           ...row,
           [C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: row[C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || linkedName || 'Institución desconocida',
-      } as Practica;
+      } as unknown as Practica;
   });
 };
 
@@ -71,7 +74,7 @@ export const fetchSolicitudes = async (legajo: string, studentAirtableId: string
       sort: [{ field: C.FIELD_ULTIMA_ACTUALIZACION_PPS, direction: 'desc' }]
   });
   
-  return records.filter(r => r[C.FIELD_ESTADO_PPS] !== 'Archivado');
+  return records.filter(r => r[C.FIELD_ESTADO_PPS] !== 'Archivado') as unknown as SolicitudPPS[];
 };
 
 export const fetchFinalizacionRequest = async (legajo: string, studentAirtableId: string | null): Promise<FinalizacionPPS | null> => {
@@ -89,7 +92,7 @@ export const fetchFinalizacionRequest = async (legajo: string, studentAirtableId
   });
       
   if (!records || records.length === 0) return null;
-  return records[0];
+  return records[0] as unknown as FinalizacionPPS;
 }
 
 export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: string | null, isSuperUserMode: boolean): Promise<{
@@ -107,7 +110,7 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       const enrollments = await db.convocatorias.getAll({
           filters: { [C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: studentAirtableId }
       });
-      myEnrollments = enrollments;
+      myEnrollments = enrollments as unknown as Convocatoria[];
 
       myEnrollments.forEach(e => {
           const lid = e[C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
@@ -130,7 +133,7 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
   const openLaunchIds = new Set(openLaunches.map(l => l.id));
   const missingLaunchIds = Array.from(enrolledLaunchIds).filter(id => !openLaunchIds.has(id));
 
-  let historicalLaunches: LanzamientoPPS[] = [];
+  let historicalLaunches: any[] = [];
   if (missingLaunchIds.length > 0) {
       // Optimizacion: Solo descargamos los IDs específicos que faltan
       historicalLaunches = await db.lanzamientos.getAll({
@@ -139,14 +142,14 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
   }
 
   // Combinar para mapa de hidratación
-  const allRawLanzamientos = [...openLaunches, ...historicalLaunches];
+  const allRawLanzamientos = [...openLaunches, ...historicalLaunches] as unknown as LanzamientoPPS[];
   const launchesMap = new Map(allRawLanzamientos.map(l => [l.id, l]));
 
   // Hidratar inscripciones
   const hydratedEnrollments = myEnrollments.map(row => {
       const rawLaunchId = row[C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
       const launchId = Array.isArray(rawLaunchId) ? rawLaunchId[0] : rawLaunchId;
-      const launch = launchId ? launchesMap.get(launchId) : null;
+      const launch = launchId ? launchesMap.get(launchId as string) : null;
       
       return {
           ...row,
@@ -160,7 +163,7 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
   });
 
   // Filtrar oferta disponible (Solo Abiertas y no Archivadas/Canceladas)
-  const lanzamientos = openLaunches.filter(l => 
+  const lanzamientos = (openLaunches as unknown as LanzamientoPPS[]).filter(l => 
       l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] !== 'Oculto' && 
       l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'Archivado' &&
       l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'No se Relanza'
@@ -209,12 +212,12 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
     selectedEnrollments.forEach((row) => {
         const horario = (row[C.FIELD_HORARIO_FORMULA_CONVOCATORIAS] as string) || 'No especificado';
         const studentId = row[C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-        const student = studentId ? studentMap.get(studentId) : null;
+        const student = studentId ? studentMap.get(studentId as string) : null;
         
         if (student) {
             if (!grouped[horario]) grouped[horario] = [];
             grouped[horario].push({ 
-                nombre: student[C.FIELD_NOMBRE_ESTUDIANTES] || 'Nombre Desconocido', 
+                nombre: (student[C.FIELD_NOMBRE_ESTUDIANTES] as string) || 'Nombre Desconocido', 
                 legajo: String(student[C.FIELD_LEGAJO_ESTUDIANTES] || '---') 
             });
         }

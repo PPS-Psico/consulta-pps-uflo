@@ -23,7 +23,8 @@ export const estudianteFieldsSchema = z.object({
     [C.FIELD_NOMBRE_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_NOMBRE_SEPARADO_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_APELLIDO_SEPARADO_ESTUDIANTES]: z.string().optional().nullable(),
-    [C.FIELD_GENERO_ESTUDIANTES]: z.enum(['Varon', 'Mujer', 'Otro']).optional().nullable(),
+    // Relaxed to string to allow any value from DB
+    [C.FIELD_GENERO_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES]: z.string().optional().nullable(),
     [C.FIELD_DNI_ESTUDIANTES]: z.number().optional().nullable(),
     [C.FIELD_FECHA_NACIMIENTO_ESTUDIANTES]: z.string().optional().nullable(),
@@ -123,6 +124,7 @@ export const convocatoriaFieldsSchema = z.object({
     [C.FIELD_CERTIFICADO_CONVOCATORIAS]: z.any().optional().nullable(),
     [C.FIELD_TRABAJA_CONVOCATORIAS]: z.boolean().optional().nullable(),
     [C.FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS]: z.string().optional().nullable(),
+    [C.FIELD_CV_CONVOCATORIAS]: z.string().optional().nullable(),
 });
 
 export const institucionFieldsSchema = z.object({

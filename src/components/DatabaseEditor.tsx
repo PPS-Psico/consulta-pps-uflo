@@ -54,7 +54,8 @@ import {
     FIELD_FINALES_ADEUDA_CONVOCATORIAS,
     FIELD_NOMBRE_PPS_CONVOCATORIAS,
     FIELD_CV_CONVOCATORIAS,
-    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS
+    FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS,
+    FIELD_AIRTABLE_ID
 } from '../constants';
 
 interface FieldConfig {
@@ -300,6 +301,14 @@ const cleanDisplayValue = (val: any): string => {
     return str.replace(/[\[\]\{\}"]/g, '').trim();
 };
 
+const getErrorMessage = (err: any) => {
+    if (typeof err === 'string') return err;
+    if (err?.message) return err.message;
+    // Check nested Supabase error structure
+    if (err?.error?.message) return err.error.message;
+    if (err?.error && typeof err.error === 'string') return err.error;
+    return 'Error desconocido';
+};
 
 const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }) => {
     const [activeTable, setActiveTable] = useState<TableKey>('estudiantes');
@@ -449,7 +458,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                 }
             );
 
-            if (error) throw new Error(error.error as string);
+            if (error) throw new Error(getErrorMessage(error));
 
             // Fetch related data for richer display
             if ((activeTable === 'practicas' || activeTable === 'convocatorias') && records.length > 0) {
@@ -523,7 +532,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
             queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] });
             setEditingRecord(null);
         },
-        onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
+        onError: (e) => setToastInfo({ message: `Error: ${getErrorMessage(e)}`, type: 'error' }),
     });
 
     const createMutation = useMutation({
@@ -534,7 +543,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
              setDuplicateTargetRecord(null);
              queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] }); 
         },
-        onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
+        onError: (e) => setToastInfo({ message: `Error: ${getErrorMessage(e)}`, type: 'error' }),
     });
 
     const deleteMutation = useMutation({
@@ -545,7 +554,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
             setSelectedRowId(null);
             queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] });
         },
-        onError: (e) => setToastInfo({ message: `Error: ${e.message}`, type: 'error' }),
+        onError: (e) => setToastInfo({ message: `Error: ${getErrorMessage(e)}`, type: 'error' }),
     });
     
     const bulkUpdateMutation = useMutation({
@@ -556,7 +565,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
             setIsBulkEditMode(false);
             queryClient.invalidateQueries({ queryKey: ['databaseEditor', activeTable] });
         },
-        onError: (e) => setToastInfo({ message: `Error en actualización masiva: ${e.message}`, type: 'error' }),
+        onError: (e) => setToastInfo({ message: `Error en actualización masiva: ${getErrorMessage(e)}`, type: 'error' }),
     });
 
 
@@ -577,7 +586,9 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
     };
 
     const handleDelete = (recordId: string) => {
-        deleteMutation.mutate(recordId);
+        if (window.confirm('¿Estás seguro de que quieres eliminar este registro? Esta acción no se puede deshacer.')) {
+            deleteMutation.mutate(recordId);
+        }
     };
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -606,16 +617,28 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         if (!duplicateTargetRecord) return;
         const { id, createdTime, created_at, ...originalFields } = duplicateTargetRecord;
         const newFields: any = { ...originalFields };
-        newFields[FIELD_ESTUDIANTE_LINK_PRACTICAS] = [studentId];
+        
+        // Remove Airtable ID to prevent unique constraint violation
+        delete newFields[FIELD_AIRTABLE_ID];
+        
+        // Correctly assign studentId as a STRING (UUID), not array, for Supabase FKs
+        newFields[FIELD_ESTUDIANTE_LINK_PRACTICAS] = studentId;
+
+        // Remove computed fields
         delete newFields['__studentName'];
         delete newFields['__lanzamientoName'];
         delete newFields['__studentLegajo'];
+        
         createMutation.mutate(newFields);
     };
     
     const handleSimpleDuplicate = (record: AppRecord<any>) => {
          const { id, createdTime, created_at, ...originalFields } = record;
          const newFields: any = { ...originalFields };
+         
+         // Remove Airtable ID to prevent unique constraint violation
+         delete newFields[FIELD_AIRTABLE_ID];
+         
          const primaryKey = activeTableConfig.displayFields[0];
          if (newFields[primaryKey] && typeof newFields[primaryKey] === 'string') {
              newFields[primaryKey] += ' (Copia)';

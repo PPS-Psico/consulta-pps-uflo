@@ -1,10 +1,11 @@
 
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 import { 
     TABLE_NAME_ESTUDIANTES, 
     TABLE_NAME_PRACTICAS, 
-    TABLE_NAME_CONVOCATORIAS,
+    TABLE_NAME_CONVOCATORIAS, 
     TABLE_NAME_LANZAMIENTOS_PPS,
     TABLE_NAME_FINALIZACION, 
     FIELD_LEGAJO_ESTUDIANTES, 
@@ -129,28 +130,28 @@ const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYear: num
             try {
                 // 1. Fetch Students
                 const { data: studentsData, error: studentsError } = await supabase
-                    .from(TABLE_NAME_ESTUDIANTES)
+                    .from(TABLE_NAME_ESTUDIANTES as any)
                     .select(`id, ${FIELD_LEGAJO_ESTUDIANTES}, ${FIELD_NOMBRE_ESTUDIANTES}, ${FIELD_DNI_ESTUDIANTES}, ${FIELD_CORREO_ESTUDIANTES}, orientacion_elegida, created_at, ${FIELD_FINALIZARON_ESTUDIANTES}, ${FIELD_FECHA_FINALIZACION_ESTUDIANTES}`);
 
                 if (studentsError) throw studentsError;
 
                 // 2. Fetch TODAS las Prácticas (con horas y estado)
                 const { data: allPracticasData, error: allPracticasError } = await supabase
-                    .from(TABLE_NAME_PRACTICAS)
+                    .from(TABLE_NAME_PRACTICAS as any)
                     .select(`${FIELD_ESTUDIANTE_LINK_PRACTICAS}, ${FIELD_FECHA_INICIO_PRACTICAS}, ${FIELD_HORAS_PRACTICAS}, ${FIELD_ESTADO_PRACTICA}`);
                 
                 if (allPracticasError) throw allPracticasError;
 
                 // 3. Fetch TODAS las Inscripciones
                 const { data: allEnrollmentsData, error: allEnrollmentsError } = await supabase
-                    .from(TABLE_NAME_CONVOCATORIAS)
+                    .from(TABLE_NAME_CONVOCATORIAS as any)
                     .select(`${FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS}, created_at`);
 
                 if (allEnrollmentsError) throw allEnrollmentsError;
 
                 // 4. Fetch TODAS las Solicitudes de Finalización (NEW: Para contar finalizados reales)
                 const { data: allFinalizationsData, error: finalizationError } = await supabase
-                    .from(TABLE_NAME_FINALIZACION)
+                    .from(TABLE_NAME_FINALIZACION as any)
                     .select(`${FIELD_ESTUDIANTE_FINALIZACION}, ${FIELD_FECHA_SOLICITUD_FINALIZACION}, created_at`);
                 
                 if (finalizationError) throw finalizationError;
@@ -162,7 +163,7 @@ const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYear: num
                 const studentHasActivePractice = new Set<string>(); // New: Track "En curso"
 
                 // A. Procesar prácticas (Fechas, Horas y Existencia)
-                allPracticasData.forEach(p => {
+                allPracticasData.forEach((p: any) => {
                     const link = safeGetId(p[FIELD_ESTUDIANTE_LINK_PRACTICAS]);
                     if (!link) return;
 
@@ -193,7 +194,7 @@ const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYear: num
                 });
 
                 // B. Procesar fechas de inscripción (Convocatorias)
-                allEnrollmentsData.forEach(e => {
+                allEnrollmentsData.forEach((e: any) => {
                     const link = safeGetId(e[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]);
                     const fechaInscripcionStr = e.created_at;
                     if (link && fechaInscripcionStr) {
@@ -210,7 +211,7 @@ const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYear: num
                 // C. Procesar solicitudes de finalización (ID -> Fecha Solicitud)
                 // Usamos un mapa para saber QUIÉN solicitó y CUÁNDO (para filtrar por año)
                 const studentFinalizationRequests = new Map<string, Date>();
-                allFinalizationsData.forEach(f => {
+                allFinalizationsData.forEach((f: any) => {
                     const link = safeGetId(f[FIELD_ESTUDIANTE_FINALIZACION]);
                     // Usamos el campo de fecha o el created_at como fallback
                     const dateStr = f[FIELD_FECHA_SOLICITUD_FINALIZACION] || f.created_at;
@@ -224,7 +225,7 @@ const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYear: num
 
                 // 6. Fetch Convocatorias del año (solo para métricas de "Actividad Reciente")
                 const { data: convocatoriasThisYearData, error: convocatoriasError } = await supabase
-                    .from(TABLE_NAME_CONVOCATORIAS)
+                    .from(TABLE_NAME_CONVOCATORIAS as any)
                     .select(`${FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS}, created_at`)
                     .gte('created_at', `${targetYear}-01-01T00:00:00`);
 
@@ -232,7 +233,7 @@ const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYear: num
 
                 // 7. Fetch Lanzamientos
                 const { data: lanzamientosData, error: lanzamientosError } = await supabase
-                    .from(TABLE_NAME_LANZAMIENTOS_PPS)
+                    .from(TABLE_NAME_LANZAMIENTOS_PPS as any)
                     .select(`id, ${FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS}, ${FIELD_FECHA_INICIO_LANZAMIENTOS}, ${FIELD_NOMBRE_PPS_LANZAMIENTOS}`);
 
                 if (lanzamientosError) throw lanzamientosError;
@@ -259,11 +260,11 @@ const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYear: num
 
                 const monthlyLaunchesMap = new Map<string, { groupName: string, totalCupos: number, variants: { id: string, name: string, cupos: number }[] }>();
 
-                (lanzamientosData || []).forEach(l => {
+                (lanzamientosData as any[] || []).forEach(l => {
                     const d = parseToUTCDate(l[FIELD_FECHA_INICIO_LANZAMIENTOS]);
                     // Check if date is valid and matches current month/year
                     if (d && d.getUTCMonth() === currentMonth && d.getUTCFullYear() === currentYear) {
-                         const name = l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Sin Nombre';
+                         const name = String(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Sin Nombre');
                          const groupName = name.split(' - ')[0].trim();
                          const cupos = Number(l[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS] || 0);
 
@@ -281,20 +282,20 @@ const useMetricsData = ({ targetYear, isTestingMode = false }: { targetYear: num
 
                 // Identificar Actividad Actual (Practicas e inscripciones de este año)
                 const activeStudentIdsThisYear = new Set<string>();
-                allPracticasData.forEach(p => {
+                allPracticasData.forEach((p: any) => {
                      const date = parseToUTCDate(p[FIELD_FECHA_INICIO_PRACTICAS]);
                      if (date && date.getUTCFullYear() === targetYear) {
                          const link = safeGetId(p[FIELD_ESTUDIANTE_LINK_PRACTICAS]);
                          if (link) activeStudentIdsThisYear.add(link);
                      }
                 });
-                convocatoriasThisYearData?.forEach(c => {
+                convocatoriasThisYearData?.forEach((c: any) => {
                     const link = safeGetId(c[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]);
                     if (link) activeStudentIdsThisYear.add(link);
                 });
 
                 // --- Mapeo de Estudiantes ---
-                const allStudents = (studentsData || []).map(s => {
+                const allStudents = (studentsData || []).map((s: any) => {
                     // Check administrative flag first
                     let isFinishedThisYear = false;
                     let isHistoricGraduate = false;
