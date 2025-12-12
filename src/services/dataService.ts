@@ -1,0 +1,297 @@
+
+import { db } from '../lib/db';
+import { supabase } from '../lib/supabaseClient';
+import {
+  Practica, SolicitudPPS, LanzamientoPPS, Convocatoria, InformeTask,
+  EstudianteFields,
+  GroupedSeleccionados,
+  FinalizacionPPS,
+  Estudiante
+} from '../types';
+import * as C from '../constants';
+import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatters';
+
+export const fetchStudentData = async (legajo: string): Promise<{ studentDetails: Estudiante | null; studentAirtableId: string | null; }> => {
+  const records = await db.estudiantes.getAll({
+      filters: { [C.FIELD_LEGAJO_ESTUDIANTES]: legajo }
+  });
+  
+  const data = records[0];
+
+  if (!data) {
+      return { studentDetails: null, studentAirtableId: null };
+  }
+
+  return { studentDetails: data, studentAirtableId: data.id };
+};
+
+export const fetchPracticas = async (legajo: string): Promise<Practica[]> => {
+  const { studentAirtableId } = await fetchStudentData(legajo);
+  if (!studentAirtableId) return [];
+
+  const records = await db.practicas.getAll({
+      filters: { [C.FIELD_ESTUDIANTE_LINK_PRACTICAS]: studentAirtableId }
+  });
+  
+  if (records.length === 0) return [];
+
+  const launchIds = [...new Set(records.map(p => p[C.FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]).filter(Boolean))] as string[];
+  
+  let launchMap = new Map<string, string>();
+  if (launchIds.length > 0) {
+      const launches = await db.lanzamientos.getAll({ filters: { id: launchIds }, fields: [C.FIELD_NOMBRE_PPS_LANZAMIENTOS] });
+      launches.forEach(l => {
+          if (l[C.FIELD_NOMBRE_PPS_LANZAMIENTOS]) {
+              launchMap.set(l.id, l[C.FIELD_NOMBRE_PPS_LANZAMIENTOS] as string);
+          }
+      });
+  }
+
+  return records.map((row) => {
+      const lanzId = row[C.FIELD_LANZAMIENTO_VINCULADO_PRACTICAS];
+      const linkedName = lanzId ? launchMap.get(lanzId) : null;
+      
+      return {
+          ...row,
+          [C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: row[C.FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS] || linkedName || 'Institución desconocida',
+      } as Practica;
+  });
+};
+
+export const fetchSolicitudes = async (legajo: string, studentAirtableId: string | null): Promise<SolicitudPPS[]> => {
+  let targetId = studentAirtableId;
+  if (!targetId) {
+       const { studentAirtableId: fetchedId } = await fetchStudentData(legajo);
+       targetId = fetchedId;
+  }
+  if (!targetId) return [];
+
+  const records = await db.solicitudes.getAll({
+      filters: { [C.FIELD_LEGAJO_PPS]: targetId },
+      sort: [{ field: C.FIELD_ULTIMA_ACTUALIZACION_PPS, direction: 'desc' }]
+  });
+  
+  return records.filter(r => r[C.FIELD_ESTADO_PPS] !== 'Archivado');
+};
+
+export const fetchFinalizacionRequest = async (legajo: string, studentAirtableId: string | null): Promise<FinalizacionPPS | null> => {
+  let targetId = studentAirtableId;
+  if (!targetId) {
+       const { studentAirtableId: fetchedId } = await fetchStudentData(legajo);
+       targetId = fetchedId;
+  }
+  if (!targetId) return null;
+
+  const records = await db.finalizacion.get({
+      filters: { [C.FIELD_ESTUDIANTE_FINALIZACION]: targetId },
+      sort: [{ field: 'created_at', direction: 'desc' }],
+      maxRecords: 1
+  });
+      
+  if (!records || records.length === 0) return null;
+  return records[0];
+}
+
+export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: string | null, isSuperUserMode: boolean): Promise<{
+    lanzamientos: LanzamientoPPS[],
+    myEnrollments: Convocatoria[],
+    allLanzamientos: LanzamientoPPS[],
+    institutionAddressMap: Map<string, string>,
+}> => {
+    
+  // 1. Obtener Inscripciones del Estudiante (Para historial e hidratación)
+  let myEnrollments: Convocatoria[] = [];
+  const enrolledLaunchIds = new Set<string>();
+
+  if (studentAirtableId) {
+      const enrollments = await db.convocatorias.getAll({
+          filters: { [C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]: studentAirtableId }
+      });
+      myEnrollments = enrollments;
+
+      myEnrollments.forEach(e => {
+          const lid = e[C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+          if (lid) {
+             if (Array.isArray(lid)) lid.forEach((id: string) => enrolledLaunchIds.add(id));
+             else enrolledLaunchIds.add(lid as string);
+          }
+      });
+  }
+
+  // 2. Obtener Lanzamientos "Abiertos" (Oferta actual para todos)
+  const openLaunches = await db.lanzamientos.getAll({
+      filters: { 
+        [C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: ['Abierta', 'Abierto'] 
+      },
+      sort: [{ field: C.FIELD_FECHA_INICIO_LANZAMIENTOS, direction: 'desc' }]
+  });
+
+  // 3. Obtener Lanzamientos Históricos (SOLO los que el alumno cursó y NO están abiertos hoy)
+  const openLaunchIds = new Set(openLaunches.map(l => l.id));
+  const missingLaunchIds = Array.from(enrolledLaunchIds).filter(id => !openLaunchIds.has(id));
+
+  let historicalLaunches: LanzamientoPPS[] = [];
+  if (missingLaunchIds.length > 0) {
+      // Optimizacion: Solo descargamos los IDs específicos que faltan
+      historicalLaunches = await db.lanzamientos.getAll({
+          filters: { id: missingLaunchIds }
+      });
+  }
+
+  // Combinar para mapa de hidratación
+  const allRawLanzamientos = [...openLaunches, ...historicalLaunches];
+  const launchesMap = new Map(allRawLanzamientos.map(l => [l.id, l]));
+
+  // Hidratar inscripciones
+  const hydratedEnrollments = myEnrollments.map(row => {
+      const rawLaunchId = row[C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+      const launchId = Array.isArray(rawLaunchId) ? rawLaunchId[0] : rawLaunchId;
+      const launch = launchId ? launchesMap.get(launchId) : null;
+      
+      return {
+          ...row,
+          [C.FIELD_NOMBRE_PPS_CONVOCATORIAS]: row[C.FIELD_NOMBRE_PPS_CONVOCATORIAS] || launch?.[C.FIELD_NOMBRE_PPS_LANZAMIENTOS],
+          [C.FIELD_FECHA_INICIO_CONVOCATORIAS]: row[C.FIELD_FECHA_INICIO_CONVOCATORIAS] || launch?.[C.FIELD_FECHA_INICIO_LANZAMIENTOS],
+          [C.FIELD_FECHA_FIN_CONVOCATORIAS]: row[C.FIELD_FECHA_FIN_CONVOCATORIAS] || launch?.[C.FIELD_FECHA_FIN_LANZAMIENTOS],
+          [C.FIELD_DIRECCION_CONVOCATORIAS]: row[C.FIELD_DIRECCION_CONVOCATORIAS] || launch?.[C.FIELD_DIRECCION_LANZAMIENTOS],
+          [C.FIELD_ORIENTACION_CONVOCATORIAS]: row[C.FIELD_ORIENTACION_CONVOCATORIAS] || launch?.[C.FIELD_ORIENTACION_LANZAMIENTOS],
+          [C.FIELD_HORAS_ACREDITADAS_CONVOCATORIAS]: row[C.FIELD_HORAS_ACREDITADAS_CONVOCATORIAS] || launch?.[C.FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]
+      } as Convocatoria;
+  });
+
+  // Filtrar oferta disponible (Solo Abiertas y no Archivadas/Canceladas)
+  const lanzamientos = openLaunches.filter(l => 
+      l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] !== 'Oculto' && 
+      l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'Archivado' &&
+      l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'No se Relanza'
+  );
+
+  const institutionAddressMap = new Map<string, string>();
+  lanzamientos.forEach(l => {
+      const name = l[C.FIELD_NOMBRE_PPS_LANZAMIENTOS];
+      const address = l[C.FIELD_DIRECCION_LANZAMIENTOS];
+      if (name && address) {
+          institutionAddressMap.set(normalizeStringForComparison(name), address);
+      }
+  });
+
+  return { 
+      lanzamientos, 
+      myEnrollments: hydratedEnrollments, 
+      allLanzamientos: allRawLanzamientos, 
+      institutionAddressMap 
+  };
+};
+
+export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<GroupedSeleccionados | null> => {
+    const lanzamientoId = lanzamiento.id;
+    if (!lanzamientoId) return null;
+
+    const enrollments = await db.convocatorias.getAll({
+        filters: { 
+            [C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: lanzamientoId,
+        }
+    });
+
+    const selectedEnrollments = enrollments.filter(e => 
+        String(e[C.FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]).toLowerCase().includes('seleccionado')
+    );
+
+    if (selectedEnrollments.length === 0) return null;
+
+    const studentIds = selectedEnrollments.map(e => e[C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]).filter(Boolean) as string[];
+    
+    const students = await db.estudiantes.getAll({ filters: { id: studentIds } });
+    const studentMap = new Map(students.map(s => [s.id, s]));
+
+    const grouped: GroupedSeleccionados = {};
+    
+    selectedEnrollments.forEach((row) => {
+        const horario = (row[C.FIELD_HORARIO_FORMULA_CONVOCATORIAS] as string) || 'No especificado';
+        const studentId = row[C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+        const student = studentId ? studentMap.get(studentId) : null;
+        
+        if (student) {
+            if (!grouped[horario]) grouped[horario] = [];
+            grouped[horario].push({ 
+                nombre: student[C.FIELD_NOMBRE_ESTUDIANTES] || 'Nombre Desconocido', 
+                legajo: String(student[C.FIELD_LEGAJO_ESTUDIANTES] || '---') 
+            });
+        }
+    });
+    
+    if (Object.keys(grouped).length === 0) return null;
+
+    for (const horario in grouped) {
+        grouped[horario].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }
+
+    return grouped;
+};
+
+export const toggleStudentSelection = async (
+    convocatoriaId: string,
+    isSelecting: boolean,
+    studentId: string,
+    lanzamiento: LanzamientoPPS
+): Promise<{ success: boolean, error?: string }> => {
+    const newStatus = isSelecting ? 'Seleccionado' : 'Inscripto';
+    try {
+        await db.convocatorias.update(convocatoriaId, { [C.FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]: newStatus });
+        return { success: true };
+    } catch (e: any) {
+        const message = e?.error?.message || e.message || 'Unknown error updating selection status';
+        return { success: false, error: message };
+    }
+};
+
+export const deleteFinalizationRequest = async (id: string, record: any): Promise<{ success: boolean, error: any }> => {
+    try {
+        const filesToDelete: string[] = [];
+        const fileFields = [
+            C.FIELD_INFORME_FINAL_FINALIZACION, 
+            C.FIELD_PLANILLA_HORAS_FINALIZACION, 
+            C.FIELD_PLANILLA_ASISTENCIA_FINALIZACION
+        ];
+
+        fileFields.forEach(field => {
+            const raw = record[field];
+            if (raw) {
+                let attachments = [];
+                try {
+                    attachments = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                } catch (e) {
+                     console.warn("Error parsing attachment JSON for deletion:", e);
+                }
+
+                if (Array.isArray(attachments)) {
+                    attachments.forEach((att: any) => {
+                        if (att.url) {
+                            const urlParts = att.url.split('/documentos_finalizacion/');
+                            if (urlParts.length > 1) {
+                                filesToDelete.push(urlParts[1]);
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        if (filesToDelete.length > 0) {
+            const { error: storageError } = await supabase.storage
+                .from('documentos_finalizacion')
+                .remove(filesToDelete);
+            
+            if (storageError) {
+                console.error("Error removing files from storage:", storageError);
+            }
+        }
+
+        await db.finalizacion.delete(id);
+        return { success: true, error: null };
+
+    } catch (error) {
+        console.error("Error deleting finalization request:", error);
+        return { success: false, error };
+    }
+};
