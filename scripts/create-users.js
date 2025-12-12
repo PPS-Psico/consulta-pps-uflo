@@ -1,17 +1,16 @@
 
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
 
-// Cargar variables de entorno si se ejecuta localmente con dotenv
-dotenv.config();
+// ==============================================================================
+// ⚙️ CONFIGURACIÓN
+// ==============================================================================
 
-// --- CONFIGURACIÓN ---
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
+const SUPABASE_URL = "PEGAR_TU_URL_AQUI"; 
+const SERVICE_ROLE_KEY = "PEGAR_TU_SERVICE_ROLE_KEY_AQUI"; 
 
 // --- INICIALIZACIÓN ---
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || SUPABASE_URL.includes("PEGAR_AQUI") || SERVICE_ROLE_KEY.includes("PEGAR_AQUI")) {
-    console.error("❌ ERROR: Faltan credenciales en .env (VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY).");
+    console.error("❌ ERROR: Edita el archivo scripts/create-users.js y pega las credenciales (VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY).");
     process.exit(1);
 }
 

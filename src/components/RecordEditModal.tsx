@@ -47,8 +47,9 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
                 if (initialData && initialData[field.key] !== undefined) {
                     data[field.key] = initialData[field.key];
                 } else {
-                    // Set default values for new records
-                    data[field.key] = field.type === 'checkbox' ? false : field.type === 'number' ? 0 : '';
+                    // Set default values for new records. 
+                    // FIX: Numbers start as empty string to avoid saving '0' by accident.
+                    data[field.key] = field.type === 'checkbox' ? false : '';
                 }
             } else {
                 // Edit mode
@@ -70,7 +71,20 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
     };
 
     const handleSave = () => {
-        onSave(record ? record.id : null, formData);
+        // Sanitize data before saving
+        const cleanedData = { ...formData };
+        
+        tableConfig.fieldConfig.forEach(field => {
+            // Ensure empty numbers are sent as null, not '' or 0
+            if (field.type === 'number') {
+                const val = cleanedData[field.key];
+                if (val === '' || val === null || val === undefined) {
+                    cleanedData[field.key] = null;
+                }
+            }
+        });
+
+        onSave(record ? record.id : null, cleanedData);
     };
     
     if (!isOpen) return null;

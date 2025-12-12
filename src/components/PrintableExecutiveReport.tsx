@@ -1,6 +1,6 @@
 
 import React from 'react';
-import type { AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, TimelineMonthData } from '../types';
+import type { AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, TimelineMonthData, PPSRequestSummary } from '../types';
 import DOMPurify from 'dompurify';
 
 const PrintableTimeline: React.FC<{ launchesByMonth: TimelineMonthData[]; year: number }> = ({ launchesByMonth, year }) => {
@@ -31,6 +31,41 @@ const PrintableTimeline: React.FC<{ launchesByMonth: TimelineMonthData[]; year: 
                     </div>
                 </div>
             ))}
+        </div>
+    );
+};
+
+const RequestsTable: React.FC<{ requests: PPSRequestSummary[] }> = ({ requests }) => {
+    if (requests.length === 0) {
+        return <p className="text-sm text-slate-500 italic dark:text-slate-400">No hay solicitudes registradas.</p>;
+    }
+
+    return (
+        <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-800">
+                    <tr>
+                        <th className="p-2 text-left font-bold text-slate-700 dark:text-slate-300">Alumno</th>
+                        <th className="p-2 text-left font-bold text-slate-700 dark:text-slate-300">Legajo</th>
+                        <th className="p-2 text-left font-bold text-slate-700 dark:text-slate-300">Institución Solicitada</th>
+                        <th className="p-2 text-center font-bold text-slate-700 dark:text-slate-300">Estado</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                    {requests.map(r => (
+                        <tr key={r.id}>
+                            <td className="p-2 text-slate-600 dark:text-slate-400">{r.studentName}</td>
+                            <td className="p-2 font-mono text-slate-500 dark:text-slate-500">{r.studentLegajo}</td>
+                            <td className="p-2 text-slate-800 dark:text-slate-200 font-medium">{r.institutionName}</td>
+                            <td className="p-2 text-center">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-slate-700 uppercase">
+                                    {r.status}
+                                </span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 };
@@ -97,10 +132,19 @@ const SingleYearReport: React.FC<{ data: ExecutiveReportData }> = ({ data }) => 
                             const evolution = kpiData.current - kpiData.previous;
                             const percentageChange = kpiData.previous > 0 ? (evolution / kpiData.previous) * 100 : (evolution > 0 ? 100 : 0);
                             
+                            // Neutral check for 'activeStudents'
+                            const isNeutral = row.key === 'activeStudents';
+
                             const isPositive = evolution > 0;
                             const isNegative = evolution < 0;
-                            const evolutionColor = isPositive ? 'text-emerald-700 dark:text-emerald-400' : isNegative ? 'text-rose-700 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400';
-                            const evolutionIcon = isPositive ? 'arrow_upward' : isNegative ? 'arrow_downward' : 'remove';
+                            
+                            let evolutionColor = isPositive ? 'text-emerald-700 dark:text-emerald-400' : isNegative ? 'text-rose-700 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400';
+                            let evolutionIcon = isPositive ? 'arrow_upward' : isNegative ? 'arrow_downward' : 'remove';
+
+                            if (isNeutral && evolution !== 0) {
+                                evolutionColor = 'text-slate-600 dark:text-slate-400';
+                                evolutionIcon = isPositive ? 'trending_up' : 'trending_down'; // Neutral trending icon
+                            }
                             
                             return (
                                 <tr key={row.key} className="border-b border-slate-200 dark:border-slate-700">
@@ -123,6 +167,11 @@ const SingleYearReport: React.FC<{ data: ExecutiveReportData }> = ({ data }) => 
                     </tbody>
                 </table>
             </section>
+
+            <section className="mb-10 printable-section">
+                <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-700 pb-3 mb-5 tracking-tight">Solicitudes de Autogestión</h2>
+                <RequestsTable requests={data.ppsRequests} />
+            </section>
         </>
     );
 };
@@ -137,6 +186,9 @@ const ComparativeReport: React.FC<{ data: ComparativeExecutiveReportData }> = ({
     ];
     
     const sanitizedSummary = DOMPurify.sanitize(data.summary);
+
+    // Calculate Request Metrics only for 2025
+    const req2025 = data.ppsRequests.year2025.length;
 
     return (
          <>
@@ -167,10 +219,19 @@ const ComparativeReport: React.FC<{ data: ComparativeExecutiveReportData }> = ({
                             const evolution = kpiData.year2025 - kpiData.year2024;
                             const percentageChange = kpiData.year2024 > 0 ? (evolution / kpiData.year2024) * 100 : (evolution > 0 ? 100 : 0);
                             
+                            // Neutral check for 'activeStudents'
+                            const isNeutral = row.key === 'activeStudents';
+
                             const isPositive = evolution > 0;
                             const isNegative = evolution < 0;
-                            const evolutionColor = isPositive ? 'text-emerald-700 dark:text-emerald-400' : isNegative ? 'text-rose-700 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400';
-                            const evolutionIcon = isPositive ? 'arrow_upward' : isNegative ? 'arrow_downward' : 'remove';
+                            
+                            let evolutionColor = isPositive ? 'text-emerald-700 dark:text-emerald-400' : isNegative ? 'text-rose-700 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400';
+                            let evolutionIcon = isPositive ? 'arrow_upward' : isNegative ? 'arrow_downward' : 'remove';
+
+                            if (isNeutral && evolution !== 0) {
+                                evolutionColor = 'text-slate-600 dark:text-slate-400';
+                                evolutionIcon = isPositive ? 'trending_up' : 'trending_down';
+                            }
                             
                             return (
                                 <tr key={row.key} className="border-b border-slate-200 dark:border-slate-700">
@@ -192,6 +253,19 @@ const ComparativeReport: React.FC<{ data: ComparativeExecutiveReportData }> = ({
                         })}
                     </tbody>
                 </table>
+            </section>
+
+            <section className="mb-10 printable-section">
+                <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-700 pb-3 mb-5 tracking-tight">Gestiones de Autogestión</h2>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-8 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 italic">
+                        Volumen total de solicitudes de PPS procesadas durante el ciclo activo.
+                    </p>
+                    <div className="flex flex-col items-center">
+                        <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Total Ciclo 2025</p>
+                        <p className="text-6xl font-black text-blue-600 dark:text-blue-400">{req2025}</p>
+                    </div>
+                </div>
             </section>
          </>
     );

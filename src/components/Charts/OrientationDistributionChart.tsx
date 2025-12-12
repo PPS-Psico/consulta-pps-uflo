@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion } from 'framer-motion';
 
 interface OrientationDistributionChartProps {
@@ -12,7 +12,7 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 p-2 rounded-lg shadow-xl">
+      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 p-2 rounded-lg shadow-xl">
         <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
           {payload[0].name}: {payload[0].value}
         </p>
@@ -30,7 +30,7 @@ const OrientationDistributionChart: React.FC<OrientationDistributionChartProps> 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.1 }}
-      className="w-full h-[350px] bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col"
+      className="w-full h-[350px] bg-white dark:bg-gray-900 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm flex flex-col"
     >
       <div className="flex items-center justify-between mb-2 px-2">
          <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -43,7 +43,7 @@ const OrientationDistributionChart: React.FC<OrientationDistributionChartProps> 
 
       <div className="flex-1 min-h-0 flex flex-col md:flex-row items-center justify-center">
          <div className="h-[220px] w-full md:w-1/2 relative">
-             <ResponsiveContainer width="100%" height="100%">
+             <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                 <PieChart>
                     <Pie
                         data={data}

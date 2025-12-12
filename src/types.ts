@@ -23,17 +23,13 @@ export type TableUpdate<T extends keyof Tables> = Tables[T]['Update'];
 export type { Database };
 
 // --- Base Record Type ---
-// Extends the Row with frontend-specific legacy fields or computed props.
-// We explicitly add 'id' here because Zod field schemas usually exclude the ID (it's auto-generated),
-// but we need it for the full record type used in the app.
 export type AppRecord<T> = T & {
   id: string;
   createdTime?: string; // Legacy alias for created_at
-  // Allow dynamic string indexing for UI components using constants as keys
   [key: string]: any; 
 };
 
-export type AirtableRecord<T> = AppRecord<T>; // Alias legacy
+export type AirtableRecord<T> = AppRecord<T>; 
 
 export interface AppError {
   type: string;
@@ -63,8 +59,6 @@ export interface CriteriosCalculados {
 }
 
 // --- Table Fields Interfaces (Inferred from Zod Schemas) ---
-// This ensures TypeScript types always match the Zod validation logic.
-
 export type EstudianteFields = z.infer<typeof estudianteFieldsSchema>;
 export type PracticaFields = z.infer<typeof practicaFieldsSchema>;
 export type SolicitudPPSFields = z.infer<typeof solicitudPPSFieldsSchema>;
@@ -75,7 +69,7 @@ export type FinalizacionPPSFields = z.infer<typeof finalizacionPPSFieldsSchema>;
 export type PenalizacionFields = z.infer<typeof penalizacionFieldsSchema>;
 export type AuthUserFields = z.infer<typeof authUserFieldsSchema>;
 
-// --- Extended Types with ID (AppRecord adds optional createdTime and explicit ID) ---
+// --- Extended Types with ID ---
 export type Penalizacion = AppRecord<PenalizacionFields>;
 export type FinalizacionPPS = AppRecord<FinalizacionPPSFields>;
 export type Practica = AppRecord<PracticaFields>;
@@ -180,6 +174,15 @@ interface KPISnapshot {
     previous: number;
 }
 
+export interface PPSRequestSummary {
+    id: string;
+    studentName: string;
+    studentLegajo: string;
+    institutionName: string;
+    requestDate: string;
+    status: string;
+}
+
 export interface ExecutiveReportData {
     reportType: 'singleYear';
     year: number;
@@ -196,6 +199,7 @@ export interface ExecutiveReportData {
     };
     launchesByMonth: TimelineMonthData[];
     newAgreementsList: string[];
+    ppsRequests: PPSRequestSummary[];
 }
 
 interface KPIComparison {
@@ -216,6 +220,7 @@ export interface ComparativeExecutiveReportData {
     };
     launchesByMonth: { year2024: TimelineMonthData[]; year2025: TimelineMonthData[]; };
     newAgreements: { year2024: string[]; year2025: string[]; };
+    ppsRequests: { year2024: PPSRequestSummary[]; year2025: PPSRequestSummary[]; };
 }
 
 export type AnyReportData = ExecutiveReportData | ComparativeExecutiveReportData;

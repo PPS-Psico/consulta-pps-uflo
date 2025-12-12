@@ -160,10 +160,14 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim();
                     const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
                     
-                    const inputDni = verificationData.dni.trim();
+                    // Sanitize input DNI for comparison (remove dots, spaces)
+                    const inputDni = verificationData.dni.replace(/\D/g, '').trim();
                     const inputEmail = verificationData.correo.trim().toLowerCase();
 
-                    if (dbDni !== inputDni || dbEmail !== inputEmail) {
+                    // Compare against DB (DB might have dots or not, so we sanitize both just in case, though DB should be clean)
+                    const cleanDbDni = dbDni.replace(/\D/g, '');
+
+                    if (cleanDbDni !== inputDni || dbEmail !== inputEmail) {
                          throw new Error("Los datos ingresados no coinciden con nuestros registros.");
                     }
                     
@@ -226,7 +230,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                          const { error: linkError } = await supabase.rpc('register_new_student', {
                             legajo_input: legajoTrimmed,
                             userid_input: loginData.user.id,
-                            dni_input: foundStudent[FIELD_DNI_ESTUDIANTES] || 0,
+                            dni_input: parseInt(foundStudent[FIELD_DNI_ESTUDIANTES] as any || '0', 10),
                             correo_input: email,
                             telefono_input: foundStudent[FIELD_TELEFONO_ESTUDIANTES] || ''
                          });
@@ -268,6 +272,13 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                      
                      const inputEmail = correo.trim().toLowerCase();
                      
+                     // CLEAN DNI: Remove dots, spaces, ensure it's a number
+                     const cleanDniString = dni.replace(/\D/g, '');
+                     const cleanDniInt = parseInt(cleanDniString, 10);
+                     if (isNaN(cleanDniInt) || cleanDniInt === 0) {
+                         throw new Error("El DNI debe ser un número válido.");
+                     }
+
                      // Intentar crear usuario
                      const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
                         email: inputEmail,
@@ -281,8 +292,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     if (signUpError || !userId) {
                          console.warn("SignUp failed, attempting fix via admin_reset_password");
                          
-                         // Si falla signUp porque existe, intentamos repararlo con admin_reset_password
-                         // Esta funcion ahora busca por EMAIL y repara el vinculo.
                          const { error: fixError } = await supabase.rpc('admin_reset_password', {
                              legajo_input: legajoTrimmed,
                              new_password: password
@@ -293,7 +302,6 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                              throw new Error("Este correo ya está registrado y no se pudo vincular a tu legajo. Contacta soporte.");
                          }
 
-                         // Si la reparación funcionó, intentamos loguear para obtener el ID
                          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ 
                              email: inputEmail, 
                              password 
@@ -306,11 +314,11 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     }
 
                     if (userId) {
-                        // Garantizar datos actualizados
+                        // Garantizar datos actualizados con DNI limpio
                         await supabase.rpc('register_new_student', {
                             legajo_input: legajoTrimmed,
                             userid_input: userId,
-                            dni_input: parseInt(dni, 10),
+                            dni_input: cleanDniInt,
                             correo_input: inputEmail,
                             telefono_input: telefono
                         });
@@ -337,11 +345,11 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     
                     if (!studentData) throw new Error("No encontramos un estudiante con ese legajo.");
 
-                    const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim();
+                    const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').replace(/\D/g, '');
                     const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
                     const dbPhone = normalizePhone(studentData[FIELD_TELEFONO_ESTUDIANTES]);
                     
-                    const inputDni = verificationData.dni.trim();
+                    const inputDni = verificationData.dni.replace(/\D/g, '');
                     const inputEmail = verificationData.correo.trim().toLowerCase();
                     const inputPhone = normalizePhone(verificationData.telefono);
 

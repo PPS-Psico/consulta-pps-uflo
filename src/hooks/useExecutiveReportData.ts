@@ -1,36 +1,57 @@
 
 import { useQuery } from '@tanstack/react-query';
-import {
-    TABLE_NAME_ESTUDIANTES,
-    TABLE_NAME_PRACTICAS,
+import { supabase } from '../lib/supabaseClient';
+import { 
+    TABLE_NAME_ESTUDIANTES, 
+    TABLE_NAME_PRACTICAS, 
+    TABLE_NAME_CONVOCATORIAS,
     TABLE_NAME_LANZAMIENTOS_PPS,
-    TABLE_NAME_INSTITUCIONES,
-    FIELD_LEGAJO_ESTUDIANTES,
-    FIELD_NOMBRE_ESTUDIANTES,
+    TABLE_NAME_FINALIZACION, 
+    TABLE_NAME_PPS, // Solicitudes
+    FIELD_LEGAJO_ESTUDIANTES, 
+    FIELD_NOMBRE_ESTUDIANTES, 
+    FIELD_FINALIZARON_ESTUDIANTES, 
+    FIELD_FECHA_INICIO_PRACTICAS, 
+    FIELD_ESTUDIANTE_LINK_PRACTICAS, 
+    FIELD_FECHA_FINALIZACION_ESTUDIANTES,
+    FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
     FIELD_FECHA_INICIO_LANZAMIENTOS,
     FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
-    FIELD_CONVENIO_NUEVO_INSTITUCIONES,
-    FIELD_ESTUDIANTE_LINK_PRACTICAS,
     FIELD_NOMBRE_PPS_LANZAMIENTOS,
+    FIELD_DNI_ESTUDIANTES,
+    FIELD_CORREO_ESTUDIANTES,
+    FIELD_HORAS_PRACTICAS,
+    FIELD_ESTADO_PRACTICA,
+    FIELD_ESTUDIANTE_FINALIZACION, 
+    FIELD_FECHA_SOLICITUD_FINALIZACION,
+    // Fields for requests
+    FIELD_SOLICITUD_NOMBRE_ALUMNO,
+    FIELD_SOLICITUD_LEGAJO_ALUMNO,
+    FIELD_EMPRESA_PPS_SOLICITUD,
+    FIELD_ESTADO_PPS,
     FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
     FIELD_NOMBRE_INSTITUCIONES,
-    FIELD_ORIENTACION_LANZAMIENTOS,
-    FIELD_FECHA_INICIO_PRACTICAS,
-    FIELD_FECHA_FIN_PRACTICAS,
-    FIELD_HORAS_PRACTICAS,
-    FIELD_ESPECIALIDAD_PRACTICAS,
-    FIELD_FECHA_FINALIZACION_ESTUDIANTES,
-    FIELD_FINALIZARON_ESTUDIANTES,
+    FIELD_CONVENIO_NUEVO_INSTITUCIONES,
+    // Missing imports added
     FIELD_USER_ID_ESTUDIANTES,
+    FIELD_FECHA_FIN_PRACTICAS,
+    FIELD_ESPECIALIDAD_PRACTICAS,
+    FIELD_ORIENTACION_LANZAMIENTOS,
+    TABLE_NAME_INSTITUCIONES
 } from '../constants';
 import { fetchAllData } from '../services/supabaseService';
 import { parseToUTCDate, formatDate, normalizeStringForComparison } from '../utils/formatters';
-import type { EstudianteFields, PracticaFields, LanzamientoPPSFields, InstitucionFields, AirtableRecord, StudentInfo, TimelineMonthData, AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, ReportType } from '../types';
-import { estudianteArraySchema, institucionArraySchema, lanzamientoPPSArraySchema, practicaArraySchema } from '../schemas';
+import type { 
+    EstudianteFields, PracticaFields, LanzamientoPPSFields, InstitucionFields, SolicitudPPSFields,
+    AirtableRecord, StudentInfo, TimelineMonthData, AnyReportData, ExecutiveReportData, 
+    ComparativeExecutiveReportData, ReportType, PPSRequestSummary 
+} from '../types';
+import { estudianteArraySchema, institucionArraySchema, lanzamientoPPSArraySchema, practicaArraySchema, solicitudPPSArraySchema } from '../schemas';
 
 const getGroupName = (name: string | undefined): string => {
     if (!name) return 'Sin Nombre';
-    return name.split(' - ')[0].trim();
+    // Split by common separators to get the base name
+    return name.split(/ [-–] /)[0].trim();
 };
 
 const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -106,14 +127,15 @@ const processLaunchesForYear = (
 
 
 const fetchAllDataForReport = async () => {
-    const [estudiantesRes, practicasRes, lanzamientosRes, institucionesRes] = await Promise.all([
+    const [estudiantesRes, practicasRes, lanzamientosRes, institucionesRes, solicitudesRes] = await Promise.all([
         fetchAllData<EstudianteFields>(TABLE_NAME_ESTUDIANTES, estudianteArraySchema, [FIELD_LEGAJO_ESTUDIANTES, FIELD_NOMBRE_ESTUDIANTES, FIELD_FINALIZARON_ESTUDIANTES, FIELD_FECHA_FINALIZACION_ESTUDIANTES, FIELD_USER_ID_ESTUDIANTES]),
         fetchAllData<PracticaFields>(TABLE_NAME_PRACTICAS, practicaArraySchema, [FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, FIELD_FECHA_FIN_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_ESPECIALIDAD_PRACTICAS]),
         fetchAllData<LanzamientoPPSFields>(TABLE_NAME_LANZAMIENTOS_PPS, lanzamientoPPSArraySchema, [FIELD_FECHA_INICIO_LANZAMIENTOS, FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS, FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_ORIENTACION_LANZAMIENTOS]),
-        fetchAllData<InstitucionFields>(TABLE_NAME_INSTITUCIONES, institucionArraySchema, [FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_NOMBRE_INSTITUCIONES])
+        fetchAllData<InstitucionFields>(TABLE_NAME_INSTITUCIONES, institucionArraySchema, [FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_NOMBRE_INSTITUCIONES]),
+        fetchAllData<SolicitudPPSFields>(TABLE_NAME_PPS, solicitudPPSArraySchema, [FIELD_SOLICITUD_NOMBRE_ALUMNO, FIELD_SOLICITUD_LEGAJO_ALUMNO, FIELD_EMPRESA_PPS_SOLICITUD, FIELD_ESTADO_PPS])
     ]);
 
-    const error = estudiantesRes.error || practicasRes.error || lanzamientosRes.error || institucionesRes.error;
+    const error = estudiantesRes.error || practicasRes.error || lanzamientosRes.error || institucionesRes.error || solicitudesRes.error;
     if (error) {
         throw new Error('Error fetching data: ' + (typeof error.error === 'string' ? error.error : error.error.message));
     }
@@ -123,6 +145,7 @@ const fetchAllDataForReport = async () => {
         practicas: practicasRes.records,
         lanzamientos: lanzamientosRes.records,
         instituciones: institucionesRes.records,
+        solicitudes: solicitudesRes.records,
     };
 };
 
@@ -250,6 +273,27 @@ const calculateFlowMetrics = (
     };
 };
 
+const processRequestsForYear = (
+    year: number,
+    allSolicitudes: AirtableRecord<SolicitudPPSFields>[]
+): PPSRequestSummary[] => {
+    return allSolicitudes.filter(s => {
+        const date = new Date(s.createdTime || s.created_at || '');
+        const status = String(s[FIELD_ESTADO_PPS] || '');
+        // Filter by year AND exclude 'Archivado'
+        return !isNaN(date.getTime()) && 
+               date.getFullYear() === year && 
+               status !== 'Archivado';
+    }).map(s => ({
+        id: s.id,
+        studentName: String(s[FIELD_SOLICITUD_NOMBRE_ALUMNO] || 'Desconocido'),
+        studentLegajo: String(s[FIELD_SOLICITUD_LEGAJO_ALUMNO] || 'N/A'),
+        institutionName: String(s[FIELD_EMPRESA_PPS_SOLICITUD] || 'Institución'),
+        requestDate: formatDate(s.createdTime || s.created_at || ''),
+        status: String(s[FIELD_ESTADO_PPS] || 'Pendiente')
+    }));
+};
+
 const MOCK_REPORT_DATA: ExecutiveReportData = {
     reportType: 'singleYear',
     year: new Date().getFullYear(),
@@ -269,6 +313,10 @@ const MOCK_REPORT_DATA: ExecutiveReportData = {
     },
     launchesByMonth: [],
     newAgreementsList: ['Mock Institution A', 'Mock Institution B'],
+    ppsRequests: [
+        { id: '1', studentName: 'Test Student', studentLegajo: '12345', institutionName: 'Hospital Mock', requestDate: '20/03/2024', status: 'En curso' },
+        { id: '2', studentName: 'Test Student 2', studentLegajo: '54321', institutionName: 'Escuela Mock', requestDate: '25/03/2024', status: 'Pendiente' }
+    ],
 };
 
 const MOCK_COMPARATIVE_REPORT_DATA: ComparativeExecutiveReportData = {
@@ -291,6 +339,11 @@ const MOCK_COMPARATIVE_REPORT_DATA: ComparativeExecutiveReportData = {
         year2024: ['Mock Old Agreement'],
         year2025: ['Mock New Agreement'],
     },
+    ppsRequests: {
+        year2024: [{ id: '1', studentName: 'Old Student', studentLegajo: '111', institutionName: 'Old Inst', requestDate: '10/05/2024', status: 'Finalizada' }],
+        // Fix: Use ISO dates to ensure they are picked up by the year filter logic
+        year2025: [{ id: '2', studentName: 'New Student', studentLegajo: '222', institutionName: 'New Inst', requestDate: '2025-05-10', status: 'Pendiente' }, { id: '3', studentName: 'New Student 2', studentLegajo: '333', institutionName: 'New Inst 2', requestDate: '2025-06-15', status: 'En Gestión' }]
+    }
 };
 
 const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = false }: { reportType: ReportType | null; enabled?: boolean; isTestingMode?: boolean; }) => {
@@ -308,7 +361,6 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
             const allData = await fetchAllDataForReport();
 
             // Pre-calculate Effective Entry Dates
-            // Map student ID to earliest date found (Created At vs Earliest Practice Start)
             const studentEntryMap = new Map<string, Date>();
             
             // 1. Check Practices
@@ -332,7 +384,6 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
                 let date = parseToUTCDate(s.createdTime);
                 const activityDate = studentEntryMap.get(s.id);
                 
-                // If we found activity earlier than creation (common in migration), use that
                 if (activityDate && (!date || activityDate < date)) {
                     date = activityDate;
                 }
@@ -368,8 +419,10 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
                                    normalizeStringForComparison(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '').startsWith(normalizedInstName);
                         });
                     })
-                    .map(i => i[FIELD_NOMBRE_INSTITUCIONES] || 'N/A');
+                    .map(i => getGroupName(i[FIELD_NOMBRE_INSTITUCIONES])); // Clean name
                 
+                const ppsRequests = processRequestsForYear(year, allData.solicitudes);
+
                 return {
                     reportType: 'singleYear',
                     year: year,
@@ -389,6 +442,7 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
                     },
                     launchesByMonth: launchesData.launchesByMonth,
                     newAgreementsList: newAgreementsList,
+                    ppsRequests: ppsRequests,
                 };
             };
 
@@ -419,6 +473,10 @@ const useExecutiveReportData = ({ reportType, enabled = false, isTestingMode = f
                         year2024: data2024.newAgreementsList,
                         year2025: data2025.newAgreementsList,
                     },
+                    ppsRequests: {
+                        year2024: data2024.ppsRequests,
+                        year2025: data2025.ppsRequests
+                    }
                 };
             }
             throw new Error(`Invalid report type: ${reportType}`);

@@ -138,6 +138,9 @@ export interface Database {
           fecha_relanzamiento: string | null
           permite_certificado: boolean | null
           airtable_id: string | null
+          req_certificado_trabajo: boolean | null
+          req_cv: boolean | null
+          codigo_tarjeta_campus: string | null
         }
         Insert: {
           id?: string
@@ -157,6 +160,9 @@ export interface Database {
           fecha_relanzamiento?: string | null
           permite_certificado?: boolean | null
           airtable_id?: string | null
+          req_certificado_trabajo?: boolean | null
+          req_cv?: boolean | null
+          codigo_tarjeta_campus?: string | null
         }
         Update: {
           id?: string
@@ -176,6 +182,9 @@ export interface Database {
           fecha_relanzamiento?: string | null
           permite_certificado?: boolean | null
           airtable_id?: string | null
+          req_certificado_trabajo?: boolean | null
+          req_cv?: boolean | null
+          codigo_tarjeta_campus?: string | null
         }
       }
       convocatorias: {
@@ -205,6 +214,9 @@ export interface Database {
           dni: number | null
           correo: string | null
           telefono: string | null
+          trabaja: boolean | null
+          certificado_trabajo: string | null
+          cv_url: string | null
         }
         Insert: {
           id?: string
@@ -231,6 +243,9 @@ export interface Database {
           dni?: number | null
           correo?: string | null
           telefono?: string | null
+          trabaja?: boolean | null
+          certificado_trabajo?: string | null
+          cv_url?: string | null
         }
         Update: {
           id?: string
@@ -257,6 +272,9 @@ export interface Database {
           dni?: number | null
           correo?: string | null
           telefono?: string | null
+          trabaja?: boolean | null
+          certificado_trabajo?: string | null
+          cv_url?: string | null
         }
       }
       instituciones: {
@@ -268,6 +286,7 @@ export interface Database {
           telefono: string | null
           convenio_nuevo: boolean | null
           tutor: string | null
+          codigo_tarjeta_campus: string | null
         }
         Insert: {
           id?: string
@@ -277,6 +296,7 @@ export interface Database {
           telefono?: string | null
           convenio_nuevo?: boolean | null
           tutor?: string | null
+          codigo_tarjeta_campus?: string | null
         }
         Update: {
           id?: string
@@ -286,6 +306,7 @@ export interface Database {
           telefono?: string | null
           convenio_nuevo?: boolean | null
           tutor?: string | null
+          codigo_tarjeta_campus?: string | null
         }
       }
       solicitudes_pps: {

@@ -23,7 +23,10 @@ import {
   FIELD_TUTOR_INSTITUCIONES,
   TABLE_NAME_INSTITUCIONES,
   FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS,
-  FIELD_REQ_CV_LANZAMIENTOS
+  FIELD_REQ_CV_LANZAMIENTOS,
+  FIELD_CODIGO_CAMPUS_LANZAMIENTOS,
+  FIELD_DIRECCION_LANZAMIENTOS,
+  FIELD_CODIGO_CAMPUS_INSTITUCIONES
 } from '../constants';
 import Card from './Card';
 import Loader from './Loader';
@@ -39,6 +42,8 @@ import Input from './Input';
 import Select from './Select';
 import Button from './Button';
 import Checkbox from './Checkbox';
+import { GoogleGenAI } from "@google/genai";
+import { GEMINI_API_KEY } from '../constants/configConstants';
 
 const mockInstitutions = [
   { id: 'recInstMock1', [FIELD_NOMBRE_INSTITUCIONES]: 'Hospital de Juguete' },
@@ -54,7 +59,9 @@ const mockLastLanzamiento = {
   [FIELD_INFORME_LANZAMIENTOS]: 'http://example.com/informe-mock',
   [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: 'Lunes 9 a 13hs; Miércoles 14 a 18hs',
   [FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS]: true,
-  [FIELD_REQ_CV_LANZAMIENTOS]: false 
+  [FIELD_REQ_CV_LANZAMIENTOS]: false,
+  [FIELD_DIRECCION_LANZAMIENTOS]: 'Calle Falsa 123',
+  [FIELD_CODIGO_CAMPUS_LANZAMIENTOS]: '<div class="card">Ejemplo de código</div>'
 };
 
 type FormData = {
@@ -68,7 +75,8 @@ type FormData = {
     informe: string | undefined;
     estadoConvocatoria: string | undefined;
     reqCertificadoTrabajo: boolean;
-    reqCv: boolean; 
+    reqCv: boolean;
+    direccion: string | undefined;
 };
 
 const initialState: FormData = {
@@ -82,6 +90,7 @@ const initialState: FormData = {
     estadoConvocatoria: 'Abierta',
     reqCertificadoTrabajo: true,
     reqCv: false,
+    direccion: '',
 };
 
 interface LanzadorConvocatoriasProps {
@@ -205,6 +214,8 @@ const LAUNCH_TABLE_CONFIG = {
         { key: FIELD_NOTAS_GESTION_LANZAMIENTOS, label: 'Notas de Gestión', type: 'textarea' as const },
         { key: FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS, label: 'Pedir Cert. Trabajo', type: 'checkbox' as const },
         { key: FIELD_REQ_CV_LANZAMIENTOS, label: 'Pedir CV', type: 'checkbox' as const },
+        { key: FIELD_DIRECCION_LANZAMIENTOS, label: 'Dirección', type: 'text' as const },
+        { key: FIELD_CODIGO_CAMPUS_LANZAMIENTOS, label: 'Código HTML Campus', type: 'textarea' as const },
     ]
 };
 
@@ -214,6 +225,10 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
     const [formData, setFormData] = useState<FormData>(initialState);
     const [schedules, setSchedules] = useState<string[]>(['']); // Lista de horarios
+    const [campusCode, setCampusCode] = useState<string>(''); // Nuevo estado para el código HTML
+    const [showCampusPreview, setShowCampusPreview] = useState(false);
+    const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+    
     const [instiSearch, setInstiSearch] = useState('');
     const [selectedInstitution, setSelectedInstitution] = useState<AirtableRecord<InstitucionFields> | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -230,7 +245,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             if (isTestingMode) {
                 return Promise.resolve(mockInstitutions as unknown as AirtableRecord<InstitucionFields>[]);
             }
-            return db.instituciones.getAll({ fields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_CONVENIO_NUEVO_INSTITUCIONES] });
+            return db.instituciones.getAll({ fields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_CODIGO_CAMPUS_INSTITUCIONES] });
         },
     });
 
@@ -263,7 +278,8 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             if (isTestingMode) return [];
             return db.lanzamientos.getAll({ sort: [{ field: FIELD_FECHA_INICIO_LANZAMIENTOS, direction: 'desc' }] });
         },
-        enabled: activeTab === 'history'
+        // IMPORTANT: Always fetch history to keep list updated, but only if needed
+        enabled: true
     });
 
     // SORTING AND GROUPING LOGIC FOR HISTORY TAB
@@ -322,13 +338,27 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
              setFormData(prev => ({
                  ...prev,
                  nombrePPS: newInst[FIELD_NOMBRE_INSTITUCIONES] as string,
-                 orientacion: variables.orientacionSugerida
+                 orientacion: variables.orientacionSugerida,
+                 direccion: newInst[FIELD_DIRECCION_INSTITUCIONES] as string // Pre-fill address from new institution
              }));
              
              setIsNewInstitutionModalOpen(false);
              if (!isTestingMode) queryClient.invalidateQueries({ queryKey: ['allInstitutionsForLauncher'] });
         },
         onError: (err: any) => setToastInfo({ message: `Error: ${err.message}`, type: 'error' })
+    });
+    
+    // Mutation to save ONLY the institution template code
+    const updateInstitutionMutation = useMutation({
+        mutationFn: async ({ id, code }: { id: string, code: string }) => {
+            if (isTestingMode) return;
+            return db.instituciones.update(id, { [FIELD_CODIGO_CAMPUS_INSTITUCIONES]: code });
+        },
+        onSuccess: () => {
+             setToastInfo({ message: 'Plantilla HTML guardada en la institución.', type: 'success' });
+             if (!isTestingMode) queryClient.invalidateQueries({ queryKey: ['allInstitutionsForLauncher'] });
+        },
+        onError: (err: any) => setToastInfo({ message: `Error guardando plantilla: ${err.message}`, type: 'error' })
     });
 
     const createLaunchMutation = useMutation({
@@ -343,6 +373,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             setToastInfo({ message: 'Convocatoria lanzada con éxito.', type: 'success' });
             setFormData(initialState);
             setSchedules(['']);
+            setCampusCode(''); // Reset campus code
             setInstiSearch('');
             setSelectedInstitution(null);
             if (!isTestingMode) {
@@ -352,7 +383,6 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             }
         },
         onError: (error: any) => {
-            // FIX: Ensure we extract the message string correctly from potentially nested error objects
             const msg = error?.error?.message || error?.message || JSON.stringify(error);
             setToastInfo({ message: `Error al lanzar: ${msg}`, type: 'error' });
         },
@@ -396,7 +426,23 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
     const handleSelectInstitution = (inst: AirtableRecord<InstitucionFields>) => {
         setSelectedInstitution(inst);
         setInstiSearch(inst[FIELD_NOMBRE_INSTITUCIONES] || '');
-        setFormData(prev => ({ ...prev, nombrePPS: inst[FIELD_NOMBRE_INSTITUCIONES] || '' }));
+        setFormData(prev => ({ 
+            ...prev, 
+            nombrePPS: inst[FIELD_NOMBRE_INSTITUCIONES] || '',
+            direccion: inst[FIELD_DIRECCION_INSTITUCIONES] || prev.direccion // Auto-fill address if available in institution
+        }));
+        
+        // Priority: Load from Institution Template if exists
+        const institutionTemplate = inst[FIELD_CODIGO_CAMPUS_INSTITUCIONES];
+        if (institutionTemplate) {
+            setCampusCode(String(institutionTemplate));
+            // Show toast so user knows where this came from
+            // setToastInfo({ message: 'Plantilla de código HTML cargada desde la Institución.', type: 'success' });
+        } else {
+             // If not, clear it or it will be populated by "Last Launch" effect later
+             setCampusCode('');
+        }
+        
         setIsDropdownOpen(false);
     };
 
@@ -436,18 +482,103 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             horasAcreditadas: lastLanzamiento[FIELD_HORAS_ACREDITADAS_LANZAMIENTOS],
             cuposDisponibles: lastLanzamiento[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS],
             informe: lastLanzamiento[FIELD_INFORME_LANZAMIENTOS],
-            reqCertificadoTrabajo: lastLanzamiento[FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS] !== false, // Default true if undefined
-            reqCv: !!lastLanzamiento[FIELD_REQ_CV_LANZAMIENTOS]
+            reqCertificadoTrabajo: lastLanzamiento[FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS] !== false,
+            reqCv: !!lastLanzamiento[FIELD_REQ_CV_LANZAMIENTOS],
+            direccion: lastLanzamiento[FIELD_DIRECCION_LANZAMIENTOS] || prev.direccion // Load address from last launch
         }));
         setSchedules(prevSchedulesList);
+        
+        // Load campus code from last launch IF AVAILABLE AND NO TEMPLATE LOADED YET
+        // (If user manually cleared it, this re-populates it, which is fine)
+        if (lastLanzamiento[FIELD_CODIGO_CAMPUS_LANZAMIENTOS] && !campusCode) {
+            setCampusCode(lastLanzamiento[FIELD_CODIGO_CAMPUS_LANZAMIENTOS] as string);
+        }
+        
         setToastInfo({ message: 'Datos de la última convocatoria cargados.', type: 'success' });
-    }, [lastLanzamiento]);
+    }, [lastLanzamiento, campusCode]);
 
+    // Effect to auto-load last data when institution is selected, IF it exists.
     useEffect(() => {
-        if (lastLanzamiento && selectedInstitution) {
+        // Only auto-load if we haven't typed anything yet (simple heuristic)
+        if (lastLanzamiento && selectedInstitution && formData.horasAcreditadas === 0) {
             handleLoadLastData();
         }
-    }, [lastLanzamiento, selectedInstitution, handleLoadLastData]);
+    }, [lastLanzamiento, selectedInstitution, handleLoadLastData, formData.horasAcreditadas]);
+
+    const handleCopyToClipboard = () => {
+        if (!campusCode) return;
+        navigator.clipboard.writeText(campusCode).then(() => {
+            setToastInfo({ message: 'Código copiado al portapapeles.', type: 'success' });
+        });
+    }
+
+    const handleSaveTemplate = () => {
+        if (!selectedInstitution) {
+            setToastInfo({ message: 'Selecciona una institución primero.', type: 'error' });
+            return;
+        }
+        if (!campusCode) {
+            setToastInfo({ message: 'El código está vacío.', type: 'error' });
+            return;
+        }
+        updateInstitutionMutation.mutate({ id: selectedInstitution.id, code: campusCode });
+    }
+
+    const handleGenerateCampusCode = async () => {
+        if (!campusCode) {
+            setToastInfo({ message: 'No hay código HTML base para actualizar.', type: 'error' });
+            return;
+        }
+        if (!formData.fechaInicio || !formData.fechaFin || !formData.horasAcreditadas) {
+            setToastInfo({ message: 'Completa fechas y horas antes de generar el código.', type: 'error' });
+            return;
+        }
+
+        setIsGeneratingCode(true);
+        try {
+            const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+            const horarioString = schedules.join('; ');
+
+            const prompt = `
+                Actúa como un desarrollador web experto. Tengo un fragmento de código HTML (una "tarjeta" o "banner" informativa para un campus virtual).
+                Tu tarea es ACTUALIZAR el contenido de texto dentro de ese HTML con los nuevos datos que te proporcionaré.
+                
+                **IMPORTANTE:**
+                1. MANTÉN INTACTA la estructura HTML, las clases CSS y los estilos inline. No borres ni agregues etiquetas, solo cambia el texto visible.
+                2. Si el HTML original no tiene alguno de los datos, intenta agregarlo discretamente o ignóralo si no encaja, pero prioriza mantener el diseño original.
+                3. Devuelve SOLAMENTE el código HTML actualizado, sin explicaciones ni markdown.
+
+                **DATOS NUEVOS:**
+                - Fecha de Inicio: ${formData.fechaInicio}
+                - Fecha de Finalización: ${formData.fechaFin}
+                - Horas Acreditadas: ${formData.horasAcreditadas}
+                - Cupos: ${formData.cuposDisponibles}
+                - Horarios: ${horarioString}
+                - Institución: ${formData.nombrePPS}
+                - Dirección: ${formData.direccion}
+
+                **CÓDIGO HTML ORIGINAL:**
+                ${campusCode}
+            `;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            const newCode = response.text.replace(/```html/g, '').replace(/```/g, '').trim();
+            setCampusCode(newCode);
+            
+            // Auto-copy
+            navigator.clipboard.writeText(newCode);
+            setToastInfo({ message: 'Código actualizado y copiado al portapapeles.', type: 'success' });
+        } catch (error: any) {
+            console.error("AI Generation Error", error);
+            setToastInfo({ message: 'Error al generar código con IA.', type: 'error' });
+        } finally {
+            setIsGeneratingCode(false);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -461,7 +592,6 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             [FIELD_FECHA_INICIO_LANZAMIENTOS]: formData.fechaInicio,
             [FIELD_FECHA_FIN_LANZAMIENTOS]: formData.fechaFin,
             [FIELD_ORIENTACION_LANZAMIENTOS]: formData.orientacion,
-            // FIX: Ensure numeric types for numbers
             [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: Number(formData.horasAcreditadas),
             [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: Number(formData.cuposDisponibles),
             [FIELD_INFORME_LANZAMIENTOS]: formData.informe,
@@ -469,9 +599,16 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: formData.estadoConvocatoria,
             [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Relanzamiento Confirmado',
             [FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS]: formData.reqCertificadoTrabajo,
-            [FIELD_REQ_CV_LANZAMIENTOS]: formData.reqCv
+            [FIELD_REQ_CV_LANZAMIENTOS]: formData.reqCv,
+            [FIELD_DIRECCION_LANZAMIENTOS]: formData.direccion,
+            [FIELD_CODIGO_CAMPUS_LANZAMIENTOS]: campusCode, // Save the code to launch
         };
         createLaunchMutation.mutate(finalPayload);
+        
+        // Also update the template if it changed (optional but good practice)
+        if (selectedInstitution && campusCode) {
+             updateInstitutionMutation.mutate({ id: selectedInstitution.id, code: campusCode });
+        }
     };
 
     const handleStatusAction = (id: string, currentStatus: string, action: 'cerrar' | 'abrir' | 'ocultar') => {
@@ -558,7 +695,8 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                 </div>
             )}
 
-            {activeTab === 'new' && (
+            {/* USE CSS DISPLAY TO KEEP STATE ALIVE WHEN SWITCHING TABS WITHIN THE COMPONENT */}
+            <div className={activeTab === 'new' ? 'block' : 'hidden'}>
                 <form onSubmit={handleSubmit} className="mt-8 space-y-8 animate-fade-in">
                     
                     {/* BLOQUE 1: SELECCIÓN DE INSTITUCIÓN (PREMIUM UI) */}
@@ -600,7 +738,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
                                         {/* Dropdown de Resultados - Increased z-index to fly above everything */}
                                         {isDropdownOpen && filteredInstitutions.length > 0 && (
-                                            <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden animate-fade-in-up max-h-60 overflow-y-auto">
+                                            <div className="absolute z-[100] mt-2 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden animate-fade-in-up max-h-60 overflow-y-auto">
                                                 <ul>
                                                     {filteredInstitutions.map(inst => (
                                                         <li 
@@ -729,6 +867,22 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                         <input type="date" name="fechaFin" value={formData.fechaFin as string} onChange={handleChange} className={inputClass} required />
                                     </InputWrapper>
                                 </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                                    <InputWrapper label="Dirección / Lugar" icon="location_on">
+                                        <input 
+                                            type="text" 
+                                            name="direccion" 
+                                            value={formData.direccion as string} 
+                                            onChange={handleChange} 
+                                            placeholder="Calle Falsa 123"
+                                            className={inputClass} 
+                                        />
+                                    </InputWrapper>
+                                    <InputWrapper label="Link al Programa / Informe (Opcional)" icon="link">
+                                        <input type="url" name="informe" value={formData.informe as string} onChange={handleChange} placeholder="https://..." className={inputClass} />
+                                    </InputWrapper>
+                                </div>
 
                                 <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -758,12 +912,81 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                         <span className="material-icons !text-lg">add</span> Agregar otro horario
                                     </button>
                                 </div>
-
-                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
-                                    <InputWrapper label="Link al Programa / Informe (Opcional)" icon="link">
-                                        <input type="url" name="informe" value={formData.informe as string} onChange={handleChange} placeholder="https://..." className={inputClass} />
-                                    </InputWrapper>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* BLOQUE 4: TARJETA CAMPUS (AI FEATURE) */}
+                    <div className="relative group z-10">
+                        <div className="absolute -left-3 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 to-orange-500 rounded-l-md shadow-sm"></div>
+                        <div className="pl-6 relative z-20">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
+                                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 text-sm font-bold shadow-sm border border-amber-200 dark:border-amber-800">4</span>
+                                Tarjeta del Campus (HTML)
+                            </h3>
+                            
+                            <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4 shadow-sm relative">
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    Aquí puedes pegar el código HTML de la tarjeta que se muestra en el campus. Usa la IA para actualizar fechas y horarios automáticamente.
+                                </p>
+                                
+                                <div className="flex flex-wrap gap-2 mb-2 items-center">
+                                     <button
+                                        type="button"
+                                        onClick={() => setShowCampusPreview(!showCampusPreview)}
+                                        className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                     >
+                                         {showCampusPreview ? 'Ocultar Vista Previa' : 'Ver Vista Previa'}
+                                     </button>
+                                     <button
+                                        type="button"
+                                        onClick={handleGenerateCampusCode}
+                                        disabled={isGeneratingCode || !campusCode}
+                                        className="text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                     >
+                                         {isGeneratingCode ? (
+                                             <div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"/>
+                                         ) : (
+                                             <span className="material-icons !text-xs">auto_awesome</span>
+                                         )}
+                                         Actualizar con IA
+                                     </button>
+                                     <div className="flex-1"></div>
+                                     {selectedInstitution && (
+                                         <button
+                                             type="button"
+                                             onClick={handleSaveTemplate}
+                                             disabled={!campusCode || updateInstitutionMutation.isPending}
+                                             className="text-xs font-bold text-blue-700 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1"
+                                         >
+                                             <span className="material-icons !text-xs">save</span>
+                                             Guardar Plantilla
+                                         </button>
+                                     )}
+                                     <button
+                                         type="button"
+                                         onClick={handleCopyToClipboard}
+                                         disabled={!campusCode}
+                                         className="text-xs font-bold text-slate-700 bg-slate-200 dark:bg-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-300 transition-colors flex items-center gap-1"
+                                     >
+                                         <span className="material-icons !text-xs">content_copy</span>
+                                         Copiar
+                                     </button>
                                 </div>
+                                
+                                {showCampusPreview && campusCode && (
+                                    <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-100 text-black overflow-auto max-h-60 mb-4">
+                                        <div dangerouslySetInnerHTML={{ __html: campusCode }} />
+                                    </div>
+                                )}
+
+                                <textarea 
+                                    value={campusCode}
+                                    onChange={(e) => setCampusCode(e.target.value)}
+                                    rows={6}
+                                    className="w-full text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-3 shadow-inner focus:ring-2 focus:ring-amber-500 outline-none resize-y"
+                                    placeholder="<div>Pegar código HTML aquí...</div>"
+                                />
                             </div>
                         </div>
                     </div>
@@ -783,9 +1006,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                         </button>
                     </div>
                 </form>
-            )}
+            </div>
 
-            {activeTab === 'history' && (
+            <div className={activeTab === 'history' ? 'block' : 'hidden'}>
                 <div className="mt-6 space-y-8">
                     {isLoadingHistory ? <Loader /> : (visibleHistory.length === 0 && hiddenHistory.length === 0) ? <EmptyState icon="history_toggle_off" title="Sin Historial" message="No hay lanzamientos registrados." /> : (
                         <>
@@ -813,7 +1036,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                         </>
                     )}
                 </div>
-            )}
+            </div>
 
             {editingLaunch && (
                 <RecordEditModal 

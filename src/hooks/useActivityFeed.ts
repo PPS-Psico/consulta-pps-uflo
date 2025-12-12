@@ -26,6 +26,9 @@ export interface ActivityItem {
     user: string;
     avatarLetter: string;
     statusColor: 'blue' | 'emerald' | 'amber' | 'purple';
+    // New fields for richer UI
+    rawStatus?: string;
+    institution?: string;
 }
 
 export const useActivityFeed = (isTestingMode = false) => {
@@ -36,33 +39,48 @@ export const useActivityFeed = (isTestingMode = false) => {
                 return [
                     {
                         id: 'mock1',
-                        type: 'enrollment',
-                        title: 'Nueva Inscripción',
-                        description: 'Se inscribió en Hospital de Niños',
-                        timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 min ago
+                        type: 'request',
+                        title: 'Solicita iniciar PPS',
+                        description: 'Pendiente de revisión inicial',
+                        timestamp: new Date(), // Now
                         user: 'Ana García',
                         avatarLetter: 'A',
-                        statusColor: 'blue'
+                        statusColor: 'amber',
+                        rawStatus: 'Pendiente',
+                        institution: 'Clínica Modelo'
                     },
                     {
                         id: 'mock2',
                         type: 'request',
-                        title: 'Solicitud PPS',
-                        description: 'Solicitó iniciar en Fundación Sí',
-                        timestamp: new Date(Date.now() - 1000 * 60 * 45), // 45 min ago
+                        title: 'Avance en Solicitud',
+                        description: 'Convenio en proceso de firma',
+                        timestamp: new Date(Date.now() - 1000 * 60 * 45),
                         user: 'Carlos Ruiz',
                         avatarLetter: 'C',
-                        statusColor: 'purple'
+                        statusColor: 'blue',
+                        rawStatus: 'En conversaciones',
+                        institution: 'Fundación Sí'
                     },
                     {
                         id: 'mock3',
                         type: 'finalization',
                         title: 'Documentación Final',
                         description: 'Subió informe final para revisión',
-                        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+                        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
                         user: 'Lucía Mendez',
                         avatarLetter: 'L',
                         statusColor: 'emerald'
+                    },
+                     {
+                        id: 'mock4',
+                        type: 'enrollment',
+                        title: 'Nueva Inscripción',
+                        description: 'Se inscribió en la convocatoria',
+                        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
+                        user: 'Marcos Paz',
+                        avatarLetter: 'M',
+                        statusColor: 'blue',
+                        institution: 'Hospital de Niños'
                     }
                 ];
             }
@@ -72,49 +90,61 @@ export const useActivityFeed = (isTestingMode = false) => {
                 .from(TABLE_NAME_CONVOCATORIAS)
                 .select(`id, created_at, ${FIELD_NOMBRE_PPS_CONVOCATORIAS}, estudiante:${TABLE_NAME_ESTUDIANTES}(${FIELD_NOMBRE_ESTUDIANTES})`)
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(10);
 
-            // 2. Fetch Latest Requests (Solicitudes)
+            // 2. Fetch Latest Requests (Solicitudes) - EXCLUYENDO ARCHIVADOS
             const { data: requests } = await supabase
                 .from(TABLE_NAME_PPS)
                 .select(`id, created_at, ${FIELD_SOLICITUD_NOMBRE_ALUMNO}, ${FIELD_EMPRESA_PPS_SOLICITUD}, ${FIELD_ESTADO_PPS}`)
+                .neq(FIELD_ESTADO_PPS, 'Archivado') // FILTRO CLAVE: No mostrar archivados
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(15);
 
             // 3. Fetch Latest Finalizations (Acreditaciones)
             const { data: finalizations } = await supabase
                 .from(TABLE_NAME_FINALIZACION)
                 .select(`id, created_at, ${FIELD_ESTADO_FINALIZACION}, estudiante:${TABLE_NAME_ESTUDIANTES}(${FIELD_NOMBRE_ESTUDIANTES})`)
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(10);
 
             const items: ActivityItem[] = [];
 
             enrollments?.forEach((e: any) => {
                 const name = e.estudiante?.[FIELD_NOMBRE_ESTUDIANTES] || 'Estudiante';
+                const ppsName = e[FIELD_NOMBRE_PPS_CONVOCATORIAS] || 'Convocatoria';
                 items.push({
                     id: `env-${e.id}`,
                     type: 'enrollment',
-                    title: 'Nueva Inscripción',
-                    description: `Se postuló a ${e[FIELD_NOMBRE_PPS_CONVOCATORIAS]}`,
+                    title: 'Se postuló a',
+                    description: ppsName,
                     timestamp: new Date(e.created_at),
                     user: name,
                     avatarLetter: name.charAt(0).toUpperCase(),
-                    statusColor: 'blue'
+                    statusColor: 'blue',
+                    institution: ppsName
                 });
             });
 
             requests?.forEach((r: any) => {
                 const name = r[FIELD_SOLICITUD_NOMBRE_ALUMNO] || 'Estudiante';
+                const status = r[FIELD_ESTADO_PPS] || 'Pendiente';
+                const inst = r[FIELD_EMPRESA_PPS_SOLICITUD] || 'Institución';
+                
+                // Determinar color basado en estado
+                let color: 'amber' | 'blue' | 'purple' = 'blue';
+                if (status === 'Pendiente') color = 'amber';
+                
                 items.push({
                     id: `req-${r.id}`,
                     type: 'request',
-                    title: 'Solicitud de Autogestión',
-                    description: `Para ${r[FIELD_EMPRESA_PPS_SOLICITUD] || 'Institución'} (${r[FIELD_ESTADO_PPS]})`,
+                    title: status === 'Pendiente' ? 'Nueva Solicitud' : 'Gestión en Curso',
+                    description: status, 
                     timestamp: new Date(r.created_at),
                     user: name,
                     avatarLetter: name.charAt(0).toUpperCase(),
-                    statusColor: 'purple'
+                    statusColor: color,
+                    rawStatus: status,
+                    institution: inst
                 });
             });
 
@@ -123,18 +153,19 @@ export const useActivityFeed = (isTestingMode = false) => {
                 items.push({
                     id: `fin-${f.id}`,
                     type: 'finalization',
-                    title: 'Acreditación Solicitada',
-                    description: `Documentación subida. Estado: ${f[FIELD_ESTADO_FINALIZACION]}`,
+                    title: 'Solicitó Acreditación',
+                    description: `Estado: ${f[FIELD_ESTADO_FINALIZACION]}`,
                     timestamp: new Date(f.created_at),
                     user: name,
                     avatarLetter: name.charAt(0).toUpperCase(),
-                    statusColor: 'emerald'
+                    statusColor: 'emerald',
+                    rawStatus: f[FIELD_ESTADO_FINALIZACION]
                 });
             });
 
             // Sort by most recent
-            return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 8);
+            return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 25);
         },
-        refetchInterval: 30000 // Actualizar cada 30 segundos para dar sensación de "vivo"
+        refetchInterval: 30000 
     });
 };

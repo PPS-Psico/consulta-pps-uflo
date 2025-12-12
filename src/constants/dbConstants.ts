@@ -100,6 +100,8 @@ export const FIELD_AIRTABLE_ID = 'airtable_id';
 // Nuevos campos para configuración de documentación
 export const FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS = 'req_certificado_trabajo';
 export const FIELD_REQ_CV_LANZAMIENTOS = 'req_cv';
+// Nuevo campo para HTML del campus
+export const FIELD_CODIGO_CAMPUS_LANZAMIENTOS = 'codigo_tarjeta_campus';
 
 // Instituciones
 export const FIELD_NOMBRE_INSTITUCIONES = 'nombre';
@@ -107,6 +109,7 @@ export const FIELD_TELEFONO_INSTITUCIONES = 'telefono';
 export const FIELD_DIRECCION_INSTITUCIONES = 'direccion';
 export const FIELD_CONVENIO_NUEVO_INSTITUCIONES = 'convenio_nuevo';
 export const FIELD_TUTOR_INSTITUCIONES = 'tutor';
+export const FIELD_CODIGO_CAMPUS_INSTITUCIONES = 'codigo_tarjeta_campus'; // Nuevo: Plantilla maestra
 
 // Convocatorias
 export const FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS = 'lanzamiento_id';

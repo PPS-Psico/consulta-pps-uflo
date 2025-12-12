@@ -14,7 +14,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "generate-schema": "node ./scripts/generate-schema.mjs",
-    "prep-github": "node ./scripts/prepare-deploy.js"
+    "prep-github": "node ./scripts/prepare-deploy.js",
+    "fix-statuses": "node ./scripts/sync-solicitudes-status.js"
   },
   "engines": {
     "node": ">=20.x"
@@ -31,9 +32,9 @@
     "file-saver": "^2.0.5",
     "framer-motion": "^11.0.8",
     "jszip": "^3.10.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^7.9.6",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-router-dom": "6.26.2",
     "recharts": "^2.12.0",
     "zod": "^3.24.1"
   },
@@ -56,7 +57,6 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.22",
-    "dotenv": "^16.4.5",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.5.6",

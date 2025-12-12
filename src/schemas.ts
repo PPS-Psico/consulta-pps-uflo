@@ -94,6 +94,7 @@ export const lanzamientoPPSFieldsSchema = z.object({
     [C.FIELD_TELEFONO_INSTITUCION_LANZAMIENTOS]: z.string().optional().nullable(),
     [C.FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS]: z.boolean().optional().nullable(),
     [C.FIELD_AIRTABLE_ID]: z.string().optional().nullable(),
+    [C.FIELD_CODIGO_CAMPUS_LANZAMIENTOS]: z.string().optional().nullable(),
 });
 
 export const convocatoriaFieldsSchema = z.object({
@@ -130,6 +131,7 @@ export const institucionFieldsSchema = z.object({
     [C.FIELD_DIRECCION_INSTITUCIONES]: z.string().optional().nullable(),
     [C.FIELD_CONVENIO_NUEVO_INSTITUCIONES]: z.boolean().optional().nullable(),
     [C.FIELD_TUTOR_INSTITUCIONES]: z.string().optional().nullable(),
+    [C.FIELD_CODIGO_CAMPUS_INSTITUCIONES]: z.string().optional().nullable(),
 });
 
 export const penalizacionFieldsSchema = z.object({

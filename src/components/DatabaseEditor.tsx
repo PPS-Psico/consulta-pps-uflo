@@ -684,7 +684,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
         if (key === FIELD_ORIENTACION_ELEGIDA_ESTUDIANTES || key === FIELD_ESPECIALIDAD_PRACTICAS) {
             if (!value) return <span className="text-slate-300">-</span>;
             const visuals = getEspecialidadClasses(String(value));
-            return <span className={`${visuals.tag} whitespace-nowrap shadow-none`}>{String(value)}</span>;
+            return <span className={`${visuals.tag} whitespace-nowrap shadow-none border-0`}>{String(value)}</span>;
         }
 
         // Student Name cell with Avatar (Used in both Estudiantes and Practicas/Convocatorias tables)
@@ -842,12 +842,13 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                              <ActionButtons />
                          </div>
 
-                        <div className="bg-slate-50 dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in relative overflow-hidden">
+                         {/* Removed overflow-hidden to allow AdminSearch dropdown to overflow */}
+                        <div className="bg-slate-50 dark:bg-[#1E293B] p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in relative z-30">
                             {/* Decorative Background */}
                             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
 
                             {/* Student Filter */}
-                            <div className="relative z-10">
+                            <div className="relative z-30">
                                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
                                     <span className="material-icons !text-sm text-blue-500">person_search</span>
                                     Filtrar por Estudiante
@@ -883,7 +884,7 @@ const DatabaseEditor: React.FC<DatabaseEditorProps> = ({ isTestingMode = false }
                             
                             {/* Institution/Date Filters */}
                             {activeTable === 'practicas' && (
-                                <div className="relative z-10 space-y-4">
+                                <div className="relative z-20 space-y-4">
                                      <div>
                                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2 flex items-center gap-2">
                                             <span className="material-icons !text-sm text-indigo-500">apartment</span>

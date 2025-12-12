@@ -116,7 +116,7 @@ export const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ onStudentSel
   const chartsData = useMemo(() => {
     if (!metrics || !metrics.rawStudents) return { trend: [], distribution: [] };
 
-    // 1. Orientation Distribution (Same as before)
+    // 1. Orientation Distribution
     const orientationCounts: Record<string, number> = {};
     metrics.rawStudents.forEach((s: any) => {
         // Only count ACTIVE students for distribution
@@ -132,31 +132,39 @@ export const MetricsDashboard: React.FC<MetricsDashboardProps> = ({ onStudentSel
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value);
 
-    // 2. Active Students Evolution (Corrected Logic)
+    // 2. Active Students Evolution (Calculated monthly)
     const trendData: { month: string, value: number }[] = [];
     const now = new Date();
     const currentYear = now.getFullYear();
-    // We want to see up to the current month
     const currentMonthIndex = now.getMonth();
 
     for (let i = 0; i <= currentMonthIndex; i++) {
-        // The "Snapshot" date is the last day of month 'i'
+        // Snapshot date: Last day of the month
         const monthEnd = new Date(currentYear, i + 1, 0, 23, 59, 59);
         
         let activeCount = 0;
         
         metrics.rawStudents.forEach((s: any) => {
-            const createdAt = s.createdAt ? new Date(s.createdAt) : null;
+            // FILTRO DE COHERENCIA: Solo contamos a los que tienen actividad este año.
+            // Esto alinea el gráfico con la métrica "Alumnos Activos" (173 vs 184).
+            // Si queremos ver matrícula pura (inactivos incluidos), quitar esta línea.
+            if (!s.hasActivityThisYear) return;
+
+            // Use effectiveStartDate calculated in the hook (handles historic backdating)
+            // Fallback to createdAt if for some reason effective is missing
+            const startDateStr = s.effectiveStartDate || s.createdAt;
+            const start = startDateStr ? new Date(startDateStr) : null;
             const finalizedAt = s.finalizedAt ? new Date(s.finalizedAt) : null;
 
             // Student was active in month 'i' IF:
-            // 1. They were created ON or BEFORE the end of this month
-            // 2. They were NOT finalized BEFORE the end of this month (i.e. finalizedAt is null OR finalizedAt > monthEnd)
+            // 1. They "started" (created or first practice) ON or BEFORE the end of this month.
+            const isActiveByDate = start && start <= monthEnd;
             
-            if (createdAt && createdAt <= monthEnd) {
-                if (!finalizedAt || finalizedAt > monthEnd) {
-                    activeCount++;
-                }
+            // 2. They were NOT finalized BEFORE the end of this month.
+            const isNotFinalizedYet = !finalizedAt || finalizedAt > monthEnd;
+
+            if (isActiveByDate && isNotFinalizedYet) {
+                activeCount++;
             }
         });
 
