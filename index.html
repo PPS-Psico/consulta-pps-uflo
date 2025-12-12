@@ -15,14 +15,26 @@
   <!-- Theme color -->
   <meta name="theme-color" content="#2563eb" />
 
+<<<<<<< HEAD
   <!-- Tailwind CSS CDN (Required for AI Studio Preview Environment as PostCSS might not run) -->
+=======
+  <!-- Tailwind CSS CDN (Required for AI Studio Preview Environment) -->
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
   <!-- Tailwind CDN removed for production build -->
 
   <!-- Dark mode script -->
   <script>
+<<<<<<< HEAD
     if (typeof tailwind !== 'undefined') {
       tailwind.config = { darkMode: 'class' };
     }
+=======
+    // Always configure Tailwind CDN for class-based dark mode if present to avoid 'media' strategy fallback
+    if (typeof tailwind !== 'undefined') {
+      tailwind.config = { darkMode: 'class' };
+    }
+
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
     if (
       localStorage.getItem('theme') === 'dark' ||
       (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -41,6 +53,7 @@
 <script type="importmap">
 {
   "imports": {
+<<<<<<< HEAD
     "react/": "https://esm.sh/react@^19.2.2/",
     "react": "https://esm.sh/react@^19.2.2",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.87.1",
@@ -71,6 +84,39 @@
     "@storybook/react": "https://esm.sh/@storybook/react@^10.1.7",
     "@tanstack/react-query-devtools": "https://esm.sh/@tanstack/react-query-devtools@^5.91.1",
     "@jest/globals": "https://esm.sh/@jest/globals@^30.2.0"
+=======
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "zod": "https://aistudiocdn.com/zod@^4.1.13",
+    "@jest/globals": "https://aistudiocdn.com/@jest/globals@^30.2.0",
+    "dotenv": "https://aistudiocdn.com/dotenv@^17.2.3",
+    "@emailjs/browser": "https://aistudiocdn.com/@emailjs/browser@^4.4.1",
+    "exceljs": "https://aistudiocdn.com/exceljs@^4.4.0",
+    "dompurify": "https://aistudiocdn.com/dompurify@^3.3.0",
+    "@testing-library/react": "https://aistudiocdn.com/@testing-library/react@^16.3.0",
+    "@testing-library/jest-dom": "https://aistudiocdn.com/@testing-library/jest-dom@^6.9.1",
+    "@tanstack/react-query": "https://aistudiocdn.com/@tanstack/react-query@^5.90.11",
+    "@testing-library/user-event": "https://aistudiocdn.com/@testing-library/user-event@^14.6.1",
+    "jest": "https://aistudiocdn.com/jest@^30.2.0",
+    "@tanstack/react-query-devtools": "https://aistudiocdn.com/@tanstack/react-query-devtools@^5.91.1",
+    "@storybook/react": "https://aistudiocdn.com/@storybook/react@^10.1.2",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "url": "https://aistudiocdn.com/url@^0.11.4",
+    "fs": "https://aistudiocdn.com/fs@^0.0.1-security",
+    "jszip": "https://aistudiocdn.com/jszip@^3.10.1",
+    "file-saver": "https://aistudiocdn.com/file-saver@^2.0.5",
+    "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "date-fns/": "https://aistudiocdn.com/date-fns@^4.1.0/",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.26"
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
   }
 }
 </script>

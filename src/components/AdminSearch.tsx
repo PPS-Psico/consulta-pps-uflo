@@ -107,7 +107,11 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
     : "Buscar por Legajo o Nombre...";
 
   return (
+<<<<<<< HEAD
     <div ref={searchContainerRef} className={`relative w-full max-w-lg mx-auto ${showDropdown ? 'z-[100]' : 'z-auto'}`}>
+=======
+    <div ref={searchContainerRef} className={`relative w-full max-w-lg mx-auto ${showDropdown ? 'z-50' : 'z-auto'}`}>
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         <Input
             type="text"
             value={searchTerm}
@@ -120,7 +124,11 @@ const AdminSearch: React.FC<AdminSearchProps> = ({ onStudentSelect, onSearchChan
             className="text-base"
         />
         {showDropdown && (
+<<<<<<< HEAD
             <div className="absolute z-[100] mt-2 w-full bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200/70 dark:border-slate-700 overflow-hidden max-h-80 overflow-y-auto animate-fade-in-up" style={{ animationDuration: '200ms' }}>
+=======
+            <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200/70 dark:border-slate-700 overflow-hidden max-h-80 overflow-y-auto animate-fade-in-up" style={{ animationDuration: '200ms' }}>
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
                 {isLoading ? (
                     <div className="p-4 flex items-center justify-center text-slate-500 dark:text-slate-400">
                         <div className="border-2 border-slate-200 dark:border-slate-600 border-t-blue-500 rounded-full w-5 h-5 animate-spin mr-2"></div>

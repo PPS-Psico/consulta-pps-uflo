@@ -1,6 +1,10 @@
 
 import React from 'react';
+<<<<<<< HEAD
 import type { AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, TimelineMonthData, PPSRequestSummary } from '../types';
+=======
+import type { AnyReportData, ExecutiveReportData, ComparativeExecutiveReportData, TimelineMonthData } from '../types';
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 import DOMPurify from 'dompurify';
 
 const PrintableTimeline: React.FC<{ launchesByMonth: TimelineMonthData[]; year: number }> = ({ launchesByMonth, year }) => {
@@ -187,9 +191,12 @@ const ComparativeReport: React.FC<{ data: ComparativeExecutiveReportData }> = ({
     
     const sanitizedSummary = DOMPurify.sanitize(data.summary);
 
+<<<<<<< HEAD
     // Calculate Request Metrics only for 2025
     const req2025 = data.ppsRequests.year2025.length;
 
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
     return (
          <>
             <header className="mb-10 printable-section">

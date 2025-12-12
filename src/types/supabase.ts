@@ -138,9 +138,12 @@ export interface Database {
           fecha_relanzamiento: string | null
           permite_certificado: boolean | null
           airtable_id: string | null
+<<<<<<< HEAD
           req_certificado_trabajo: boolean | null
           req_cv: boolean | null
           codigo_tarjeta_campus: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
         Insert: {
           id?: string
@@ -160,9 +163,12 @@ export interface Database {
           fecha_relanzamiento?: string | null
           permite_certificado?: boolean | null
           airtable_id?: string | null
+<<<<<<< HEAD
           req_certificado_trabajo?: boolean | null
           req_cv?: boolean | null
           codigo_tarjeta_campus?: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
         Update: {
           id?: string
@@ -182,9 +188,12 @@ export interface Database {
           fecha_relanzamiento?: string | null
           permite_certificado?: boolean | null
           airtable_id?: string | null
+<<<<<<< HEAD
           req_certificado_trabajo?: boolean | null
           req_cv?: boolean | null
           codigo_tarjeta_campus?: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
       }
       convocatorias: {
@@ -214,9 +223,12 @@ export interface Database {
           dni: number | null
           correo: string | null
           telefono: string | null
+<<<<<<< HEAD
           trabaja: boolean | null
           certificado_trabajo: string | null
           cv_url: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
         Insert: {
           id?: string
@@ -243,9 +255,12 @@ export interface Database {
           dni?: number | null
           correo?: string | null
           telefono?: string | null
+<<<<<<< HEAD
           trabaja?: boolean | null
           certificado_trabajo?: string | null
           cv_url?: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
         Update: {
           id?: string
@@ -272,9 +287,12 @@ export interface Database {
           dni?: number | null
           correo?: string | null
           telefono?: string | null
+<<<<<<< HEAD
           trabaja?: boolean | null
           certificado_trabajo?: string | null
           cv_url?: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
       }
       instituciones: {
@@ -286,7 +304,10 @@ export interface Database {
           telefono: string | null
           convenio_nuevo: boolean | null
           tutor: string | null
+<<<<<<< HEAD
           codigo_tarjeta_campus: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
         Insert: {
           id?: string
@@ -296,7 +317,10 @@ export interface Database {
           telefono?: string | null
           convenio_nuevo?: boolean | null
           tutor?: string | null
+<<<<<<< HEAD
           codigo_tarjeta_campus?: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
         Update: {
           id?: string
@@ -306,7 +330,10 @@ export interface Database {
           telefono?: string | null
           convenio_nuevo?: boolean | null
           tutor?: string | null
+<<<<<<< HEAD
           codigo_tarjeta_campus?: string | null
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }
       }
       solicitudes_pps: {

@@ -23,10 +23,14 @@ import {
   FIELD_TUTOR_INSTITUCIONES,
   TABLE_NAME_INSTITUCIONES,
   FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS,
+<<<<<<< HEAD
   FIELD_REQ_CV_LANZAMIENTOS,
   FIELD_CODIGO_CAMPUS_LANZAMIENTOS,
   FIELD_DIRECCION_LANZAMIENTOS,
   FIELD_CODIGO_CAMPUS_INSTITUCIONES
+=======
+  FIELD_REQ_CV_LANZAMIENTOS
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 } from '../constants';
 import Card from './Card';
 import Loader from './Loader';
@@ -42,8 +46,11 @@ import Input from './Input';
 import Select from './Select';
 import Button from './Button';
 import Checkbox from './Checkbox';
+<<<<<<< HEAD
 import { GoogleGenAI } from "@google/genai";
 import { GEMINI_API_KEY } from '../constants/configConstants';
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 
 const mockInstitutions = [
   { id: 'recInstMock1', [FIELD_NOMBRE_INSTITUCIONES]: 'Hospital de Juguete' },
@@ -59,9 +66,13 @@ const mockLastLanzamiento = {
   [FIELD_INFORME_LANZAMIENTOS]: 'http://example.com/informe-mock',
   [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: 'Lunes 9 a 13hs; Miércoles 14 a 18hs',
   [FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS]: true,
+<<<<<<< HEAD
   [FIELD_REQ_CV_LANZAMIENTOS]: false,
   [FIELD_DIRECCION_LANZAMIENTOS]: 'Calle Falsa 123',
   [FIELD_CODIGO_CAMPUS_LANZAMIENTOS]: '<div class="card">Ejemplo de código</div>'
+=======
+  [FIELD_REQ_CV_LANZAMIENTOS]: false 
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 };
 
 type FormData = {
@@ -75,8 +86,12 @@ type FormData = {
     informe: string | undefined;
     estadoConvocatoria: string | undefined;
     reqCertificadoTrabajo: boolean;
+<<<<<<< HEAD
     reqCv: boolean;
     direccion: string | undefined;
+=======
+    reqCv: boolean; 
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 };
 
 const initialState: FormData = {
@@ -90,7 +105,10 @@ const initialState: FormData = {
     estadoConvocatoria: 'Abierta',
     reqCertificadoTrabajo: true,
     reqCv: false,
+<<<<<<< HEAD
     direccion: '',
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 };
 
 interface LanzadorConvocatoriasProps {
@@ -214,8 +232,11 @@ const LAUNCH_TABLE_CONFIG = {
         { key: FIELD_NOTAS_GESTION_LANZAMIENTOS, label: 'Notas de Gestión', type: 'textarea' as const },
         { key: FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS, label: 'Pedir Cert. Trabajo', type: 'checkbox' as const },
         { key: FIELD_REQ_CV_LANZAMIENTOS, label: 'Pedir CV', type: 'checkbox' as const },
+<<<<<<< HEAD
         { key: FIELD_DIRECCION_LANZAMIENTOS, label: 'Dirección', type: 'text' as const },
         { key: FIELD_CODIGO_CAMPUS_LANZAMIENTOS, label: 'Código HTML Campus', type: 'textarea' as const },
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
     ]
 };
 
@@ -245,7 +266,11 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             if (isTestingMode) {
                 return Promise.resolve(mockInstitutions as unknown as AirtableRecord<InstitucionFields>[]);
             }
+<<<<<<< HEAD
             return db.instituciones.getAll({ fields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_CONVENIO_NUEVO_INSTITUCIONES, FIELD_CODIGO_CAMPUS_INSTITUCIONES] });
+=======
+            return db.instituciones.getAll({ fields: [FIELD_NOMBRE_INSTITUCIONES, FIELD_CONVENIO_NUEVO_INSTITUCIONES] });
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         },
     });
 
@@ -361,6 +386,71 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         onError: (err: any) => setToastInfo({ message: `Error guardando plantilla: ${err.message}`, type: 'error' })
     });
 
+    // SORTING AND GROUPING LOGIC FOR HISTORY TAB
+    const { visibleHistory, hiddenHistory } = useMemo(() => {
+        const sorted = [...launchHistory].sort((a, b) => {
+            const statusA = normalizeStringForComparison(a[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
+            const statusB = normalizeStringForComparison(b[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
+            
+            const isOpenA = statusA === 'abierta' || statusA === 'abierto';
+            const isOpenB = statusB === 'abierta' || statusB === 'abierto';
+            
+            if (isOpenA && !isOpenB) return -1;
+            if (!isOpenA && isOpenB) return 1;
+            
+            const dateA = new Date(a[FIELD_FECHA_INICIO_LANZAMIENTOS] || 0).getTime();
+            const dateB = new Date(b[FIELD_FECHA_INICIO_LANZAMIENTOS] || 0).getTime();
+            
+            return dateB - dateA;
+        });
+
+        const visible: LanzamientoPPS[] = [];
+        const hidden: LanzamientoPPS[] = [];
+
+        sorted.forEach(launch => {
+            const status = normalizeStringForComparison(launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
+            if (status === 'oculto') {
+                hidden.push(launch);
+            } else {
+                visible.push(launch);
+            }
+        });
+
+        return { visibleHistory: visible, hiddenHistory: hidden };
+    }, [launchHistory]);
+
+    // MUTATIONS
+    const createInstitutionMutation = useMutation({
+        mutationFn: async (data: any) => {
+             if (isTestingMode) {
+                 return { id: 'new-mock', ...data, [FIELD_NOMBRE_INSTITUCIONES]: data.nombre };
+             }
+             return db.instituciones.create({
+                 [FIELD_NOMBRE_INSTITUCIONES]: data.nombre,
+                 [FIELD_DIRECCION_INSTITUCIONES]: data.direccion,
+                 [FIELD_TELEFONO_INSTITUCIONES]: data.telefono,
+                 [FIELD_TUTOR_INSTITUCIONES]: data.tutor,
+                 [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true
+             });
+        },
+        onSuccess: (newInst, variables) => {
+             setToastInfo({ message: 'Institución registrada con éxito.', type: 'success' });
+             setSelectedInstitution(newInst as any);
+             setInstiSearch(newInst[FIELD_NOMBRE_INSTITUCIONES] as string);
+             
+             // Auto-fill launch form
+             setFormData(prev => ({
+                 ...prev,
+                 nombrePPS: newInst[FIELD_NOMBRE_INSTITUCIONES] as string,
+                 orientacion: variables.orientacionSugerida
+             }));
+             
+             setIsNewInstitutionModalOpen(false);
+             if (!isTestingMode) queryClient.invalidateQueries({ queryKey: ['allInstitutionsForLauncher'] });
+        },
+        onError: (err: any) => setToastInfo({ message: `Error: ${err.message}`, type: 'error' })
+    });
+
     const createLaunchMutation = useMutation({
         mutationFn: async (newLaunchData: any) => {
             if (isTestingMode) {
@@ -383,6 +473,10 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             }
         },
         onError: (error: any) => {
+<<<<<<< HEAD
+=======
+            // FIX: Ensure we extract the message string correctly from potentially nested error objects
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
             const msg = error?.error?.message || error?.message || JSON.stringify(error);
             setToastInfo({ message: `Error al lanzar: ${msg}`, type: 'error' });
         },
@@ -426,6 +520,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
     const handleSelectInstitution = (inst: AirtableRecord<InstitucionFields>) => {
         setSelectedInstitution(inst);
         setInstiSearch(inst[FIELD_NOMBRE_INSTITUCIONES] || '');
+<<<<<<< HEAD
         setFormData(prev => ({ 
             ...prev, 
             nombrePPS: inst[FIELD_NOMBRE_INSTITUCIONES] || '',
@@ -443,6 +538,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
              setCampusCode('');
         }
         
+=======
+        setFormData(prev => ({ ...prev, nombrePPS: inst[FIELD_NOMBRE_INSTITUCIONES] || '' }));
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         setIsDropdownOpen(false);
     };
 
@@ -482,9 +580,14 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             horasAcreditadas: lastLanzamiento[FIELD_HORAS_ACREDITADAS_LANZAMIENTOS],
             cuposDisponibles: lastLanzamiento[FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS],
             informe: lastLanzamiento[FIELD_INFORME_LANZAMIENTOS],
+<<<<<<< HEAD
             reqCertificadoTrabajo: lastLanzamiento[FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS] !== false,
             reqCv: !!lastLanzamiento[FIELD_REQ_CV_LANZAMIENTOS],
             direccion: lastLanzamiento[FIELD_DIRECCION_LANZAMIENTOS] || prev.direccion // Load address from last launch
+=======
+            reqCertificadoTrabajo: lastLanzamiento[FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS] !== false, // Default true if undefined
+            reqCv: !!lastLanzamiento[FIELD_REQ_CV_LANZAMIENTOS]
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         }));
         setSchedules(prevSchedulesList);
         
@@ -495,6 +598,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
         }
         
         setToastInfo({ message: 'Datos de la última convocatoria cargados.', type: 'success' });
+<<<<<<< HEAD
     }, [lastLanzamiento, campusCode]);
 
     // Effect to auto-load last data when institution is selected, IF it exists.
@@ -579,6 +683,15 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             setIsGeneratingCode(false);
         }
     };
+=======
+    }, [lastLanzamiento]);
+
+    useEffect(() => {
+        if (lastLanzamiento && selectedInstitution) {
+            handleLoadLastData();
+        }
+    }, [lastLanzamiento, selectedInstitution, handleLoadLastData]);
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -592,6 +705,10 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             [FIELD_FECHA_INICIO_LANZAMIENTOS]: formData.fechaInicio,
             [FIELD_FECHA_FIN_LANZAMIENTOS]: formData.fechaFin,
             [FIELD_ORIENTACION_LANZAMIENTOS]: formData.orientacion,
+<<<<<<< HEAD
+=======
+            // FIX: Ensure numeric types for numbers
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
             [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: Number(formData.horasAcreditadas),
             [FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS]: Number(formData.cuposDisponibles),
             [FIELD_INFORME_LANZAMIENTOS]: formData.informe,
@@ -599,9 +716,13 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: formData.estadoConvocatoria,
             [FIELD_ESTADO_GESTION_LANZAMIENTOS]: 'Relanzamiento Confirmado',
             [FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS]: formData.reqCertificadoTrabajo,
+<<<<<<< HEAD
             [FIELD_REQ_CV_LANZAMIENTOS]: formData.reqCv,
             [FIELD_DIRECCION_LANZAMIENTOS]: formData.direccion,
             [FIELD_CODIGO_CAMPUS_LANZAMIENTOS]: campusCode, // Save the code to launch
+=======
+            [FIELD_REQ_CV_LANZAMIENTOS]: formData.reqCv
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         };
         createLaunchMutation.mutate(finalPayload);
         
@@ -681,6 +802,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                 onConfirm={createInstitutionMutation.mutate}
                 isLoading={createInstitutionMutation.isPending}
             />
+<<<<<<< HEAD
 
             {!forcedTab && (
                 <div className="mt-4">
@@ -697,6 +819,23 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
             {/* USE CSS DISPLAY TO KEEP STATE ALIVE WHEN SWITCHING TABS WITHIN THE COMPONENT */}
             <div className={activeTab === 'new' ? 'block' : 'hidden'}>
+=======
+
+            {!forcedTab && (
+                <div className="mt-4">
+                    <SubTabs 
+                        tabs={[
+                            { id: 'new', label: 'Nuevo Lanzamiento', icon: 'add_circle' },
+                            { id: 'history', label: 'Historial', icon: 'history' }
+                        ]}
+                        activeTabId={activeTab}
+                        onTabChange={setInternalTab}
+                    />
+                </div>
+            )}
+
+            {activeTab === 'new' && (
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
                 <form onSubmit={handleSubmit} className="mt-8 space-y-8 animate-fade-in">
                     
                     {/* BLOQUE 1: SELECCIÓN DE INSTITUCIÓN (PREMIUM UI) */}
@@ -738,7 +877,11 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
                                         {/* Dropdown de Resultados - Increased z-index to fly above everything */}
                                         {isDropdownOpen && filteredInstitutions.length > 0 && (
+<<<<<<< HEAD
                                             <div className="absolute z-[100] mt-2 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden animate-fade-in-up max-h-60 overflow-y-auto">
+=======
+                                            <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden animate-fade-in-up max-h-60 overflow-y-auto">
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
                                                 <ul>
                                                     {filteredInstitutions.map(inst => (
                                                         <li 
@@ -867,6 +1010,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                         <input type="date" name="fechaFin" value={formData.fechaFin as string} onChange={handleChange} className={inputClass} required />
                                     </InputWrapper>
                                 </div>
+<<<<<<< HEAD
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                                     <InputWrapper label="Dirección / Lugar" icon="location_on">
@@ -883,6 +1027,8 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                         <input type="url" name="informe" value={formData.informe as string} onChange={handleChange} placeholder="https://..." className={inputClass} />
                                     </InputWrapper>
                                 </div>
+=======
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 
                                 <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -912,6 +1058,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                                         <span className="material-icons !text-lg">add</span> Agregar otro horario
                                     </button>
                                 </div>
+<<<<<<< HEAD
                             </div>
                         </div>
                     </div>
@@ -990,6 +1137,17 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                             </div>
                         </div>
                     </div>
+=======
+
+                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
+                                    <InputWrapper label="Link al Programa / Informe (Opcional)" icon="link">
+                                        <input type="url" name="informe" value={formData.informe as string} onChange={handleChange} placeholder="https://..." className={inputClass} />
+                                    </InputWrapper>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 
                     {/* ACTION FOOTER */}
                     <div className="pt-6 flex justify-end sticky bottom-6 z-40">
@@ -1008,7 +1166,11 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                 </form>
             </div>
 
+<<<<<<< HEAD
             <div className={activeTab === 'history' ? 'block' : 'hidden'}>
+=======
+            {activeTab === 'history' && (
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
                 <div className="mt-6 space-y-8">
                     {isLoadingHistory ? <Loader /> : (visibleHistory.length === 0 && hiddenHistory.length === 0) ? <EmptyState icon="history_toggle_off" title="Sin Historial" message="No hay lanzamientos registrados." /> : (
                         <>
@@ -1036,7 +1198,11 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
                         </>
                     )}
                 </div>
+<<<<<<< HEAD
             </div>
+=======
+            )}
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
 
             {editingLaunch && (
                 <RecordEditModal 

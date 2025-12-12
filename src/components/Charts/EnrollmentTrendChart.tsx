@@ -18,7 +18,11 @@ interface EnrollmentTrendChartProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
+<<<<<<< HEAD
       <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 p-3 rounded-xl shadow-xl">
+=======
+      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 p-3 rounded-xl shadow-xl">
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
         <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">{label}</p>
         <div className="flex items-center gap-2 text-xs">
           <div className="w-2 h-2 rounded-full bg-blue-500" />
@@ -41,7 +45,11 @@ const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({ data }) => 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
+<<<<<<< HEAD
       className="w-full h-[350px] bg-white dark:bg-gray-900 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm"
+=======
+      className="w-full h-[350px] bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm"
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
     >
       <div className="flex items-center justify-between mb-6 px-2">
          <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -53,7 +61,11 @@ const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({ data }) => 
       </div>
 
       <div className="h-[260px] w-full">
+<<<<<<< HEAD
         <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
+=======
+        <ResponsiveContainer width="100%" height="100%">
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorActivos" x1="0" y1="0" x2="0" y2="1">
@@ -61,7 +73,11 @@ const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({ data }) => 
                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
               </linearGradient>
             </defs>
+<<<<<<< HEAD
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-slate-800" />
+=======
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-slate-700" />
+>>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
             <XAxis 
                 dataKey="month" 
                 axisLine={false} 
