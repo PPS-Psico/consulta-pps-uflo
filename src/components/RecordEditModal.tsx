@@ -47,20 +47,9 @@ const RecordEditModal: React.FC<RecordEditModalProps> = ({ isOpen, onClose, reco
                 if (initialData && initialData[field.key] !== undefined) {
                     data[field.key] = initialData[field.key];
                 } else {
-<<<<<<< HEAD
                     // Set default values for new records. 
                     // FIX: Numbers start as empty string to avoid saving '0' by accident.
                     data[field.key] = field.type === 'checkbox' ? false : '';
-=======
-<<<<<<< HEAD
-                    // Set default values for new records. 
-                    // FIX: Numbers start as empty string to avoid saving '0' by accident.
-                    data[field.key] = field.type === 'checkbox' ? false : '';
-=======
-                    // Set default values for new records
-                    data[field.key] = field.type === 'checkbox' ? false : field.type === 'number' ? 0 : '';
->>>>>>> d3beb595dba178068b98ee9380159c31ab5c2e7f
->>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
                 }
             } else {
                 // Edit mode

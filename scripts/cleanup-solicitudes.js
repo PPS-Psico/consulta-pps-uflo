@@ -56,7 +56,6 @@ async function runCleanup() {
     if (errorConv) console.error("   ❌ Error:", errorConv.message);
     else console.log(`   ✅ Se pasaron ${countConv} solicitudes a estado 'Realizada'.`);
 
-<<<<<<< HEAD
     // 4. Normalización de términos viejos o de Airtable (Finalizada/PPS Realizada -> Realizada)
     console.log("\n4️⃣  Normalizando: 'Finalizada' / 'PPS Realizada' -> 'Realizada'");
     const { count: countNorm, error: errorNorm } = await supabase
@@ -68,8 +67,6 @@ async function runCleanup() {
     if (errorNorm) console.error("   ❌ Error:", errorNorm.message);
     else console.log(`   ✅ Se normalizaron ${countNorm} registros al estado 'Realizada'.`);
 
-=======
->>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     console.log("\n🏁 Proceso finalizado. La base de datos está actualizada.");
 }
 

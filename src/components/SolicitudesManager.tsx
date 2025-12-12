@@ -79,13 +79,9 @@ const RequestListItem: React.FC<{
     const [hasChanges, setHasChanges] = useState(false);
 
     const statusVisuals = getStatusVisuals(req[FIELD_ESTADO_PPS]);
-<<<<<<< HEAD
     // Normalizamos para comparar con los estados "finales"
     const normalizedStatus = normalizeStringForComparison(req[FIELD_ESTADO_PPS] || '');
     const isStagnant = req._daysSinceUpdate > 4 && !['finalizada', 'cancelada', 'rechazada', 'archivado', 'realizada', 'pps realizada'].includes(normalizedStatus);
-=======
-    const isStagnant = req._daysSinceUpdate > 4 && !['finalizada', 'cancelada', 'rechazada', 'archivado'].includes(req[FIELD_ESTADO_PPS]?.toLowerCase() || '');
->>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
     const institucion = cleanValue(req[FIELD_EMPRESA_PPS_SOLICITUD]);
     const instEmail = cleanValue(req[FIELD_SOLICITUD_EMAIL_INSTITUCION]);
 
@@ -252,15 +248,9 @@ const RequestListItem: React.FC<{
                                                 <option value="En conversaciones">En conversaciones</option>
                                                 <option value="Realizando convenio">Realizando convenio</option>
                                                 <option value="Puesta en contacto">Puesta en contacto</option>
-<<<<<<< HEAD
                                                 <option value="Realizada">Realizada</option> {/* Unified "Done" Status */}
                                                 <option value="Rechazada">Rechazada</option>
                                                 <option value="Cancelada">Cancelada</option>
-=======
-                                                <option value="Rechazada">Rechazada</option>
-                                                <option value="Cancelada">Cancelada</option>
-                                                <option value="Finalizada">Finalizada</option>
->>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
                                                 <option value="Archivado">Archivado</option>
                                             </select>
                                         </div>
@@ -520,11 +510,7 @@ const SolicitudesManager: React.FC<SolicitudesManagerProps> = ({ isTestingMode =
                                 <option value="En conversaciones">En conversaciones</option>
                                 <option value="Realizando convenio">Realizando convenio</option>
                                 <option value="Puesta en contacto">Puesta en contacto</option>
-<<<<<<< HEAD
                                 <option value="Realizada">Realizada</option>
-=======
-                                <option value="Finalizada">Finalizada</option>
->>>>>>> 592db3d9f8020721dcc0c886cb2f3638043e1d47
                                 <option value="Archivado">Archivado</option>
                             </select>
                         </div>
