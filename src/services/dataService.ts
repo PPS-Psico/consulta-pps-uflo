@@ -17,14 +17,12 @@ export const fetchStudentData = async (legajo: string): Promise<{ studentDetails
   });
   
   // records is already typed as Estudiante[] (AppRecord<EstudianteFields>[])
-  // but due to schema mismatch we fixed, it should be compatible now
   const data = records[0];
 
   if (!data) {
       return { studentDetails: null, studentAirtableId: null };
   }
 
-  // Cast to specific Estudiante type if inference is still loose
   return { studentDetails: data as unknown as Estudiante, studentAirtableId: data.id };
 };
 
@@ -102,7 +100,7 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
     institutionAddressMap: Map<string, string>,
 }> => {
     
-  // 1. Obtener Inscripciones del Estudiante (Para historial e hidratación)
+  // 1. Obtener Inscripciones del Estudiante
   let myEnrollments: Convocatoria[] = [];
   const enrolledLaunchIds = new Set<string>();
 
@@ -121,27 +119,25 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       });
   }
 
-  // 2. Obtener Lanzamientos "Abiertos" (Oferta actual para todos)
+  // 2. Obtener Lanzamientos "Abiertos" Y "Cerrados"
   const openLaunches = await db.lanzamientos.getAll({
       filters: { 
-        [C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: ['Abierta', 'Abierto'] 
+        [C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: ['Abierta', 'Abierto', 'Cerrado'] 
       },
       sort: [{ field: C.FIELD_FECHA_INICIO_LANZAMIENTOS, direction: 'desc' }]
   });
 
-  // 3. Obtener Lanzamientos Históricos (SOLO los que el alumno cursó y NO están abiertos hoy)
+  // 3. Obtener Lanzamientos Históricos (SOLO los que el alumno cursó y NO están en la lista principal)
   const openLaunchIds = new Set(openLaunches.map(l => l.id));
   const missingLaunchIds = Array.from(enrolledLaunchIds).filter(id => !openLaunchIds.has(id));
 
   let historicalLaunches: any[] = [];
   if (missingLaunchIds.length > 0) {
-      // Optimizacion: Solo descargamos los IDs específicos que faltan
       historicalLaunches = await db.lanzamientos.getAll({
           filters: { id: missingLaunchIds }
       });
   }
 
-  // Combinar para mapa de hidratación
   const allRawLanzamientos = [...openLaunches, ...historicalLaunches] as unknown as LanzamientoPPS[];
   const launchesMap = new Map(allRawLanzamientos.map(l => [l.id, l]));
 
@@ -162,12 +158,14 @@ export const fetchConvocatoriasData = async (legajo: string, studentAirtableId: 
       } as Convocatoria;
   });
 
-  // Filtrar oferta disponible (Solo Abiertas y no Archivadas/Canceladas)
-  const lanzamientos = (openLaunches as unknown as LanzamientoPPS[]).filter(l => 
-      l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] !== 'Oculto' && 
-      l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'Archivado' &&
-      l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS] !== 'No se Relanza'
-  );
+  const lanzamientos = (openLaunches as unknown as LanzamientoPPS[]).filter(l => {
+      const estadoConv = normalizeStringForComparison(l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
+      const estadoGestion = l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS];
+      
+      return estadoConv !== 'oculto' && 
+             estadoGestion !== 'Archivado' &&
+             estadoGestion !== 'No se Relanza';
+  });
 
   const institutionAddressMap = new Map<string, string>();
   lanzamientos.forEach(l => {
@@ -190,20 +188,56 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
     const lanzamientoId = lanzamiento.id;
     if (!lanzamientoId) return null;
 
+    try {
+        // --- OPCIÓN 1: VÍA RPC (Recomendada y Segura) ---
+        // Usamos la nueva función corregida 'get_postulantes_seleccionados'
+        const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_postulantes_seleccionados', { 
+            lanzamiento_uuid: lanzamientoId 
+        });
+
+        if (!rpcError && rpcData) {
+            const grouped: GroupedSeleccionados = {};
+            (rpcData as any[]).forEach((row: any) => {
+                const horario = row.horario || 'No especificado';
+                if (!grouped[horario]) grouped[horario] = [];
+                
+                grouped[horario].push({
+                    nombre: row.nombre || 'Estudiante',
+                    legajo: row.legajo || '---'
+                });
+            });
+            
+            if (Object.keys(grouped).length === 0) return null;
+
+            for (const horario in grouped) {
+                grouped[horario].sort((a, b) => a.nombre.localeCompare(b.nombre));
+            }
+            return grouped;
+        } else if (rpcError) {
+             console.warn("Error RPC get_postulantes_seleccionados:", rpcError);
+        }
+    } catch (e) {
+        console.warn("RPC no disponible o falló", e);
+    }
+
+    // --- OPCIÓN 2: FALLBACK (Método directo) ---
+    // Si la RPC no existe, usamos el método directo con manejo de errores robusto
     const enrollments = await db.convocatorias.getAll({
         filters: { 
-            [C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: lanzamientoId,
+            [C.FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS]: lanzamientoId
         }
     });
 
-    const selectedEnrollments = enrollments.filter(e => 
-        String(e[C.FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]).toLowerCase().includes('seleccionado')
-    );
+    const selectedEnrollments = enrollments.filter(e => {
+        const status = String(e[C.FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] || '').toLowerCase();
+        return status.includes('seleccionado') || status.includes('asignado') || status.includes('confirmado');
+    });
 
     if (selectedEnrollments.length === 0) return null;
 
     const studentIds = selectedEnrollments.map(e => e[C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS]).filter(Boolean) as string[];
     
+    // Puede devolver vacío si RLS bloquea la lectura de otros estudiantes
     const students = await db.estudiantes.getAll({ filters: { id: studentIds } });
     const studentMap = new Map(students.map(s => [s.id, s]));
 
@@ -211,16 +245,17 @@ export const fetchSeleccionados = async (lanzamiento: LanzamientoPPS): Promise<G
     
     selectedEnrollments.forEach((row) => {
         const horario = (row[C.FIELD_HORARIO_FORMULA_CONVOCATORIAS] as string) || 'No especificado';
-        const studentId = row[C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-        const student = studentId ? studentMap.get(studentId as string) : null;
+        const studentId = row[C.FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] as string;
         
-        if (student) {
-            if (!grouped[horario]) grouped[horario] = [];
-            grouped[horario].push({ 
-                nombre: (student[C.FIELD_NOMBRE_ESTUDIANTES] as string) || 'Nombre Desconocido', 
-                legajo: String(student[C.FIELD_LEGAJO_ESTUDIANTES] || '---') 
-            });
-        }
+        const student = studentMap.get(studentId);
+        
+        // Si no podemos leer los datos del alumno (RLS), mostramos placeholder
+        // Intentamos usar datos snapshot si existen
+        const nombre = student ? (student[C.FIELD_NOMBRE_ESTUDIANTES] as string) : 'Estudiante Seleccionado';
+        const legajo = student ? String(student[C.FIELD_LEGAJO_ESTUDIANTES]) : (String(row[C.FIELD_LEGAJO_CONVOCATORIAS] || '---'));
+
+        if (!grouped[horario]) grouped[horario] = [];
+        grouped[horario].push({ nombre, legajo });
     });
     
     if (Object.keys(grouped).length === 0) return null;

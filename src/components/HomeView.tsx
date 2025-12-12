@@ -185,7 +185,11 @@ const HomeView: React.FC<HomeViewProps> = ({
             .filter(e => normalizeStringForComparison(e[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]) === 'seleccionado')
             .map(enrollment => {
                 let pps: LanzamientoPPS | undefined;
-                const lanzamientoId = (enrollment[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] || [])[0];
+                
+                // Safe extraction of ID which might be string or array
+                const rawId = enrollment[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS];
+                const lanzamientoId = Array.isArray(rawId) ? rawId[0] : rawId;
+                
                 if (lanzamientoId) pps = allLanzamientos.find(l => l.id === lanzamientoId);
                 return pps ? { pps, enrollment } : null;
             })
@@ -321,7 +325,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                 )}
             </div>
 
-            {/* SECTION: Open Convocatorias */}
+            {/* SECTION: Open Convocatorias (and visible results) */}
             {lanzamientos.length > 0 && (
                 <div className="mt-10 pt-8 border-t border-slate-200/80 dark:border-slate-700">
                     <div className="flex items-center gap-3 mb-6">
@@ -329,8 +333,8 @@ const HomeView: React.FC<HomeViewProps> = ({
                             <span className="material-icons !text-2xl">campaign</span>
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight">Convocatorias Abiertas</h2>
-                            <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Nuevas oportunidades disponibles para postularte.</p>
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight">Convocatorias y Resultados</h2>
+                            <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Postúlate a nuevas PPS o revisa los resultados de convocatorias cerradas.</p>
                         </div>
                     </div>
                     <div className="space-y-5">
@@ -357,7 +361,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                             onVerSeleccionados={(l) => seleccionadosMutation.mutate(l)}
                             isVerSeleccionadosLoading={seleccionadosMutation.isPending && seleccionadosMutation.variables?.id === lanzamiento.id}
                             isCompleted={isCompleted}
-                            userGender={student?.genero as "Varon" | "Mujer" | "Otro" | undefined} // Cast here
+                            userGender={student?.genero as "Varon" | "Mujer" | "Otro" | undefined} 
                             direccion={finalDireccion}
                         />
                         );

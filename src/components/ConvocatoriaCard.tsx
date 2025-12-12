@@ -103,13 +103,23 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
         return statusMap[enrollmentState];
     }
     
+    // Si está cerrada y el alumno NO participó, mostramos "Ver Resultados" explícitamente
+    if (convocatoriaState === 'cerrada') {
+         return {
+            text: 'Ver Resultados',
+            icon: 'groups',
+            style: 'bg-white text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 shadow-sm',
+            hover: 'hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
+         };
+    }
+
     return {
       text: estadoConvocatoria || 'Cerrada',
       icon: convocatoriaStatusVisuals.icon,
       style: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
       hover: ''
     };
-  }, [enrollmentState, estadoConvocatoria, convocatoriaStatusVisuals, getGenderedText]);
+  }, [enrollmentState, estadoConvocatoria, convocatoriaStatusVisuals, getGenderedText, convocatoriaState]);
 
   const LoadingSpinner: React.FC<{ variant?: 'light' | 'dark' }> = ({ variant = 'light' }) => (
     <div 
