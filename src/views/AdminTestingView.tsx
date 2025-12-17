@@ -1,0 +1,85 @@
+
+import React, { useState } from 'react';
+import AdminView from './AdminView';
+import StudentDashboard from './StudentDashboard';
+import Card from '../components/Card';
+import AppModals from '../components/AppModals';
+import { AuthUser } from '../contexts/AuthContext';
+import { StudentPanelProvider } from '../contexts/StudentPanelContext';
+
+const AdminTestingView: React.FC = () => {
+    const [activeTabId, setActiveTabId] = useState('student');
+    
+    // Usuario simulado para la vista de estudiante
+    const testingUser: AuthUser = { 
+        legajo: '99999', 
+        nombre: 'Usuario de Prueba', 
+        role: 'AdminTester' 
+    };
+
+    return (
+        <div className="space-y-6 animate-fade-in-up pb-20">
+            {/* Header Sticky para cambiar de rol fácilmente */}
+            <div className="sticky top-20 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg text-amber-600 dark:text-amber-400">
+                        <span className="material-icons">science</span>
+                    </div>
+                    <div>
+                        <h1 className="text-lg font-black text-slate-800 dark:text-white leading-tight">
+                            Entorno de Simulación
+                        </h1>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Datos aislados de producción.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <button
+                        onClick={() => setActiveTabId('student')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+                            activeTabId === 'student'
+                                ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-sm'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                        }`}
+                    >
+                        <span className="material-icons !text-lg">school</span>
+                        Vista Alumno
+                    </button>
+                    <button
+                        onClick={() => setActiveTabId('admin')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+                            activeTabId === 'admin'
+                                ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-300 shadow-sm'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                        }`}
+                    >
+                        <span className="material-icons !text-lg">admin_panel_settings</span>
+                        Vista Admin
+                    </button>
+                </div>
+            </div>
+
+            <div className="mt-4">
+                {activeTabId === 'student' ? (
+                     <div className="bg-slate-50 dark:bg-black/20 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 ring-4 ring-slate-100 dark:ring-slate-900">
+                        {/* Envolvemos en el Provider con el legajo mock (99999) que activa el modo test en los hooks */}
+                        <StudentPanelProvider legajo={testingUser.legajo}>
+                            <StudentDashboard user={testingUser} showExportButton={true} />
+                        </StudentPanelProvider>
+                    </div>
+                ) : (
+                    <div className="bg-slate-50 dark:bg-black/20 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 ring-4 ring-slate-100 dark:ring-slate-900">
+                        <AdminView isTestingMode={true} />
+                    </div>
+                )}
+            </div>
+            
+            {/* Modales globales para que funcionen las interacciones dentro de las simulaciones */}
+            <AppModals />
+        </div>
+    );
+};
+
+export default AdminTestingView;
