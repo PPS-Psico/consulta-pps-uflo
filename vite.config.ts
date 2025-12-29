@@ -13,8 +13,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
-    // IMPORTANTE: Esto debe coincidir con el nombre de tu repositorio en GitHub
-    base: '/consulta-pps-uflo/',
+    // Uso de rutas relativas para máxima compatibilidad con GitHub Pages y HashRouter
+    base: './',
     plugins: [react()],
     resolve: {
       alias: {
@@ -27,8 +27,15 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.API_KEY),
     },
     build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
       rollupOptions: {
-        // No external dependencies needed; Vite will bundle everything.
+        output: {
+          // Asegurar nombres de archivo amigables para caché
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]'
+        }
       },
     },
     // Optimize deps to ensure they are pre-bundled correctly
