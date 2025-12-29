@@ -48,6 +48,15 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
     [FIELD_ORIENTACION_LANZAMIENTOS]: orientacion,
     [FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]: estadoConvocatoria,
   } = lanzamiento;
+  
+  // Calculate if new (created in last 7 days)
+  const isNew = useMemo(() => {
+      if (!lanzamiento.createdTime) return false;
+      const created = new Date(lanzamiento.createdTime);
+      const diffTime = Math.abs(Date.now() - created.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+  }, [lanzamiento.createdTime]);
 
   const convocatoriaState = useMemo((): ConvocatoriaState => {
     const normalized = normalizeStringForComparison(estadoConvocatoria);
@@ -211,10 +220,18 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
                   {nombre || 'Convocatoria sin nombre'}
                </h3>
                
-               {/* Especialidad Tag (Mini) */}
-               <span className={`inline-flex items-center text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500`}>
-                   {orientacion}
-               </span>
+               <div className="flex items-center gap-2 mt-1">
+                   {/* Especialidad Tag (Mini) */}
+                   <span className={`inline-flex items-center text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500`}>
+                       {orientacion}
+                   </span>
+                   {/* New Badge */}
+                   {isNew && convocatoriaState === 'abierta' && enrollmentState === 'none' && (
+                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-500 text-white shadow-sm animate-pulse">
+                           NUEVO
+                       </span>
+                   )}
+               </div>
             </div>
 
             {/* Action Button Area */}

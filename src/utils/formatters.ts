@@ -48,7 +48,9 @@ export function getEspecialidadClasses(especialidad?: string) {
     gradient: 'from-slate-400 to-slate-600',
     headerBg: 'bg-slate-50 dark:bg-slate-800',
     headerText: 'text-slate-800 dark:text-slate-100',
-    dot: 'bg-slate-400'
+    dot: 'bg-slate-400',
+    // Default neutral border
+    leftBorder: 'border-l-slate-400 dark:border-l-slate-600'
   };
 
   if (normalized.includes('clinica')) {
@@ -57,7 +59,9 @@ export function getEspecialidadClasses(especialidad?: string) {
       gradient: 'from-emerald-400 to-teal-600',
       headerBg: 'bg-emerald-50 dark:bg-emerald-900/20',
       headerText: 'text-emerald-800 dark:text-emerald-300',
-      dot: 'bg-emerald-500'
+      dot: 'bg-emerald-500',
+      // Strong emerald for light/dark
+      leftBorder: 'border-l-emerald-500 dark:border-l-emerald-400'
     };
   } else if (normalized.includes('educacional') || normalized.includes('educacion')) {
     config = {
@@ -65,7 +69,9 @@ export function getEspecialidadClasses(especialidad?: string) {
       gradient: 'from-blue-400 to-indigo-600',
       headerBg: 'bg-blue-50 dark:bg-blue-900/20',
       headerText: 'text-blue-800 dark:text-blue-300',
-      dot: 'bg-blue-500'
+      dot: 'bg-blue-500',
+      // Strong blue for light/dark
+      leftBorder: 'border-l-blue-500 dark:border-l-blue-400'
     };
   } else if (normalized.includes('laboral') || normalized.includes('trabajo')) {
     config = {
@@ -73,7 +79,9 @@ export function getEspecialidadClasses(especialidad?: string) {
       gradient: 'from-rose-500 to-red-700',
       headerBg: 'bg-rose-50 dark:bg-rose-900/20',
       headerText: 'text-rose-800 dark:text-rose-300',
-      dot: 'bg-rose-500'
+      dot: 'bg-rose-500',
+      // Strong rose for light/dark
+      leftBorder: 'border-l-rose-500 dark:border-l-rose-400'
     };
   } else if (normalized.includes('comunitaria') || normalized.includes('comunidad')) {
     config = {
@@ -81,7 +89,9 @@ export function getEspecialidadClasses(especialidad?: string) {
       gradient: 'from-purple-400 to-fuchsia-600',
       headerBg: 'bg-purple-50 dark:bg-purple-900/20',
       headerText: 'text-purple-800 dark:text-purple-300',
-      dot: 'bg-purple-500'
+      dot: 'bg-purple-500',
+      // Strong purple for light/dark
+      leftBorder: 'border-l-purple-500 dark:border-l-purple-400'
     };
   }
   

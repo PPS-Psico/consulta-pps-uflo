@@ -23,7 +23,8 @@ import {
     FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
     FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
     FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
-    FIELD_FECHA_SOLICITUD_FINALIZACION
+    FIELD_FECHA_SOLICITUD_FINALIZACION,
+    FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS
 } from '../constants';
 import Toast from '../components/Toast';
 
@@ -32,7 +33,7 @@ export interface AppNotification {
     title: string;
     message: string;
     timestamp: Date;
-    type: 'solicitud_pps' | 'acreditacion' | 'info' | 'recordatorio' | 'estado';
+    type: 'solicitud_pps' | 'acreditacion' | 'info' | 'recordatorio' | 'estado' | 'lanzamiento';
     link: string;
     isRead: boolean;
 }
@@ -68,18 +69,21 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     // Check Push Permission on Mount
     useEffect(() => {
-        // 1. Check real service worker subscription
+        // 1. Check real service worker subscription status first
         if ('serviceWorker' in navigator && 'PushManager' in window) {
             navigator.serviceWorker.ready.then(registration => {
                 registration.pushManager.getSubscription().then(subscription => {
-                    if (subscription) setIsPushEnabled(true);
+                    if (subscription) {
+                        setIsPushEnabled(true);
+                        localStorage.setItem(PUSH_STORAGE_KEY, 'true'); // Sync
+                    }
                 });
             });
         }
         
-        // 2. Check local storage override (for UI consistency in demo mode without real VAPID keys)
+        // 2. Check local storage override if permission is already granted but no active sub retrieved yet
         const storedPush = localStorage.getItem(PUSH_STORAGE_KEY);
-        if (storedPush === 'true') {
+        if (storedPush === 'true' && Notification.permission === 'granted') {
             setIsPushEnabled(true);
         }
     }, [PUSH_STORAGE_KEY]);
@@ -92,16 +96,20 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 throw new Error('Tu navegador no soporta notificaciones push.');
             }
             
-            // Check for iOS specifically to give better feedback
+            // Check for iOS
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
             if (isIOS && !('standalone' in window.navigator) && !(window.navigator as any).standalone) {
-                 // In iOS, push only works if installed to homescreen
+                 // In iOS, push usually requires PWA installation, but we proceed to request permission anyway
             }
 
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
                 throw new Error('Permiso de notificaciones denegado. Habilítalo en la configuración del navegador.');
             }
+
+            // Immediately update state if permission granted
+            setIsPushEnabled(true);
+            localStorage.setItem(PUSH_STORAGE_KEY, 'true');
 
             const registration = await navigator.serviceWorker.ready;
             
@@ -111,15 +119,12 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             //    applicationServerKey: 'YOUR_VAPID_PUBLIC_KEY'
             // });
             
-            // For now, we simulate success and persist state locally
-            localStorage.setItem(PUSH_STORAGE_KEY, 'true');
-            setIsPushEnabled(true);
             setToast({ message: 'Notificaciones activadas correctamente.', type: 'success' });
             
             // Send a test notification immediately if supported to confirm
             if (registration.showNotification) {
                 registration.showNotification('¡Activado!', {
-                    body: 'Recibirás avisos importantes aquí.',
+                    body: 'Recibirás avisos de nuevas convocatorias aquí.',
                     icon: '/icons/icon-192x192.png'
                 });
             }
@@ -129,6 +134,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             let msg = 'No se pudieron activar las notificaciones.';
             if (e.message) msg = e.message;
             setToast({ message: msg, type: 'error' });
+            setIsPushEnabled(false); // Revert on error
+            localStorage.removeItem(PUSH_STORAGE_KEY);
         }
     };
 
@@ -220,7 +227,32 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                     }
                     
                 } else if (isStudent) {
-                    // Logic for students can be added here if needed
+                     // --- C. Nuevos Lanzamientos (Student) ---
+                     // Fetch recent launches (last 7 days) that are 'Abierta'
+                     const sevenDaysAgo = new Date();
+                     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                     
+                     const { data: newLaunches } = await supabase
+                        .from(TABLE_NAME_LANZAMIENTOS_PPS)
+                        .select(`id, created_at, ${FIELD_NOMBRE_PPS_LANZAMIENTOS}, ${FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS}`)
+                        .eq(FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS, 'Abierta')
+                        .gt('created_at', sevenDaysAgo.toISOString())
+                        .order('created_at', { ascending: false });
+
+                     if (newLaunches) {
+                         newLaunches.forEach((l: any) => {
+                             const notifId = `launch-${l.id}`;
+                             loadedNotifications.push({
+                                 id: notifId,
+                                 title: 'Nueva Convocatoria',
+                                 message: `${l[FIELD_NOMBRE_PPS_LANZAMIENTOS]} está abierta para inscripción.`,
+                                 timestamp: new Date(l.created_at),
+                                 type: 'lanzamiento',
+                                 link: '/student',
+                                 isRead: readNotificationIds.has(notifId)
+                             });
+                         });
+                     }
                 }
 
                 // Sort merged list by date desc
@@ -233,8 +265,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         };
 
         fetchNotificationsAndReminders();
-
-    }, [isAdmin, isStudent, authenticatedUser, readNotificationIds]); 
+    }, [isAdmin, isStudent, authenticatedUser, readNotificationIds]);
 
     // 2. LISTEN FOR NEW EVENTS (REALTIME)
     useEffect(() => {
@@ -293,6 +324,36 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             )
             .on(
                 'postgres_changes',
+                { event: '*', schema: 'public', table: TABLE_NAME_LANZAMIENTOS_PPS }, // Listen to INSERT and UPDATE
+                async (payload: any) => {
+                    if (!isStudent) return; // Only students get notified of new launches
+                    
+                    const newRecord = payload.new;
+                    if (!newRecord) return;
+                    
+                    // Trigger if it's a NEW active launch OR an update that sets it to 'Abierta'
+                    const isNewActive = payload.eventType === 'INSERT' && newRecord[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] === 'Abierta';
+                    const isBecameActive = payload.eventType === 'UPDATE' && 
+                                           newRecord[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] === 'Abierta' && 
+                                           payload.old?.[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] !== 'Abierta';
+
+                    if (isNewActive || isBecameActive) {
+                        const notifId = `launch-realtime-${newRecord.id}`;
+                        const newNotif: AppNotification = {
+                            id: notifId,
+                            title: '¡Nueva Oportunidad de PPS!',
+                            message: `Se ha abierto la inscripción para ${newRecord[FIELD_NOMBRE_PPS_LANZAMIENTOS]}.`,
+                            timestamp: new Date(),
+                            type: 'lanzamiento',
+                            link: '/student', // Link to home where cards are
+                            isRead: false
+                        };
+                        addNotification(newNotif);
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: TABLE_NAME_CONVOCATORIAS },
                 async (payload: any) => {
                     if (!isStudent) return; // Only students care about their status changes here
@@ -300,21 +361,28 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                     const newRecord = payload.new;
                     const oldRecord = payload.old;
                     
-                    if (newRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] !== oldRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]) {
-                        const newState = newRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS];
-                        let msg = `Tu estado ha cambiado a: ${newState}`;
-                        if (newState === 'Seleccionado') msg = '¡Felicitaciones! Has sido Seleccionado para la PPS.';
-                        
-                        const newNotif: AppNotification = {
-                            id: `conv-update-${newRecord.id}-${Date.now()}`,
-                            title: 'Actualización de Postulación',
-                            message: msg,
-                            timestamp: new Date(),
-                            type: 'estado',
-                            link: '/student/solicitudes',
-                            isRead: false
-                        };
-                        addNotification(newNotif);
+                    const studentIdInRecord = newRecord[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
+                    // Clean array format if necessary
+                    const cleanId = Array.isArray(studentIdInRecord) ? studentIdInRecord[0] : studentIdInRecord;
+
+                    // If we have the current user ID, compare.
+                    if (authenticatedUser && cleanId === authenticatedUser.id) {
+                         if (newRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] !== oldRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]) {
+                            const newState = newRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS];
+                            let msg = `Tu estado ha cambiado a: ${newState}`;
+                            if (newState === 'Seleccionado') msg = '¡Felicitaciones! Has sido Seleccionado para la PPS.';
+                            
+                            const newNotif: AppNotification = {
+                                id: `conv-update-${newRecord.id}-${Date.now()}`,
+                                title: 'Actualización de Postulación',
+                                message: msg,
+                                timestamp: new Date(),
+                                type: 'estado',
+                                link: '/student/solicitudes',
+                                isRead: false
+                            };
+                            addNotification(newNotif);
+                        }
                     }
                 }
             )
@@ -329,8 +397,19 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         setNotifications(prev => [notif, ...prev]);
         setToast({ message: notif.title, type: 'success' });
         
-        // System Notification Bridge
-        if (Notification.permission === 'granted' && document.hidden) {
+        // System Notification Bridge (Native Android/Desktop)
+        if (isPushEnabled && 'serviceWorker' in navigator) {
+             navigator.serviceWorker.ready.then(registration => {
+                 if (registration.showNotification) {
+                     registration.showNotification(notif.title, {
+                         body: notif.message,
+                         icon: '/icons/icon-192x192.png',
+                         data: { url: notif.link } // Used by SW click handler
+                     });
+                 }
+             });
+        } else if (Notification.permission === 'granted' && document.hidden) {
+            // Fallback for non-SW environments or desktop if SW fails
             new Notification(notif.title, { body: notif.message, icon: '/icons/icon-192x192.png' });
         }
         
