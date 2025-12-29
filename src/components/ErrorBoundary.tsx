@@ -30,14 +30,23 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logger.error("Uncaught error in boundary:", { error, errorInfo });
     
-    // Auto-reload once if it's a chunk loading error (common after deployments)
-    if (error.message && (error.message.includes('Failed to fetch dynamically imported module') || error.message.includes('Importing a module script failed'))) {
+    // Auto-reload strategies
+    const msg = error.message || '';
+    
+    // 1. Chunk Load Error (Cache vieja)
+    if (msg.includes('Failed to fetch dynamically imported module') || msg.includes('Importing a module script failed')) {
        if (!sessionStorage.getItem('retry-chunk-load')) {
            sessionStorage.setItem('retry-chunk-load', 'true');
            window.location.reload();
        } else {
            sessionStorage.removeItem('retry-chunk-load');
        }
+    }
+    
+    // 2. DOM Exception (Google Translate / Extensiones) - Si el monkeypatch falla, esto es el último recurso
+    if (msg.includes('removeChild') || msg.includes('insertBefore') || msg.includes('NotFoundError')) {
+        console.warn("DOM mismatch detected, attempting forced reload to restore sync.");
+        // Opcional: Podríamos recargar automáticamente aquí también si es crítico
     }
   }
 
@@ -50,25 +59,39 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   render() {
     if (this.state.hasError) {
-      const isChunkError = this.state.error?.message?.includes('Failed to fetch') || this.state.error?.message?.includes('Importing a module');
+      const msg = this.state.error?.message || '';
+      const isChunkError = msg.includes('Failed to fetch') || msg.includes('Importing a module');
+      const isDomError = msg.includes('removeChild') || msg.includes('Node');
+      
+      let title = 'Algo salió mal';
+      let description = this.state.error?.message || 'Ocurrió un error inesperado al procesar tu solicitud.';
+      let icon = 'error_outline';
+
+      if (isChunkError) {
+          title = 'Actualización Disponible';
+          description = 'Se ha detectado una nueva versión de la aplicación. Por favor, recarga la página para obtener las últimas mejoras.';
+          icon = 'system_update';
+      } else if (isDomError) {
+          title = 'Error de Interfaz';
+          description = 'La traducción automática o una extensión del navegador interfirió con la aplicación. Por favor, desactiva el traductor para este sitio y recarga.';
+          icon = 'translate';
+      }
       
       return (
         <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-red-200 dark:border-red-900/50 max-w-lg mx-auto my-8 mt-20">
             <div className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full h-16 w-16 flex items-center justify-center mb-4">
               <span className="material-icons !text-4xl">
-                  {isChunkError ? 'system_update' : 'error_outline'}
+                  {icon}
               </span>
             </div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 text-center">
-                {isChunkError ? 'Actualización Disponible' : 'Algo salió mal'}
+                {title}
             </h2>
             <p className="text-slate-600 dark:text-slate-400 text-sm text-center mt-2 mb-6 leading-relaxed">
-              {isChunkError 
-                ? 'Se ha detectado una nueva versión de la aplicación. Por favor, recarga la página para obtener las últimas mejoras.' 
-                : (this.state.error?.message || 'Ocurrió un error inesperado al procesar tu solicitud.')}
+              {description}
             </p>
             <div className="flex gap-3">
-                {!isChunkError && (
+                {!isChunkError && !isDomError && (
                     <button
                         onClick={this.handleRetry}
                         className="px-5 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold hover:bg-slate-200 transition-colors text-sm"
