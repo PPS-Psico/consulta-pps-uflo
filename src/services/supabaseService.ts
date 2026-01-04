@@ -1,12 +1,9 @@
-
 import { supabase } from '../lib/supabaseClient';
 import type { AppErrorResponse } from '../types';
 import type { Database } from '../types/supabase';
 import { 
-    FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, 
     FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS 
 } from '../constants';
-import { cleanDbValue } from '../utils/formatters';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -18,11 +15,9 @@ type TableName = keyof Database['public']['Tables'];
 const buildSearchFilter = (searchTerm: string, searchFields: string[]) => {
     if (!searchTerm || searchFields.length === 0) return null;
     
-    // Limpiamos el término de búsqueda
     const term = searchTerm.replace(/[%\\]/g, ''); 
     if (!term) return null;
 
-    // Solo aplicamos ilike a los campos tal cual vienen.
     return searchFields.map(field => `${field}.ilike.*${term}*`).join(',');
 };
 
@@ -49,49 +44,6 @@ const applyFilters = (query: any, filters?: Record<string, unknown>) => {
         }
     });
     return query;
-};
-
-// --- GLOBAL SANITIZER REINSTATED ---
-// This firewall ensures NO array-like strings ever enter the database text fields
-const sanitizePayloadGlobal = (fields: any) => {
-    if (!fields || typeof fields !== 'object') return fields;
-    
-    const cleanFields: any = { ...fields };
-    
-    // Lista de campos de texto conocidos que NO deben ser arrays
-    // Esto incluye campos que vienen de Lookups en sistemas legacy
-    const textFieldsToCheck = [
-        'nombre_institucion', 'nombre_pps', 'nombre', 'apellido', 
-        'orientacion', 'especialidad', 'estado', 'nota', 'nombre_alumno', 'nombre_institucion_lookup',
-        'direccion', 'telefono', 'tutor', 'horario_seleccionado', 'legajo'
-    ];
-
-    Object.keys(cleanFields).forEach(key => {
-        const val = cleanFields[key];
-        
-        // Skip nulls/undefined/booleans/numbers (unless they are ID fields which might be number strings)
-        if (val === null || val === undefined || typeof val === 'boolean' || typeof val === 'number') {
-             return;
-        }
-
-        // Apply cleaning if it's in our watchlist OR if it looks suspicious (array or object)
-        const isSuspicious = Array.isArray(val) || (typeof val === 'object' && val !== null);
-        const isTargetField = textFieldsToCheck.some(t => key.includes(t));
-
-        if (isTargetField || isSuspicious) {
-             // Force clean
-             const cleaned = cleanDbValue(val);
-             
-             // Special handling for IDs: empty string means NULL
-             if (cleaned === '' && (key.endsWith('_id') || key === 'id')) {
-                 cleanFields[key] = null;
-             } else {
-                 cleanFields[key] = cleaned;
-             }
-        }
-    });
-    
-    return cleanFields;
 };
 
 // Generic Fetch Paginated Data
@@ -222,10 +174,7 @@ export const createRecord = async <T extends TableName>(
     fields: Database['public']['Tables'][T]['Insert']
 ): Promise<{ record: Database['public']['Tables'][T]['Row'] | null, error: AppErrorResponse | null }> => {
     try {
-        // AUTO-SANITIZE: Clean fields before sending to avoid {"value"} artifacts
-        const cleanFields = sanitizePayloadGlobal(fields);
-
-        const { data, error } = await supabase.from(tableName).insert(cleanFields as any).select().single();
+        const { data, error } = await supabase.from(tableName).insert(fields as any).select().single();
         if (error) return { record: null, error: { error: { type: 'CREATE_ERROR', message: error.message } } };
         
         return { record: data as Database['public']['Tables'][T]['Row'], error: null };
@@ -241,12 +190,9 @@ export const updateRecord = async <T extends TableName>(
     fields: Database['public']['Tables'][T]['Update']
 ): Promise<{ record: Database['public']['Tables'][T]['Row'] | null, error: AppErrorResponse | null }> => {
     try {
-        // AUTO-SANITIZE: Clean fields before sending
-        const cleanFields = sanitizePayloadGlobal(fields);
-
         const { data, error } = await supabase
             .from(tableName)
-            .update(cleanFields as any)
+            .update(fields as any)
             .eq('id', recordId)
             .select()
             .maybeSingle(); 

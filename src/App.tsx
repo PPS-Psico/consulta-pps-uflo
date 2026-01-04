@@ -17,6 +17,8 @@ import { db } from './lib/db';
 import FinalizacionForm from './components/FinalizacionForm';
 import PreSolicitudCheckModal from './components/PreSolicitudCheckModal';
 import { NotificationProvider } from './contexts/NotificationContext';
+/* Fixed missing Button import */
+import Button from './components/Button';
 import { 
     FIELD_LEGAJO_PPS,
     FIELD_SOLICITUD_LEGAJO_ALUMNO,
@@ -163,7 +165,6 @@ const StudentSolicitudesWrapper = () => {
                 [FIELD_SOLICITUD_TIENE_CONVENIO]: formData.tieneConvenio,
                 [FIELD_SOLICITUD_TIENE_TUTOR]: formData.tieneTutor,
                 [FIELD_SOLICITUD_CONTACTO_TUTOR]: formData.contactoTutor,
-                // Fixed typo: No value exists in scope for shorthand property 'practica'.
                 [FIELD_SOLICITUD_TIPO_PRACTICA]: formData.tipoPractica,
                 [FIELD_SOLICITUD_DESCRIPCION]: formData.descripcion,
                 
@@ -312,7 +313,6 @@ const AppRoutes = () => {
                 <Route path="lanzador" element={<LanzadorView />} />
                 <Route path="gestion" element={<GestionView />} />
                 <Route path="solicitudes" element={<SolicitudesManager />} />
-                {/* Corrected typo in variable name FIELD_LEGAJO_ESTUDAINTES to FIELD_LEGAJO_ESTUDIANTES below */}
                 <Route path="herramientas" element={<HerramientasView onStudentSelect={(s) => navigate(`/admin/estudiantes/${s[FIELD_LEGAJO_ESTUDIANTES]}`)} />} />
                 <Route path="estudiantes/:legajo" element={<AdminStudentWrapper />} />
             </Route>

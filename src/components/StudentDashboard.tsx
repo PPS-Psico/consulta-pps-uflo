@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import CriteriosPanel from '../components/CriteriosPanel';
 import PracticasTable from '../components/PracticasTable';
@@ -7,6 +5,8 @@ import SolicitudesList from '../components/SolicitudesList';
 import EmptyState from '../components/EmptyState';
 import Tabs from '../components/Tabs';
 import Card from '../components/Card';
+/* Fixed missing Button import */
+import Button from './Button';
 import WelcomeBanner from '../components/WelcomeBanner';
 import InformesList from '../components/InformesList';
 import WhatsAppExportButton from '../components/WhatsAppExportButton';
@@ -416,7 +416,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
             />
         ) : (
             <ErrorBoundary>
-                <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />
+                <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} informeTasks={informeTasks} />
             </ErrorBoundary>
         )}
         
@@ -460,7 +460,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
           
           {currentActiveTab === 'practicas' && (
               <ErrorBoundary>
-                  {!finalizacionRequest && <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} />}
+                  {!finalizacionRequest && <CriteriosPanel criterios={criterios} selectedOrientacion={selectedOrientacion} handleOrientacionChange={handleOrientacionChange} showSaveConfirmation={showSaveConfirmation} onRequestFinalization={handleOpenFinalization} informeTasks={informeTasks} />}
                   <MobileSectionHeader title="Historial de Prácticas" description="Detalle de todas las prácticas que has realizado y sus calificaciones." />
                   {practicasContent}
               </ErrorBoundary>

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -144,7 +143,7 @@ const NewInstitutionModal: React.FC<{
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 ml-1">Nombre Institución *</label>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Nombre Institución *</label>
                         <Input 
                             value={newData.nombre} 
                             onChange={e => setNewData({...newData, nombre: e.target.value})} 
@@ -154,7 +153,7 @@ const NewInstitutionModal: React.FC<{
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 ml-1">Dirección</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Dirección</label>
                             <Input 
                                 value={newData.direccion} 
                                 onChange={e => setNewData({...newData, direccion: e.target.value})} 
@@ -162,7 +161,7 @@ const NewInstitutionModal: React.FC<{
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 ml-1">Teléfono</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Teléfono</label>
                             <Input 
                                 value={newData.telefono} 
                                 onChange={e => setNewData({...newData, telefono: e.target.value})} 
@@ -171,7 +170,7 @@ const NewInstitutionModal: React.FC<{
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 ml-1">Tutor (Lic. en Psicología)</label>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Tutor (Lic. en Psicología)</label>
                         <Input 
                             value={newData.tutor} 
                             onChange={e => setNewData({...newData, tutor: e.target.value})} 
@@ -539,7 +538,7 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
 
         setIsGeneratingCode(true);
         try {
-            // Fix: Initialize GoogleGenAI with process.env.API_KEY directly as per guidelines
+            // FIX: Initialize GoogleGenAI with process.env.API_KEY directly.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const horarioString = schedules.join('; ');
 
@@ -566,13 +565,13 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({ isTesting
             `;
 
             const response = await ai.models.generateContent({
-                // Fix: Updated model name to gemini-3-flash-preview as recommended for text tasks
+                // FIX: Use gemini-3-flash-preview as recommended for text tasks.
                 model: 'gemini-3-flash-preview',
                 contents: prompt,
             });
 
-            // Fix: Directly access text property from response object without calling it as a function
-            const newCode = response.text.replace(/```html/g, '').replace(/```/g, '').trim();
+            // FIX: Directly access the .text property from the response object, don't call it as a function.
+            const newCode = (response.text || '').replace(/```html/g, '').replace(/```/g, '').trim();
             setCampusCode(newCode);
             
             // Auto-copy

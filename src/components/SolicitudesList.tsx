@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import EmptyState from './EmptyState';
 import type { SolicitudPPS, CriteriosCalculados, FinalizacionPPS, InformeTask } from '../types';
@@ -147,7 +146,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         {finalizacionRequest && (
             <FinalizationStatusCard 
                 status={finalizacionRequest[FIELD_ESTADO_FINALIZACION] || 'Pendiente'} 
-                requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.createdTime || ''} 
+                // FIX: Property 'createdTime' does not exist on type 'FinalizacionPPS'. Using 'created_at'.
+                requestDate={finalizacionRequest[FIELD_FECHA_SOLICITUD_FINALIZACION] || finalizacionRequest.created_at || ''} 
             />
         )}
 

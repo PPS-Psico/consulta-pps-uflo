@@ -1,4 +1,3 @@
-
 import React, { useMemo, useCallback } from 'react';
 import type { LanzamientoPPS } from '../types';
 import {
@@ -54,12 +53,14 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
   
   // Calculate if new (created in last 7 days)
   const isNew = useMemo(() => {
-      if (!lanzamiento.createdTime) return false;
-      const created = new Date(lanzamiento.createdTime);
+      // FIX: Property 'createdTime' does not exist on type 'LanzamientoPPS'. Using 'created_at'.
+      if (!lanzamiento.created_at) return false;
+      const created = new Date(lanzamiento.created_at);
       const diffTime = Math.abs(Date.now() - created.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays <= 7;
-  }, [lanzamiento.createdTime]);
+      // FIX: Use 'created_at' in the dependency array.
+  }, [lanzamiento.created_at]);
 
   const convocatoriaState = useMemo((): ConvocatoriaState => {
     const normalized = normalizeStringForComparison(estadoConvocatoria);

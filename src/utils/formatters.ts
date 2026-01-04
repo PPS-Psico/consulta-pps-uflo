@@ -1,4 +1,3 @@
-
 /**
  * Formats a date string into DD/MM/YYYY format.
  */
@@ -21,7 +20,6 @@ export function normalizeStringForComparison(str?: any): string {
   if (str === undefined || str === null) return '';
   if (typeof str === 'boolean') return str ? 'true' : 'false';
   
-  // Use the robust cleaner first
   const cleanValue = cleanDbValue(str);
   
   return String(cleanValue)
@@ -78,7 +76,7 @@ export function getEspecialidadClasses(especialidad?: string | null) {
       tag: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800',
       gradient: 'from-purple-400 to-fuchsia-600',
       headerBg: 'bg-purple-50 dark:bg-purple-900/20',
-      headerText: 'text-purple-800 dark:text-purple-300',
+      headerText: 'text-purple-800 dark:text-blue-300',
       dot: 'bg-purple-500',
       leftBorder: 'border-l-purple-500 dark:border-l-purple-400'
     };
@@ -134,8 +132,7 @@ export function getStatusVisuals(status?: string | null) {
 
 export function safeGetId(val: any): string | null {
   if (!val) return null;
-  const clean = cleanDbValue(val);
-  return clean || null;
+  return String(val).trim() || null;
 }
 
 export function parseToUTCDate(dateStr?: string | null): Date | null {
@@ -170,53 +167,22 @@ export function cleanInstitutionName(input?: any): string {
 }
 
 /**
- * Función Maestra de Limpieza: Estrategia de FUERZA BRUTA + REGEX POSTGRES
- * Elimina cualquier llave, corchete o comilla envolvente, sin importar si es JSON válido o Postgres Array.
+ * Función Maestra de Limpieza (Post-SQL Migration Cleanup).
+ * Ahora que la DB está limpia, esta función es liviana y solo asegura
+ * que no haya nulos o arrays inesperados, confiando en los datos SQL.
  */
 export function cleanDbValue(input?: any): string {
   if (input === null || input === undefined) return '';
 
-  let str = String(input);
-
-  // Recursividad para Arrays reales JS
-  if (Array.isArray(input) && input.length > 0) {
-      return cleanDbValue(input[0]);
+  // Si es un array (por un posible lookup fallido), tomamos el primero
+  if (Array.isArray(input)) {
+    return input.length > 0 ? cleanDbValue(input[0]) : '';
   }
 
-  // 1. Detectar patrón especifico Postgres: {"Value"} o {Value}
-  // Esto maneja casos como {"ISI College"} o {ISI College}
-  const postgresMatch = str.match(/^\{"?([^"}]+)"?\}$/);
-  if (postgresMatch) {
-      return cleanDbValue(postgresMatch[1]);
-  }
-
-  // 2. Intentar Parseo JSON primero (para casos como ["Valor"])
-  try {
-      if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('"') && str.endsWith('"'))) {
-          const parsed = JSON.parse(str);
-          if (Array.isArray(parsed) && parsed.length > 0) return cleanDbValue(parsed[0]);
-          if (typeof parsed === 'string') return cleanDbValue(parsed);
-      }
-  } catch (e) {
-      // Si falla, es string sucio, continuamos a limpieza manual
-  }
-
-  // 3. Limpieza Fuerza Bruta: Elimina { } [ ] " ' del inicio y final recursivamente
-  // Ej: {"ISI College"} -> "ISI College" -> ISI College
-  let cleaned = str.trim();
-  
-  // Loop mientras siga teniendo envoltorios sucios
-  while (true) {
-      const original = cleaned;
-      // Remover llaves y comillas externas, incluyendo espacios accidentales
-      cleaned = cleaned.replace(/^[\s\{\[\"']+|[\s\}\]\"']+$/g, '');
-      
-      // Si no cambió en esta iteración, terminamos
-      if (cleaned === original) break;
-  }
-
-  // 4. Desescapar comillas internas si quedaron (ej: O\'Connor)
-  return cleaned.replace(/\\"/g, '"').replace(/\\'/g, "'").trim();
+  // Ahora simplemente retornamos el string limpio. 
+  // La lógica de quitar corchetes ya no es necesaria pero se deja 
+  // una mínima seguridad de trim y string cast.
+  return String(input).trim();
 }
 
 /**

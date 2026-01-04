@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
@@ -12,7 +11,7 @@ import {
     FIELD_FECHA_INICIO_LANZAMIENTOS
 } from '../constants';
 import { ALL_ORIENTACIONES } from '../types';
-import { formatDate, getStatusVisuals, cleanInstitutionName, safeGetId } from '../utils/formatters';
+import { formatDate, getStatusVisuals, cleanInstitutionName, safeGetId, getEspecialidadClasses } from '../utils/formatters';
 import Loader from './Loader';
 import RecordEditModal from './RecordEditModal';
 import ContextMenu from './ContextMenu';
@@ -255,10 +254,14 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {data?.records.map((p: any) => {
                                     const isSelected = selectedRowId === p.id;
+                                    const espVisuals = getEspecialidadClasses(p[FIELD_ESPECIALIDAD_PRACTICAS]);
+                                    
                                     return (
                                         <tr key={p.id} onClick={() => setSelectedRowId(isSelected ? null : p.id)} onContextMenu={(e) => handleRowContextMenu(e, p)} onDoubleClick={() => setEditingRecord(p)} className={`transition-all cursor-pointer group ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-50/80 dark:hover:bg-slate-900/40'}`}>
                                             <td className="px-6 py-4">
-                                                <div className="font-black text-slate-900 dark:text-white truncate max-w-[250px]">{cleanInstitutionName(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS])}</div>
+                                                <div className={`font-black truncate max-w-[250px] ${espVisuals.headerText}`}>
+                                                    {cleanInstitutionName(p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS])}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-slate-700 dark:text-slate-300">{p.__student.nombre}</div>

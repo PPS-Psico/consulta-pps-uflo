@@ -1,5 +1,4 @@
-import React, { ErrorInfo, ReactNode } from 'react';
-import { logger } from '../utils/logger';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -12,25 +11,27 @@ interface ErrorBoundaryState {
 }
 
 /**
- * Standard React Error Boundary component to catch rendering errors and show a fallback UI.
+ * Componente ErrorBoundary estándar de React para capturar errores de renderizado.
  */
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    error: undefined
-  };
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: undefined
+    };
+  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    logger.error("Uncaught error in boundary:", { error, errorInfo });
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
     
-    // Auto-reload strategies
     const msg = error.message || '';
     
-    // 1. Chunk Load Error (Cache vieja)
+    // Estrategia de recarga para errores de carga de chunks (módulos dinámicos)
     if (msg.includes('Failed to fetch dynamically imported module') || msg.includes('Importing a module script failed')) {
        if (!sessionStorage.getItem('retry-chunk-load')) {
            sessionStorage.setItem('retry-chunk-load', 'true');
@@ -38,12 +39,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
        } else {
            sessionStorage.removeItem('retry-chunk-load');
        }
-    }
-    
-    // 2. DOM Exception (Google Translate / Extensiones) - Si el monkeypatch falla, esto es el último recurso
-    if (msg.includes('removeChild') || msg.includes('insertBefore') || msg.includes('NotFoundError')) {
-        console.warn("DOM mismatch detected, attempting forced reload to restore sync.");
-        // Opcional: Podríamos recargar automáticamente aquí también si es crítico
     }
   }
 
