@@ -1,5 +1,5 @@
 import React from 'react';
-import MobileSectionHeader from '../MobileSectionHeader';
+import MobileSectionHeader from './MobileSectionHeader';
 import Card from '../ui/Card';
 
 interface PageWrapperProps {
