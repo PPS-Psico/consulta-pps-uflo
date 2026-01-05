@@ -200,9 +200,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
     const studentNameForPanel = studentDetails?.[FIELD_NOMBRE_ESTUDIANTES] || currentUser?.nombre || 'Estudiante';
 
     const { data: activeInstitutionsDB } = useQuery({
-        queryKey: ['activeInstitutionsDB', isAdminViewing],
-        queryFn: () => db.instituciones.getAll({ fields: ['nombre'] }),
-        enabled: !!isAdminViewing
+        queryKey: ['activeInstitutionsDB'],
+        queryFn: () => db.instituciones.getAll({ fields: ['nombre'] })
     });
 
     const getStudentId = () => studentAirtableId || currentUser?.id || null;
