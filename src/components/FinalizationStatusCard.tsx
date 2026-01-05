@@ -5,18 +5,18 @@ import { formatDate } from '../utils/formatters';
 function calculateTargetDateSkippingJanuary(startDate: Date, daysRequired: number): Date {
     let count = 0;
     let current = new Date(startDate);
-    
+
     // Evitar loop infinito por seguridad
     let safetyCounter = 0;
-    
+
     while (count < daysRequired && safetyCounter < 365) {
         current.setDate(current.getDate() + 1);
         const day = current.getDay();
         const month = current.getMonth(); // 0 = Enero
-        
+
         const isWeekend = day === 0 || day === 6;
-        const isJanuary = month === 0; 
-        
+        const isJanuary = month === 0;
+
         if (!isWeekend && !isJanuary) {
             count++;
         }
@@ -36,8 +36,8 @@ function calculateRemainingAdministrativeDays(from: Date, to: Date): number {
     let current = new Date(from);
     // Clonamos para no mutar 'to'
     const target = new Date(to);
-    target.setHours(0,0,0,0);
-    current.setHours(0,0,0,0);
+    target.setHours(0, 0, 0, 0);
+    current.setHours(0, 0, 0, 0);
 
     let safetyCounter = 0;
 
@@ -68,7 +68,7 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
     const startDate = new Date(requestDate);
     // 1. Calculamos la fecha meta real saltando Enero
     const targetDate = calculateTargetDateSkippingJanuary(startDate, 14);
-    
+
     const now = new Date();
     const currentMonth = now.getMonth();
     const isJanuaryNow = currentMonth === 0;
@@ -78,25 +78,25 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
     const normalizedStatus = normalizeString(status);
     const isFinished = normalizedStatus === 'cargado' || normalizedStatus === 'finalizada';
     const isEnProceso = normalizedStatus === 'en proceso';
-    
+
     // 2. Calculamos los días restantes "administrativos" (ignorando Enero en el conteo)
     let daysDisplay = calculateRemainingAdministrativeDays(now, targetDate);
-    
+
     // Estado de Pausa Visual
     const isPaused = isJanuaryNow;
 
     const totalDuration = targetDate.getTime() - startDate.getTime();
     const elapsed = now.getTime() - startDate.getTime();
-    
+
     // Barra de progreso visual (basada en tiempo real para fluidez, topeada si es Enero)
-    let percentage = Math.min(100, Math.max(5, (elapsed / totalDuration) * 100)); 
-    
+    let percentage = Math.min(100, Math.max(5, (elapsed / totalDuration) * 100));
+
     // Si estamos en Enero, congelamos la barra visualmente al 95% o donde haya quedado, para indicar "espera"
-    if (isPaused) percentage = Math.min(percentage, 95); 
-    
+    if (isPaused) percentage = Math.min(percentage, 95);
+
     // Si ya pasó la fecha, lleno total
     if (daysDisplay < 0) percentage = 100;
-    
+
     const firstName = studentName?.split(' ')[0] || 'Estudiante';
     const isOverdue = daysDisplay < 0 && !isFinished && !isPaused;
 
@@ -113,26 +113,26 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
                 <div className="relative overflow-hidden rounded-[2.5rem] bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-800 p-10 sm:p-16 shadow-2xl shadow-emerald-100/50 dark:shadow-none text-center backdrop-blur-xl">
                     <div className="absolute top-0 right-0 -mt-20 -mr-20 h-96 w-96 rounded-full bg-emerald-100/40 dark:bg-emerald-900/10 blur-3xl pointer-events-none"></div>
                     <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 rounded-full bg-teal-100/40 dark:bg-teal-900/10 blur-3xl pointer-events-none"></div>
-                    
+
                     <div className="relative z-10 flex flex-col items-center gap-8">
                         <div className="h-24 w-24 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center shadow-lg animate-bounce-slow text-emerald-500 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50">
                             <span className="material-icons !text-5xl">verified</span>
                         </div>
-                        
+
                         <div className="space-y-4 max-w-3xl">
                             <h1 className="text-5xl sm:text-6xl font-black tracking-tighter text-slate-900 dark:text-white drop-shadow-sm leading-tight">
                                 ¡Todo listo, {gradientName}!
                             </h1>
                             <p className="text-xl text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                                Tu acreditación ha sido completada exitosamente. <br className="hidden sm:block"/>
+                                Tu acreditación ha sido completada exitosamente. <br className="hidden sm:block" />
                                 Tus horas de PPS ya se encuentran cargadas en el sistema académico SAC.
                             </p>
                         </div>
 
                         <div className="mt-6">
-                            <a 
-                                href="https://alumno.uflo.edu.ar" 
-                                target="_blank" 
+                            <a
+                                href="https://alumno.uflo.edu.ar"
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="group inline-flex items-center gap-3 px-10 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-indigo-500/20 hover:-translate-y-1 transition-all duration-300"
                             >
@@ -151,7 +151,7 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
     let bannerText = "Estamos evaluando tu solicitud y validando la documentación presentada. Este proceso es manual y requiere revisión por parte de coordinación.";
     let bannerStatus = "Solicitud Enviada";
     let bannerColorClass = "text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800";
-    let currentStepIndex = 0; 
+    let currentStepIndex = 0;
 
     if (isEnProceso) {
         renderTitle = () => <>Todo marcha bien, {gradientName}.</>;
@@ -169,15 +169,15 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
 
     return (
         <div className="w-full animate-fade-in-up pb-12 space-y-8">
-            
+
             {/* HERO BANNER */}
-            <div className="relative overflow-hidden bg-white dark:bg-[#0F172A] rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl p-8 sm:p-14">
+            <div className="relative overflow-hidden glass-panel rounded-[3rem] shadow-xl p-8 sm:p-14 mb-8">
                 <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-blue-100/30 to-transparent dark:from-blue-900/20 rounded-full blur-[120px] -mr-60 -mt-60 pointer-events-none"></div>
                 <div className="relative z-10">
                     <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-6 border shadow-sm ${bannerColorClass}`}>
                         <span className="relative flex h-3 w-3">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-current"></span>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-current"></span>
                         </span>
                         {bannerStatus}
                     </div>
@@ -191,28 +191,28 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                
+
                 {/* TIMELINE (IZQUIERDA - ANCHO) - OCULTO EN MOBILE */}
                 <div className="hidden lg:flex lg:col-span-8">
                     <div className="w-full bg-white/80 dark:bg-[#0F172A]/80 rounded-[3rem] border border-slate-200/80 dark:border-slate-800 p-10 sm:p-12 backdrop-blur-xl h-full flex flex-col shadow-lg relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-20"></div>
-                        
+
                         <div className="flex items-center gap-4 mb-8 flex-shrink-0">
                             <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-600 dark:text-slate-300 shadow-sm">
                                 <span className="material-icons !text-3xl">timeline</span>
                             </div>
                             <h3 className="font-black text-slate-800 dark:text-white text-2xl tracking-tight">Etapas del Proceso</h3>
                         </div>
-                        
+
                         {/* Contenedor flexible para distribuir el espacio verticalmente */}
                         <div className="flex-grow flex flex-col justify-between pl-4 py-4 relative">
-                             {/* Línea de fondo */}
-                             <div className="absolute left-[30px] top-8 bottom-8 w-1 bg-slate-100 dark:bg-slate-800 -z-10 rounded-full"></div>
-                             {/* Barra de progreso animada */}
-                             <div 
+                            {/* Línea de fondo */}
+                            <div className="absolute left-[30px] top-8 bottom-8 w-1 bg-slate-100 dark:bg-slate-800 -z-10 rounded-full"></div>
+                            {/* Barra de progreso animada */}
+                            <div
                                 className="absolute left-[30px] top-8 w-1 bg-gradient-to-b from-emerald-400 to-blue-500 -z-10 rounded-full transition-all duration-1000"
                                 style={{ height: `${(currentStepIndex / (steps.length - 1)) * 85}%` }}
-                             ></div>
+                            ></div>
 
                             {steps.map((step, idx) => {
                                 const isCompleted = idx < currentStepIndex;
@@ -222,9 +222,9 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
                                 return (
                                     <div key={idx} className={`relative flex items-center gap-8 ${isPending ? 'opacity-50 grayscale' : 'opacity-100'}`}>
                                         <div className={`flex-shrink-0 w-16 h-16 rounded-full border-[6px] flex items-center justify-center z-10 transition-all duration-500
-                                            ${isCompleted 
-                                                ? 'bg-emerald-500 border-white dark:border-slate-900 text-white shadow-xl shadow-emerald-500/30' 
-                                                : isActive 
+                                            ${isCompleted
+                                                ? 'bg-emerald-500 border-white dark:border-slate-900 text-white shadow-xl shadow-emerald-500/30'
+                                                : isActive
                                                     ? 'bg-white dark:bg-slate-900 border-blue-500 text-blue-600 shadow-2xl ring-4 ring-blue-100 dark:ring-blue-900/30 scale-110'
                                                     : 'bg-slate-100 dark:bg-slate-800 border-white dark:border-slate-900 text-slate-400'
                                             }
@@ -249,11 +249,11 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
                 {/* SIDEBAR STATUS (DERECHA) */}
                 <div className="col-span-1 lg:col-span-4 flex flex-col gap-6">
                     {/* Tarjeta de Tiempos */}
-                    <div className="bg-white dark:bg-[#0F172A] rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden flex flex-col p-10">
+                    <div className="glass-panel rounded-[3rem] shadow-xl overflow-hidden flex flex-col p-10">
                         <h3 className="font-bold text-slate-500 text-xs uppercase tracking-widest mb-6">Tiempo de Resolución</h3>
-                        
+
                         {isPaused && (
-                             <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/50 rounded-2xl flex items-start gap-3">
+                            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/50 rounded-2xl flex items-start gap-3">
                                 <span className="material-icons text-amber-500 mt-0.5 !text-xl">beach_access</span>
                                 <div>
                                     <p className="text-[10px] font-black text-amber-800 dark:text-amber-200 uppercase mb-1">Receso de Verano</p>
@@ -272,7 +272,7 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
                                 {isPaused ? 'En Pausa' : 'Días Hábiles'}
                             </span>
                         </div>
-                        
+
                         <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 mb-8 overflow-hidden">
                             <div className={`h-full rounded-full transition-all duration-1000 ${isPaused ? 'bg-amber-400 striped-bar' : isOverdue ? 'bg-rose-500' : 'bg-blue-600'}`} style={{ width: `${percentage}%` }}></div>
                         </div>
@@ -283,20 +283,20 @@ const FinalizationStatusCard: React.FC<FinalizationStatusCardProps> = ({ status,
                     </div>
 
                     {/* Tarjeta de Soporte - Adaptada a Modo Claro y Oscuro */}
-                    <div className="bg-white dark:bg-slate-800 rounded-[3rem] p-10 shadow-xl border border-slate-200 dark:border-slate-700 relative overflow-hidden group">
-                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                         
-                         <h3 className="font-bold text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-[0.2em] mb-4">Soporte y Consultas</h3>
-                         
-                         <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed font-medium">
+                    <div className="glass-panel rounded-[3rem] p-10 shadow-xl border border-slate-200 dark:border-slate-700 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+
+                        <h3 className="font-bold text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-[0.2em] mb-4">Soporte y Consultas</h3>
+
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed font-medium">
                             Si el plazo de resolución ya venció y no visualizas tus horas, contacta a coordinación.
-                         </p>
-                         
-                         <a href={isOverdue ? `mailto:blas.rivera@uflouniversidad.edu.ar?subject=Consulta Acreditación - ${firstName}` : undefined} 
+                        </p>
+
+                        <a href={isOverdue ? `mailto:blas.rivera@uflouniversidad.edu.ar?subject=Consulta Acreditación - ${firstName}` : undefined}
                             className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold transition-all ${isOverdue ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-600 cursor-not-allowed'}`}>
                             <span className="material-icons">{isOverdue ? 'mail' : 'lock_clock'}</span>
                             <span>{isOverdue ? 'Contactar Coordinación' : 'Consulta Bloqueada'}</span>
-                         </a>
+                        </a>
                     </div>
                 </div>
             </div>

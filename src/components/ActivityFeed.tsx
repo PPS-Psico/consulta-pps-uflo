@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useActivityFeed, ActivityItem } from '../hooks/useActivityFeed';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 const ActivityItemCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
     const navigate = useNavigate();
     const timeAgo = formatDistanceToNow(item.timestamp, { addSuffix: true, locale: es });
-    
+
     const isPending = item.rawStatus === 'Pendiente';
 
     // Configuración Visual Mejorada según Tipo
@@ -44,7 +44,7 @@ const ActivityItemCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
             bgIcon: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400',
             actionText: 'Ver Inscriptos',
             // Add the launchId to the URL parameters
-            path: `/admin/lanzador?tab=seleccionador&launchId=${launchId}`, 
+            path: `/admin/lanzador?tab=seleccionador&launchId=${launchId}`,
             highlightRing: 'group-hover:ring-indigo-100 dark:group-hover:ring-indigo-900/30'
         };
     }
@@ -55,7 +55,7 @@ const ActivityItemCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
     };
 
     return (
-        <div 
+        <div
             onClick={handleAction}
             className={`group relative flex items-start gap-4 p-4 rounded-xl transition-all duration-300 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent hover:border-slate-100 dark:hover:border-slate-700/50`}
         >
@@ -74,12 +74,12 @@ const ActivityItemCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
                         {timeAgo}
                     </span>
                 </div>
-                
+
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-2">
                     <span className="truncate max-w-[200px]">
-                         {item.type === 'finalization' ? 'Solicita Acreditación' : item.type === 'launch' ? 'Convocatoria Abierta' : 'Solicita Ingreso'}
+                        {item.type === 'finalization' ? 'Solicita Acreditación' : item.type === 'launch' ? 'Convocatoria Abierta' : 'Solicita Ingreso'}
                     </span>
-                    
+
                     {/* Tags especiales */}
                     {item.isNew && isPending && item.type !== 'launch' && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 tracking-wide">
@@ -105,9 +105,9 @@ const ActivityItemCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
 
             {/* Action Icon (Visible on Hover) */}
             <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-2 group-hover:translate-x-0">
-                 <div className="flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-lg">
-                     {config.actionText} <span className="material-icons !text-xs">arrow_forward</span>
-                 </div>
+                <div className="flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-lg">
+                    {config.actionText} <span className="material-icons !text-xs">arrow_forward</span>
+                </div>
             </div>
         </div>
     );
@@ -115,7 +115,7 @@ const ActivityItemCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
 
 const ActivityFeed: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode }) => {
     const { data: items, isLoading } = useActivityFeed(isTestingMode);
-    
+
     // LIMITAR A 5 ELEMENTOS
     const displayItems = React.useMemo(() => {
         if (!items) return [];
@@ -129,11 +129,11 @@ const ActivityFeed: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode }) 
                 <div className="space-y-6">
                     {[1, 2, 3].map(i => (
                         <div key={i} className="flex gap-4">
-                             <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 animate-pulse"></div>
-                             <div className="flex-1 space-y-2">
-                                 <div className="h-4 w-3/4 bg-slate-100 dark:bg-slate-800 rounded animate-pulse"></div>
-                                 <div className="h-3 w-1/2 bg-slate-100 dark:bg-slate-800 rounded animate-pulse"></div>
-                             </div>
+                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 animate-pulse"></div>
+                            <div className="flex-1 space-y-2">
+                                <div className="h-4 w-3/4 bg-slate-100 dark:bg-slate-800 rounded animate-pulse"></div>
+                                <div className="h-3 w-1/2 bg-slate-100 dark:bg-slate-800 rounded animate-pulse"></div>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -142,7 +142,7 @@ const ActivityFeed: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode }) 
     }
 
     return (
-        <div className="bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden h-full flex flex-col">
+        <div className="glass-panel rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden h-full flex flex-col">
             {/* Header Limpio */}
             <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/50 flex justify-between items-center">
                 <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
@@ -162,13 +162,13 @@ const ActivityFeed: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode }) 
                 ) : (
                     <div className="flex flex-col items-center justify-center py-16 text-center opacity-60">
                         <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-full mb-3">
-                             <span className="material-icons text-slate-300 dark:text-slate-600 !text-3xl">notifications_off</span>
+                            <span className="material-icons text-slate-300 dark:text-slate-600 !text-3xl">notifications_off</span>
                         </div>
                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No hay actividad reciente</p>
                     </div>
                 )}
             </div>
-            
+
             {/* Footer opcional si hay muchos items */}
             {items && items.length > 5 && (
                 <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/30 text-center">

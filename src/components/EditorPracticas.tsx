@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { schema } from '../lib/dbSchema';
-import { 
-    FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_LANZAMIENTO_VINCULADO_PRACTICAS, 
-    FIELD_ESPECIALIDAD_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS, 
+import {
+    FIELD_ESTUDIANTE_LINK_PRACTICAS, FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
+    FIELD_ESPECIALIDAD_PRACTICAS, FIELD_HORAS_PRACTICAS, FIELD_FECHA_INICIO_PRACTICAS,
     FIELD_FECHA_FIN_PRACTICAS, FIELD_ESTADO_PRACTICA, FIELD_NOTA_PRACTICAS,
     TABLE_NAME_PRACTICAS, FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES,
     FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_NOMBRE_INSTITUCIONES, FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
@@ -17,8 +17,8 @@ import RecordEditModal from './RecordEditModal';
 import ContextMenu from './ContextMenu';
 import DuplicateToStudentModal from './DuplicateToStudentModal';
 import AdminSearch from './AdminSearch';
-import Toast from './Toast';
-import Button from './Button';
+import Toast from './ui/Toast';
+import Button from './ui/Button';
 import PaginationControls from './PaginationControls';
 import ConfirmModal from './ConfirmModal';
 import SearchableSelect from './SearchableSelect';
@@ -69,7 +69,7 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
             if (!inst) return [];
             const rawName = cleanInstitutionName(inst[FIELD_NOMBRE_INSTITUCIONES]);
             const searchName = rawName.split(/ [-–—] /)[0].split('(')[0].trim();
-            return db.lanzamientos.getAll({ 
+            return db.lanzamientos.getAll({
                 filters: { [FIELD_NOMBRE_PPS_LANZAMIENTOS]: `%${searchName}%` },
                 fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS]
             });
@@ -81,10 +81,10 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
         queryKey: ['editor-practicas', currentPage, itemsPerPage, filterStudentId, selectedInstId, selectedLaunchId],
         queryFn: async () => {
             const filters: any = {};
-            
+
             // Filtro por Estudiante (Exacto UUID)
             if (filterStudentId) filters[FIELD_ESTUDIANTE_LINK_PRACTICAS] = filterStudentId;
-            
+
             // --- ESTRATEGIA HÍBRIDA DE FILTRADO ---
             if (selectedInstId) {
                 const inst = institutions.find(i => i.id === selectedInstId);
@@ -191,7 +191,7 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
     return (
         <div className="space-y-6">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
-            
+
             <ConfirmModal
                 isOpen={!!idToDelete}
                 title="¿Eliminar Práctica?"
@@ -204,7 +204,7 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
 
             {/* FILTROS */}
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-4 items-end shadow-sm">
-                
+
                 <div className="md:col-span-3 space-y-1.5 h-full">
                     {!filterStudentId ? (
                         <div className="h-full">
@@ -214,7 +214,7 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                             </div>
                         </div>
                     ) : (
-                         <div className="space-y-1.5">
+                        <div className="space-y-1.5">
                             <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Alumno</label>
                             <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 h-11 px-4 rounded-xl border border-blue-200 dark:border-blue-800">
                                 <span className="text-xs font-bold truncate text-blue-800 dark:text-blue-300">{studentLabel}</span>
@@ -225,9 +225,9 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                 </div>
 
                 <div className="md:col-span-4">
-                    <SearchableSelect 
+                    <SearchableSelect
                         label="Institución"
-                        options={[{value: '', label: 'Todas'}, ...institutionOptions]}
+                        options={[{ value: '', label: 'Todas' }, ...institutionOptions]}
                         value={selectedInstId}
                         onChange={(val) => { setSelectedInstId(val); setSelectedLaunchId(''); }}
                         placeholder="Buscar institución..."
@@ -236,9 +236,9 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                 </div>
 
                 <div className="md:col-span-3">
-                    <SearchableSelect 
+                    <SearchableSelect
                         label="Fecha / Convocatoria"
-                        options={[{value: '', label: 'Todas'}, ...launchOptions]}
+                        options={[{ value: '', label: 'Todas' }, ...launchOptions]}
                         value={selectedLaunchId}
                         onChange={setSelectedLaunchId}
                         placeholder={selectedInstId ? "Seleccionar fecha..." : "Selecciona Inst. primero"}
@@ -251,7 +251,7 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                     <Button onClick={() => setEditingRecord({ isCreating: true })} icon="add_circle" className="h-11 bg-blue-600 hover:bg-blue-700 w-full shadow-md">Nueva</Button>
                 </div>
             </div>
-            
+
             <div className="flex justify-end h-8">
                 {selectedRowId && (
                     <button onClick={() => setIdToDelete(selectedRowId)} className="flex items-center gap-2 px-4 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-black uppercase border border-rose-200 dark:border-rose-800 animate-fade-in hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors">
@@ -278,7 +278,7 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                                 {data?.records.map((p: any) => {
                                     const isSelected = selectedRowId === p.id;
                                     const espVisuals = getEspecialidadClasses(p[FIELD_ESPECIALIDAD_PRACTICAS]);
-                                    
+
                                     return (
                                         <tr key={p.id} onClick={() => setSelectedRowId(isSelected ? null : p.id)} onContextMenu={(e) => handleRowContextMenu(e, p)} onDoubleClick={() => setEditingRecord(p)} className={`transition-all cursor-pointer group ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-50/80 dark:hover:bg-slate-900/40'}`}>
                                             <td className="px-6 py-4">
@@ -307,8 +307,8 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
                 </div>
             )}
 
-            {menu && <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} options={[{ label: 'Editar', icon: 'edit', onClick: () => setEditingRecord(menu.record) }, { label: 'Duplicar a otro', icon: 'content_copy', onClick: () => setDuplicatingRecord(menu.record) }, { label: 'Eliminar', icon: 'delete', variant: 'danger', onClick: () => setIdToDelete(menu.record.id) }]}/>}
-            {editingRecord && <RecordEditModal isOpen={!!editingRecord} onClose={() => setEditingRecord(null)} record={editingRecord.isCreating ? null : editingRecord} tableConfig={TABLE_CONFIG} onSave={(id, fields) => id ? updateMutation.mutate({ id, fields }) : createMutation.mutate(fields)} isSaving={updateMutation.isPending || createMutation.isPending}/>}
+            {menu && <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)} options={[{ label: 'Editar', icon: 'edit', onClick: () => setEditingRecord(menu.record) }, { label: 'Duplicar a otro', icon: 'content_copy', onClick: () => setDuplicatingRecord(menu.record) }, { label: 'Eliminar', icon: 'delete', variant: 'danger', onClick: () => setIdToDelete(menu.record.id) }]} />}
+            {editingRecord && <RecordEditModal isOpen={!!editingRecord} onClose={() => setEditingRecord(null)} record={editingRecord.isCreating ? null : editingRecord} tableConfig={TABLE_CONFIG} onSave={(id, fields) => id ? updateMutation.mutate({ id, fields }) : createMutation.mutate(fields)} isSaving={updateMutation.isPending || createMutation.isPending} />}
             {duplicatingRecord && <DuplicateToStudentModal isOpen={!!duplicatingRecord} onClose={() => setDuplicatingRecord(null)} sourceRecordLabel={cleanInstitutionName(duplicatingRecord[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS])} onConfirm={(targetId) => duplicateMutation.mutate({ record: duplicatingRecord, targetStudentId: targetId })} isSaving={duplicateMutation.isPending} />}
         </div>
     );

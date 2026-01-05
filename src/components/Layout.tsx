@@ -24,7 +24,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         const handleGlobalError = (event: ErrorEvent) => {
             console.error("Global Error Caught:", event.error);
             showModal(
-                "Se produjo un error inesperado", 
+                "Se produjo un error inesperado",
                 `Detalle: ${event.message || 'Error desconocido en la aplicación.'}\n\nPor favor, recarga la página.`
             );
         };
@@ -33,7 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             console.error("Unhandled Rejection Caught:", event.reason);
             const message = event.reason?.message || event.reason || "Error de conexión o lógica asíncrona.";
             showModal(
-                "Error de Procesamiento", 
+                "Error de Procesamiento",
                 `Ocurrió un fallo en una operación: ${message}`
             );
         };
@@ -60,8 +60,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#020617]">
-             {!isOnline && (
+        <div className="flex flex-col min-h-screen">
+            {!isOnline && (
                 <div className="bg-red-500 text-white text-center text-xs font-bold py-1 px-4 fixed top-0 left-0 right-0 z-[2000] animate-pulse shadow-md flex items-center justify-center gap-2">
                     <span className="material-icons !text-sm">wifi_off</span>
                     Sin conexión a internet. Verificando red...
@@ -69,9 +69,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             )}
             <AppHeader />
             {/* Removed pt-4/pt-8 to remove gap between header and content cards */}
-            <main className={`flex-grow w-full px-4 sm:px-6 lg:px-8 pb-8 ${
-                isFullWidth ? '' : 'max-w-7xl mx-auto'
-            }`}>
+            <main className={`flex-grow w-full px-4 sm:px-6 lg:px-8 pb-8 ${isFullWidth ? '' : 'max-w-7xl mx-auto'
+                }`}>
                 {children}
             </main>
         </div>
