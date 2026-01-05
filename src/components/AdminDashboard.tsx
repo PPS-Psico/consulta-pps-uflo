@@ -33,25 +33,33 @@ const ManagementCard: React.FC<{
             hoverBorder: 'group-hover:border-rose-300 dark:group-hover:border-rose-700',
             iconBg: 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400',
             countText: 'text-rose-700 dark:text-rose-400',
-            hoverBg: 'hover:bg-rose-50/50 dark:hover:bg-rose-900/10'
+            hoverBg: 'hover:bg-rose-50/50 dark:hover:bg-rose-900/10',
+            gradient: 'from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10',
+            glow: 'group-hover:shadow-rose-500/10'
         },
         amber: {
             hoverBorder: 'group-hover:border-amber-300 dark:group-hover:border-amber-700',
             iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
             countText: 'text-amber-700 dark:text-amber-400',
-            hoverBg: 'hover:bg-amber-50/50 dark:hover:bg-amber-900/10'
+            hoverBg: 'hover:bg-amber-50/50 dark:hover:bg-amber-900/10',
+            gradient: 'from-white to-amber-50/30 dark:from-slate-800 dark:to-amber-900/10',
+            glow: 'group-hover:shadow-amber-500/10'
         },
         emerald: {
             hoverBorder: 'group-hover:border-emerald-300 dark:group-hover:border-emerald-700',
             iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
             countText: 'text-emerald-700 dark:text-emerald-400',
-            hoverBg: 'hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10'
+            hoverBg: 'hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10',
+            gradient: 'from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10',
+            glow: 'group-hover:shadow-emerald-500/10'
         },
         blue: {
             hoverBorder: 'group-hover:border-blue-300 dark:group-hover:border-blue-700',
             iconBg: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
             countText: 'text-blue-700 dark:text-blue-400',
-            hoverBg: 'hover:bg-blue-50/50 dark:hover:bg-blue-900/10'
+            hoverBg: 'hover:bg-blue-50/50 dark:hover:bg-blue-900/10',
+            gradient: 'from-white to-blue-50/30 dark:from-slate-800 dark:to-blue-900/10',
+            glow: 'group-hover:shadow-blue-500/10'
         },
     };
 
@@ -60,7 +68,7 @@ const ManagementCard: React.FC<{
     return (
         <button
             onClick={onClick}
-            className={`flex flex-col p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg text-left group ${style.hoverBorder} ${style.hoverBg}`}
+            className={`flex flex-col p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-gradient-to-br ${style.gradient} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${style.glow} text-left group ${style.hoverBorder}`}
         >
             <div className="flex justify-between items-start w-full mb-4">
                 <div className={`p-3 rounded-xl shadow-sm transition-colors ${style.iconBg}`}>
@@ -77,7 +85,7 @@ const ManagementCard: React.FC<{
                         {count}
                     </span>
                     {subCount !== undefined && subCount > 0 && (
-                        <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-full mb-1 border border-slate-200 dark:border-slate-700">
+                        <span className="text-[10px] font-bold bg-white/50 dark:bg-black/20 backdrop-blur-sm text-slate-600 dark:text-slate-300 px-2 py-1 rounded-full mb-1 border border-slate-200/50 dark:border-slate-700/50">
                             {subCount} {subLabel}
                         </span>
                     )}

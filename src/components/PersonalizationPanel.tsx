@@ -1,6 +1,6 @@
 import React from 'react';
 import Card from './ui/Card';
-import Toggle from './ui/Toggle';
+import SwitchRow from './ui/SwitchRow';
 import { useAdminPreferences } from '../contexts/AdminPreferencesContext';
 
 const PersonalizationPanel: React.FC = () => {
@@ -29,7 +29,7 @@ const PersonalizationPanel: React.FC = () => {
                     <div className="space-y-4">
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Experiencia Principal</h4>
 
-                        <Toggle
+                        <SwitchRow
                             label="Análisis IA (Smart Briefing)"
                             description="Muestra el resumen inteligente y alertas en el Dashboard."
                             icon="auto_awesome"
@@ -37,14 +37,14 @@ const PersonalizationPanel: React.FC = () => {
                             onChange={() => toggleModule('showAiInsights')}
                         />
 
-                        <Toggle
+                        <SwitchRow
                             label="Pestaña de Gestión 2026"
                             description="Habilita la planificación futura y gestión de relanzamientos."
                             icon="rocket_launch"
                             checked={preferences.showManagementTab}
                             onChange={() => toggleModule('showManagementTab')}
                         />
-                        <Toggle
+                        <SwitchRow
                             label="Historial de Lanzamientos"
                             description="Muestra la pestaña de historial en la vista de Lanzador."
                             icon="history"
@@ -57,7 +57,7 @@ const PersonalizationPanel: React.FC = () => {
                     <div className="space-y-4">
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Herramientas Avanzadas</h4>
 
-                        <Toggle
+                        <SwitchRow
                             label="Gestor de Penalizaciones"
                             description="Sistema para aplicar y visualizar sanciones a alumnos."
                             icon="gavel"
@@ -65,7 +65,7 @@ const PersonalizationPanel: React.FC = () => {
                             onChange={() => toggleModule('showPenalizations')}
                         />
 
-                        <Toggle
+                        <SwitchRow
                             label="Automatización de Emails"
                             description="Editor de plantillas y configuración de envíos automáticos."
                             icon="mark_email_read"
@@ -73,7 +73,7 @@ const PersonalizationPanel: React.FC = () => {
                             onChange={() => toggleModule('showAutomation')}
                         />
 
-                        <Toggle
+                        <SwitchRow
                             label="Nuevos Convenios"
                             description="Panel para confirmar convenios institucionales nuevos."
                             icon="handshake"
@@ -81,7 +81,7 @@ const PersonalizationPanel: React.FC = () => {
                             onChange={() => toggleModule('showNewAgreements')}
                         />
 
-                        <Toggle
+                        <SwitchRow
                             label="Generador de Reportes"
                             description="Herramienta para balances anuales y comparativos."
                             icon="summarize"
@@ -89,7 +89,7 @@ const PersonalizationPanel: React.FC = () => {
                             onChange={() => toggleModule('showReports')}
                         />
 
-                        <Toggle
+                        <SwitchRow
                             label="Herramientas de Integridad"
                             description="Limpieza de base de datos y reparación de registros."
                             icon="health_and_safety"

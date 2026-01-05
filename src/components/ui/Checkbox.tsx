@@ -4,15 +4,17 @@ interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
     label?: string;
     sublabel?: string;
     wrapperClassName?: string;
+    error?: boolean | string;
 }
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-    ({ id, checked, onChange, disabled = false, label, sublabel, className = '', wrapperClassName = '', ...props }, ref) => (
+    ({ id, checked, onChange, disabled = false, label, sublabel, className = '', wrapperClassName = '', error, ...props }, ref) => (
         <label
             htmlFor={id}
             className={`
             group flex items-start gap-3 p-2 rounded-lg transition-colors 
             ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/40'}
+            ${error ? 'bg-red-50 dark:bg-red-900/10' : ''}
             ${wrapperClassName}
         `}
         >
@@ -33,7 +35,10 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             
             ${checked
                         ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500'
-                        : 'bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 group-hover:border-blue-400 dark:group-hover:border-blue-500'}
+                        : (error
+                            ? 'bg-white dark:bg-slate-950 border-red-300 dark:border-red-500/50 group-hover:border-red-400'
+                            : 'bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 group-hover:border-blue-400 dark:group-hover:border-blue-500')
+                    }
             
             ${className}
         `}>
@@ -50,7 +55,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             </div>
             {(label || sublabel) && (
                 <div className="flex flex-col select-none">
-                    {label && <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-amber-900 dark:group-hover:text-blue-100 transition-colors">{label}</span>}
+                    {label && <span className={`text-sm font-medium transition-colors ${error ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-200 group-hover:text-amber-900 dark:group-hover:text-blue-100'}`}>{label}</span>}
                     {sublabel && <span className="text-xs text-slate-500 dark:text-slate-400">{sublabel}</span>}
                 </div>
             )}
