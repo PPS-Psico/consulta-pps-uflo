@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import SubTabs from '../components/SubTabs';
 import AdminSearch from '../components/admin/AdminSearch';
-import SeguroGenerator from '../components/SeguroGenerator';
-import NuevosConvenios from '../components/NuevosConvenios';
+import SeguroGenerator from '../components/admin/SeguroGenerator';
+import NuevosConvenios from '../components/admin/NuevosConvenios';
 import ExecutiveReportGenerator from '../components/admin/ExecutiveReportGenerator';
 import PenalizationManager from '../components/admin/PenalizationManager';
 import { useModal } from '../contexts/ModalContext';
