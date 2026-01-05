@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import AdminSearch from '../components/admin/AdminSearch';
-import ConvocatoriaManager from '../components/ConvocatoriaManager';
+import ConvocatoriaManager from '../components/admin/ConvocatoriaManager';
 import { useAuth, type AuthUser } from '../contexts/AuthContext';
 import StudentDashboard from './StudentDashboard';
 import Tabs from '../components/Tabs';
@@ -23,7 +23,7 @@ interface StudentTabInfo {
 const DirectivoView: React.FC = () => {
     const { authenticatedUser } = useAuth();
     const [studentTabs, setStudentTabs] = useState<StudentTabInfo[]>([]);
-    
+
     const jefeOrientations = authenticatedUser?.orientaciones || [];
     const initialTabId = 'metrics';
     const [activeTabId, setActiveTabId] = useState(initialTabId);
@@ -40,12 +40,12 @@ const DirectivoView: React.FC = () => {
             alert('El registro del estudiante no tiene legajo o nombre completo.');
             return;
         }
-        
+
         if (studentTabs.some(s => s.legajo === String(legajo))) {
             setActiveTabId(String(legajo));
             return;
         }
-        
+
         const newStudentTab: StudentTabInfo = {
             id: String(legajo),
             legajo: String(legajo),
@@ -54,7 +54,7 @@ const DirectivoView: React.FC = () => {
         setStudentTabs(prev => [...prev, newStudentTab]);
         setActiveTabId(String(legajo));
     }, [studentTabs]);
-    
+
     const handleCloseTab = useCallback((tabId: string) => {
         setStudentTabs(prev => prev.filter(s => s.id !== tabId));
         if (activeTabId === tabId) {
@@ -116,14 +116,14 @@ const DirectivoView: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in-up">
             <WelcomeBannerAdmin name={authenticatedUser?.nombre || 'Directivo'} />
-            
+
             <Tabs
                 tabs={allTabs}
                 activeTabId={activeTabId}
                 onTabChange={setActiveTabId}
                 onTabClose={handleCloseTab}
             />
-            
+
             <AppModals />
         </div>
     );
