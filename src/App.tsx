@@ -35,7 +35,8 @@ const JefeView = lazy(() => import('./views/JefeView'));
 const DirectivoView = lazy(() => import('./views/DirectivoView'));
 const ReporteroView = lazy(() => import('./views/ReporteroView'));
 const AdminTestingView = lazy(() => import('./views/AdminTestingView'));
-const DesignSystemView = lazy(() => import('./views/DesignSystemView'));
+// TODO: DesignSystemView is currently unused. Uncomment if needed:
+// const DesignSystemView = lazy(() => import('./views/DesignSystemView'));
 
 
 const AdminStudentWrapper = () => {

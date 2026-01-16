@@ -139,17 +139,19 @@ const InputWrapper: React.FC<{ label: string; icon: string; children: React.Reac
     </div>
 );
 
-const SummaryItem: React.FC<{ icon: string; label: string; value: any }> = ({ icon, label, value }) => (
-    <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <span className="material-icons !text-sm text-slate-400">{icon}</span>
-        </div>
-        <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{value || 'No especificado'}</p>
-        </div>
-    </div>
-);
+// --- UNUSED COMPONENTS ---
+// TODO: SummaryItem is currently unused. Uncomment if needed:
+// const SummaryItem: React.FC<{ icon: string; label: string; value: any }> = ({ icon, label, value }) => (
+//     <div className="flex items-start gap-3">
+//         <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+//             <span className="material-icons !text-sm text-slate-400">{icon}</span>
+//         </div>
+//         <div className="flex-1 min-w-0">
+//             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+//             <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{value || 'No especificado'}</p>
+//         </div>
+//     </div>
+// );
 
 // --- MODAL PARA NUEVA INSTITUCIÓN ---
 const NewInstitutionModal: React.FC<{

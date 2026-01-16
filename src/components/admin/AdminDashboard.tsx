@@ -1,11 +1,10 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { useAdminPreferences } from '../../contexts/AdminPreferencesContext'; // Import context
-
+// TODO: Uncomment if needed:
+// import { useAuth } from '../../contexts/AuthContext';
+// import { useAdminPreferences } from '../../contexts/AdminPreferencesContext'; // Import context
 import { useOperationalData } from '../../hooks/useOperationalData';
-
 import Toast from '../ui/Toast';
 import { AdminDashboardSkeleton } from '../Skeletons';
 import EmptyState from '../EmptyState';
@@ -98,8 +97,9 @@ const ManagementCard: React.FC<{
 };
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }) => {
-    const { authenticatedUser } = useAuth();
-    const { preferences } = useAdminPreferences(); // Access prefs
+    // TODO: These are currently unused. Uncomment if needed:
+    // const { authenticatedUser } = useAuth();
+    // const { preferences } = useAdminPreferences(); // Access prefs
     const navigate = useNavigate();
     const [toastInfo, setToastInfo] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
