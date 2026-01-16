@@ -231,9 +231,15 @@ export const fetchConvocatoriasData = async (studentAirtableId: string | null): 
         const estadoConv = normalizeStringForComparison(l[C.FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]);
         const estadoGestion = l[C.FIELD_ESTADO_GESTION_LANZAMIENTOS];
 
+        const publicationDate = l[C.FIELD_FECHA_PUBLICACION_LANZAMIENTOS] || l[C.FIELD_FECHA_INICIO_INSCRIPCION_LANZAMIENTOS] || l[C.FIELD_FECHA_INICIO_LANZAMIENTOS];
+        const isScheduledForFuture = publicationDate ? new Date(publicationDate) > new Date() : false;
+
+        const isClosed = normalizeStringForComparison(estadoConv) === 'cerrada' || normalizeStringForComparison(estadoConv) === 'cerrado';
+
         return estadoConv !== 'oculto' &&
             estadoGestion !== 'Archivado' &&
-            estadoGestion !== 'No se Relanza';
+            ['abierta', 'abierto', 'cerrado', 'cerrada'].includes(estadoConv) &&
+            (isClosed || !isScheduledForFuture);
     });
 
     const institutionAddressMap = new Map<string, string>();
@@ -245,11 +251,27 @@ export const fetchConvocatoriasData = async (studentAirtableId: string | null): 
         }
     });
 
+    // Fetch logos
+    const institutions = await db.instituciones.getAll({
+        fields: [C.FIELD_NOMBRE_INSTITUCIONES, C.FIELD_LOGO_URL_INSTITUCIONES, C.FIELD_LOGO_INVERT_DARK_INSTITUCIONES]
+    });
+
+    const institutionLogoMap = new Map<string, { url: string, invert: boolean }>();
+    institutions.forEach((inst: any) => {
+        const name = cleanInstitutionName(inst[C.FIELD_NOMBRE_INSTITUCIONES]);
+        const url = inst[C.FIELD_LOGO_URL_INSTITUCIONES];
+        const invert = inst[C.FIELD_LOGO_INVERT_DARK_INSTITUCIONES];
+        if (name && url) {
+            institutionLogoMap.set(normalizeStringForComparison(name), { url, invert: !!invert });
+        }
+    });
+
     return {
         lanzamientos,
         myEnrollments: hydratedEnrollments,
         allLanzamientos: allRawLanzamientos,
-        institutionAddressMap
+        institutionAddressMap,
+        institutionLogoMap
     };
 };
 
@@ -529,4 +551,29 @@ export const deleteFinalizationRequest = async (id: string): Promise<{ success: 
         await db.finalizacion.delete(id);
         return { success: true, error: null };
     } catch (e) { return { success: false, error: e }; }
+};
+
+export const uploadInstitutionLogo = async (file: File, institutionName: string): Promise<string> => {
+    try {
+        // Sanitize name for path
+        const safeName = cleanDbValue(institutionName).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const fileExt = file.name.split('.').pop();
+        const fileName = `logos/${safeName}_${Date.now()}.${fileExt}`;
+
+        // We assume 'public-content' bucket exists for general assets. If not, this might fail unless we default to a known one.
+        // Trying 'documentos_finalizacion' is risky. Let's try 'institution-logos' specifically.
+        const BUCKET_NAME = 'institution-logos';
+
+        const { error } = await supabase.storage.from(BUCKET_NAME).upload(fileName, file, { upsert: true });
+
+        if (error) {
+            console.error("Upload Error (institution-logos):", error);
+            throw new Error(`Error subiendo logo: ${error.message}`);
+        }
+
+        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(fileName);
+        return data.publicUrl;
+    } catch (error: any) {
+        throw new Error(error.message || "Error desconocido al subir logo");
+    }
 };

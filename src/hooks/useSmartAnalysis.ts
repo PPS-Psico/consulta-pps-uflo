@@ -1,7 +1,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { differenceInDays } from 'date-fns';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { FIELD_NOMBRE_PPS_LANZAMIENTOS, GEMINI_API_KEY } from '../constants';
 import { parseToUTCDate } from '../utils/formatters';
 
@@ -50,10 +50,16 @@ export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boo
             // Calculate daysLeft if not present (Safety fallback)
             let daysLeft = l.daysLeft;
             if (daysLeft === undefined && l.fecha_fin) {
-                daysLeft = differenceInDays(parseToUTCDate(l.fecha_fin), now);
+                const parsedDate = parseToUTCDate(l.fecha_fin);
+                if (parsedDate) {
+                    daysLeft = differenceInDays(parsedDate, now);
+                }
             }
             if (daysLeft === undefined && l.fecha_finalizacion) {
-                daysLeft = differenceInDays(new Date(l.fecha_finalizacion), now);
+                const parsedDate = new Date(l.fecha_finalizacion);
+                if (!isNaN(parsedDate.getTime())) {
+                    daysLeft = differenceInDays(parsedDate, now);
+                }
             }
 
             if (daysLeft !== undefined) {
@@ -139,12 +145,14 @@ export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boo
     }, [data, isLoading]);
 
     useEffect(() => {
+        // AI Integration using Legacy SDK
         const fetchAiInsight = async () => {
             if (!algorithmicAnalysis.rawData || !GEMINI_API_KEY) return;
 
             setIsAiLoading(true);
             try {
-                const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+                const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
                 // Prompt de Ingeniería Inversa: Enfocado en acción y estrategia.
                 const prompt = `
@@ -165,17 +173,29 @@ export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boo
                     Tono: Profesional, directo, proactivo.
                 `;
 
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash-exp',
-                    contents: prompt,
-                });
+                const result = await model.generateContent(prompt);
+                const response = result.response;
+                const text = response.text();
 
-                if (response.text) {
-                    setAiSummary(response.text.trim());
+                if (text) {
+                    setAiSummary(text.trim());
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("AI Generation Error", error);
-                setAiSummary("Sistema de análisis estratégico no disponible momentáneamente.");
+
+                let extraMsg = '';
+                try {
+                    const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+                    const listData = await listResp.json();
+                    if (listData.models) {
+                        const names = listData.models.map((m: any) => m.name.replace('models/', ''));
+                        extraMsg = ` | DISPONIBLES: ${names.join(', ')}`;
+                    }
+                } catch (e) {
+                    extraMsg = ' | Diagnóstico falló.';
+                }
+
+                setAiSummary(`Error generando feedback: ${error.message}${extraMsg}`);
             } finally {
                 setIsAiLoading(false);
             }

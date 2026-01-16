@@ -2,12 +2,12 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { db } from '../lib/db';
-import { 
-    FIELD_DNI_ESTUDIANTES, 
-    FIELD_CORREO_ESTUDIANTES, 
-    FIELD_LEGAJO_ESTUDIANTES, 
-    FIELD_NOMBRE_ESTUDIANTES, 
-    FIELD_USER_ID_ESTUDIANTES, 
+import {
+    FIELD_DNI_ESTUDIANTES,
+    FIELD_CORREO_ESTUDIANTES,
+    FIELD_LEGAJO_ESTUDIANTES,
+    FIELD_NOMBRE_ESTUDIANTES,
+    FIELD_USER_ID_ESTUDIANTES,
     FIELD_TELEFONO_ESTUDIANTES,
 } from '../constants';
 import type { EstudianteFields, AirtableRecord } from '../types';
@@ -40,14 +40,14 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
     const [foundStudent, setFoundStudent] = useState<AirtableRecord<EstudianteFields> | null>(null);
     const [verificationData, setVerificationData] = useState({ dni: '', correo: '', telefono: '' });
-    
+
     const resetFormState = () => {
         setError(null);
         setFieldError(null);
         setPassword('');
         setConfirmPassword('');
-        setResetStep('verify'); 
-        setMigrationStep(1); 
+        setResetStep('verify');
+        setMigrationStep(1);
         setRegisterStep(1);
         setVerificationData({ dni: '', correo: '', telefono: '' });
         setFoundStudent(null);
@@ -56,10 +56,10 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
     const handleModeChange = (newMode: any) => {
         setMode(newMode);
         // Clean session when switching modes to avoid lingering zombie states
-        (supabase.auth as any).signOut().catch(() => {});
-        
+        (supabase.auth as any).signOut().catch(() => { });
+
         if (!((newMode === 'migration' || newMode === 'recover') && mode === 'login')) {
-             resetFormState();
+            resetFormState();
         } else {
             // Keep legajo if switching from login failure
             setMigrationStep(1);
@@ -70,7 +70,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             setFoundStudent(null);
         }
     };
-    
+
     const handleVerificationDataChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setVerificationData(prev => ({ ...prev, [name]: value }));
@@ -81,16 +81,20 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         e.preventDefault();
         const legajoTrimmed = legajo.trim();
         const passwordTrimmed = password.trim();
-        
+
         if (legajoTrimmed === 'testing' && passwordTrimmed === 'testing') {
             login({ legajo: '99999', nombre: 'Usuario de Prueba', role: 'AdminTester' });
             return;
         }
 
+        // BYPASS ELIMINADO: Ahora el admin se loguea como un usuario real de Supabase
+        // para garantizar que las políticas RLS funcionen correctamente.
+        // El legajo 'admin' ya existe en la BD y tiene email 'admin@sistema.com'.
+
         setIsLoading(true);
         setError(null);
         setFieldError(null);
-        
+
         if (mode === 'login') {
             try {
                 // LIMPIEZA PREVENTIVA
@@ -108,7 +112,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                 if (!studentData) throw new Error('Legajo no encontrado. Verificá el número o creá una cuenta nueva.');
 
                 const email = studentData[FIELD_CORREO_ESTUDIANTES];
-                
+
                 if (!email) throw new Error('Tu usuario parece incompleto. Por favor, ve a "Crear Cuenta" para actualizar tus datos.');
 
                 // 2. Intentar Login
@@ -119,7 +123,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                 if (signInError) {
                     console.warn("Login failed:", signInError.message);
-                    
+
                     if (signInError.message.includes('Invalid login credentials')) {
                         // MODIFICADO: Ya no redirige a migración. Muestra error en pantalla.
                         setError('Contraseña incorrecta. Verificá tus datos o usá el botón de recuperar contraseña.');
@@ -151,13 +155,13 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                     if (rpcError) throw new Error("Error de conexión. Intenta más tarde.");
                     const studentData = rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
-                    
+
                     if (!studentData) throw new Error("No encontramos un estudiante con ese legajo.");
 
                     // Verificar coincidencia de datos
                     const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').trim();
                     const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
-                    
+
                     // Sanitize input DNI for comparison (remove dots, spaces)
                     const inputDni = verificationData.dni.replace(/\D/g, '').trim();
                     const inputEmail = verificationData.correo.trim().toLowerCase();
@@ -166,9 +170,9 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     const cleanDbDni = dbDni.replace(/\D/g, '');
 
                     if (cleanDbDni !== inputDni || dbEmail !== inputEmail) {
-                         throw new Error("Los datos ingresados no coinciden con nuestros registros.");
+                        throw new Error("Los datos ingresados no coinciden con nuestros registros.");
                     }
-                    
+
                     setFoundStudent(studentData as unknown as AirtableRecord<EstudianteFields>);
                     setMigrationStep(2);
                     setIsLoading(false);
@@ -177,15 +181,15 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                 if (migrationStep === 2) {
                     // Paso 2: Establecer Contraseña y Crear/Vincular Usuario
-                     if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
-                     if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
-                     
-                     if (!foundStudent) throw new Error("Sesión de validación expirada. Por favor comienza de nuevo.");
+                    if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
+                    if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
 
-                     const email = String(foundStudent[FIELD_CORREO_ESTUDIANTES]).trim().toLowerCase();
-                     
-                     // 1. Intentamos CREAR el usuario
-                     const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
+                    if (!foundStudent) throw new Error("Sesión de validación expirada. Por favor comienza de nuevo.");
+
+                    const email = String(foundStudent[FIELD_CORREO_ESTUDIANTES]).trim().toLowerCase();
+
+                    // 1. Intentamos CREAR el usuario
+                    const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
                         email: email,
                         password: password,
                         options: { data: { legajo: legajoTrimmed } }
@@ -194,28 +198,28 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     // 2. Manejo de Errores: ¿Ya existe?
                     if (signUpError) {
                         if (signUpError.message.includes("already registered") || signUpError.status === 422 || signUpError.status === 400) {
-                             console.log("Usuario ya existe en Auth, intentando forzar actualización de clave...");
-                             
-                             // Si ya existe, usamos RPC para resetear la clave Y REPARAR EL VINCULO
-                             const { error: rpcResetError } = await (supabase.rpc as any)('admin_reset_password', {
-                                 legajo_input: legajoTrimmed,
-                                 new_password: password
-                             });
-                             
-                             if (rpcResetError) {
-                                 console.error("RPC Reset Error:", rpcResetError);
-                                 if (rpcResetError.message.includes("No existe usuario") || rpcResetError.message.includes("not found")) {
-                                     throw new Error("Error de integridad: El email de tu legajo no coincide con el usuario registrado. Contacta soporte.");
-                                 }
-                                 throw new Error("No se pudo actualizar tu usuario existente. Intenta 'Recuperar Acceso'.");
-                             }
+                            console.log("Usuario ya existe en Auth, intentando forzar actualización de clave...");
+
+                            // Si ya existe, usamos RPC para resetear la clave Y REPARAR EL VINCULO
+                            const { error: rpcResetError } = await (supabase.rpc as any)('admin_reset_password', {
+                                legajo_input: legajoTrimmed,
+                                new_password: password
+                            });
+
+                            if (rpcResetError) {
+                                console.error("RPC Reset Error:", rpcResetError);
+                                if (rpcResetError.message.includes("No existe usuario") || rpcResetError.message.includes("not found")) {
+                                    throw new Error("Error de integridad: El email de tu legajo no coincide con el usuario registrado. Contacta soporte.");
+                                }
+                                throw new Error("No se pudo actualizar tu usuario existente. Intenta 'Recuperar Acceso'.");
+                            }
                         } else {
-                             throw new Error(`Error al crear usuario: ${signUpError.message}`);
+                            throw new Error(`Error al crear usuario: ${signUpError.message}`);
                         }
                     }
 
                     // 3. Intento de Login final para confirmar y obtener sesión
-                     const { data: loginData, error: loginError } = await (supabase.auth as any).signInWithPassword({
+                    const { data: loginData, error: loginError } = await (supabase.auth as any).signInWithPassword({
                         email: email,
                         password: password,
                     });
@@ -225,15 +229,15 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                         setError('Cuenta configurada, pero el inicio de sesión automático falló. Por favor ingresa manualmente.');
                     } else if (loginData.user) {
                         // 4. Asegurar vínculo en DB (Self-healing por si acaso)
-                         const { error: linkError } = await (supabase.rpc as any)('register_new_student', {
+                        const { error: linkError } = await (supabase.rpc as any)('register_new_student', {
                             legajo_input: legajoTrimmed,
                             userid_input: loginData.user.id,
                             dni_input: parseInt(foundStudent[FIELD_DNI_ESTUDIANTES] as any || '0', 10),
                             correo_input: email,
                             telefono_input: foundStudent[FIELD_TELEFONO_ESTUDIANTES] || ''
-                         });
-                         
-                         if (linkError) console.warn("Link RPC warning (non-critical):", linkError);
+                        });
+
+                        if (linkError) console.warn("Link RPC warning (non-critical):", linkError);
                     }
                 }
 
@@ -245,69 +249,69 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             }
 
         } else if (mode === 'register') {
-             try {
+            try {
                 if (registerStep === 1) {
-                     if (!legajoTrimmed) throw new Error("Por favor ingresa tu legajo.");
-                     const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_student_for_signup', { legajo_input: legajoTrimmed });
-                     
-                     if (rpcError) throw new Error(rpcError.message);
-                     const student = rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
-                     
-                     if (!student) throw new Error("El legajo no figura en la lista o ya tiene usuario. Prueba 'Recuperar Acceso'.");
-                     if (student.user_id) throw new Error("Este legajo ya tiene cuenta activa. Usa 'Recuperar Acceso' si olvidaste la clave.");
+                    if (!legajoTrimmed) throw new Error("Por favor ingresa tu legajo.");
+                    const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('get_student_for_signup', { legajo_input: legajoTrimmed });
 
-                     setFoundStudent(student as unknown as AirtableRecord<EstudianteFields>);
-                     setRegisterStep(2);
-                     setIsLoading(false);
-                     return;
+                    if (rpcError) throw new Error(rpcError.message);
+                    const student = rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
+
+                    if (!student) throw new Error("El legajo no figura en la lista o ya tiene usuario. Prueba 'Recuperar Acceso'.");
+                    if (student.user_id) throw new Error("Este legajo ya tiene cuenta activa. Usa 'Recuperar Acceso' si olvidaste la clave.");
+
+                    setFoundStudent(student as unknown as AirtableRecord<EstudianteFields>);
+                    setRegisterStep(2);
+                    setIsLoading(false);
+                    return;
                 }
-                
-                if (registerStep === 2) {
-                     const { dni, correo, telefono } = verificationData;
-                     if (!dni || !correo || !telefono || !password) throw new Error("Todos los campos son obligatorios.");
-                     if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
-                     
-                     const inputEmail = correo.trim().toLowerCase();
-                     
-                     // CLEAN DNI: Remove dots, spaces, ensure it's a number
-                     const cleanDniString = dni.replace(/\D/g, '');
-                     const cleanDniInt = parseInt(cleanDniString, 10);
-                     if (isNaN(cleanDniInt) || cleanDniInt === 0) {
-                         throw new Error("El DNI debe ser un número válido.");
-                     }
 
-                     // Intentar crear usuario
-                     const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
+                if (registerStep === 2) {
+                    const { dni, correo, telefono } = verificationData;
+                    if (!dni || !correo || !telefono || !password) throw new Error("Todos los campos son obligatorios.");
+                    if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
+
+                    const inputEmail = correo.trim().toLowerCase();
+
+                    // CLEAN DNI: Remove dots, spaces, ensure it's a number
+                    const cleanDniString = dni.replace(/\D/g, '');
+                    const cleanDniInt = parseInt(cleanDniString, 10);
+                    if (isNaN(cleanDniInt) || cleanDniInt === 0) {
+                        throw new Error("El DNI debe ser un número válido.");
+                    }
+
+                    // Intentar crear usuario
+                    const { data: authData, error: signUpError } = await (supabase.auth as any).signUp({
                         email: inputEmail,
                         password: password,
                         options: { data: { legajo: legajoTrimmed } }
                     });
-                    
+
                     let userId = authData?.user?.id;
 
                     // MANEJO ROBUSTO DE "USUARIO YA EXISTE"
                     if (signUpError || !userId) {
-                         console.warn("SignUp failed, attempting fix via admin_reset_password");
-                         
-                         const { error: fixError } = await (supabase.rpc as any)('admin_reset_password', {
-                             legajo_input: legajoTrimmed,
-                             new_password: password
-                         });
+                        console.warn("SignUp failed, attempting fix via admin_reset_password");
 
-                         if (fixError) {
-                             console.error("Fix failed:", fixError);
-                             throw new Error("Este correo ya está registrado y no se pudo vincular a tu legajo. Contacta soporte.");
-                         }
+                        const { error: fixError } = await (supabase.rpc as any)('admin_reset_password', {
+                            legajo_input: legajoTrimmed,
+                            new_password: password
+                        });
 
-                         const { data: loginData, error: loginError } = await (supabase.auth as any).signInWithPassword({ 
-                             email: inputEmail, 
-                             password 
-                         });
-                         
-                         if (loginError || !loginData.user) {
-                             throw new Error("Cuenta reparada pero falló el inicio de sesión. Intenta ingresar normalmente.");
-                         }
-                         userId = loginData.user.id;
+                        if (fixError) {
+                            console.error("Fix failed:", fixError);
+                            throw new Error("Este correo ya está registrado y no se pudo vincular a tu legajo. Contacta soporte.");
+                        }
+
+                        const { data: loginData, error: loginError } = await (supabase.auth as any).signInWithPassword({
+                            email: inputEmail,
+                            password
+                        });
+
+                        if (loginError || !loginData.user) {
+                            throw new Error("Cuenta reparada pero falló el inicio de sesión. Intenta ingresar normalmente.");
+                        }
+                        userId = loginData.user.id;
                     }
 
                     if (userId) {
@@ -338,13 +342,13 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
 
                     if (rpcError) throw new Error("Error de conexión. Intenta más tarde.");
                     const studentData = rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
-                    
+
                     if (!studentData) throw new Error("No encontramos un estudiante con ese legajo.");
 
                     const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || '').replace(/\D/g, '');
                     const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || '').trim().toLowerCase();
                     const dbPhone = normalizePhone(studentData[FIELD_TELEFONO_ESTUDIANTES]);
-                    
+
                     const inputDni = verificationData.dni.replace(/\D/g, '');
                     const inputEmail = verificationData.correo.trim().toLowerCase();
                     const inputPhone = normalizePhone(verificationData.telefono);
@@ -356,7 +360,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                     if (!dbPhone || !inputPhone.includes(dbPhone.slice(-6))) mismatch = true;
 
                     if (mismatch) {
-                         throw new Error("Los datos ingresados no coinciden con nuestros registros.");
+                        throw new Error("Los datos ingresados no coinciden con nuestros registros.");
                     }
 
                     setResetStep('reset_password');
@@ -365,21 +369,21 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
                 }
 
                 if (resetStep === 'reset_password') {
-                     if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
-                     if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
+                    if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
+                    if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
 
-                     const { error: rpcResetError } = await (supabase.rpc as any)('admin_reset_password', {
-                         legajo_input: legajoTrimmed,
-                         new_password: password
-                     });
+                    const { error: rpcResetError } = await (supabase.rpc as any)('admin_reset_password', {
+                        legajo_input: legajoTrimmed,
+                        new_password: password
+                    });
 
-                     if (rpcResetError) {
-                         console.error("RPC Reset Error", rpcResetError);
-                         throw new Error("Error del servidor. Si el problema persiste, pide al administrador que actualice la base de datos.");
-                     }
+                    if (rpcResetError) {
+                        console.error("RPC Reset Error", rpcResetError);
+                        throw new Error("Error del servidor. Si el problema persiste, pide al administrador que actualice la base de datos.");
+                    }
 
-                     setResetStep('success');
-                     setIsLoading(false);
+                    setResetStep('success');
+                    setIsLoading(false);
                 }
 
             } catch (err: any) {
@@ -390,7 +394,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
             setIsLoading(false);
         }
     };
-    
+
     return {
         mode, setMode: handleModeChange,
         resetStep,
@@ -401,7 +405,7 @@ export const useAuthLogic = ({ login, showModal }: UseAuthLogicProps) => {
         confirmPassword, setConfirmPassword,
         rememberMe, setRememberMe,
         isLoading, error,
-        fieldError, 
+        fieldError,
         foundStudent,
         verificationData, handleVerificationDataChange,
         handleFormSubmit, handleForgotLegajoSubmit: (e: any) => e.preventDefault()

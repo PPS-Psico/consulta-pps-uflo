@@ -103,6 +103,7 @@ interface EnrollmentFormProps {
     studentProfile: Estudiante | null;
     reqCertificadoTrabajo?: boolean;
     reqCv?: boolean;
+    horariosFijos?: boolean;
 }
 
 type FormData = {
@@ -142,6 +143,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     studentProfile,
     reqCertificadoTrabajo = true,
     reqCv = false,
+    horariosFijos = false,
 }) => {
     const [formData, setFormData] = useState<FormData>(initialFormData);
     const [errors, setErrors] = useState<Partial<Record<keyof FormData | 'submit', string>>>({});
@@ -152,11 +154,11 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
     const cvFileInputRef = useRef<HTMLInputElement>(null);
 
     const isSingleSchedule = horariosDisponibles.length === 1;
-    const showHorariosSelection = horariosDisponibles.length > 1;
+    const showHorariosSelection = horariosDisponibles.length > 1 && !horariosFijos;
 
     useEffect(() => {
         if (isOpen) {
-            const initialHorarios = isSingleSchedule ? [horariosDisponibles[0]] : [];
+            const initialHorarios = horariosFijos ? [...horariosDisponibles] : (isSingleSchedule ? [horariosDisponibles[0]] : []);
             const works = studentProfile?.[FIELD_TRABAJA_ESTUDIANTES] || false;
             const cert = studentProfile?.[FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES] || null;
 
@@ -169,7 +171,7 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
             setErrors({});
             setFileUploadProgress(0);
         }
-    }, [isOpen, horariosDisponibles, isSingleSchedule, studentProfile]);
+    }, [isOpen, horariosDisponibles, isSingleSchedule, studentProfile, horariosFijos]);
 
     const finalSchema = useMemo(() => {
         return z.object({
@@ -340,13 +342,17 @@ export const EnrollmentForm: React.FC<EnrollmentFormProps> = ({
                     </button>
                 </div>
 
-                {/* Banner Horario Único (Si aplica) */}
-                {isSingleSchedule && (
+                {/* Banner Horario Único o Fijo */}
+                {(isSingleSchedule || (horariosFijos && horariosDisponibles.length > 0)) && (
                     <div className="bg-blue-50/50 dark:bg-blue-900/10 px-6 py-3 border-b border-blue-100/50 dark:border-blue-800/30 flex items-center gap-3">
                         <span className="material-icons text-blue-500 dark:text-blue-400 !text-lg">schedule</span>
                         <div>
-                            <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Horario de la Práctica</p>
-                            <p className="text-sm font-bold text-slate-800 dark:text-white leading-none">{horariosDisponibles[0]}</p>
+                            <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                                {horariosFijos ? "Horarios (Obligatorios)" : "Horario de la Práctica"}
+                            </p>
+                            <p className="text-sm font-bold text-slate-800 dark:text-white leading-none">
+                                {horariosFijos ? horariosDisponibles.join('; ') : horariosDisponibles[0]}
+                            </p>
                         </div>
                     </div>
                 )}

@@ -11,14 +11,7 @@ import {
     FIELD_FECHA_INICIO_LANZAMIENTOS,
     FIELD_FECHA_FIN_LANZAMIENTOS,
     FIELD_FECHA_RELANZAMIENTO_LANZAMIENTOS,
-    FIELD_ESTADO_GESTION_LANZAMIENTOS,
-    FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
-    FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
-    FIELD_NOTAS_GESTION_LANZAMIENTOS,
-    FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS,
-    FIELD_REQ_CV_LANZAMIENTOS,
-    FIELD_DIRECCION_LANZAMIENTOS,
-    FIELD_CODIGO_CAMPUS_LANZAMIENTOS
+    FIELD_ESTADO_GESTION_LANZAMIENTOS
 } from '../constants';
 import { normalizeStringForComparison, parseToUTCDate } from '../utils/formatters';
 import { mapLanzamiento } from '../utils/mappers';
@@ -135,7 +128,8 @@ export const useGestionConvocatorias = ({ isTestingMode = false, initialFilter =
             setLoadingState('loaded');
 
         } catch (err: any) {
-            console.error(err);
+            console.error("CRITICAL ERROR in useGestionConvocatorias:", err);
+            setToastInfo({ message: `Error crítico al cargar datos: ${err.message}`, type: 'error' });
             setError(err.message || 'Error al cargar datos');
             setLoadingState('error');
         }

@@ -12,6 +12,7 @@ interface CardProps {
     titleAs?: 'h1' | 'h2' | 'h3';
     titleClassName?: string;
     noPadding?: boolean;
+    hoverable?: boolean;
 }
 
 const Card: React.FC<CardProps> = ({
@@ -24,14 +25,15 @@ const Card: React.FC<CardProps> = ({
     style,
     titleAs = 'h2',
     titleClassName = '',
-    noPadding = false
+    noPadding = false,
+    hoverable = false
 }) => {
 
     const TitleTag = titleAs;
 
     return (
         <div
-            className={`glass-panel rounded-3xl transition-all duration-300 ${className}`}
+            className={`glass-panel rounded-3xl transition-all duration-300 ${hoverable ? 'glass-card-hover cursor-pointer' : ''} ${className}`}
             style={style}
         >
             {(title || description || actions) && (

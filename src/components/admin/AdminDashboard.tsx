@@ -3,9 +3,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdminPreferences } from '../../contexts/AdminPreferencesContext'; // Import context
-import { useSmartAnalysis } from '../../hooks/useSmartAnalysis';
+
 import { useOperationalData } from '../../hooks/useOperationalData';
-import SmartBriefing from './SmartBriefing';
+
 import Toast from '../ui/Toast';
 import { AdminDashboardSkeleton } from '../Skeletons';
 import EmptyState from '../EmptyState';
@@ -105,8 +105,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
     const { data: opData, isLoading: isOpLoading, error: opError } = useOperationalData(isTestingMode);
 
-    // Only call AI analysis if feature is enabled
-    const analysis = useSmartAnalysis(opData, isOpLoading && preferences.showAiInsights);
+
 
     if (isOpLoading) return <AdminDashboardSkeleton />;
 
@@ -139,18 +138,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
         <div className="space-y-12 animate-fade-in-up pb-10">
             {toastInfo && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo(null)} />}
 
-            {/* --- SECCIÓN IA: CONDITIONAL RENDERING --- */}
-            {preferences.showAiInsights && (
-                <section className="px-1">
-                    <SmartBriefing
-                        status={analysis.status === 'loading' ? 'stable' : analysis.status}
-                        summary={analysis.summary}
-                        insights={analysis.insights}
-                        signals={analysis.signals}
-                        userName={authenticatedUser?.nombre || 'Admin'}
-                    />
-                </section>
-            )}
+
 
             {/* --- SECCIÓN GESTIÓN: GRID DE TARJETAS --- */}
             <section className="space-y-6">

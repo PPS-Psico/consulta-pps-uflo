@@ -96,7 +96,7 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
                     const addr = l[FIELD_DIRECCION_LANZAMIENTOS];
                     if (name && addr) institutionAddressMap.set(normalizeStringForComparison(name), addr);
                 });
-                return { lanzamientos: availableLaunches, myEnrollments: hydratedEnrollments, allLanzamientos: allLanz, institutionAddressMap };
+                return { lanzamientos: availableLaunches, myEnrollments: hydratedEnrollments, allLanzamientos: allLanz, institutionAddressMap, institutionLogoMap: new Map() };
             }
             return fetchConvocatoriasData(studentAirtableId);
         },
@@ -105,7 +105,7 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
         refetchOnWindowFocus: true,
     });
 
-    const { lanzamientos = [], myEnrollments = [], allLanzamientos = [], institutionAddressMap = new Map() } = convocatoriasData || {};
+    const { lanzamientos = [], myEnrollments = [], allLanzamientos = [], institutionAddressMap = new Map(), institutionLogoMap = new Map() } = convocatoriasData || {};
 
     const enrollmentMutation = useMutation<AirtableRecord<ConvocatoriaFields> | null, Error, { formData: any, selectedLanzamiento: LanzamientoPPS }>({
         mutationFn: async ({ formData, selectedLanzamiento }) => {
@@ -205,5 +205,5 @@ export const useConvocatorias = (legajo: string, studentAirtableId: string | nul
         isPending: enrollmentMutation.isPending
     };
 
-    return { lanzamientos, myEnrollments, allLanzamientos, isConvocatoriasLoading, convocatoriasError, enrollStudent, confirmInforme: confirmInformeMutation, refetchConvocatorias, institutionAddressMap };
+    return { lanzamientos, myEnrollments, allLanzamientos, isConvocatoriasLoading, convocatoriasError, enrollStudent, confirmInforme: confirmInformeMutation, refetchConvocatorias, institutionAddressMap, institutionLogoMap };
 };

@@ -28,6 +28,7 @@ interface StudentPanelContextType {
     informeTasks: InformeTask[];
     criterios: CriteriosCalculados;
     institutionAddressMap: Map<string, string>;
+    institutionLogoMap?: Map<string, { url: string, invert: boolean }>;
     finalizacionRequest: FinalizacionPPS | null;
 
     // Aggregated states
@@ -65,7 +66,7 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
     const { solicitudes, isSolicitudesLoading, solicitudesError, refetchSolicitudes } = useStudentSolicitudes(legajo, studentAirtableId);
     const {
         lanzamientos, myEnrollments, allLanzamientos, isConvocatoriasLoading, convocatoriasError,
-        enrollStudent, confirmInforme, refetchConvocatorias, institutionAddressMap
+        enrollStudent, confirmInforme, refetchConvocatorias, institutionAddressMap, institutionLogoMap
     } = useConvocatorias(legajo, studentAirtableId, studentDetails, isSuperUserMode);
 
     // New Hook for Finalization
@@ -109,6 +110,7 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
         lanzamientos,
         allLanzamientos,
         institutionAddressMap,
+        institutionLogoMap,
         finalizacionRequest,
         isLoading,
         isStudentLoading,

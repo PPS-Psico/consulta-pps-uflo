@@ -15,9 +15,21 @@ export type AppRecord<T> = T & {
 export type Estudiante = Tables['estudiantes']['Row'];
 export type Practica = Tables['practicas']['Row'];
 export type SolicitudPPS = Tables['solicitudes_pps']['Row'];
-export type LanzamientoPPS = Tables['lanzamientos_pps']['Row'];
+export type LanzamientoPPS = Tables['lanzamientos_pps']['Row'] & {
+  descripcion_larga?: string | null;
+  actividades_lista?: string[] | string | null;
+  requisito_obligatorio?: string | null;
+  mensaje_whatsapp?: string | null;
+  fecha_publicacion?: string | null;
+  actividades_label?: string | null;
+  horarios_fijos?: boolean | null;
+  institucion_id?: string | null;
+};
 export type Convocatoria = Tables['convocatorias']['Row'];
-export type Institucion = Tables['instituciones']['Row'];
+export type Institucion = Tables['instituciones']['Row'] & {
+  logo_url?: string | null;
+  logo_invert_dark?: boolean | null;
+};
 export type FinalizacionPPS = Tables['finalizacion_pps']['Row'];
 export type Penalizacion = Tables['penalizaciones']['Row'];
 

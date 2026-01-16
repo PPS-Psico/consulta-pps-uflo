@@ -162,6 +162,14 @@ export function simpleNameSplit(fullName: string): { nombre: string; apellido: s
   return { nombre, apellido };
 }
 
+export function formatPhoneNumber(phone?: string | null): string {
+  if (!phone) return 'N/A';
+  // Remove all non-numeric characters except +
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  if (!cleaned) return 'N/A';
+  return cleaned;
+}
+
 export function cleanInstitutionName(input?: any): string {
   return cleanDbValue(input);
 }

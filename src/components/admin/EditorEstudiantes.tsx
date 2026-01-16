@@ -65,7 +65,7 @@ const EditorEstudiantes: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMod
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    const { data, isLoading } = useQuery({
+    const { data, isLoading, error } = useQuery({
         queryKey: ['editor-students', currentPage, itemsPerPage, debouncedSearch, filterEstado, isTestingMode],
         queryFn: async () => {
             const filters: any = {};
@@ -76,7 +76,7 @@ const EditorEstudiantes: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMod
                 searchFields: [FIELD_NOMBRE_ESTUDIANTES, FIELD_LEGAJO_ESTUDIANTES],
                 filters
             });
-            if (error) throw error;
+            if (error) throw new Error(error.error?.message || 'Error al cargar estudiantes');
 
             // Enriquecer con horas totales para visibilidad inmediata
             const studentIds = records.map(r => r.id);
@@ -105,6 +105,8 @@ const EditorEstudiantes: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMod
             return { records: enriched, total };
         }
     });
+
+    if (error) return <EmptyState icon="error" title="Error de Carga" message={(error as Error).message} />;
 
     const updateMutation = useMutation({
         mutationFn: (vars: any) => db.estudiantes.update(vars.id, vars.fields),

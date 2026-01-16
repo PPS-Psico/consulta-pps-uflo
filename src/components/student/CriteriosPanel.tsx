@@ -49,7 +49,7 @@ const DetailCard = ({
 }) => (
     <div className={`
         relative overflow-hidden rounded-[2rem] p-6 flex flex-col justify-between h-full transition-all duration-300
-        glass-panel hover:shadow-lg group border
+        glass-panel glass-card-hover group border
         ${isCompleted
             ? 'border-emerald-200 bg-emerald-50/50 dark:bg-emerald-900/5 dark:border-emerald-900/30'
             : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40'

@@ -178,6 +178,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
         lanzamientos,
         allLanzamientos,
         institutionAddressMap,
+        institutionLogoMap,
         isLoading,
         isStudentLoading,
         isPracticasLoading,
@@ -292,6 +293,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, activeTab, on
                 student={studentDetails}
                 onInscribir={enrollStudent.mutate}
                 institutionAddressMap={institutionAddressMap}
+                institutionLogoMap={institutionLogoMap}
                 enrollmentMap={enrollmentMap}
                 completedLanzamientoIds={completedLanzamientoIds}
                 criterios={criterios}

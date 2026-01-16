@@ -1,453 +1,452 @@
 [
   {
     "id": "TC001",
-    "title": "User login with valid credentials",
-    "description": "Verify that users can successfully login using valid credentials via Supabase authentication.",
+    "title": "Login success with valid credentials",
+    "description": "Verify that a user can login successfully using valid credentials through Supabase authentication.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to the login page."
+        "description": "Navigate to application login page"
       },
       {
         "type": "action",
-        "description": "Enter valid username/email and password."
+        "description": "Enter a valid registered username/email and password"
       },
       {
         "type": "action",
-        "description": "Click the login button."
+        "description": "Click on the login button"
       },
       {
         "type": "assertion",
-        "description": "Verify that the user is successfully authenticated and redirected to their respective dashboard."
+        "description": "Verify user is authenticated and redirected to the appropriate dashboard based on role"
       }
     ]
   },
   {
     "id": "TC002",
-    "title": "User login with invalid credentials",
-    "description": "Verify that login fails with invalid credentials and an appropriate error message is shown.",
+    "title": "Login failure with invalid credentials",
+    "description": "Verify that login fails and an appropriate error message is displayed when incorrect credentials are used.",
     "category": "error handling",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to the login page."
+        "description": "Navigate to application login page"
       },
       {
         "type": "action",
-        "description": "Enter invalid username/email and/or password."
+        "description": "Enter an invalid username/email or password combination"
       },
       {
         "type": "action",
-        "description": "Click the login button."
+        "description": "Click on the login button"
       },
       {
         "type": "assertion",
-        "description": "Check that login is rejected and an error message indicating invalid credentials is displayed."
+        "description": "Verify login is rejected and a clear error message is shown"
       }
     ]
   },
   {
     "id": "TC003",
-    "title": "Student views personal dashboard",
-    "description": "Verify the student dashboard displays current status, total accumulated hours, and active practices correctly.",
+    "title": "Student edits practice end date and saves changes",
+    "description": "Verify that a student can successfully edit the end date of a practice and that the changes persist correctly in the database.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Login as a student user."
+        "description": "Login as a student user"
       },
       {
         "type": "action",
-        "description": "Navigate to the Student Dashboard."
+        "description": "Navigate to the Student Dashboard and access their practices table"
+      },
+      {
+        "type": "action",
+        "description": "Edit the end date field of an active practice"
+      },
+      {
+        "type": "action",
+        "description": "Save the changes"
       },
       {
         "type": "assertion",
-        "description": "Verify the dashboard shows the user's current practice status."
+        "description": "Verify that the updated end date is displayed in the UI"
       },
       {
         "type": "assertion",
-        "description": "Verify the total accumulated hours are accurately displayed."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the list of active practices is correctly populated."
+        "description": "Verify the updated end date is persisted in the backend database"
       }
     ]
   },
   {
     "id": "TC004",
-    "title": "Student edits practice end date and saves",
-    "description": "Verify a student can edit the end date of an active practice and the changes persist correctly.",
+    "title": "Admin views calculated total hours for student",
+    "description": "Verify the admin interface correctly calculates and displays total practice hours for each student.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Login as a student user."
+        "description": "Login as an administrator user"
       },
       {
         "type": "action",
-        "description": "Navigate to the Practicas management table."
+        "description": "Navigate to the Students Editor interface"
       },
       {
         "type": "action",
-        "description": "Edit the end date of an existing active practice."
-      },
-      {
-        "type": "action",
-        "description": "Click save to persist the changes."
+        "description": "Open a student record with multiple associated practices"
       },
       {
         "type": "assertion",
-        "description": "Verify that the updated end date is correctly saved in the database and reflected on the UI."
+        "description": "Verify that total hours shown match the sum of individual practice durations"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify total hours update correctly when student’s practices are changed"
       }
     ]
   },
   {
     "id": "TC005",
-    "title": "Validation for invalid practice end dates",
-    "description": "Verify the system rejects invalid practice end dates such as dates before the start date or in the future beyond allowed limits.",
-    "category": "error handling",
+    "title": "Filtering institutions by agreement state with correct tag rendering",
+    "description": "Verify that the institutions listing can be filtered by agreement states and corresponding tags are rendered correctly.",
+    "category": "functional",
     "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Login as a student."
+        "description": "Login as administrator"
       },
       {
         "type": "action",
-        "description": "Attempt to set an end date before the practice start date."
+        "description": "Navigate to Institutions Editor page"
       },
       {
         "type": "action",
-        "description": "Attempt to set an end date significantly in the future beyond allowed limits."
+        "description": "Apply filters on institution list by different agreement states"
       },
       {
         "type": "assertion",
-        "description": "Verify appropriate validation errors are displayed and changes are not saved."
+        "description": "Verify list updates to show institutions matching the filter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that institution entries correctly display state tags visually"
       }
     ]
   },
   {
     "id": "TC006",
-    "title": "Admin CRUD: Create, Read, Update, Delete student records",
-    "description": "Verify admin users can perform full CRUD operations on students, with accurate calculation of total hours displayed.",
+    "title": "Complete CRUD operations for students",
+    "description": "Verify administrator is able to create, read, update, and delete student records with correct validations and UI updates.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Login as an admin user."
+        "description": "Login as administrator"
       },
       {
         "type": "action",
-        "description": "Navigate to the Students management interface."
+        "description": "Navigate to Students Editor"
       },
       {
         "type": "action",
-        "description": "Create a new student record with valid data."
+        "description": "Create a new student with valid data and save"
       },
       {
         "type": "assertion",
-        "description": "Verify the new student appears in the student list with corrected total hours calculation."
+        "description": "Verify the new student appears in the list"
       },
       {
         "type": "action",
-        "description": "Update an existing student’s information."
+        "description": "Edit an existing student’s information and save"
       },
       {
         "type": "assertion",
-        "description": "Verify the updates persist and total hours recalculate correctly."
+        "description": "Verify changes are reflected correctly"
       },
       {
         "type": "action",
-        "description": "Delete a student record."
+        "description": "Delete a student record"
       },
       {
         "type": "assertion",
-        "description": "Verify the student is removed from the list and data store."
+        "description": "Verify the student is removed from the list"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to create student with missing required fields"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation errors are displayed preventing submission"
       }
     ]
   },
   {
     "id": "TC007",
-    "title": "Admin CRUD: Create, Read, Update, Delete practices",
-    "description": "Verify admin users can create, view, update, and delete practice records including assigning students and institutions.",
+    "title": "Complete CRUD operations for practices",
+    "description": "Verify administrator can create, view, update, and delete practice records including student and institution assignment.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Login as admin."
+        "description": "Login as administrator"
       },
       {
         "type": "action",
-        "description": "Navigate to the Practices management interface."
+        "description": "Navigate to Practices Editor"
       },
       {
         "type": "action",
-        "description": "Create a new practice with valid student and institution assignments."
+        "description": "Create a new practice, assign student and institution, then save"
       },
       {
         "type": "assertion",
-        "description": "Verify that the new practice appears with correct details."
+        "description": "Verify the new practice appears in the practice list with correct details"
       },
       {
         "type": "action",
-        "description": "Edit details of an existing practice."
+        "description": "Modify an existing practice’s details and save"
       },
       {
         "type": "assertion",
-        "description": "Verify changes persist accurately."
+        "description": "Verify practice details are updated correctly"
       },
       {
         "type": "action",
-        "description": "Delete a practice."
+        "description": "Delete a practice record"
       },
       {
         "type": "assertion",
-        "description": "Verify the practice is removed successfully."
+        "description": "Verify practice is removed from the list"
       }
     ]
   },
   {
     "id": "TC008",
-    "title": "Admin CRUD: Manage institutions, agreements, and orientations",
-    "description": "Verify that admins can fully manage institutions including agreements and orientation tags via CRUD operations.",
+    "title": "Complete CRUD operations for institutions",
+    "description": "Verify administrator can create, read, update, and delete institution records including agreements and orientations management.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Login as admin."
+        "description": "Login as administrator"
       },
       {
         "type": "action",
-        "description": "Access the Institutions management interface."
+        "description": "Navigate to Institutions Editor"
       },
       {
         "type": "action",
-        "description": "Create a new institution with agreements and orientations."
+        "description": "Create a new institution with required information and save"
       },
       {
         "type": "assertion",
-        "description": "Verify the new institution displays correctly with all added metadata."
+        "description": "Verify the institution is listed with correct details"
       },
       {
         "type": "action",
-        "description": "Update an existing institution's data and agreements."
+        "description": "Update an existing institution’s agreement and orientation data"
       },
       {
         "type": "assertion",
-        "description": "Verify that the updates are reflected correctly."
+        "description": "Verify updated data is reflected correctly"
       },
       {
         "type": "action",
-        "description": "Delete an institution."
+        "description": "Delete an institution record"
       },
       {
         "type": "assertion",
-        "description": "Verify the institution is removed without residual data."
+        "description": "Verify institution is removed from the list"
       }
     ]
   },
   {
     "id": "TC009",
-    "title": "Institution list filtering and tag rendering",
-    "description": "Verify that filtering institutions by agreement state shows correct results and tags display accurately.",
+    "title": "Submit and manage practice application requests",
+    "description": "Verify students can submit practice applications and administrators can view, approve, or reject these requests correctly.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Login as admin."
+        "description": "Login as student"
       },
       {
         "type": "action",
-        "description": "Navigate to the institutions list view."
+        "description": "Navigate to available convocatorias and submit a practice application"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify application appears in student’s request list with correct status"
       },
       {
         "type": "action",
-        "description": "Apply filters by agreement state."
+        "description": "Login as administrator"
+      },
+      {
+        "type": "action",
+        "description": "Open the applications management interface"
+      },
+      {
+        "type": "action",
+        "description": "Approve or reject a student’s practice request"
       },
       {
         "type": "assertion",
-        "description": "Verify the institution list updates to show only matching entries."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify that agreement and orientation tags are displayed correctly with their respective states."
+        "description": "Verify the application's status updates accordingly"
       }
     ]
   },
   {
     "id": "TC010",
-    "title": "Student applies to available practice convocations",
-    "description": "Verify that students can view available convocations and submit applications successfully.",
+    "title": "Smart Analysis AI alerts and recommendations",
+    "description": "Verify the AI-driven Smart Analysis component generates relevant alerts and recommendations based on data.",
     "category": "functional",
-    "priority": "High",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Login as a student."
+        "description": "Login as administrator or authorized user"
       },
       {
         "type": "action",
-        "description": "Navigate to the convocations list."
-      },
-      {
-        "type": "action",
-        "description": "View details of an available convocation."
-      },
-      {
-        "type": "action",
-        "description": "Submit a practice application."
+        "description": "Navigate to the Smart Analysis dashboard or component"
       },
       {
         "type": "assertion",
-        "description": "Verify the application is recorded and confirmed on UI."
+        "description": "Verify that alerts and recommendations appear consistent with current data scenarios"
       }
     ]
   },
   {
     "id": "TC011",
-    "title": "Admin manages practice applications with approval and rejection",
-    "description": "Verify that admins can approve or reject student practice applications and the status reflects correctly.",
+    "title": "Data persistence and synchronization from UI changes",
+    "description": "Verify that changes in the UI such as edits to practices or student records update the database and UI reflects those updates immediately.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Login as admin."
+        "description": "Login as admin or student depending on context"
       },
       {
         "type": "action",
-        "description": "Navigate to the practice applications management interface."
+        "description": "Modify data fields in the UI (practices, students, institutions)"
       },
       {
         "type": "action",
-        "description": "Approve a pending application."
+        "description": "Save changes"
       },
       {
         "type": "assertion",
-        "description": "Verify that the application status changes to approved."
-      },
-      {
-        "type": "action",
-        "description": "Reject another pending application."
+        "description": "Verify changes are updated and persisted in the database"
       },
       {
         "type": "assertion",
-        "description": "Verify that the application status changes to rejected."
+        "description": "Verify UI data refresh to reflect saved changes"
       }
     ]
   },
   {
     "id": "TC012",
-    "title": "Smart Analysis AI component produces insights",
-    "description": "Verify correct integration and output of the Smart Analysis AI module producing alerts and recommendations.",
-    "category": "functional",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Login and access a dashboard with Smart Analysis enabled."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify that AI-driven alerts and recommendations appear relevant to current practice data."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify that the component handles empty or incomplete data gracefully without crashes."
-      }
-    ]
-  },
-  {
-    "id": "TC013",
-    "title": "Responsiveness and UI usability across devices",
-    "description": "Verify that the application UI is responsive and conforms to usability guidelines on different screen sizes.",
+    "title": "Interface responsiveness and usability compliance",
+    "description": "Verify the application UI is responsive on various screen sizes and meets defined usability and accessibility guidelines.",
     "category": "ui",
     "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Open the application on desktop, tablet, and mobile viewports."
+        "description": "Open the application on desktop, tablet, and mobile resolutions"
       },
       {
         "type": "assertion",
-        "description": "Verify all key views including login, dashboard, and admin editor interfaces render correctly."
+        "description": "Verify all key UI components render properly without overflow or misalignment"
       },
       {
         "type": "assertion",
-        "description": "Verify UI elements remain usable and consistent with styling and accessibility standards."
+        "description": "Verify interactive elements are accessible and usable across devices"
       }
     ]
   },
   {
-    "id": "TC014",
-    "title": "Unauthorized access restriction enforcement",
-    "description": "Verify that unauthenticated users cannot access protected routes and are redirected appropriately.",
-    "category": "security",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Attempt to open protected routes (e.g., admin pages, student dashboard) without login."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify that the user is redirected to the login page."
-      },
-      {
-        "type": "action",
-        "description": "Login as a student and attempt to access admin-only pages."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify access is denied with appropriate authorization error or redirect."
-      }
-    ]
-  },
-  {
-    "id": "TC015",
-    "title": "Data persistence on practice updates",
-    "description": "Verify that all changes to practices made by students or admins persist correctly in the database and reload properly.",
-    "category": "functional",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Make updates to a practice record via student or admin interface."
-      },
-      {
-        "type": "action",
-        "description": "Logout or reload the interface."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify that all updates are reflected correctly after reload from the database."
-      }
-    ]
-  },
-  {
-    "id": "TC016",
-    "title": "Prevent invalid data input on CRUD operations",
-    "description": "Verify the system validates input data during create or update operations and prevents saving invalid data.",
+    "id": "TC013",
+    "title": "Handle invalid practice end date inputs",
+    "description": "Verify that the system prevents entry of invalid end dates for practices (e.g., end date before start date) and shows validation errors.",
     "category": "error handling",
     "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Attempt to create or update records (students, practices, institutions) with invalid or incomplete data."
+        "description": "Login as student"
+      },
+      {
+        "type": "action",
+        "description": "Open practice editor and attempt to set an end date before the start date"
+      },
+      {
+        "type": "action",
+        "description": "Try to save the changes"
       },
       {
         "type": "assertion",
-        "description": "Verify the system displays appropriate validation errors and disallows saving."
+        "description": "Verify validation error is shown and changes are rejected"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Security: prevent access to admin features for students",
+    "description": "Verify that student users cannot access administrative interfaces and receive an appropriate permission denied message or redirect.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as student user"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to access admin only pages via direct URL navigation or UI"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied or user is redirected to an allowed page"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Security: session timeout and logout",
+    "description": "Verify that inactive sessions expire after a configured timeout and the user is logged out requiring re-authentication.",
+    "category": "security",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as any user"
+      },
+      {
+        "type": "action",
+        "description": "Remain inactive for the maximum session timeout period"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to perform an action after timeout"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user is logged out and prompted to login again"
       }
     ]
   }

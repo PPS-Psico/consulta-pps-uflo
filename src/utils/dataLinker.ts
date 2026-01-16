@@ -24,13 +24,13 @@ interface LinkDataParams {
 
 export function processAndLinkStudentData({ myEnrollments, allLanzamientos, practicas }: LinkDataParams) {
     const lanzamientosMap = new Map(allLanzamientos.map(l => [l.id, l]));
-    
+
     // Step 1: Prioritize Enrollments
     const enrollmentsByPpsId = new Map<string, Convocatoria[]>();
-    
+
     myEnrollments.forEach(enrollment => {
         const linkedId = enrollment[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] as string;
-        
+
         if (linkedId) {
             if (!enrollmentsByPpsId.has(linkedId)) {
                 enrollmentsByPpsId.set(linkedId, []);
@@ -61,7 +61,7 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
     // Step 3: Identify completed practices
     const completedLanzamientoIds = new Set<string>();
     const finalizadaStatuses = ['finalizada', 'pps realizada', 'convenio realizado', 'aprobada'];
-    
+
     practicas.forEach(practica => {
         const estadoPractica = normalizeStringForComparison(practica[FIELD_ESTADO_PRACTICA]);
         if (finalizadaStatuses.includes(estadoPractica)) {
@@ -70,13 +70,13 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
             if (linkedId) {
                 completedLanzamientoIds.add(linkedId);
             }
-            
+
             // Block by Name (Legacy & Duplicate Prevention)
             const pNameRaw = practica[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS];
             const pName = String(pNameRaw || '');
             if (pName.trim()) {
-                // FIXED: Use full name instead of splitting by group to allow different PPS in same institution
-                completedLanzamientoIds.add(normalizeStringForComparison(pName));
+                const normalizedName = normalizeStringForComparison(pName);
+                completedLanzamientoIds.add(normalizedName);
             }
         }
     });
@@ -91,7 +91,7 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
             const pps = lanzamientosMap.get(ppsId);
             if (pps && pps[FIELD_INFORME_LANZAMIENTOS]) {
                 const practica = practicas.find(p => p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] === pps.id);
-                
+
                 informeTasks.push({
                     convocatoriaId: enrollment.id,
                     practicaId: practica?.id,
@@ -110,32 +110,32 @@ export function processAndLinkStudentData({ myEnrollments, allLanzamientos, prac
     // 4b. From Finished Practices
     for (const practica of practicas) {
         const linkedId = practica[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] as string;
-        
+
         if (linkedId && !processedForInforme.has(linkedId)) {
-             const pps = lanzamientosMap.get(linkedId);
-             const estado = normalizeStringForComparison(practica[FIELD_ESTADO_PRACTICA]);
-             
-             if (pps && pps[FIELD_INFORME_LANZAMIENTOS] && finalizadaStatuses.includes(estado)) {
-                 informeTasks.push({
+            const pps = lanzamientosMap.get(linkedId);
+            const estado = normalizeStringForComparison(practica[FIELD_ESTADO_PRACTICA]);
+
+            if (pps && pps[FIELD_INFORME_LANZAMIENTOS] && finalizadaStatuses.includes(estado)) {
+                informeTasks.push({
                     convocatoriaId: `practica-${practica.id}`,
                     practicaId: practica.id,
                     ppsName: pps[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Práctica',
                     informeLink: pps[FIELD_INFORME_LANZAMIENTOS],
                     fechaFinalizacion: pps[FIELD_FECHA_FIN_LANZAMIENTOS] || practica[FIELD_FECHA_FIN_PRACTICAS] || new Date().toISOString(),
-                    informeSubido: !!practica[FIELD_NOTA_PRACTICAS], 
+                    informeSubido: !!practica[FIELD_NOTA_PRACTICAS],
                     nota: practica[FIELD_NOTA_PRACTICAS],
                 });
                 processedForInforme.add(linkedId);
-             }
+            }
         }
     }
-    
+
     informeTasks.sort((a, b) => {
         const aIsPending = !a.informeSubido;
         const bIsPending = !b.informeSubido;
         if (aIsPending && !bIsPending) return -1;
         if (!aIsPending && bIsPending) return 1;
-        
+
         const dateA = parseToUTCDate(a.fechaFinalizacion)?.getTime() || 0;
         const dateB = parseToUTCDate(b.fechaFinalizacion)?.getTime() || 0;
         return dateA - dateB;

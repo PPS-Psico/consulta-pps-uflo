@@ -10,7 +10,8 @@ import {
     FIELD_PERMITE_CERTIFICADO_LANZAMIENTOS,
     FIELD_NOMBRE_PPS_LANZAMIENTOS,
     FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS,
-    FIELD_REQ_CV_LANZAMIENTOS
+    FIELD_REQ_CV_LANZAMIENTOS,
+    FIELD_HORARIOS_FIJOS_LANZAMIENTOS
 } from '../constants';
 
 const AppModals: React.FC = () => {
@@ -41,6 +42,7 @@ const AppModals: React.FC = () => {
     // New Config Flags
     const reqCertificadoTrabajo = selectedLanzamientoForEnrollment?.[FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS] !== false; // Default true for legacy
     const reqCv = !!selectedLanzamientoForEnrollment?.[FIELD_REQ_CV_LANZAMIENTOS];
+    const horariosFijos = !!selectedLanzamientoForEnrollment?.[FIELD_HORARIOS_FIJOS_LANZAMIENTOS];
 
     // Fix: Use constant key instead of hardcoded string to ensure compatibility with snake_case DB response
     const convocatoriaName = selectedLanzamientoForEnrollment?.[FIELD_NOMBRE_PPS_LANZAMIENTOS] || 'Convocatoria';
@@ -65,6 +67,7 @@ const AppModals: React.FC = () => {
                 studentProfile={studentProfileForEnrollment}
                 reqCertificadoTrabajo={reqCertificadoTrabajo}
                 reqCv={reqCv}
+                horariosFijos={horariosFijos}
             />
 
             <SeleccionadosModal

@@ -4,11 +4,12 @@ interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
     label?: string;
     sublabel?: string;
     wrapperClassName?: string;
+    labelClassName?: string;
     error?: boolean | string;
 }
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-    ({ id, checked, onChange, disabled = false, label, sublabel, className = '', wrapperClassName = '', error, ...props }, ref) => (
+    ({ id, checked, onChange, disabled = false, label, sublabel, className = '', wrapperClassName = '', labelClassName = '', error, ...props }, ref) => (
         <label
             htmlFor={id}
             className={`
@@ -55,7 +56,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             </div>
             {(label || sublabel) && (
                 <div className="flex flex-col select-none">
-                    {label && <span className={`text-sm font-medium transition-colors ${error ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-200 group-hover:text-amber-900 dark:group-hover:text-blue-100'}`}>{label}</span>}
+                    {label && <span className={`text-sm font-medium transition-colors ${error ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-200 group-hover:text-amber-900 dark:group-hover:text-blue-100'} ${labelClassName}`}>{label}</span>}
                     {sublabel && <span className="text-xs text-slate-500 dark:text-slate-400">{sublabel}</span>}
                 </div>
             )}

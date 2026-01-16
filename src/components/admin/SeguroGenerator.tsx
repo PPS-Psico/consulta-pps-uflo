@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../../lib/db';
 import { supabase } from '../../lib/supabaseClient';
-import { formatDate, normalizeStringForComparison, simpleNameSplit, safeGetId } from '../../utils/formatters';
+import { formatDate, normalizeStringForComparison, simpleNameSplit, safeGetId, formatPhoneNumber } from '../../utils/formatters';
 import type { Convocatoria } from '../../types';
 import {
     FIELD_NOMBRE_PPS_CONVOCATORIAS,
@@ -27,6 +27,7 @@ import {
     FIELD_DIRECCION_CONVOCATORIAS,
     FIELD_HORARIO_FORMULA_CONVOCATORIAS,
     FIELD_ORIENTACION_CONVOCATORIAS,
+    FIELD_HORARIOS_FIJOS_LANZAMIENTOS,
 } from '../../constants';
 import Loader from '../Loader';
 import EmptyState from '../EmptyState';
@@ -58,11 +59,6 @@ interface StudentForReview {
     duracionCompleta: string;
     tutor: string;
     orientacion: string;
-}
-
-function formatPhoneNumber(phone?: string): string {
-    if (!phone) return '';
-    return phone.replace(/^\+54\s?9?\s?/, '').trim();
 }
 
 const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingMode = false, preSelectedLanzamientoId }) => {
@@ -243,7 +239,13 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
                     const fechaInicio = ppsData?.[FIELD_FECHA_INICIO_LANZAMIENTOS] || group[FIELD_FECHA_INICIO_CONVOCATORIAS];
                     const fechaFin = ppsData?.[FIELD_FECHA_FIN_LANZAMIENTOS] || group[FIELD_FECHA_FIN_CONVOCATORIAS];
 
-                    const horario = specificConv?.[FIELD_HORARIO_FORMULA_CONVOCATORIAS] || ppsData?.[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS] || 'A definir';
+                    // Logic for schedules: If fixed (all mandatory), use lanzamiento schedules. 
+                    // Otherwise, use student's specific choice or fallback to lanzamiento's default.
+                    const isFixed = !!ppsData?.[FIELD_HORARIOS_FIJOS_LANZAMIENTOS];
+                    const horario = isFixed
+                        ? (ppsData?.[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS] || 'A definir')
+                        : (specificConv?.[FIELD_HORARIO_FORMULA_CONVOCATORIAS] || ppsData?.[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS] || 'A definir');
+
                     const orientacion = ppsData?.[FIELD_ORIENTACION_LANZAMIENTOS] || group[FIELD_ORIENTACION_CONVOCATORIAS] || 'General';
 
                     const fullName = student[FIELD_NOMBRE_ESTUDIANTES] || '';
@@ -340,15 +342,13 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Listado_Alumnos_${new Date().toISOString().split('T')[0]}.xlsx`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const fileSaver = await import('file-saver');
+            fileSaver.saveAs(blob, `Listado_Alumnos_${new Date().toISOString().split('T')[0]}.xlsx`);
+
             setToastInfo({ message: 'Excel generado correctamente.', type: 'success' });
 
         } catch (e: any) {
+            console.error('Error generating Excel:', e);
             showModal('Error', 'No se pudo generar el Excel: ' + e.message);
         }
     };
@@ -357,27 +357,33 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({ showModal, isTestingM
     const handleDownloadTemplate = async (institutionName: string) => {
         try {
             setIsLoading(true);
-            setLoadingMessage('Descargando plantilla...');
+            setLoadingMessage('Descargando plantilla de Supabase...');
 
             const { data, error } = await supabase
                 .storage
                 .from('documentos_seguros')
                 .download('Seguro (2).xlsx');
 
-            if (error) throw error;
-            if (!data) throw new Error('El archivo descargado está vacío.');
+            if (error) {
+                console.warn('Error downloading specific file, trying alternative...', error);
+                // Fallback attempt if name is slightly different
+                const { data: altData, error: altError } = await supabase
+                    .storage
+                    .from('documentos_seguros')
+                    .download('Seguro.xlsx');
 
-            const blob = data;
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            const cleanName = institutionName.replace(/[\\/?*[\]]/g, "").substring(0, 50);
-            link.download = `Seguro - ${cleanName}.xlsx`;
+                if (altError) throw altError;
+                if (!altData) throw new Error('No se encontró la plantilla en el servidor.');
 
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
+                const fileSaver = await import('file-saver');
+                const cleanName = institutionName.replace(/[\\/?*[\]]/g, "").substring(0, 50);
+                fileSaver.saveAs(altData, `Seguro - ${cleanName}.xlsx`);
+            } else {
+                if (!data) throw new Error('El archivo descargado está vacío.');
+                const fileSaver = await import('file-saver');
+                const cleanName = institutionName.replace(/[\\/?*[\]]/g, "").substring(0, 50);
+                fileSaver.saveAs(data, `Seguro - ${cleanName}.xlsx`);
+            }
 
             setToastInfo({ message: 'Plantilla descargada. Ahora copia los datos.', type: 'success' });
 

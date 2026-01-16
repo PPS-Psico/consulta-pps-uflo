@@ -97,43 +97,43 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
         seleccionado: {
           text: getGenderedText('Seleccionado', 'Seleccionada'),
           icon: 'verified',
-          // Emerald subtle
-          style: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
-          hover: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:border-emerald-300'
+          // Emerald Premium
+          style: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500 dark:text-white dark:border-transparent shadow-sm dark:shadow-emerald-500/20',
+          hover: 'hover:bg-emerald-100 dark:hover:bg-emerald-600 hover:border-emerald-300'
         },
         inscripto: {
           text: 'Inscripción Enviada',
           icon: 'mark_email_read',
-          // Indigo/Slate subtle
-          style: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800',
-          hover: 'hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:border-indigo-300'
+          // Indigo Professional
+          style: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800 shadow-none',
+          hover: 'hover:bg-indigo-100 dark:hover:bg-indigo-900/60 hover:border-indigo-300'
         },
         no_seleccionado: {
           text: `No ${getGenderedText('seleccionado', 'seleccionada')}`,
           icon: 'cancel',
-          // Rose subtle
-          style: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800',
-          hover: 'hover:bg-rose-100 dark:hover:bg-rose-900/40 hover:border-rose-300'
+          // Rose Premium
+          style: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800',
+          hover: 'hover:bg-rose-100 dark:hover:bg-rose-900/60 hover:border-rose-300'
         }
       };
       return statusMap[enrollmentState];
     }
 
-    // Si está cerrada y el alumno NO participó (Ver Resultados)
+    // Si está cerrada (Ver Resultados / Ver Convocados)
     if (convocatoriaState === 'cerrada') {
       return {
         text: 'Ver Convocados',
         icon: 'groups',
-        // Violet subtle (Premium look for actions that aren't strict success/fail)
-        style: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-800',
-        hover: 'hover:bg-violet-100 dark:hover:bg-violet-900/40 hover:border-violet-300'
+        // White/Indigo Premium theme (Replaced grey/faded violet)
+        style: 'bg-white text-indigo-600 border-indigo-200 dark:bg-slate-900 dark:text-indigo-400 dark:border-indigo-800 shadow-sm',
+        hover: 'hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:border-indigo-300 dark:hover:border-indigo-700'
       };
     }
 
     return {
       text: estadoConvocatoria || 'Cerrada',
       icon: convocatoriaStatusVisuals.icon,
-      style: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+      style: 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
       hover: ''
     };
   }, [enrollmentState, estadoConvocatoria, convocatoriaStatusVisuals, getGenderedText, convocatoriaState]);
@@ -205,7 +205,7 @@ const ConvocatoriaCard: React.FC<ConvocatoriaCardProps> = ({
   };
 
   return (
-    <div className="relative group glass-panel rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-1 overflow-hidden">
+    <div className="relative group glass-panel rounded-2xl shadow-sm glass-card-hover overflow-hidden">
 
       {/* Background Glow Effect */}
       <div

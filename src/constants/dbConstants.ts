@@ -78,6 +78,15 @@ export const FIELD_CODIGO_CAMPUS_LANZAMIENTOS = 'codigo_tarjeta_campus';
 export const FIELD_TELEFONO_INSTITUCION_LANZAMIENTOS = 'telefono'; // Virtual field often
 export const FIELD_PLANTILLA_SEGURO_LANZAMIENTOS = 'plantilla_seguro_url';
 export const FIELD_DURACION_INSCRIPCION_DIAS_LANZAMIENTOS = 'plazo_inscripcion_dias';
+export const FIELD_DESCRIPCION_LANZAMIENTOS = 'descripcion_larga';
+export const FIELD_ACTIVIDADES_LANZAMIENTOS = 'actividades_lista';
+export const FIELD_REQUISITO_OBLIGATORIO_LANZAMIENTOS = 'requisito_obligatorio';
+export const FIELD_ACTIVIDADES_LABEL_LANZAMIENTOS = 'actividades_label';
+export const FIELD_FECHA_INICIO_INSCRIPCION_LANZAMIENTOS = 'fecha_inicio_inscripcion';
+export const FIELD_FECHA_FIN_INSCRIPCION_LANZAMIENTOS = 'fecha_fin_inscripcion';
+export const FIELD_FECHA_PUBLICACION_LANZAMIENTOS = 'fecha_publicacion';
+export const FIELD_MENSAJE_WHATSAPP_LANZAMIENTOS = 'mensaje_whatsapp';
+export const FIELD_HORARIOS_FIJOS_LANZAMIENTOS = 'horarios_fijos';
 export const FIELD_AIRTABLE_ID = 'airtable_id';
 
 // Convocatorias
@@ -145,6 +154,8 @@ export const FIELD_CONVENIO_NUEVO_INSTITUCIONES = 'convenio_nuevo';
 export const FIELD_TUTOR_INSTITUCIONES = 'tutor';
 export const FIELD_CODIGO_CAMPUS_INSTITUCIONES = 'codigo_tarjeta_campus';
 export const FIELD_ORIENTACIONES_INSTITUCIONES = 'orientaciones';
+export const FIELD_LOGO_URL_INSTITUCIONES = 'logo_url';
+export const FIELD_LOGO_INVERT_DARK_INSTITUCIONES = 'logo_invert_dark';
 
 // Finalizacion
 export const FIELD_ESTUDIANTE_FINALIZACION = 'estudiante_id';
