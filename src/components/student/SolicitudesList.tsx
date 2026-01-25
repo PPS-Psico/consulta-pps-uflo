@@ -181,7 +181,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                         setShowPreflightModal(false);
                     }}
                     criterios={criterios}
-                    informeTasks={informeTasks}
+                    informeTask={informeTasks[0]}
                 />
             )}
 

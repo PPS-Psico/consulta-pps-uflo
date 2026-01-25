@@ -390,7 +390,7 @@ const CriteriosPanel: React.FC<CriteriosPanelProps> = ({
                     onRequestFinalization();
                 }}
                 criterios={criterios}
-                informeTasks={informeTasks}
+                informeTask={informeTasks[0]}
             />
         </section>
     );
