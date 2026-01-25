@@ -24,20 +24,27 @@ console.log('🔧 Config loaded:', {
 // Import web-push compatible con Deno
 let webpush;
 try {
-    webpush = await import('https://deno.land/x/webpush@0.2.1/mod.ts');
-    console.log('✅ web-push imported from Deno Land');
+    const webpushModule = await import('https://deno.land/x/webpush@0.2.1/mod.ts');
+    console.log('Webpush module keys:', Object.keys(webpushModule));
+    webpush = webpushModule.default || webpushModule;
+    console.log('✅ web-push imported from Deno Land. Webpush:', !!webpush);
+    console.log('Webpush methods:', Object.keys(webpush || {}));
 } catch (err) {
     console.error('❌ Failed to import web-push:', err);
 }
 
 // Initialize Web Push
 if (webpush && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-        VAPID_EMAIL,
-        VAPID_PUBLIC_KEY,
-        VAPID_PRIVATE_KEY
-    );
-    console.log('✅ VAPID configured');
+    try {
+        webpush.setVapidDetails(
+            VAPID_EMAIL,
+            VAPID_PUBLIC_KEY,
+            VAPID_PRIVATE_KEY
+        );
+        console.log('✅ VAPID configured');
+    } catch (err) {
+        console.error('❌ Failed to set VAPID:', err);
+    }
 } else {
     console.warn("⚠️ VAPID Keys not found in environment variables or web-push failed to load.");
 }
@@ -73,6 +80,9 @@ Deno.serve(async (req) => {
         const payload = JSON.stringify({ title, message, url: url || '/' });
         const results = [];
 
+        console.log(`[Push] Sending to ${subscriptions.length} subscriptions`);
+        console.log(`[Push] Webpush has sendNotification:`, typeof webpush?.sendNotification);
+
         // Send concurrently
         const promises = subscriptions.map(async (sub) => {
             try {
@@ -84,17 +94,18 @@ Deno.serve(async (req) => {
                     }
                 };
 
+                console.log(`[Push] Attempting to send to ${sub.id}`);
                 await webpush.sendNotification(pushConfig, payload);
                 return { id: sub.id, success: true };
             } catch (err) {
+                console.error(`[Push] Error sending to ${sub.id}:`, err);
                 if (err.statusCode === 410 || err.statusCode === 404) {
                     // Expired subscription, cleanup
                     console.log(`[Push] Cleaning up expired subscription ${sub.id}`);
                     await supabase.from('push_subscriptions').delete().eq('id', sub.id);
                     return { id: sub.id, success: false, error: 'Expired', cleaned: true };
                 }
-                console.error(`[Push] Error sending to ${sub.id}:`, err);
-                return { id: sub.id, success: false, error: err.message };
+                return { id: sub.id, success: false, error: err.message || String(err) };
             }
         });
 
