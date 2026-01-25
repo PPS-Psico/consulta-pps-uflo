@@ -14,20 +14,16 @@ const corsHeaders = {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-console.log('🔧 Config loaded:', {
-    hasUrl: !!SUPABASE_URL,
-    hasServiceRole: !!SUPABASE_SERVICE_ROLE_KEY,
-    hasVapidPublic: !!VAPID_PUBLIC_KEY,
-    hasVapidPrivate: !!VAPID_PRIVATE_KEY
-});
+console.log('🔧 Starting send-push function...');
 
-// Import web-push compatible con Deno
+// Import web-push from npm with compatibility fix
 let webpush;
 try {
-    const webpushModule = await import('https://deno.land/x/webpush@0.2.1/mod.ts');
-    console.log('Webpush module keys:', Object.keys(webpushModule));
-    webpush = webpushModule.default || webpushModule;
-    console.log('✅ web-push imported from Deno Land. Webpush:', !!webpush);
+    console.log('Attempting to import web-push from npm...');
+    const module = await import('https://esm.sh/web-push@3.6.7?bundle=true&no-check=true');
+    webpush = module.default;
+    console.log('✅ web-push imported. Export keys:', Object.keys(module));
+    console.log('Webpush type:', typeof webpush);
     console.log('Webpush methods:', Object.keys(webpush || {}));
 } catch (err) {
     console.error('❌ Failed to import web-push:', err);
@@ -46,10 +42,12 @@ if (webpush && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
         console.error('❌ Failed to set VAPID:', err);
     }
 } else {
-    console.warn("⚠️ VAPID Keys not found in environment variables or web-push failed to load.");
+    console.warn("⚠️ VAPID Keys or web-push not available");
 }
 
 Deno.serve(async (req) => {
+    console.log('📥 Request received:', req.method);
+
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -81,9 +79,9 @@ Deno.serve(async (req) => {
         const results = [];
 
         console.log(`[Push] Sending to ${subscriptions.length} subscriptions`);
-        console.log(`[Push] Webpush has sendNotification:`, typeof webpush?.sendNotification);
+        console.log(`[Push] webpush.sendNotification type:`, typeof webpush?.sendNotification);
 
-        // Send concurrently
+        // Send notifications
         const promises = subscriptions.map(async (sub) => {
             try {
                 const pushConfig = {
@@ -100,7 +98,6 @@ Deno.serve(async (req) => {
             } catch (err) {
                 console.error(`[Push] Error sending to ${sub.id}:`, err);
                 if (err.statusCode === 410 || err.statusCode === 404) {
-                    // Expired subscription, cleanup
                     console.log(`[Push] Cleaning up expired subscription ${sub.id}`);
                     await supabase.from('push_subscriptions').delete().eq('id', sub.id);
                     return { id: sub.id, success: false, error: 'Expired', cleaned: true };
