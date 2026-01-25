@@ -26,7 +26,7 @@ import { fetchSeleccionados } from '../../services/dataService';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { mockDb } from '../../services/mockDb';
-import { useNotifications } from '../../contexts/NotificationContext';
+
 
 interface HomeViewProps {
     myEnrollments: Convocatoria[];
