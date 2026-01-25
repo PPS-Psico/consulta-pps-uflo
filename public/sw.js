@@ -1,7 +1,7 @@
 
 // sw.js para relative base
 
-const CACHE_NAME = 'mi-panel-academico-cache-v20';
+const CACHE_NAME = 'mi-panel-academico-cache-v21';
 const FILES_TO_CACHE = [
   './index.html',
   './manifest.json',
@@ -44,14 +44,14 @@ self.addEventListener('fetch', (event) => {
       try {
         // Intento de red primero
         const networkResponse = await fetch(event.request);
-        
+
         // Si es un 404 para un archivo CSS o JS (probablemente una versión antigua hasheada),
         // devolvemos una respuesta vacía válida para no ensuciar la consola.
         if (networkResponse.status === 404 && (event.request.url.endsWith('.css') || event.request.url.endsWith('.js'))) {
-            return new Response('', { 
-                status: 200, 
-                headers: { 'Content-Type': event.request.url.endsWith('.css') ? 'text/css' : 'application/javascript' } 
-            });
+          return new Response('', {
+            status: 200,
+            headers: { 'Content-Type': event.request.url.endsWith('.css') ? 'text/css' : 'application/javascript' }
+          });
         }
 
         // Cachea copia si es OK
@@ -59,7 +59,7 @@ self.addEventListener('fetch', (event) => {
           const copy = networkResponse.clone();
           const cache = await caches.open(CACHE_NAME);
           // No bloquea la respuesta
-          cache.put(event.request, copy).catch(() => {});
+          cache.put(event.request, copy).catch(() => { });
         }
         return networkResponse;
       } catch (err) {
