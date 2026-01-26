@@ -20,8 +20,6 @@ import {
     FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS
 } from '../constants';
 import Toast from '../components/ui/Toast';
-import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage, deleteToken } from 'firebase/messaging';
 
 export interface AppNotification {
     id: string;
@@ -39,44 +37,15 @@ interface NotificationContextType {
     markAsRead: (id: string) => void;
     markAllAsRead: () => void;
     clearNotifications: () => void;
-    subscribeToPush: () => Promise<void>;
-    unsubscribeFromPush: () => Promise<void>;
-    isPushEnabled: boolean;
     showToast: (message: string, type: 'success' | 'error' | 'warning') => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDRk6xK2NmbG20dgHqBgdyYTREnrcVl_iA',
-    authDomain: 'consulta-pps-uflo.firebaseapp.com',
-    projectId: 'consulta-pps-uflo',
-    storageBucket: 'consulta-pps-uflo.firebasestorage.app',
-    messagingSenderId: '977860997987',
-    appId: '1:977860997987:web:ffc7e7716cd5da02c9d956'
-};
-
-let messaging: any;
-let firebaseInitialized = false;
-
-const initFirebase = () => {
-    if (!firebaseInitialized && typeof window !== 'undefined') {
-        try {
-            const app = initializeApp(firebaseConfig);
-            messaging = getMessaging(app);
-            firebaseInitialized = true;
-            console.log('✅ Firebase initialized');
-        } catch (err) {
-            console.error('❌ Firebase initialization error:', err);
-        }
-    }
-};
-
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { authenticatedUser, isSuperUserMode, isJefeMode, isDirectivoMode } = useAuth();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
-    const [isPushEnabled, setIsPushEnabled] = useState(false);
 
     // Persistencia Local: Set de IDs leídos
     const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(new Set());
@@ -87,137 +56,6 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const isStudent = !isAdmin && !!authenticatedUser;
     const userId = authenticatedUser?.id || 'guest';
     const STORAGE_KEY = `read_notifications_v2_${userId}`;
-    const PUSH_STORAGE_KEY = `push_enabled_${userId}`;
-
-    // Initialize Firebase on mount
-    useEffect(() => {
-        initFirebase();
-
-        // Listen for foreground messages
-        if (firebaseInitialized && messaging) {
-            const unsubscribe = onMessage(messaging, (payload: any) => {
-                console.log('Received foreground message:', payload);
-                const notification = payload.notification;
-                if (notification) {
-                    const newNotif: AppNotification = {
-                        id: `fcm-${Date.now()}`,
-                        title: notification.title || 'Notificación',
-                        message: notification.body || '',
-                        timestamp: new Date(),
-                        type: 'info',
-                        link: '/',
-                        isRead: false
-                    };
-                    addNotification(newNotif);
-                }
-            });
-
-            return () => unsubscribe();
-        }
-    }, []);
-
-    // Check Push Permission on Mount
-    useEffect(() => {
-        const storedPush = localStorage.getItem(PUSH_STORAGE_KEY);
-        if (storedPush === 'true' && Notification.permission === 'granted') {
-            setIsPushEnabled(true);
-        }
-    }, [PUSH_STORAGE_KEY]);
-
-    const subscribeToPush = async () => {
-        if (!authenticatedUser) return;
-
-        try {
-            if (!('serviceWorker' in navigator) || !('Notification' in window)) {
-                throw new Error('Tu navegador no soporta notificaciones push.');
-            }
-
-            const permission = await Notification.requestPermission();
-            if (permission !== 'granted') {
-                throw new Error('Permiso de notificaciones denegado. Habilítalo en la configuración del navegador.');
-            }
-
-            setIsPushEnabled(true);
-            localStorage.setItem(PUSH_STORAGE_KEY, 'true');
-
-            // Register service worker first
-            const swRegistration = await navigator.serviceWorker.register('/sw.js');
-
-            // Get FCM token
-            if (!messaging) {
-                throw new Error('Firebase messaging no está inicializado.');
-            }
-
-            const token = await getToken(messaging);
-
-            if (!token) {
-                throw new Error('No se pudo obtener el FCM token.');
-            }
-
-            // Save FCM token to Supabase
-            const subscriptionData = {
-                user_id: authenticatedUser.id,
-                fcm_token: token,
-                endpoint: `fcm-${token.substring(0, 20)}`, // Placeholder for compatibility
-                p256dh: '', // Placeholder for compatibility
-                auth: '' // Placeholder for compatibility
-            };
-
-            const { error: dbError } = await supabase
-                .from('push_subscriptions')
-                .upsert(subscriptionData, { onConflict: 'user_id' });
-            if (dbError) throw new Error("Error al guardar suscripción en servidor: " + dbError.message);
-
-            console.log("✅ FCM Token saved:", token);
-
-            setToast({ message: 'Notificaciones activadas correctamente.', type: 'success' });
-
-            // Test notification
-            new Notification('¡Activado!', {
-                body: 'Recibirás avisos de nuevas convocatorias aquí.',
-                icon: '/icons/icon-192x192.png'
-            });
-
-        } catch (e: any) {
-            console.error('Push subscription error:', e);
-            let msg = 'No se pudieron activar las notificaciones.';
-            if (e.message) msg = e.message;
-            setToast({ message: msg, type: 'error' });
-            setIsPushEnabled(false);
-            localStorage.removeItem(PUSH_STORAGE_KEY);
-        }
-    };
-
-    const unsubscribeFromPush = async () => {
-        if (!authenticatedUser) return;
-
-        try {
-            const registration = await navigator.serviceWorker.ready;
-            const subscription = await registration.pushManager.getSubscription();
-
-            if (subscription) {
-                // 1. Remove from Supabase
-                const { error: dbError } = await supabase
-                    .from('push_subscriptions')
-                    .delete()
-                    .eq('user_id', authenticatedUser.id)
-                    .eq('endpoint', subscription.endpoint);
-
-                if (dbError) console.error("Error removing sub from DB:", dbError);
-
-                // 2. Unsubscribe from Browser
-                await subscription.unsubscribe();
-            }
-
-            setIsPushEnabled(false);
-            localStorage.removeItem(PUSH_STORAGE_KEY);
-            setToast({ message: 'Notificaciones desactivadas.', type: 'success' });
-
-        } catch (e: any) {
-            console.error('Unsubscribe error:', e);
-            setToast({ message: 'Error al desactivar notificaciones.', type: 'error' });
-        }
-    };
 
     // 0. CARGAR LEÍDOS DESDE LOCALSTORAGE
     useEffect(() => {
@@ -308,7 +146,6 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
                 } else if (isStudent) {
                     // --- C. Nuevos Lanzamientos (Student) ---
-                    // Fetch recent launches (last 7 days) that are 'Abierta'
                     const sevenDaysAgo = new Date();
                     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -335,7 +172,6 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                     }
                 }
 
-                // Sort merged list by date desc
                 loadedNotifications.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
                 setNotifications(loadedNotifications);
 
@@ -358,13 +194,13 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_PPS },
                 async (payload: any) => {
-                    if (!isAdmin) return; // Only admins see new requests
+                    if (!isAdmin) return;
                     if (!payload || !payload.new) return;
 
                     const newRecord = payload.new;
                     const notifId = `pps-${newRecord.id}`;
 
-                    const newNotif: AppNotification = {
+                    addNotification({
                         id: notifId,
                         title: 'Nueva Solicitud de PPS',
                         message: `Nueva solicitud de inicio recibida.`,
@@ -372,24 +208,20 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                         type: 'solicitud_pps',
                         link: '/admin/solicitudes?tab=ingreso',
                         isRead: false
-                    };
-
-                    addNotification(newNotif);
+                    });
                 }
             )
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: TABLE_NAME_FINALIZACION },
                 async (payload: any) => {
-                    if (!isAdmin) return; // Only admins see new accreditation requests
+                    if (!isAdmin) return;
                     if (!payload || !payload.new) return;
 
                     const newRecord = payload.new;
                     const notifId = `fin-${newRecord.id}`;
 
-                    // We might not have the student name immediately available in the INSERT payload
-                    // but we can show a generic message or fetch details if critical.
-                    const newNotif: AppNotification = {
+                    addNotification({
                         id: notifId,
                         title: 'Nueva Solicitud de Acreditación',
                         message: `Un estudiante ha enviado documentación para finalizar.`,
@@ -397,21 +229,18 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                         type: 'acreditacion',
                         link: '/admin/solicitudes?tab=egreso',
                         isRead: false
-                    };
-
-                    addNotification(newNotif);
+                    });
                 }
             )
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: TABLE_NAME_LANZAMIENTOS_PPS }, // Listen to INSERT and UPDATE
+                { event: '*', schema: 'public', table: TABLE_NAME_LANZAMIENTOS_PPS },
                 async (payload: any) => {
-                    if (!isStudent) return; // Only students get notified of new launches
+                    if (!isStudent) return;
 
                     const newRecord = payload.new;
                     if (!newRecord) return;
 
-                    // Trigger if it's a NEW active launch OR an update that sets it to 'Abierta'
                     const isNewActive = payload.eventType === 'INSERT' && newRecord[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] === 'Abierta';
                     const isBecameActive = payload.eventType === 'UPDATE' &&
                         newRecord[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS] === 'Abierta' &&
@@ -419,16 +248,15 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
                     if (isNewActive || isBecameActive) {
                         const notifId = `launch-realtime-${newRecord.id}`;
-                        const newNotif: AppNotification = {
+                        addNotification({
                             id: notifId,
                             title: '¡Nueva Oportunidad de PPS!',
                             message: `Se ha abierto la inscripción para ${newRecord[FIELD_NOMBRE_PPS_LANZAMIENTOS]}.`,
                             timestamp: new Date(),
                             type: 'lanzamiento',
-                            link: '/student', // Link to home where cards are
+                            link: '/student',
                             isRead: false
-                        };
-                        addNotification(newNotif);
+                        });
                     }
                 }
             )
@@ -436,23 +264,21 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 'postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: TABLE_NAME_CONVOCATORIAS },
                 async (payload: any) => {
-                    if (!isStudent) return; // Only students care about their status changes here
+                    if (!isStudent) return;
 
                     const newRecord = payload.new;
                     const oldRecord = payload.old;
 
                     const studentIdInRecord = newRecord[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS];
-                    // Clean array format if necessary
                     const cleanId = Array.isArray(studentIdInRecord) ? studentIdInRecord[0] : studentIdInRecord;
 
-                    // If we have the current user ID, compare.
                     if (authenticatedUser && cleanId === authenticatedUser.id) {
                         if (newRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS] !== oldRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS]) {
                             const newState = newRecord[FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS];
                             let msg = `Tu estado ha cambiado a: ${newState}`;
                             if (newState === 'Seleccionado') msg = '¡Felicitaciones! Has sido Seleccionado para la PPS.';
 
-                            const newNotif: AppNotification = {
+                            addNotification({
                                 id: `conv-update-${newRecord.id}-${Date.now()}`,
                                 title: 'Actualización de Postulación',
                                 message: msg,
@@ -460,8 +286,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                                 type: 'estado',
                                 link: '/student/solicitudes',
                                 isRead: false
-                            };
-                            addNotification(newNotif);
+                            });
                         }
                     }
                 }
@@ -477,19 +302,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         setNotifications(prev => [notif, ...prev]);
         setToast({ message: notif.title, type: 'success' });
 
-        // System Notification Bridge (Native Android/Desktop)
-        if (isPushEnabled && 'serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then(registration => {
-                if (registration.showNotification) {
-                    registration.showNotification(notif.title, {
-                        body: notif.message,
-                        icon: '/icons/icon-192x192.png',
-                        data: { url: notif.link } // Used by SW click handler
-                    });
-                }
-            });
-        } else if (Notification.permission === 'granted' && document.hidden) {
-            // Fallback for non-SW environments or desktop if SW fails
+        // Simple Native Notification Fallback
+        if (Notification.permission === 'granted' && document.hidden) {
             new Notification(notif.title, { body: notif.message, icon: '/icons/icon-192x192.png' });
         }
 
@@ -530,9 +344,6 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             markAsRead,
             markAllAsRead,
             clearNotifications,
-            subscribeToPush,
-            unsubscribeFromPush,
-            isPushEnabled,
             showToast
         }}>
             {children}
