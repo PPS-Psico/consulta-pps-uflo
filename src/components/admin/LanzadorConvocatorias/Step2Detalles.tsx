@@ -1,18 +1,15 @@
-import React from 'react';
-import Input from '../../ui/Input';
-import Select from '../../ui/Select';
-import Checkbox from '../../ui/Checkbox';
-import { ALL_ORIENTACIONES } from '../../../types';
+import React from "react";
+import Input from "../../ui/Input";
+import Select from "../../ui/Select";
+import Checkbox from "../../ui/Checkbox";
+import { ALL_ORIENTACIONES } from "../../../types";
 
 interface Step2DetallesProps {
   formData: any;
   onChange: (field: string, value: any) => void;
 }
 
-export const Step2Detalles: React.FC<Step2DetallesProps> = ({
-  formData,
-  onChange
-}) => {
+export const Step2Detalles: React.FC<Step2DetallesProps> = ({ formData, onChange }) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-4">
@@ -35,8 +32,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
           </p>
           <Input
             type="text"
-            value={formData.nombrePPS || ''}
-            onChange={(e) => onChange('nombrePPS', e.target.value)}
+            value={formData.nombrePPS || ""}
+            onChange={(e) => onChange("nombrePPS", e.target.value)}
             placeholder="Nombre de la práctica"
             icon="school"
           />
@@ -47,11 +44,11 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
             Orientación
           </label>
           <Select
-            value={formData.orientacion || ''}
-            onChange={(e) => onChange('orientacion', e.target.value)}
-            options={ALL_ORIENTACIONES.map(orient => ({
+            value={formData.orientacion || ""}
+            onChange={(e) => onChange("orientacion", e.target.value)}
+            options={ALL_ORIENTACIONES.map((orient) => ({
               value: orient,
-              label: orient
+              label: orient,
             }))}
             placeholder="Seleccionar..."
           />
@@ -64,8 +61,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
             </label>
             <Input
               type="date"
-              value={formData.fechaInicio || ''}
-              onChange={(e) => onChange('fechaInicio', e.target.value)}
+              value={formData.fechaInicio || ""}
+              onChange={(e) => onChange("fechaInicio", e.target.value)}
               icon="event_available"
             />
           </div>
@@ -76,8 +73,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
             </label>
             <Input
               type="date"
-              value={formData.fechaFin || ''}
-              onChange={(e) => onChange('fechaFin', e.target.value)}
+              value={formData.fechaFin || ""}
+              onChange={(e) => onChange("fechaFin", e.target.value)}
               icon="event_busy"
             />
           </div>
@@ -90,8 +87,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
             </label>
             <Input
               type="date"
-              value={formData.fechaInicioInscripcion || ''}
-              onChange={(e) => onChange('fechaInicioInscripcion', e.target.value)}
+              value={formData.fechaInicioInscripcion || ""}
+              onChange={(e) => onChange("fechaInicioInscripcion", e.target.value)}
               icon="app_registration"
             />
           </div>
@@ -102,8 +99,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
             </label>
             <Input
               type="date"
-              value={formData.fechaFinInscripcion || ''}
-              onChange={(e) => onChange('fechaFinInscripcion', e.target.value)}
+              value={formData.fechaFinInscripcion || ""}
+              onChange={(e) => onChange("fechaFinInscripcion", e.target.value)}
               icon="access_time_filled"
             />
           </div>
@@ -116,8 +113,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
             </label>
             <Input
               type="number"
-              value={formData.horasAcreditadas || ''}
-              onChange={(e) => onChange('horasAcreditadas', parseInt(e.target.value) || 0)}
+              value={formData.horasAcreditadas || ""}
+              onChange={(e) => onChange("horasAcreditadas", parseInt(e.target.value) || 0)}
               placeholder="0"
               icon="schedule"
             />
@@ -129,8 +126,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
             </label>
             <Input
               type="number"
-              value={formData.cuposDisponibles || ''}
-              onChange={(e) => onChange('cuposDisponibles', parseInt(e.target.value) || 1)}
+              value={formData.cuposDisponibles || ""}
+              onChange={(e) => onChange("cuposDisponibles", parseInt(e.target.value) || 1)}
               placeholder="1"
               icon="group"
             />
@@ -146,8 +143,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
           </p>
           <Input
             type="text"
-            value={formData.requisitoObligatorio || ''}
-            onChange={(e) => onChange('requisitoObligatorio', e.target.value)}
+            value={formData.requisitoObligatorio || ""}
+            onChange={(e) => onChange("requisitoObligatorio", e.target.value)}
             placeholder="Requisito opcional..."
             icon="campaign"
           />
@@ -156,7 +153,7 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
         <div>
           <Checkbox
             checked={formData.programarLanzamiento || false}
-            onChange={(checked) => onChange('programarLanzamiento', checked)}
+            onChange={(checked) => onChange("programarLanzamiento", checked)}
             label="Si activas esto, la convocatoria se publicará automáticamente en la fecha y hora seleccionada."
           />
         </div>
@@ -168,8 +165,8 @@ export const Step2Detalles: React.FC<Step2DetallesProps> = ({
             </label>
             <Input
               type="datetime-local"
-              value={formData.fechaPublicacion || ''}
-              onChange={(e) => onChange('fechaPublicacion', e.target.value)}
+              value={formData.fechaPublicacion || ""}
+              onChange={(e) => onChange("fechaPublicacion", e.target.value)}
             />
           </div>
         )}

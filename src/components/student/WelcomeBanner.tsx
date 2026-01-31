@@ -1,6 +1,5 @@
-
-import React, { useState, useEffect } from 'react';
-import { EstudianteFields } from '../../types';
+import React, { useState, useEffect } from "react";
+import { EstudianteFields } from "../../types";
 
 interface WelcomeBannerProps {
   studentName?: string;
@@ -8,28 +7,33 @@ interface WelcomeBannerProps {
   isLoading: boolean;
 }
 
-const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
-  studentName,
-  isLoading,
-}) => {
-  const [greeting, setGreeting] = useState('');
-  const [currentDate, setCurrentDate] = useState('');
+const WelcomeBanner: React.FC<WelcomeBannerProps> = ({ studentName, isLoading }) => {
+  const [greeting, setGreeting] = useState("");
+  const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
     const hour = new Date().getHours();
-    if (hour < 12 && hour >= 5) setGreeting('Buenos días');
-    else if (hour < 20 && hour >= 12) setGreeting('Buenas tardes');
-    else setGreeting('Buenas noches');
+    if (hour < 12 && hour >= 5) setGreeting("Buenos días");
+    else if (hour < 20 && hour >= 12) setGreeting("Buenas tardes");
+    else setGreeting("Buenas noches");
 
-    const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const dateStr = new Date().toLocaleDateString('es-ES', options);
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+    const dateStr = new Date().toLocaleDateString("es-ES", options);
     // Capitalizar primera letra
     setCurrentDate(dateStr.charAt(0).toUpperCase() + dateStr.slice(1));
   }, []);
 
-  if (isLoading) return <div className="h-24 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl animate-pulse mb-8" />;
+  if (isLoading)
+    return (
+      <div className="h-24 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl animate-pulse mb-8" />
+    );
 
-  const firstName = studentName?.split(' ')[0] || 'Estudiante';
+  const firstName = studentName?.split(" ")[0] || "Estudiante";
 
   return (
     <div className="relative mb-8 pt-4 px-2">
@@ -38,7 +42,8 @@ const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
         <div className="flex-1">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
             <span className="block md:inline">
-              {greeting}<span className="hidden md:inline">,</span>
+              {greeting}
+              <span className="hidden md:inline">,</span>
             </span>
             <span className="hidden md:inline"> </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400">

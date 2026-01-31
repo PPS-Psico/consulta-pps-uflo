@@ -1,8 +1,7 @@
-
-import { Database } from './types/supabase';
+import { Database } from "./types/supabase";
 
 // --- Supabase Tables Shortcuts ---
-type Tables = Database['public']['Tables'];
+type Tables = Database["public"]["Tables"];
 
 // --- Base Record Type (Optional helper if you still use it) ---
 export type AppRecord<T> = T & {
@@ -12,10 +11,10 @@ export type AppRecord<T> = T & {
 };
 
 // Map strict Database types to App types
-export type Estudiante = Tables['estudiantes']['Row'];
-export type Practica = Tables['practicas']['Row'];
-export type SolicitudPPS = Tables['solicitudes_pps']['Row'];
-export type LanzamientoPPS = Tables['lanzamientos_pps']['Row'] & {
+export type Estudiante = Tables["estudiantes"]["Row"];
+export type Practica = Tables["practicas"]["Row"];
+export type SolicitudPPS = Tables["solicitudes_pps"]["Row"];
+export type LanzamientoPPS = Tables["lanzamientos_pps"]["Row"] & {
   descripcion_larga?: string | null;
   actividades_lista?: string[] | string | null;
   requisito_obligatorio?: string | null;
@@ -25,13 +24,13 @@ export type LanzamientoPPS = Tables['lanzamientos_pps']['Row'] & {
   horarios_fijos?: boolean | null;
   institucion_id?: string | null;
 };
-export type Convocatoria = Tables['convocatorias']['Row'];
-export type Institucion = Tables['instituciones']['Row'] & {
+export type Convocatoria = Tables["convocatorias"]["Row"];
+export type Institucion = Tables["instituciones"]["Row"] & {
   logo_url?: string | null;
   logo_invert_dark?: boolean | null;
 };
-export type FinalizacionPPS = Tables['finalizacion_pps']['Row'];
-export type Penalizacion = Tables['penalizaciones']['Row'];
+export type FinalizacionPPS = Tables["finalizacion_pps"]["Row"];
+export type Penalizacion = Tables["penalizaciones"]["Row"];
 
 // Helper aliases for components that expect "Fields" suffix
 export type EstudianteFields = Estudiante;
@@ -45,11 +44,14 @@ export type PenalizacionFields = Penalizacion;
 
 // --- Strict Joined Types for Services ---
 export type PracticaWithLanzamiento = Practica & {
-  lanzamiento: Pick<LanzamientoPPS, 'nombre_pps' | 'orientacion' | 'fecha_inicio' | 'fecha_finalizacion'> | null;
+  lanzamiento: Pick<
+    LanzamientoPPS,
+    "nombre_pps" | "orientacion" | "fecha_inicio" | "fecha_finalizacion"
+  > | null;
 };
 
 export type SolicitudWithEstudiante = SolicitudPPS & {
-  estudiante: Pick<Estudiante, 'nombre' | 'legajo' | 'correo'> | null;
+  estudiante: Pick<Estudiante, "nombre" | "legajo" | "correo"> | null;
 };
 
 export type AirtableRecord<T> = AppRecord<T>;
@@ -63,10 +65,17 @@ export interface AppErrorResponse {
   error: AppError | string;
 }
 
-export const ALL_ORIENTACIONES = ['Clinica', 'Educacional', 'Laboral', 'Comunitaria'] as const;
-export type Orientacion = typeof ALL_ORIENTACIONES[number];
+export const ALL_ORIENTACIONES = ["Clinica", "Educacional", "Laboral", "Comunitaria"] as const;
+export type Orientacion = (typeof ALL_ORIENTACIONES)[number];
 
-export type TabId = 'inicio' | 'solicitudes' | 'practicas' | 'profile' | 'calendario' | 'finalizacion' | 'informes';
+export type TabId =
+  | "inicio"
+  | "solicitudes"
+  | "practicas"
+  | "profile"
+  | "calendario"
+  | "finalizacion"
+  | "informes";
 
 export interface CriteriosCalculados {
   horasTotales: number;
@@ -83,16 +92,16 @@ export interface CriteriosCalculados {
 
 // --- Component-specific Types ---
 export interface InformeTask {
-    convocatoriaId: string;
-    practicaId?: string;
-    ppsName: string;
-    informeLink?: string;
-    fechaFinalizacion: string;
-    informeSubido: boolean;
-    nota?: string | null;
-    fechaEntregaInforme?: string | null;
-    // TODO: Use `informeTask` property in components instead:
-    // informeTask: string;
+  convocatoriaId: string;
+  practicaId?: string;
+  ppsName: string;
+  informeLink?: string;
+  fechaFinalizacion: string;
+  informeSubido: boolean;
+  nota?: string | null;
+  fechaEntregaInforme?: string | null;
+  // TODO: Use `informeTask` property in components instead:
+  // informeTask: string;
 }
 
 export type SelectedStudent = { nombre: string; legajo: string };
@@ -154,7 +163,7 @@ export interface CalendarEvent {
   schedule: string;
   orientation: string;
   location: string;
-  colorClasses: { tag: string; dot: string; };
+  colorClasses: { tag: string; dot: string };
   startDate?: string | null;
   endDate?: string | null;
 }
@@ -164,7 +173,7 @@ export interface Attachment {
   filename?: string;
 }
 
-export type ReportType = '2024' | '2025' | 'comparative';
+export type ReportType = "2024" | "2025" | "comparative";
 
 export interface TimelineMonthData {
   monthName: string;
@@ -188,9 +197,9 @@ export interface PPSRequestSummary {
 }
 
 export interface ExecutiveReportData {
-  reportType: 'singleYear';
+  reportType: "singleYear";
   year: number;
-  period: { current: { start: string; end: string }; previous: { start: string; end: string }; };
+  period: { current: { start: string; end: string }; previous: { start: string; end: string } };
   summary: string;
   kpis: {
     activeStudents: KPISnapshot;
@@ -211,7 +220,7 @@ interface KPIComparison {
   year2025: number;
 }
 export interface ComparativeExecutiveReportData {
-  reportType: 'comparative';
+  reportType: "comparative";
   summary: string;
   kpis: {
     activeStudents: KPIComparison;
@@ -222,9 +231,9 @@ export interface ComparativeExecutiveReportData {
     totalOfferedSpots: KPIComparison;
     newAgreements: KPIComparison;
   };
-  launchesByMonth: { year2024: TimelineMonthData[]; year2025: TimelineMonthData[]; };
-  newAgreements: { year2024: string[]; year2025: string[]; };
-  ppsRequests: { year2024: PPSRequestSummary[]; year2025: PPSRequestSummary[]; };
+  launchesByMonth: { year2024: TimelineMonthData[]; year2025: TimelineMonthData[] };
+  newAgreements: { year2024: string[]; year2025: string[] };
+  ppsRequests: { year2024: PPSRequestSummary[]; year2025: PPSRequestSummary[] };
 }
 
 export type AnyReportData = ExecutiveReportData | ComparativeExecutiveReportData;

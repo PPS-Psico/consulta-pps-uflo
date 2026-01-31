@@ -1,6 +1,6 @@
-import React from 'react';
-import Input from '../../ui/Input';
-import Button from '../../ui/Button';
+import React from "react";
+import Input from "../../ui/Input";
+import Button from "../../ui/Button";
 
 interface Step4HorariosProps {
   schedules: string[];
@@ -13,7 +13,7 @@ export const Step4Horarios: React.FC<Step4HorariosProps> = ({
   schedules,
   setSchedules,
   horariosFijos,
-  onChange
+  onChange,
 }) => {
   return (
     <div className="space-y-6">
@@ -23,7 +23,9 @@ export const Step4Horarios: React.FC<Step4HorariosProps> = ({
         </div>
         <div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">4. Horarios</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Configura los horarios de la práctica</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Configura los horarios de la práctica
+          </p>
         </div>
       </div>
 
@@ -37,7 +39,7 @@ export const Step4Horarios: React.FC<Step4HorariosProps> = ({
               type="radio"
               name="horarioTipo"
               checked={!horariosFijos}
-              onChange={() => onChange('horariosFijos', false)}
+              onChange={() => onChange("horariosFijos", false)}
               className="w-4 h-4 text-blue-600"
             />
             <span className="text-sm">Los estudiantes seleccionan sus horarios</span>
@@ -47,7 +49,7 @@ export const Step4Horarios: React.FC<Step4HorariosProps> = ({
               type="radio"
               name="horarioTipo"
               checked={horariosFijos}
-              onChange={() => onChange('horariosFijos', true)}
+              onChange={() => onChange("horariosFijos", true)}
               className="w-4 h-4 text-blue-600"
             />
             <span className="text-sm">Horarios fijos predefinidos</span>
@@ -94,7 +96,7 @@ export const Step4Horarios: React.FC<Step4HorariosProps> = ({
             ))}
 
             <Button
-              onClick={() => setSchedules([...schedules, ''])}
+              onClick={() => setSchedules([...schedules, ""])}
               icon="add"
               variant="secondary"
               className="w-full"
@@ -116,9 +118,7 @@ export const Step4Horarios: React.FC<Step4HorariosProps> = ({
           <div className="flex items-start gap-2">
             <span className="material-icons text-blue-600 dark:text-blue-400">info</span>
             <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                Modo Flexible
-              </p>
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Modo Flexible</p>
               <p className="text-xs text-blue-700 dark:text-blue-300">
                 Los estudiantes podrán seleccionar sus horarios disponibles desde un calendario.
               </p>

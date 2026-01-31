@@ -1,6 +1,6 @@
-import React from 'react';
-import Card from './ui/Card';
-import EmptyState from './EmptyState';
+import React from "react";
+import Card from "./ui/Card";
+import EmptyState from "./EmptyState";
 
 const InstitutionMetrics: React.FC = () => {
   return (

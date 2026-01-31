@@ -1,7 +1,6 @@
-
-import React, { useState, useMemo } from 'react';
-import type { InformeTask } from '../types';
-import { formatDate, parseToUTCDate } from '../utils/formatters';
+import React, { useState, useMemo } from "react";
+import type { InformeTask } from "../types";
+import { formatDate, parseToUTCDate } from "../utils/formatters";
 
 interface InformeCardProps {
   task: InformeTask;
@@ -14,35 +13,41 @@ const InformeCard: React.FC<InformeCardProps> = ({ task, onConfirmar }) => {
 
   const statusInfo = useMemo(() => {
     // If it has been graded with a final score, that's the terminal state.
-    if (nota && nota !== 'Sin calificar' && nota !== 'Entregado (sin corregir)' && nota !== 'No Entregado') {
+    if (
+      nota &&
+      nota !== "Sin calificar" &&
+      nota !== "Entregado (sin corregir)" &&
+      nota !== "No Entregado"
+    ) {
       return {
-        key: 'calificado',
-        icon: 'task_alt',
-        iconContainerClass: 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
+        key: "calificado",
+        icon: "task_alt",
+        iconContainerClass: "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300",
       };
     }
     // If the report has been submitted (either for real or optimistically), it's in correction.
     // This takes precedence over "Sin calificar" or "No Entregado" notes.
     if (informeSubido) {
       return {
-        key: 'en_correccion',
-        icon: 'hourglass_top',
-        iconContainerClass: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300',
+        key: "en_correccion",
+        icon: "hourglass_top",
+        iconContainerClass:
+          "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300",
       };
     }
     // If none of the above, it's pending submission.
     return {
-      key: 'pendiente',
-      icon: 'upload',
-      iconContainerClass: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 animate-[subtle-bob_1.5s_ease-in-out_infinite] group-hover:scale-110',
+      key: "pendiente",
+      icon: "upload",
+      iconContainerClass:
+        "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 animate-[subtle-bob_1.5s_ease-in-out_infinite] group-hover:scale-110",
     };
   }, [nota, informeSubido]);
 
-
   const { deadlineLabel, deadline } = useMemo(() => {
-    const isSubmitted = statusInfo.key === 'en_correccion' && task.fechaEntregaInforme;
+    const isSubmitted = statusInfo.key === "en_correccion" && task.fechaEntregaInforme;
     const baseDateString = isSubmitted ? task.fechaEntregaInforme : task.fechaFinalizacion;
-    const label = isSubmitted ? 'Límite de Corrección' : 'Fecha Estimada de Entrega';
+    const label = isSubmitted ? "Límite de Corrección" : "Fecha Estimada de Entrega";
 
     const baseDate = parseToUTCDate(baseDateString);
     if (!baseDate) {
@@ -56,8 +61,8 @@ const InformeCard: React.FC<InformeCardProps> = ({ task, onConfirmar }) => {
   }, [task.fechaFinalizacion, task.fechaEntregaInforme, statusInfo.key]);
 
   const handleConfirmClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault(); 
-    e.stopPropagation(); 
+    e.preventDefault();
+    e.stopPropagation();
     setIsConfirming(true);
     try {
       await onConfirmar(task);
@@ -68,32 +73,35 @@ const InformeCard: React.FC<InformeCardProps> = ({ task, onConfirmar }) => {
 
   const DeadlineInfo: React.FC = () => {
     if (!deadline) {
-        return (
-            <p className="text-sm font-bold mt-1.5 text-slate-400 dark:text-slate-500 italic">
-                Fecha límite no disponible
-            </p>
-        );
+      return (
+        <p className="text-sm font-bold mt-1.5 text-slate-400 dark:text-slate-500 italic">
+          Fecha límite no disponible
+        </p>
+      );
     }
-    if (statusInfo.key === 'calificado') {
+    if (statusInfo.key === "calificado") {
       return null;
     }
-    
+
     // Visualización neutra sin alertas de colores
     return (
       <p className="text-sm font-semibold mt-2 text-slate-500 dark:text-slate-400 tracking-tight">
-        {deadlineLabel}: <span className="text-slate-700 dark:text-slate-300">{formatDate(deadline.toISOString())}</span>
+        {deadlineLabel}:{" "}
+        <span className="text-slate-700 dark:text-slate-300">
+          {formatDate(deadline.toISOString())}
+        </span>
       </p>
     );
   };
 
   const ActionComponent = () => {
     const baseButtonClass =
-      'w-full inline-flex items-center justify-center gap-2 font-bold text-sm py-2.5 px-5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-opacity-50 transform hover:-translate-y-0.5';
+      "w-full inline-flex items-center justify-center gap-2 font-bold text-sm py-2.5 px-5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 focus:ring-opacity-50 transform hover:-translate-y-0.5";
     const baseLabelClass =
-      'w-full inline-flex items-center justify-center gap-2 font-bold text-sm py-2.5 px-5 rounded-full border';
+      "w-full inline-flex items-center justify-center gap-2 font-bold text-sm py-2.5 px-5 rounded-full border";
 
     switch (statusInfo.key) {
-      case 'calificado':
+      case "calificado":
         return (
           <div
             className={`${baseLabelClass} bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/50 dark:text-blue-200 dark:border-blue-700/50`}
@@ -103,7 +111,7 @@ const InformeCard: React.FC<InformeCardProps> = ({ task, onConfirmar }) => {
             <span>Nota: {nota}</span>
           </div>
         );
-      case 'en_correccion':
+      case "en_correccion":
         return (
           <div
             className={`${baseLabelClass} bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-200 dark:border-emerald-700/50`}
@@ -113,21 +121,21 @@ const InformeCard: React.FC<InformeCardProps> = ({ task, onConfirmar }) => {
             <span>Entregado</span>
           </div>
         );
-      case 'pendiente':
+      case "pendiente":
         return (
-            <button
-              onClick={handleConfirmClick}
-              disabled={isConfirming}
-              className={`${baseButtonClass} bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed`}
-              aria-label="Confirmar entrega del informe"
-            >
-              {isConfirming ? (
-                <div className="border-2 border-slate-400/50 dark:border-slate-500/50 border-t-slate-500 dark:border-t-slate-400 rounded-full w-4 h-4 animate-spin"></div>
-              ) : (
-                <span className="material-icons !text-base">task_alt</span>
-              )}
-              <span>Confirmar Entrega</span>
-            </button>
+          <button
+            onClick={handleConfirmClick}
+            disabled={isConfirming}
+            className={`${baseButtonClass} bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed`}
+            aria-label="Confirmar entrega del informe"
+          >
+            {isConfirming ? (
+              <div className="border-2 border-slate-400/50 dark:border-slate-500/50 border-t-slate-500 dark:border-t-slate-400 rounded-full w-4 h-4 animate-spin"></div>
+            ) : (
+              <span className="material-icons !text-base">task_alt</span>
+            )}
+            <span>Confirmar Entrega</span>
+          </button>
         );
       default:
         return null;
@@ -140,33 +148,35 @@ const InformeCard: React.FC<InformeCardProps> = ({ task, onConfirmar }) => {
       target="_blank"
       rel="noopener noreferrer"
       className="group block bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-lg shadow-slate-200/40 dark:shadow-black/40 border border-slate-200 dark:border-slate-800 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 hover:bg-gradient-to-br from-white to-slate-50/50 dark:hover:bg-gradient-to-br dark:from-gray-900 dark:to-slate-900 animate-fade-in"
-      style={{ willChange: 'transform, box-shadow' }}
+      style={{ willChange: "transform, box-shadow" }}
       aria-labelledby={`task-${task.convocatoriaId}`}
     >
-        <article className="flex items-center gap-5">
-            <div
-                className={`flex-shrink-0 size-12 rounded-xl flex items-center justify-center ${statusInfo.iconContainerClass} transition-all duration-300`}
+      <article className="flex items-center gap-5">
+        <div
+          className={`flex-shrink-0 size-12 rounded-xl flex items-center justify-center ${statusInfo.iconContainerClass} transition-all duration-300`}
+        >
+          <span className="material-icons !text-2xl">{statusInfo.icon}</span>
+        </div>
+
+        <div className="flex-grow flex flex-col sm:flex-row justify-between sm:items-center min-w-0 gap-4">
+          <div className="flex-grow min-w-0">
+            <h3
+              id={`task-${task.convocatoriaId}`}
+              className="text-slate-900 dark:text-slate-50 font-extrabold text-lg leading-tight tracking-tight flex items-center"
             >
-                <span className="material-icons !text-2xl">{statusInfo.icon}</span>
-            </div>
+              {task.ppsName}
+              <span className="material-icons !text-base text-slate-400 dark:text-slate-500 ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                launch
+              </span>
+            </h3>
+            <DeadlineInfo />
+          </div>
 
-            <div className="flex-grow flex flex-col sm:flex-row justify-between sm:items-center min-w-0 gap-4">
-                <div className="flex-grow min-w-0">
-                <h3
-                    id={`task-${task.convocatoriaId}`}
-                    className="text-slate-900 dark:text-slate-50 font-extrabold text-lg leading-tight tracking-tight flex items-center"
-                >
-                    {task.ppsName}
-                    <span className="material-icons !text-base text-slate-400 dark:text-slate-500 ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">launch</span>
-                </h3>
-                <DeadlineInfo />
-                </div>
-
-                <div className="flex-shrink-0 self-start sm:self-center w-full sm:w-52">
-                  <ActionComponent />
-                </div>
-            </div>
-        </article>
+          <div className="flex-shrink-0 self-start sm:self-center w-full sm:w-52">
+            <ActionComponent />
+          </div>
+        </div>
+      </article>
     </a>
   );
 };

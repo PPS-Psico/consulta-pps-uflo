@@ -1,8 +1,7 @@
-
-import React from 'react';
-import { ALERT_PRACTICAS_TITLE, ALERT_PRACTICAS_TEXT, ALERT_INFORMES_TITLE } from '../../constants';
-import Card from '../ui/Card';
-import type { TabId } from '../../types';
+import React from "react";
+import { ALERT_PRACTICAS_TITLE, ALERT_PRACTICAS_TEXT, ALERT_INFORMES_TITLE } from "../../constants";
+import Card from "../ui/Card";
+import type { TabId } from "../../types";
 
 interface FooterProps {
   activeTab: TabId;
@@ -19,39 +18,42 @@ interface NoticeConfig {
 
 const noticeConfig: Partial<Record<TabId, NoticeConfig>> = {
   inicio: {
-    title: 'Sobre las Convocatorias',
-    text: 'Las convocatorias se abren y cierran según las necesidades de las instituciones. Si no ves una PPS de tu interés, ¡vuelve a consultar pronto! Las fechas y horarios son definidos por cada institución y no pueden modificarse.',
-    icon: 'campaign',
-    mailToSubject: 'Consulta sobre Convocatorias de PPS - Mi Panel Académico',
-    mailToBody: 'Hola,\n\nTengo una consulta sobre las convocatorias de PPS.\n\n- Nombre Completo: [Escribe tu nombre]\n- Legajo: [Escribe tu legajo]\n- Mi consulta es: [Describe tu duda]\n\nGracias.',
-    buttonText: 'Consultar sobre convocatorias'
+    title: "Sobre las Convocatorias",
+    text: "Las convocatorias se abren y cierran según las necesidades de las instituciones. Si no ves una PPS de tu interés, ¡vuelve a consultar pronto! Las fechas y horarios son definidos por cada institución y no pueden modificarse.",
+    icon: "campaign",
+    mailToSubject: "Consulta sobre Convocatorias de PPS - Mi Panel Académico",
+    mailToBody:
+      "Hola,\n\nTengo una consulta sobre las convocatorias de PPS.\n\n- Nombre Completo: [Escribe tu nombre]\n- Legajo: [Escribe tu legajo]\n- Mi consulta es: [Describe tu duda]\n\nGracias.",
+    buttonText: "Consultar sobre convocatorias",
   },
   solicitudes: {
-    title: 'Acerca de tus Solicitudes',
-    text: 'El estado de tus solicitudes de PPS se actualiza a medida que avanzan las gestiones con las instituciones, lo cual puede tomar tiempo. Te mantendremos informado de cada avance a través de notificaciones por correo electrónico. Si tienes dudas sobre un estado en particular, puedes contactarnos.',
-    icon: 'list_alt',
-    mailToSubject: 'Consulta sobre Estado de Solicitud de PPS - Mi Panel Académico',
-    mailToBody: 'Hola,\n\nTengo una consulta sobre el estado de mi solicitud de PPS.\n\n- Nombre Completo: [Escribe tu nombre]\n- Legajo: [Escribe tu legajo]\n- Institución Solicitada: [Escribe el nombre de la institución]\n\nGracias.',
-    buttonText: 'Consultar sobre una solicitud'
+    title: "Acerca de tus Solicitudes",
+    text: "El estado de tus solicitudes de PPS se actualiza a medida que avanzan las gestiones con las instituciones, lo cual puede tomar tiempo. Te mantendremos informado de cada avance a través de notificaciones por correo electrónico. Si tienes dudas sobre un estado en particular, puedes contactarnos.",
+    icon: "list_alt",
+    mailToSubject: "Consulta sobre Estado de Solicitud de PPS - Mi Panel Académico",
+    mailToBody:
+      "Hola,\n\nTengo una consulta sobre el estado de mi solicitud de PPS.\n\n- Nombre Completo: [Escribe tu nombre]\n- Legajo: [Escribe tu legajo]\n- Institución Solicitada: [Escribe el nombre de la institución]\n\nGracias.",
+    buttonText: "Consultar sobre una solicitud",
   },
   practicas: {
     title: ALERT_PRACTICAS_TITLE,
     text: ALERT_PRACTICAS_TEXT,
-    icon: 'gavel',
-    mailToSubject: 'Solicitud de Corrección de Datos - Mi Panel Académico',
-    mailToBody: 'Hola,\n\nSolicito una corrección en mis datos. Adjunto la documentación respaldatoria (ej. planilla de asistencia).\n\n- Nombre Completo: [Escribe tu nombre]\n- Legajo: [Escribe tu legajo]\n\nGracias.',
-    buttonText: 'Enviar correo para corrección'
+    icon: "gavel",
+    mailToSubject: "Solicitud de Corrección de Datos - Mi Panel Académico",
+    mailToBody:
+      "Hola,\n\nSolicito una corrección en mis datos. Adjunto la documentación respaldatoria (ej. planilla de asistencia).\n\n- Nombre Completo: [Escribe tu nombre]\n- Legajo: [Escribe tu legajo]\n\nGracias.",
+    buttonText: "Enviar correo para corrección",
   },
   profile: {
-    title: 'Sobre tus Datos Personales',
-    text: 'Mantener tus datos de contacto actualizados es fundamental para que las instituciones puedan contactarse contigo. Ahora tienes el control para editar tu teléfono y correo electrónico directamente desde este panel si detectas algún cambio necesario.',
-    icon: 'contact_mail',
-    mailToSubject: 'Solicitud de Actualización de Datos - Mi Panel Académico',
-    mailToBody: 'Hola,\n\nTengo una consulta o solicitud sobre mis datos personales.\n\n- Nombre Completo: [Escribe tu nombre]\n- Legajo: [Escribe tu legajo]\n- Mi consulta es: [Describe tu duda]\n\nGracias.',
-    buttonText: 'Consultar sobre mis datos'
-  }
+    title: "Sobre tus Datos Personales",
+    text: "Mantener tus datos de contacto actualizados es fundamental para que las instituciones puedan contactarse contigo. Ahora tienes el control para editar tu teléfono y correo electrónico directamente desde este panel si detectas algún cambio necesario.",
+    icon: "contact_mail",
+    mailToSubject: "Solicitud de Actualización de Datos - Mi Panel Académico",
+    mailToBody:
+      "Hola,\n\nTengo una consulta o solicitud sobre mis datos personales.\n\n- Nombre Completo: [Escribe tu nombre]\n- Legajo: [Escribe tu legajo]\n- Mi consulta es: [Describe tu duda]\n\nGracias.",
+    buttonText: "Consultar sobre mis datos",
+  },
 };
-
 
 const Footer: React.FC<FooterProps> = ({ activeTab }) => {
   const currentNotice = noticeConfig[activeTab];

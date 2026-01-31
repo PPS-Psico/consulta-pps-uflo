@@ -1,7 +1,7 @@
-import React from 'react';
-import type { InformeTask } from '../../types';
-import InformeCard from '../InformeCard';
-import EmptyState from '../EmptyState';
+import React from "react";
+import type { InformeTask } from "../../types";
+import InformeCard from "../InformeCard";
+import EmptyState from "../EmptyState";
 
 interface InformesListProps {
   tasks: InformeTask[];
@@ -21,7 +21,7 @@ const InformesList: React.FC<InformesListProps> = ({ tasks, onConfirmar }) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {tasks.map(task => (
+      {tasks.map((task) => (
         <InformeCard key={task.convocatoriaId} task={task} onConfirmar={onConfirmar} />
       ))}
     </div>

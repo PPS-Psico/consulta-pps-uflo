@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { logger } from '../utils/logger';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { logger } from "../utils/logger";
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -19,7 +19,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     super(props);
     this.state = {
       hasError: false,
-      error: undefined
+      error: undefined,
     };
   }
 
@@ -30,15 +30,18 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logger.error("ErrorBoundary caught an error:", { error, errorInfo });
 
-    const msg = error.message || '';
+    const msg = error.message || "";
 
     // Estrategia de recarga para errores de carga de chunks (módulos dinámicos)
-    if (msg.includes('Failed to fetch dynamically imported module') || msg.includes('Importing a module script failed')) {
-      if (!sessionStorage.getItem('retry-chunk-load')) {
-        sessionStorage.setItem('retry-chunk-load', 'true');
+    if (
+      msg.includes("Failed to fetch dynamically imported module") ||
+      msg.includes("Importing a module script failed")
+    ) {
+      if (!sessionStorage.getItem("retry-chunk-load")) {
+        sessionStorage.setItem("retry-chunk-load", "true");
         window.location.reload();
       } else {
-        sessionStorage.removeItem('retry-chunk-load');
+        sessionStorage.removeItem("retry-chunk-load");
       }
     }
   }
@@ -52,30 +55,31 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   render() {
     if (this.state.hasError) {
-      const msg = this.state.error?.message || '';
-      const isChunkError = msg.includes('Failed to fetch') || msg.includes('Importing a module');
-      const isDomError = msg.includes('removeChild') || msg.includes('Node');
+      const msg = this.state.error?.message || "";
+      const isChunkError = msg.includes("Failed to fetch") || msg.includes("Importing a module");
+      const isDomError = msg.includes("removeChild") || msg.includes("Node");
 
-      let title = 'Algo salió mal';
-      let description = this.state.error?.message || 'Ocurrió un error inesperado al procesar tu solicitud.';
-      let icon = 'error_outline';
+      let title = "Algo salió mal";
+      let description =
+        this.state.error?.message || "Ocurrió un error inesperado al procesar tu solicitud.";
+      let icon = "error_outline";
 
       if (isChunkError) {
-        title = 'Actualización Disponible';
-        description = 'Se ha detectado una nueva versión de la aplicación. Por favor, recarga la página para obtener las últimas mejoras.';
-        icon = 'system_update';
+        title = "Actualización Disponible";
+        description =
+          "Se ha detectado una nueva versión de la aplicación. Por favor, recarga la página para obtener las últimas mejoras.";
+        icon = "system_update";
       } else if (isDomError) {
-        title = 'Error de Interfaz';
-        description = 'La traducción automática o una extensión del navegador interfirió con la aplicación. Por favor, desactiva el traductor para este sitio y recarga.';
-        icon = 'translate';
+        title = "Error de Interfaz";
+        description =
+          "La traducción automática o una extensión del navegador interfirió con la aplicación. Por favor, desactiva el traductor para este sitio y recarga.";
+        icon = "translate";
       }
 
       return (
         <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-red-200 dark:border-red-900/50 max-w-lg mx-auto my-8 mt-20">
           <div className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full h-16 w-16 flex items-center justify-center mb-4">
-            <span className="material-icons !text-4xl">
-              {icon}
-            </span>
+            <span className="material-icons !text-4xl">{icon}</span>
           </div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 text-center">
             {title}

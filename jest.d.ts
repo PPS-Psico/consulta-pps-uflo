@@ -1,6 +1,6 @@
 /// <reference types="@testing-library/jest-dom" />
 
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 
 declare global {
   namespace jest {
@@ -26,7 +26,7 @@ declare global {
 }
 
 // Support for @jest/globals if used
-declare module '@jest/expect' {
+declare module "@jest/expect" {
   interface Matchers<R> {
     toBeInTheDocument(): R;
     toHaveAttribute(name: string, value?: any): R;

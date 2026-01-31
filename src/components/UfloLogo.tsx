@@ -1,24 +1,24 @@
-import React from 'react';
+import React from "react";
 
 interface UfloLogoProps {
   className?: string;
-  variant?: 'light' | 'dark';
+  variant?: "light" | "dark";
   style?: React.CSSProperties;
 }
 
-const UfloLogo: React.FC<UfloLogoProps> = ({ className, variant = 'light', style }) => {
-  const isDark = variant === 'dark';
-  const mainColor = isDark ? '#e2e8f0' : '#1e293b'; // slate-200 : slate-800
-  const subColor = isDark ? '#94a3b8' : '#475569';  // slate-400 : slate-600
+const UfloLogo: React.FC<UfloLogoProps> = ({ className, variant = "light", style }) => {
+  const isDark = variant === "dark";
+  const mainColor = isDark ? "#e2e8f0" : "#1e293b"; // slate-200 : slate-800
+  const subColor = isDark ? "#94a3b8" : "#475569"; // slate-400 : slate-600
 
   return (
-    <svg 
-      className={className} 
+    <svg
+      className={className}
       style={style}
       width="120"
       height="70"
-      viewBox="0 0 120 70" 
-      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 120 70"
+      xmlns="http://www.w3.org/2000/svg"
       aria-label="UFLO Universidad Logo"
     >
       <text
@@ -42,7 +42,7 @@ const UfloLogo: React.FC<UfloLogoProps> = ({ className, variant = 'light', style
         fill={subColor}
         letterSpacing="0.5"
         textAnchor="middle"
-        style={{ textTransform: 'uppercase' }}
+        style={{ textTransform: "uppercase" }}
       >
         Universidad
       </text>

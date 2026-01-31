@@ -1,8 +1,8 @@
-import React from 'react';
-import Input from '../../ui/Input';
-import Button from '../../ui/Button';
-import AIContentGenerator from './AIContentGenerator';
-import { useError } from '../../../contexts/ErrorContext';
+import React from "react";
+import Input from "../../ui/Input";
+import Button from "../../ui/Button";
+import AIContentGenerator from "./AIContentGenerator";
+import { useError } from "../../../contexts/ErrorContext";
 
 interface Step3ActividadesProps {
   formData: any;
@@ -19,34 +19,40 @@ export const Step3Actividades: React.FC<Step3ActividadesProps> = ({
   actividades,
   setActividades,
   isGenerating,
-  setIsGenerating
+  setIsGenerating,
 }) => {
   const { showError } = useError();
 
   const handleAIGenerated = (descripcion: string, newActividades: string[]) => {
-    onChange('descripcion', descripcion);
+    onChange("descripcion", descripcion);
     setActividades(newActividades);
   };
 
   const handleAIError = (error: string) => {
-    showError(error, 'AI Content Generation');
+    showError(error, "AI Content Generation");
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-          <span className="material-icons text-blue-600 dark:text-blue-400 text-lg">description</span>
+          <span className="material-icons text-blue-600 dark:text-blue-400 text-lg">
+            description
+          </span>
         </div>
         <div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">3. Contenido & Actividades</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Descripción y lista de actividades</p>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            3. Contenido & Actividades
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Descripción y lista de actividades
+          </p>
         </div>
       </div>
 
       <AIContentGenerator
-        rawText={formData.rawActivityText || ''}
-        onRawTextChange={(text) => onChange('rawActivityText', text)}
+        rawText={formData.rawActivityText || ""}
+        onRawTextChange={(text) => onChange("rawActivityText", text)}
         onGenerated={handleAIGenerated}
         onError={handleAIError}
         isGenerating={isGenerating}
@@ -61,8 +67,8 @@ export const Step3Actividades: React.FC<Step3ActividadesProps> = ({
           Descripción detallada de la propuesta, objetivos y rol del practicante...
         </p>
         <textarea
-          value={formData.descripcion || ''}
-          onChange={(e) => onChange('descripcion', e.target.value)}
+          value={formData.descripcion || ""}
+          onChange={(e) => onChange("descripcion", e.target.value)}
           rows={6}
           placeholder="Describe las actividades principales..."
           className="w-full px-3 py-2 border border-gray-300 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -72,10 +78,10 @@ export const Step3Actividades: React.FC<Step3ActividadesProps> = ({
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-            {formData.actividadesLabel || 'Actividades'}
+            {formData.actividadesLabel || "Actividades"}
           </label>
           <Button
-            onClick={() => setActividades([...actividades, ''])}
+            onClick={() => setActividades([...actividades, ""])}
             icon="add"
             variant="secondary"
             size="sm"

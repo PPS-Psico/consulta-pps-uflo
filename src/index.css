@@ -24,7 +24,7 @@ body {
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f8fafc;
@@ -85,7 +85,6 @@ html.dark body {
 }
 
 @keyframes pulse-glow {
-
   0%,
   100% {
     box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
@@ -129,12 +128,14 @@ html.dark body {
 }
 
 .has-shine-effect {
-  background: linear-gradient(90deg,
-      var(--color-primary-dark, #2563eb) 0%,
-      var(--color-primary-light, #4f46e5) 20%,
-      #818cf8 50%,
-      var(--color-primary-light, #4f46e5) 80%,
-      var(--color-primary-dark, #2563eb) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--color-primary-dark, #2563eb) 0%,
+    var(--color-primary-light, #4f46e5) 20%,
+    #818cf8 50%,
+    var(--color-primary-light, #4f46e5) 80%,
+    var(--color-primary-dark, #2563eb) 100%
+  );
   background-size: 200% auto;
 }
 
@@ -161,7 +162,6 @@ html.dark body {
 
 /* 3. Subtle Bob para Ilustraciones */
 @keyframes subtle-bob {
-
   0%,
   100% {
     transform: translateY(0);
@@ -215,7 +215,9 @@ html.dark body {
 
 .glass-card-hover:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15), 0 4px 8px -4px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 12px 24px -8px rgba(0, 0, 0, 0.15),
+    0 4px 8px -4px rgba(0, 0, 0, 0.1);
   border-color: rgba(59, 130, 246, 0.3);
   /* Blue tint on hover */
 }

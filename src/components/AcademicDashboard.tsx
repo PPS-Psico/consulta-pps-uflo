@@ -1,11 +1,11 @@
 // Academic Analytics Dashboard for UFLO
-import React, { useState, useEffect } from 'react';
-import { getWebVitalsData, getPerformanceScore } from '../lib/webVitals';
-import { trackAcademicEvents, setCustomDimensions } from '../lib/analytics';
-import { trackError } from '../lib/sentry';
-import Card from './ui/Card';
-import MetricCard from './MetricCard';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect } from "react";
+import { getWebVitalsData, getPerformanceScore } from "../lib/webVitals";
+import { trackAcademicEvents, setCustomDimensions } from "../lib/analytics";
+import { trackError } from "../lib/sentry";
+import Card from "./ui/Card";
+import MetricCard from "./MetricCard";
+import { useAuth } from "../contexts/AuthContext";
 
 // Types for dashboard data
 interface AcademicMetrics {
@@ -37,24 +37,24 @@ const AcademicDashboard: React.FC = () => {
     errorRate: 0,
     performanceScore: 0,
     userEngagement: 0,
-    conversionRate: 0
+    conversionRate: 0,
   });
-  
+
   const [webVitals, setWebVitals] = useState<WebVitalsData>({});
   const [isLoading, setIsLoading] = useState(true);
   const [realTimeData, setRealTimeData] = useState({
     activeUsers: 0,
     currentLoad: 0,
-    systemHealth: 'good' as 'good' | 'warning' | 'critical'
+    systemHealth: "good" as "good" | "warning" | "critical",
   });
 
   // Initialize custom dimensions for analytics
   useEffect(() => {
     if (authenticatedUser) {
       setCustomDimensions({
-        role: authenticatedUser.role || 'Student',
-        orientation: authenticatedUser.orientaciones?.[0] || 'unknown',
-        legajo: authenticatedUser.legajo
+        role: authenticatedUser.role || "Student",
+        orientation: authenticatedUser.orientaciones?.[0] || "unknown",
+        legajo: authenticatedUser.legajo,
       });
     }
   }, [authenticatedUser]);
@@ -64,31 +64,30 @@ const AcademicDashboard: React.FC = () => {
     const fetchMetrics = async () => {
       try {
         setIsLoading(true);
-        
+
         // Simulate API calls to get academic metrics
         const academicData = await fetchAcademicMetrics();
         setMetrics(academicData);
-        
+
         // Get performance data
         const vitalsData = getWebVitalsData();
         setWebVitals(vitalsData);
-        
+
         // Track dashboard view
-        trackAcademicEvents.featureUsed('academic_dashboard', authenticatedUser?.role);
-        
+        trackAcademicEvents.featureUsed("academic_dashboard", authenticatedUser?.role);
       } catch (error) {
-        console.error('Error fetching academic metrics:', error);
-        trackError(error as Error, { context: 'academic_dashboard' });
+        console.error("Error fetching academic metrics:", error);
+        trackError(error as Error, { context: "academic_dashboard" });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchMetrics();
-    
+
     // Set up real-time updates
     const interval = setInterval(fetchMetrics, 30000); // Update every 30 seconds
-    
+
     return () => clearInterval(interval);
   }, [authenticatedUser]);
 
@@ -99,13 +98,13 @@ const AcademicDashboard: React.FC = () => {
       setRealTimeData({
         activeUsers: Math.floor(Math.random() * 100) + 20,
         currentLoad: Math.floor(Math.random() * 80) + 10,
-        systemHealth: Math.random() > 0.8 ? 'warning' : 'good'
+        systemHealth: Math.random() > 0.8 ? "warning" : "good",
       });
     };
 
     fetchRealTimeData();
     const interval = setInterval(fetchRealTimeData, 5000); // Update every 5 seconds
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -121,7 +120,7 @@ const AcademicDashboard: React.FC = () => {
           errorRate: 2.3,
           performanceScore: getPerformanceScore(),
           userEngagement: 85.2,
-          conversionRate: 92.1
+          conversionRate: 92.1,
         });
       }, 1000);
     });
@@ -129,19 +128,27 @@ const AcademicDashboard: React.FC = () => {
 
   const getHealthColor = (health: string) => {
     switch (health) {
-      case 'good': return 'text-green-600';
-      case 'warning': return 'text-yellow-600';
-      case 'critical': return 'text-red-600';
-      default: return 'text-gray-600';
+      case "good":
+        return "text-green-600";
+      case "warning":
+        return "text-yellow-600";
+      case "critical":
+        return "text-red-600";
+      default:
+        return "text-gray-600";
     }
   };
 
   const getVitalsColor = (rating: string) => {
     switch (rating) {
-      case 'good': return 'text-green-600';
-      case 'needs_improvement': return 'text-yellow-600';
-      case 'poor': return 'text-red-600';
-      default: return 'text-gray-600';
+      case "good":
+        return "text-green-600";
+      case "needs_improvement":
+        return "text-yellow-600";
+      case "poor":
+        return "text-red-600";
+      default:
+        return "text-gray-600";
     }
   };
 
@@ -163,12 +170,14 @@ const AcademicDashboard: React.FC = () => {
         </div>
         <div className="flex items-center space-x-4">
           <div className={`text-sm font-medium ${getHealthColor(realTimeData.systemHealth)}`}>
-            Estado del Sistema: {realTimeData.systemHealth === 'good' ? 'Saludable' : 
-                              realTimeData.systemHealth === 'warning' ? 'Advertencia' : 'Crítico'}
+            Estado del Sistema:{" "}
+            {realTimeData.systemHealth === "good"
+              ? "Saludable"
+              : realTimeData.systemHealth === "warning"
+                ? "Advertencia"
+                : "Crítico"}
           </div>
-          <div className="text-sm text-gray-600">
-            Usuarios Activos: {realTimeData.activeUsers}
-          </div>
+          <div className="text-sm text-gray-600">Usuarios Activos: {realTimeData.activeUsers}</div>
         </div>
       </div>
 
@@ -240,13 +249,14 @@ const AcademicDashboard: React.FC = () => {
                 <span className="text-gray-600">{name}</span>
                 <div className="flex items-center space-x-2">
                   <span className="font-medium">
-                    {name === 'CLS' ? data.value?.toFixed(3) : 
-                     name === 'INP' || name === 'FCP' || name === 'LCP' || name === 'TTFB' 
-                     ? Math.round(data.value || 0) + 'ms' : data.value}
+                    {name === "CLS"
+                      ? data.value?.toFixed(3)
+                      : name === "INP" || name === "FCP" || name === "LCP" || name === "TTFB"
+                        ? Math.round(data.value || 0) + "ms"
+                        : data.value}
                   </span>
-                  <span className={`text-sm ${getVitalsColor(data.rating || 'unknown')}`}>
-                    {data.rating === 'good' ? '✓' : 
-                     data.rating === 'needs_improvement' ? '⚠' : '✗'}
+                  <span className={`text-sm ${getVitalsColor(data.rating || "unknown")}`}>
+                    {data.rating === "good" ? "✓" : data.rating === "needs_improvement" ? "⚠" : "✗"}
                   </span>
                 </div>
               </div>
@@ -260,15 +270,19 @@ const AcademicDashboard: React.FC = () => {
         <h2 className="text-xl font-semibold mb-4">Actividad Reciente</h2>
         <div className="space-y-3">
           {[
-            'Nuevo estudiante registrado: Juan Pérez (Legajo: 12345)',
-            'Práctica completada: Hospital Italiano - 120 horas',
-            'Convocatoria lanzada: PPS Psicología Clínica',
-            'Informe enviado: María González - Práctica Final',
-            'Error del sistema: Timeout en API de estudiantes'
+            "Nuevo estudiante registrado: Juan Pérez (Legajo: 12345)",
+            "Práctica completada: Hospital Italiano - 120 horas",
+            "Convocatoria lanzada: PPS Psicología Clínica",
+            "Informe enviado: María González - Práctica Final",
+            "Error del sistema: Timeout en API de estudiantes",
           ].map((activity, index) => (
             <div key={index} className="flex items-center space-x-3 text-sm">
-              <span className="text-gray-400">{new Date(Date.now() - index * 60000).toLocaleTimeString()}</span>
-              <span className={`flex-1 ${activity.includes('Error') ? 'text-red-600' : 'text-gray-700'}`}>
+              <span className="text-gray-400">
+                {new Date(Date.now() - index * 60000).toLocaleTimeString()}
+              </span>
+              <span
+                className={`flex-1 ${activity.includes("Error") ? "text-red-600" : "text-gray-700"}`}
+              >
                 {activity}
               </span>
             </div>

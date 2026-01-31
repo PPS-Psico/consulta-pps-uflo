@@ -1,16 +1,16 @@
-import React from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
+import React from "react";
+import { useTheme } from "../../contexts/ThemeContext";
 
 const ThemeToggle: React.FC = () => {
   const { theme, setTheme } = useTheme();
 
   const cycleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
   };
 
-  const icon = theme === 'dark' ? 'dark_mode' : 'light_mode';
-  const label = theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+  const icon = theme === "dark" ? "dark_mode" : "light_mode";
+  const label = theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
 
   return (
     <button

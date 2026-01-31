@@ -1,7 +1,6 @@
+import React from "react";
 
-import React from 'react';
-
-const NOTA_OPTIONS = ['4', '5', '6', '7', '8', '9', '10'];
+const NOTA_OPTIONS = ["4", "5", "6", "7", "8", "9", "10"];
 
 interface NotaSelectorProps {
   onSelect: (nota: string) => void;
@@ -10,7 +9,6 @@ interface NotaSelectorProps {
 }
 
 const NotaSelector: React.FC<NotaSelectorProps> = ({ onSelect, onClose, currentValue }) => {
-
   const handleOptionClick = (e: React.MouseEvent, nota: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -29,13 +27,18 @@ const NotaSelector: React.FC<NotaSelectorProps> = ({ onSelect, onClose, currentV
         {NOTA_OPTIONS.map((nota) => {
           const isSelected = currentValue === nota;
 
-          let colorClass = "hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-transparent";
+          let colorClass =
+            "hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-transparent";
           if (isSelected) {
             colorClass = "bg-blue-600 text-white border-blue-600 shadow-md font-extrabold";
           } else {
             const num = parseInt(nota);
-            if (num >= 7) colorClass = "hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 hover:border-emerald-200 border-slate-100 dark:border-slate-700";
-            else colorClass = "hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-600 hover:border-amber-200 border-slate-100 dark:border-slate-700";
+            if (num >= 7)
+              colorClass =
+                "hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 hover:border-emerald-200 border-slate-100 dark:border-slate-700";
+            else
+              colorClass =
+                "hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-600 hover:border-amber-200 border-slate-100 dark:border-slate-700";
           }
 
           return (
@@ -58,7 +61,7 @@ const NotaSelector: React.FC<NotaSelectorProps> = ({ onSelect, onClose, currentV
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => handleOptionClick(e, 'Sin calificar')}
+          onClick={(e) => handleOptionClick(e, "Sin calificar")}
           className="col-span-1 h-9 rounded-lg border border-slate-100 dark:border-slate-700 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex items-center justify-center"
           title="Borrar nota"
         >

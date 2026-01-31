@@ -1,6 +1,6 @@
-import React from 'react';
-import { CriteriosPanelSkeleton, SkeletonBox } from '../Skeletons';
-import WelcomeBanner from './WelcomeBanner';
+import React from "react";
+import { CriteriosPanelSkeleton, SkeletonBox } from "../Skeletons";
+import WelcomeBanner from "./WelcomeBanner";
 
 const DashboardLoadingSkeleton: React.FC = () => (
   <div className="space-y-8 animate-fade-in w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -56,7 +56,7 @@ const DashboardLoadingSkeleton: React.FC = () => (
         <div className="space-y-6">
           <SkeletonBox className="h-7 w-40 mb-2" />
           <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 space-y-4">
-            {[1, 2, 3].map(i => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="flex gap-4 py-2">
                 <SkeletonBox className="h-12 w-12 rounded-lg flex-shrink-0" />
                 <div className="space-y-2 w-full">

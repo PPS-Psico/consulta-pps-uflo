@@ -1,8 +1,7 @@
-
-import React, { useState, useMemo } from 'react';
-import Input from './ui/Input';
-import Button from './ui/Button';
-import { normalizeStringForComparison } from '../utils/formatters';
+import React, { useState, useMemo } from "react";
+import Input from "./ui/Input";
+import Button from "./ui/Button";
+import { normalizeStringForComparison } from "../utils/formatters";
 
 interface PreSolicitudCheckModalProps {
   isOpen: boolean;
@@ -17,7 +16,7 @@ const PreSolicitudCheckModal: React.FC<PreSolicitudCheckModalProps> = ({
   onContinue,
   existingInstitutions,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   const filteredInstitutions = useMemo(() => {
     // Return all if no search term, otherwise filter
@@ -57,14 +56,19 @@ const PreSolicitudCheckModal: React.FC<PreSolicitudCheckModalProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto custom-scrollbar space-y-6 bg-white dark:bg-slate-900">
-
           {/* Requisito 1: Psicólogo */}
           <div className="flex gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl items-start">
-            <span className="material-icons text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5">psychology</span>
+            <span className="material-icons text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5">
+              psychology
+            </span>
             <div>
-              <h3 className="font-bold text-blue-900 dark:text-blue-100 text-sm">Supervisión Profesional</h3>
+              <h3 className="font-bold text-blue-900 dark:text-blue-100 text-sm">
+                Supervisión Profesional
+              </h3>
               <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 leading-relaxed">
-                Es requisito indispensable que la institución cuente con un <strong>Licenciado/a en Psicología</strong> en planta que pueda ejercer el rol de tutor/a y supervisar tu práctica.
+                Es requisito indispensable que la institución cuente con un{" "}
+                <strong>Licenciado/a en Psicología</strong> en planta que pueda ejercer el rol de
+                tutor/a y supervisar tu práctica.
               </p>
             </div>
           </div>
@@ -77,8 +81,9 @@ const PreSolicitudCheckModal: React.FC<PreSolicitudCheckModalProps> = ({
                 Solo para Nuevos Espacios
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                El objetivo de este trámite es la apertura de convenios en instituciones donde <strong>no tenemos oferta actual</strong>.
-                Por favor, verifica que la institución que propones <strong>NO</strong> esté en el siguiente listado.
+                El objetivo de este trámite es la apertura de convenios en instituciones donde{" "}
+                <strong>no tenemos oferta actual</strong>. Por favor, verifica que la institución
+                que propones <strong>NO</strong> esté en el siguiente listado.
               </p>
             </div>
 
@@ -96,8 +101,14 @@ const PreSolicitudCheckModal: React.FC<PreSolicitudCheckModalProps> = ({
                 {filteredInstitutions && filteredInstitutions.length > 0 ? (
                   <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {filteredInstitutions.map((inst, idx) => (
-                      <li key={idx} className="text-xs px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-2 truncate" title={inst}>
-                        <span className="material-icons !text-sm text-slate-400 shrink-0">apartment</span>
+                      <li
+                        key={idx}
+                        className="text-xs px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-2 truncate"
+                        title={inst}
+                      >
+                        <span className="material-icons !text-sm text-slate-400 shrink-0">
+                          apartment
+                        </span>
                         <span className="truncate font-medium">{inst}</span>
                       </li>
                     ))}

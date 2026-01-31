@@ -1,7 +1,7 @@
-import React from 'react';
+import React from "react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GEMINI_API_KEY } from '../../../constants';
-import Button from '../../ui/Button';
+import { GEMINI_API_KEY } from "../../../constants";
+import Button from "../../ui/Button";
 
 interface AIContentGeneratorProps {
   rawText: string;
@@ -18,11 +18,15 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   onGenerated,
   onError,
   isGenerating,
-  onStartGenerate
+  onStartGenerate,
 }) => {
   const handleGenerate = async () => {
     if (!rawText.trim() || !GEMINI_API_KEY) {
-      onError(!GEMINI_API_KEY ? "API key de Gemini no configurada" : "Por favor, pega el texto del convenio primero");
+      onError(
+        !GEMINI_API_KEY
+          ? "API key de Gemini no configurada"
+          : "Por favor, pega el texto del convenio primero"
+      );
       return;
     }
 
@@ -61,7 +65,10 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       const text = response.text();
 
       try {
-        const cleanedText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        const cleanedText = text
+          .replace(/```json\s*/g, "")
+          .replace(/```\s*/g, "")
+          .trim();
         const parsed = JSON.parse(cleanedText);
 
         if (!parsed.descripcion || !parsed.actividades || !Array.isArray(parsed.actividades)) {
@@ -85,7 +92,8 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
         Material de Referencia / Programa (Para IA)
       </label>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        * Pega el texto y haz click en "Generar". La IA completará la Descripción y Actividades. Luego usa "Previsualizar" para ver la tarjeta final.
+        * Pega el texto y haz click en "Generar". La IA completará la Descripción y Actividades.
+        Luego usa "Previsualizar" para ver la tarjeta final.
       </p>
       <textarea
         value={rawText}

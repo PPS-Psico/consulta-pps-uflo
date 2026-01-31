@@ -1,6 +1,5 @@
-
-import React from 'react';
-import Button from './ui/Button';
+import React from "react";
+import Button from "./ui/Button";
 
 interface PreAcreditacionCheckModalProps {
   isOpen: boolean;
@@ -35,39 +34,58 @@ const PreAcreditacionCheckModal: React.FC<PreAcreditacionCheckModalProps> = ({
             </h2>
           </div>
           <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
-            Para finalizar el trámite de acreditación, necesitarás adjuntar los siguientes documentos digitalizados:
+            Para finalizar el trámite de acreditación, necesitarás adjuntar los siguientes
+            documentos digitalizados:
           </p>
         </div>
 
         {/* Content */}
         <div className="p-6 space-y-4 bg-white dark:bg-slate-900">
-
           <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl items-start">
-            <div className="flex-shrink-0 mt-1 text-blue-500"><span className="material-icons">schedule</span></div>
+            <div className="flex-shrink-0 mt-1 text-blue-500">
+              <span className="material-icons">schedule</span>
+            </div>
             <div>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Planilla de Seguimiento de Horas</h4>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">El archivo Excel completo con tu seguimiento personal.</p>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                Planilla de Seguimiento de Horas
+              </h4>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
+                El archivo Excel completo con tu seguimiento personal.
+              </p>
             </div>
           </div>
 
           <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl items-start">
-            <div className="flex-shrink-0 mt-1 text-blue-500"><span className="material-icons">event_available</span></div>
+            <div className="flex-shrink-0 mt-1 text-blue-500">
+              <span className="material-icons">event_available</span>
+            </div>
             <div>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Planillas de Asistencia</h4>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">Fotos o PDFs de las planillas de asistencia diarias firmadas.</p>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                Planillas de Asistencia
+              </h4>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
+                Fotos o PDFs de las planillas de asistencia diarias firmadas.
+              </p>
             </div>
           </div>
 
           <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl items-start">
-            <div className="flex-shrink-0 mt-1 text-blue-500"><span className="material-icons">description</span></div>
+            <div className="flex-shrink-0 mt-1 text-blue-500">
+              <span className="material-icons">description</span>
+            </div>
             <div>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Informes Finales</h4>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">Los informes de cada una de las prácticas realizadas (corregidos y aprobados).</p>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                Informes Finales
+              </h4>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
+                Los informes de cada una de las prácticas realizadas (corregidos y aprobados).
+              </p>
             </div>
           </div>
 
-          <p className="text-xs text-center text-slate-400 font-medium italic pt-2">Asegúrate de tener todo listo antes de continuar.</p>
-
+          <p className="text-xs text-center text-slate-400 font-medium italic pt-2">
+            Asegúrate de tener todo listo antes de continuar.
+          </p>
         </div>
 
         {/* Footer */}

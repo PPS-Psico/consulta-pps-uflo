@@ -1,8 +1,8 @@
 // Sentry Configuration for Error Tracking and Performance Monitoring
-import * as Sentry from '@sentry/react';
+import * as Sentry from "@sentry/react";
 
 // Get DSN from environment variables
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || 'https://your-dsn@sentry.io/project-id';
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || "https://your-dsn@sentry.io/project-id";
 
 // Initialize Sentry
 export const initSentry = () => {
@@ -17,66 +17,66 @@ export const initSentry = () => {
       environment: import.meta.env.MODE,
 
       // Release version
-      release: `consulta-pps-uflo@${import.meta.env.VITE_APP_VERSION || '1.0.0'}`,
+      release: `consulta-pps-uflo@${import.meta.env.VITE_APP_VERSION || "1.0.0"}`,
 
       // Before send hook to filter errors
       beforeSend(event) {
         // Filter out certain errors
         if (event.exception) {
           const error = event.exception.values?.[0];
-          
+
           // Ignore network errors that are not critical
-          if (error?.value?.includes('fetch') || error?.value?.includes('NetworkError')) {
+          if (error?.value?.includes("fetch") || error?.value?.includes("NetworkError")) {
             return null;
           }
-          
+
           // Ignore Chrome extension errors
-          if (event.message?.includes('chrome-extension://')) {
+          if (event.message?.includes("chrome-extension://")) {
             return null;
           }
         }
-        
+
         return event;
       },
 
       // Custom tags for better filtering
       initialScope: {
         tags: {
-          application: 'consulta-pps-uflo',
-          platform: 'web',
-          university: 'uflo'
-        }
-      }
+          application: "consulta-pps-uflo",
+          platform: "web",
+          university: "uflo",
+        },
+      },
     });
   }
 };
 
 // Custom error tracking functions
 export const trackError = (error: Error, context?: any) => {
-  console.error('Tracking error:', error);
-  
+  console.error("Tracking error:", error);
+
   Sentry.withScope((scope) => {
     if (context) {
-      scope.setContext('custom_context', context);
+      scope.setContext("custom_context", context);
     }
-    
+
     // Add user context if available
     const user = getCurrentUser();
     if (user) {
       scope.setUser({
-        id: user.legajo || 'unknown',
-        email: user.correo || 'unknown',
-        username: user.nombre || 'unknown',
-        role: user.role || 'unknown'
+        id: user.legajo || "unknown",
+        email: user.correo || "unknown",
+        username: user.nombre || "unknown",
+        role: user.role || "unknown",
       });
     }
-    
+
     Sentry.captureException(error);
   });
 };
 
 // Track custom messages
-export const trackMessage = (message: string, level: Sentry.SeverityLevel = 'info') => {
+export const trackMessage = (message: string, level: Sentry.SeverityLevel = "info") => {
   Sentry.captureMessage(message, level);
 };
 
@@ -84,9 +84,9 @@ export const trackMessage = (message: string, level: Sentry.SeverityLevel = 'inf
 export const trackAcademicEvent = (eventName: string, data: any) => {
   Sentry.addBreadcrumb({
     message: `Academic Event: ${eventName}`,
-    category: 'academic',
-    level: 'info',
-    data
+    category: "academic",
+    level: "info",
+    data,
   });
 };
 
@@ -94,9 +94,9 @@ export const trackAcademicEvent = (eventName: string, data: any) => {
 export const trackPerformance = (operation: string, duration: number, context?: any) => {
   Sentry.addBreadcrumb({
     message: `Performance: ${operation}`,
-    category: 'performance',
-    level: 'info',
-    data: { duration, ...context }
+    category: "performance",
+    level: "info",
+    data: { duration, ...context },
   });
 };
 

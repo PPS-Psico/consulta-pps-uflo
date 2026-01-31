@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 // This is a placeholder component.
 // You can create a context here if needed.

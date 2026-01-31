@@ -1,7 +1,9 @@
-import React from 'react';
+import React from "react";
 
-export const SkeletonBox: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <div className={`animate-background-shine bg-slate-200 dark:bg-slate-700 rounded-md ${className}`} />
+export const SkeletonBox: React.FC<{ className?: string }> = ({ className = "" }) => (
+  <div
+    className={`animate-background-shine bg-slate-200 dark:bg-slate-700 rounded-md ${className}`}
+  />
 );
 
 export const CriteriosPanelSkeleton: React.FC = () => (
@@ -44,59 +46,59 @@ export const TableSkeleton: React.FC = () => (
 
 export const AdminDashboardSkeleton: React.FC = () => (
   <div className="space-y-8 animate-fade-in">
-     {/* Metrics Row */}
-     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SkeletonBox className="h-32 rounded-2xl" />
-        <SkeletonBox className="h-32 rounded-2xl" />
-        <SkeletonBox className="h-32 rounded-2xl" />
-     </div>
-     
-     {/* Main Card */}
-     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 h-96">
-         <SkeletonBox className="h-8 w-1/3 mb-6" />
-         <div className="space-y-4">
-             <SkeletonBox className="h-16 w-full" />
-             <SkeletonBox className="h-16 w-full" />
-             <SkeletonBox className="h-16 w-full" />
-         </div>
-     </div>
-     
-     {/* Secondary Columns */}
-     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 h-80">
-            <SkeletonBox className="h-8 w-1/2 mb-6" />
-            <SkeletonBox className="h-12 w-full mb-4" />
-            <SkeletonBox className="h-12 w-full mb-4" />
-         </div>
-         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 h-80">
-            <SkeletonBox className="h-8 w-1/2 mb-6" />
-            <SkeletonBox className="h-12 w-full mb-4" />
-            <SkeletonBox className="h-12 w-full mb-4" />
-         </div>
-     </div>
+    {/* Metrics Row */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <SkeletonBox className="h-32 rounded-2xl" />
+      <SkeletonBox className="h-32 rounded-2xl" />
+      <SkeletonBox className="h-32 rounded-2xl" />
+    </div>
+
+    {/* Main Card */}
+    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 h-96">
+      <SkeletonBox className="h-8 w-1/3 mb-6" />
+      <div className="space-y-4">
+        <SkeletonBox className="h-16 w-full" />
+        <SkeletonBox className="h-16 w-full" />
+        <SkeletonBox className="h-16 w-full" />
+      </div>
+    </div>
+
+    {/* Secondary Columns */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 h-80">
+        <SkeletonBox className="h-8 w-1/2 mb-6" />
+        <SkeletonBox className="h-12 w-full mb-4" />
+        <SkeletonBox className="h-12 w-full mb-4" />
+      </div>
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 h-80">
+        <SkeletonBox className="h-8 w-1/2 mb-6" />
+        <SkeletonBox className="h-12 w-full mb-4" />
+        <SkeletonBox className="h-12 w-full mb-4" />
+      </div>
+    </div>
   </div>
 );
 
 export const MetricsSkeleton: React.FC = () => (
   <div className="space-y-6 animate-fade-in">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <SkeletonBox className="h-48 rounded-2xl" />
-        <SkeletonBox className="h-48 rounded-2xl" />
-        <SkeletonBox className="h-48 rounded-2xl" />
+      <SkeletonBox className="h-48 rounded-2xl" />
+      <SkeletonBox className="h-48 rounded-2xl" />
+      <SkeletonBox className="h-48 rounded-2xl" />
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl h-96 border border-slate-200 dark:border-slate-700">
-             <SkeletonBox className="h-8 w-1/3 mb-6" />
-             <div className="space-y-4">
-                 <SkeletonBox className="h-10 w-full" />
-                 <SkeletonBox className="h-10 w-full" />
-                 <SkeletonBox className="h-10 w-full" />
-             </div>
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl h-96 border border-slate-200 dark:border-slate-700">
+        <SkeletonBox className="h-8 w-1/3 mb-6" />
+        <div className="space-y-4">
+          <SkeletonBox className="h-10 w-full" />
+          <SkeletonBox className="h-10 w-full" />
+          <SkeletonBox className="h-10 w-full" />
         </div>
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl h-96 border border-slate-200 dark:border-slate-700">
-             <SkeletonBox className="h-8 w-1/3 mb-6" />
-             <SkeletonBox className="h-full w-full" />
-        </div>
+      </div>
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl h-96 border border-slate-200 dark:border-slate-700">
+        <SkeletonBox className="h-8 w-1/3 mb-6" />
+        <SkeletonBox className="h-full w-full" />
+      </div>
     </div>
   </div>
 );

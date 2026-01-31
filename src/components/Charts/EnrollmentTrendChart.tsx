@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React from "react";
 import {
   AreaChart,
   Area,
@@ -8,8 +7,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-} from 'recharts';
-import { motion } from 'framer-motion';
+} from "recharts";
+import { motion } from "framer-motion";
 
 interface EnrollmentTrendChartProps {
   data: { month: string; value: number }[];
@@ -25,9 +24,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           <span className="text-slate-500 dark:text-slate-400 font-medium">
             Estudiantes Activos:
           </span>
-          <span className="font-bold text-slate-800 dark:text-slate-100">
-            {payload[0].value}
-          </span>
+          <span className="font-bold text-slate-800 dark:text-slate-100">{payload[0].value}</span>
         </div>
       </div>
     );
@@ -37,19 +34,19 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({ data }) => {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       className="w-full h-[350px] bg-white dark:bg-gray-900 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm"
     >
       <div className="flex items-center justify-between mb-6 px-2">
-         <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            <span className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-                <span className="material-icons !text-lg">trending_up</span>
-            </span>
-            Evolución de Matrícula Activa
-         </h3>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+          <span className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
+            <span className="material-icons !text-lg">trending_up</span>
+          </span>
+          Evolución de Matrícula Activa
+        </h3>
       </div>
 
       <div className="h-[260px] w-full">
@@ -57,32 +54,36 @@ const EnrollmentTrendChart: React.FC<EnrollmentTrendChartProps> = ({ data }) => 
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorActivos" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-slate-800" />
-            <XAxis 
-                dataKey="month" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#64748b', fontSize: 12 }} 
-                dy={10}
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+              stroke="#e2e8f0"
+              className="dark:stroke-slate-800"
             />
-            <YAxis 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#64748b', fontSize: 12 }} 
+            <XAxis
+              dataKey="month"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "#64748b", fontSize: 12 }}
+              dy={10}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }} />
-            <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
-                fillOpacity={1} 
-                fill="url(#colorActivos)" 
-                activeDot={{ r: 6, strokeWidth: 0 }}
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ stroke: "#94a3b8", strokeWidth: 1, strokeDasharray: "4 4" }}
+            />
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke="#3b82f6"
+              strokeWidth={3}
+              fillOpacity={1}
+              fill="url(#colorActivos)"
+              activeDot={{ r: 6, strokeWidth: 0 }}
             />
           </AreaChart>
         </ResponsiveContainer>

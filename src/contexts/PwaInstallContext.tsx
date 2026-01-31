@@ -1,10 +1,17 @@
-import React, { createContext, useState, useEffect, useContext, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  useCallback,
+  ReactNode,
+} from "react";
 
 // Define el tipo para el evento BeforeInstallPromptEvent para mayor seguridad de tipos.
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
+    outcome: "accepted" | "dismissed";
     platform: string;
   }>;
   prompt(): Promise<void>;
@@ -28,18 +35,18 @@ export const PwaInstallProvider: React.FC<{ children: ReactNode }> = ({ children
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     // Escucha el evento 'appinstalled' para saber cuándo se instaló la PWA
     const handleAppInstalled = () => {
       // Limpia el prompt guardado ya que ya no se puede usar.
       setDeferredPrompt(null);
     };
-    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 
@@ -65,7 +72,7 @@ export const PwaInstallProvider: React.FC<{ children: ReactNode }> = ({ children
 export const usePwaInstall = (): PwaInstallContextType => {
   const context = useContext(PwaInstallContext);
   if (context === undefined) {
-    throw new Error('usePwaInstall debe ser usado dentro de un PwaInstallProvider');
+    throw new Error("usePwaInstall debe ser usado dentro de un PwaInstallProvider");
   }
   return context;
 };

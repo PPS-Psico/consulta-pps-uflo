@@ -1,161 +1,163 @@
-
-import { useMemo, useState, useEffect } from 'react';
-import { differenceInDays } from 'date-fns';
+import { useMemo, useState, useEffect } from "react";
+import { differenceInDays } from "date-fns";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { FIELD_NOMBRE_PPS_LANZAMIENTOS, GEMINI_API_KEY } from '../constants';
-import { parseToUTCDate } from '../utils/formatters';
+import { FIELD_NOMBRE_PPS_LANZAMIENTOS, GEMINI_API_KEY } from "../constants";
+import { parseToUTCDate } from "../utils/formatters";
 
 interface DashboardData {
-    endingLaunches: any[];
-    pendingFinalizations: any[];
-    pendingRequests: any[];
+  endingLaunches: any[];
+  pendingFinalizations: any[];
+  pendingRequests: any[];
 }
 
-export type PriorityLevel = 'critical' | 'warning' | 'stable' | 'optimal';
+export type PriorityLevel = "critical" | "warning" | "stable" | "optimal";
 
 export interface SmartInsight {
-    type: PriorityLevel;
-    message: string;
-    actionLabel?: string;
-    actionLink?: string;
-    icon: string;
+  type: PriorityLevel;
+  message: string;
+  actionLabel?: string;
+  actionLink?: string;
+  icon: string;
 }
 
 export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boolean) => {
-    const [aiSummary, setAiSummary] = useState<string | null>(null);
-    const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
-    const algorithmicAnalysis = useMemo(() => {
-        if (isLoading || !data) {
-            return { status: 'loading' as const, insights: [], signals: [], rawData: null };
+  const algorithmicAnalysis = useMemo(() => {
+    if (isLoading || !data) {
+      return { status: "loading" as const, insights: [], signals: [], rawData: null };
+    }
+
+    const insights: SmartInsight[] = [];
+    const signals: string[] = [];
+    let score = 100;
+    const now = new Date();
+    const currentMonth = now.toLocaleString("es-ES", { month: "long" });
+
+    const getBaseName = (name: string) => name.split(" - ")[0].trim();
+
+    const endingSoonByInst = new Map<string, any>();
+    const overdueByInst = new Map<string, any>();
+
+    data.endingLaunches.forEach((l) => {
+      const status = l.estado_gestion;
+      const isResolved =
+        status === "Relanzamiento Confirmado" ||
+        status === "Archivado" ||
+        status === "No se Relanza";
+
+      if (isResolved) return;
+
+      // Calculate daysLeft if not present (Safety fallback)
+      let daysLeft = l.daysLeft;
+      if (daysLeft === undefined && l.fecha_fin) {
+        const parsedDate = parseToUTCDate(l.fecha_fin);
+        if (parsedDate) {
+          daysLeft = differenceInDays(parsedDate, now);
         }
-
-        const insights: SmartInsight[] = [];
-        const signals: string[] = [];
-        let score = 100;
-        const now = new Date();
-        const currentMonth = now.toLocaleString('es-ES', { month: 'long' });
-
-        const getBaseName = (name: string) => name.split(' - ')[0].trim();
-
-        const endingSoonByInst = new Map<string, any>();
-        const overdueByInst = new Map<string, any>();
-
-        data.endingLaunches.forEach(l => {
-            const status = l.estado_gestion;
-            const isResolved = status === 'Relanzamiento Confirmado' || status === 'Archivado' || status === 'No se Relanza';
-
-            if (isResolved) return;
-
-            // Calculate daysLeft if not present (Safety fallback)
-            let daysLeft = l.daysLeft;
-            if (daysLeft === undefined && l.fecha_fin) {
-                const parsedDate = parseToUTCDate(l.fecha_fin);
-                if (parsedDate) {
-                    daysLeft = differenceInDays(parsedDate, now);
-                }
-            }
-            if (daysLeft === undefined && l.fecha_finalizacion) {
-                const parsedDate = new Date(l.fecha_finalizacion);
-                if (!isNaN(parsedDate.getTime())) {
-                    daysLeft = differenceInDays(parsedDate, now);
-                }
-            }
-
-            if (daysLeft !== undefined) {
-                if (daysLeft < 0) {
-                    const name = getBaseName(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '');
-                    overdueByInst.set(name, l);
-                } else if (daysLeft <= 7) {
-                    const name = getBaseName(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || '');
-                    endingSoonByInst.set(name, l);
-                }
-            }
-        });
-
-        const overdueCount = overdueByInst.size;
-        const endingSoonCount = endingSoonByInst.size;
-
-        // 1. CRITICAL: Overdue items (Management Required)
-        if (overdueCount > 0) {
-            score -= (overdueCount * 20);
-            signals.push('Requiere Cierre/Renovación');
-            insights.push({
-                type: 'critical',
-                message: `${overdueCount} instituciones finalizaron ciclo. Confirmar relanzamiento o archivar.`,
-                actionLink: '/admin/gestion?filter=vencidas',
-                icon: 'assignment_late'
-            });
+      }
+      if (daysLeft === undefined && l.fecha_finalizacion) {
+        const parsedDate = new Date(l.fecha_finalizacion);
+        if (!isNaN(parsedDate.getTime())) {
+          daysLeft = differenceInDays(parsedDate, now);
         }
+      }
 
-        // 2. HIGH PRIORITY: Ending Soon (Proactive)
-        if (endingSoonCount > 0) {
-            score -= (endingSoonCount * 10);
-            signals.push('Vencimiento Inminente (7 días)');
-            insights.push({
-                type: 'warning',
-                message: `${endingSoonCount} finalizan esta semana. Contactar para asegurar continuidad.`,
-                actionLink: '/admin/gestion?filter=proximas',
-                icon: 'alarm'
-            });
+      if (daysLeft !== undefined) {
+        if (daysLeft < 0) {
+          const name = getBaseName(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || "");
+          overdueByInst.set(name, l);
+        } else if (daysLeft <= 7) {
+          const name = getBaseName(l[FIELD_NOMBRE_PPS_LANZAMIENTOS] || "");
+          endingSoonByInst.set(name, l);
         }
+      }
+    });
 
-        const stagnant = data.pendingRequests.filter((r: any) => {
-            const lastUpdate = new Date(r.updated || r.created_at);
-            return differenceInDays(now, lastUpdate) > 7;
-        });
-        if (stagnant.length > 0) {
-            score -= (stagnant.length * 5);
-            signals.push('Solicitudes en Espera');
-            insights.push({
-                type: 'warning',
-                message: 'Alumnos esperando respuesta hace +7 días.',
-                actionLink: '/admin/solicitudes?tab=ingreso',
-                icon: 'hourglass_empty'
-            });
-        }
+    const overdueCount = overdueByInst.size;
+    const endingSoonCount = endingSoonByInst.size;
 
-        if (data.pendingFinalizations.length > 0) {
-            signals.push('Acreditaciones Pendientes');
-            insights.push({
-                type: 'stable',
-                message: 'Egresos listos para cargar en SAC.',
-                actionLink: '/admin/solicitudes?tab=egreso',
-                icon: 'school'
-            });
-        }
+    // 1. CRITICAL: Overdue items (Management Required)
+    if (overdueCount > 0) {
+      score -= overdueCount * 20;
+      signals.push("Requiere Cierre/Renovación");
+      insights.push({
+        type: "critical",
+        message: `${overdueCount} instituciones finalizaron ciclo. Confirmar relanzamiento o archivar.`,
+        actionLink: "/admin/gestion?filter=vencidas",
+        icon: "assignment_late",
+      });
+    }
 
-        let status: PriorityLevel = 'optimal';
-        if (score < 60) status = 'critical';
-        else if (score < 85) status = 'warning';
-        else if (score < 95) status = 'stable';
+    // 2. HIGH PRIORITY: Ending Soon (Proactive)
+    if (endingSoonCount > 0) {
+      score -= endingSoonCount * 10;
+      signals.push("Vencimiento Inminente (7 días)");
+      insights.push({
+        type: "warning",
+        message: `${endingSoonCount} finalizan esta semana. Contactar para asegurar continuidad.`,
+        actionLink: "/admin/gestion?filter=proximas",
+        icon: "alarm",
+      });
+    }
 
-        return {
-            status,
-            insights,
-            signals,
-            rawData: {
-                vencidasCount: overdueCount,
-                porVencerCount: endingSoonCount,
-                estancadasCount: stagnant.length,
-                acreditacionesCount: data.pendingFinalizations.length,
-                mesActual: currentMonth
-            }
-        };
-    }, [data, isLoading]);
+    const stagnant = data.pendingRequests.filter((r: any) => {
+      const lastUpdate = new Date(r.updated || r.created_at);
+      return differenceInDays(now, lastUpdate) > 7;
+    });
+    if (stagnant.length > 0) {
+      score -= stagnant.length * 5;
+      signals.push("Solicitudes en Espera");
+      insights.push({
+        type: "warning",
+        message: "Alumnos esperando respuesta hace +7 días.",
+        actionLink: "/admin/solicitudes?tab=ingreso",
+        icon: "hourglass_empty",
+      });
+    }
 
-    useEffect(() => {
-        // AI Integration using Legacy SDK
-        const fetchAiInsight = async () => {
-            if (!algorithmicAnalysis.rawData || !GEMINI_API_KEY) return;
+    if (data.pendingFinalizations.length > 0) {
+      signals.push("Acreditaciones Pendientes");
+      insights.push({
+        type: "stable",
+        message: "Egresos listos para cargar en SAC.",
+        actionLink: "/admin/solicitudes?tab=egreso",
+        icon: "school",
+      });
+    }
 
-            setIsAiLoading(true);
-            try {
-                const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    let status: PriorityLevel = "optimal";
+    if (score < 60) status = "critical";
+    else if (score < 85) status = "warning";
+    else if (score < 95) status = "stable";
 
-                // Prompt de Ingeniería Inversa: Enfocado en acción y estrategia.
-                const prompt = `
+    return {
+      status,
+      insights,
+      signals,
+      rawData: {
+        vencidasCount: overdueCount,
+        porVencerCount: endingSoonCount,
+        estancadasCount: stagnant.length,
+        acreditacionesCount: data.pendingFinalizations.length,
+        mesActual: currentMonth,
+      },
+    };
+  }, [data, isLoading]);
+
+  useEffect(() => {
+    // AI Integration using Legacy SDK
+    const fetchAiInsight = async () => {
+      if (!algorithmicAnalysis.rawData || !GEMINI_API_KEY) return;
+
+      setIsAiLoading(true);
+      try {
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        // Prompt de Ingeniería Inversa: Enfocado en acción y estrategia.
+        const prompt = `
                     Actúa como un Coordinador de Vinculación Institucional. 
                     Analiza métricas: ${JSON.stringify(algorithmicAnalysis.rawData)}
                     
@@ -173,43 +175,47 @@ export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boo
                     Tono: Profesional, directo, proactivo.
                 `;
 
-                const result = await model.generateContent(prompt);
-                const response = result.response;
-                const text = response.text();
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const text = response.text();
 
-                if (text) {
-                    setAiSummary(text.trim());
-                }
-            } catch (error: any) {
-                console.error("AI Generation Error", error);
-
-                let extraMsg = '';
-                try {
-                    const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
-                    const listData = await listResp.json();
-                    if (listData.models) {
-                        const names = listData.models.map((m: any) => m.name.replace('models/', ''));
-                        extraMsg = ` | DISPONIBLES: ${names.join(', ')}`;
-                    }
-                } catch (e) {
-                    extraMsg = ' | Diagnóstico falló.';
-                }
-
-                setAiSummary(`Error generando feedback: ${error.message}${extraMsg}`);
-            } finally {
-                setIsAiLoading(false);
-            }
-        };
-
-        if (algorithmicAnalysis.status !== 'loading' && !isAiLoading && !aiSummary) {
-            fetchAiInsight();
+        if (text) {
+          setAiSummary(text.trim());
         }
-    }, [algorithmicAnalysis.rawData, algorithmicAnalysis.status]);
+      } catch (error: any) {
+        console.error("AI Generation Error", error);
 
-    return {
-        status: algorithmicAnalysis.status,
-        summary: aiSummary || (isLoading ? 'Analizando patrones operativos...' : 'Calculando estrategia prioritaria...'),
-        insights: algorithmicAnalysis.insights,
-        signals: algorithmicAnalysis.signals
+        let extraMsg = "";
+        try {
+          const listResp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`
+          );
+          const listData = await listResp.json();
+          if (listData.models) {
+            const names = listData.models.map((m: any) => m.name.replace("models/", ""));
+            extraMsg = ` | DISPONIBLES: ${names.join(", ")}`;
+          }
+        } catch (e) {
+          extraMsg = " | Diagnóstico falló.";
+        }
+
+        setAiSummary(`Error generando feedback: ${error.message}${extraMsg}`);
+      } finally {
+        setIsAiLoading(false);
+      }
     };
+
+    if (algorithmicAnalysis.status !== "loading" && !isAiLoading && !aiSummary) {
+      fetchAiInsight();
+    }
+  }, [algorithmicAnalysis.rawData, algorithmicAnalysis.status]);
+
+  return {
+    status: algorithmicAnalysis.status,
+    summary:
+      aiSummary ||
+      (isLoading ? "Analizando patrones operativos..." : "Calculando estrategia prioritaria..."),
+    insights: algorithmicAnalysis.insights,
+    signals: algorithmicAnalysis.signals,
+  };
 };
