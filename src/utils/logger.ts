@@ -8,7 +8,7 @@ class Logger {
 
   constructor() {
     // Safe check for process.env
-    const meta = ({ env: process.env } as any) as any;
+    const meta = { env: process.env } as any;
     this.isDev = meta && meta.env ? meta.env.DEV : false;
   }
 
