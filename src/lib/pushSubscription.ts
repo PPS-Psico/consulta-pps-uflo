@@ -119,7 +119,7 @@ export async function subscribeToPush(): Promise<{ success: boolean; error?: str
 
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: convertedVapidKey,
+          applicationServerKey: convertedVapidKey as BufferSource,
         });
       } catch (subError: any) {
         console.error("[Push] Error específico en subscribe():", subError);
