@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from "react";
-import {
-  FIELD_NOMBRE_ESTUDIANTES,
-  FIELD_LEGAJO_ESTUDIANTES,
-  FIELD_DNI_ESTUDIANTES,
-  FIELD_CORREO_ESTUDIANTES,
-  FIELD_TELEFONO_ESTUDIANTES,
-  FIELD_NOTAS_INTERNAS_ESTUDIANTES,
-} from "../../constants";
-import { SkeletonBox } from "../Skeletons";
-import { useAuth } from "../../contexts/AuthContext";
-import { useNotifications } from "../../contexts/NotificationContext";
-import { useModal } from "../../contexts/ModalContext";
-import type { EstudianteFields } from "../../types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
+import {
+  FIELD_CORREO_ESTUDIANTES,
+  FIELD_DNI_ESTUDIANTES,
+  FIELD_LEGAJO_ESTUDIANTES,
+  FIELD_NOMBRE_ESTUDIANTES,
+  FIELD_NOTAS_INTERNAS_ESTUDIANTES,
+  FIELD_TELEFONO_ESTUDIANTES,
+} from "../../constants";
+import { useAuth } from "../../contexts/AuthContext";
+import { useModal } from "../../contexts/ModalContext";
+import { useNotifications } from "../../contexts/NotificationContext";
 import { db } from "../../lib/db";
-import Input from "../ui/Input";
+import type { EstudianteFields } from "../../types";
+import { SkeletonBox } from "../Skeletons";
 
 const ProfileField: React.FC<{
   label: string;
@@ -68,7 +67,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   updateInternalNotes,
 }) => {
   const { isSuperUserMode, isJefeMode } = useAuth();
-  // const { subscribeToPush, unsubscribeFromPush, isPushEnabled } = useNotifications(); // Removed
+  const { isPushSupported, isPushEnabled, isPushLoading, subscribeToPush, unsubscribeFromPush } =
+    useNotifications();
   const { showModal } = useModal();
   const queryClient = useQueryClient();
 
@@ -242,6 +242,89 @@ const ProfileView: React.FC<ProfileViewProps> = ({
           </p>
         </div>
       )}
+
+      {/* Notificaciones Push */}
+      <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-800">
+        <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+          <span className="material-icons text-slate-400">notifications</span>
+          Configuración de Alertas
+        </h3>
+
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-5 rounded-2xl border border-blue-200 dark:border-blue-800/50">
+          {!isPushSupported ? (
+            <div className="flex items-start gap-3">
+              <span className="material-icons text-amber-500 mt-0.5">warning_amber</span>
+              <div>
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                  Navegador no compatible
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Tu navegador actual no soporta notificaciones push o está en modo
+                  incógnito/restringido. Prueba usar Chrome o Edge en modo normal.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isPushEnabled ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}
+                  >
+                    <span className="material-icons !text-xl">
+                      {isPushEnabled ? "notifications_active" : "notifications_off"}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                      Notificaciones en este dispositivo
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {isPushEnabled
+                        ? "Activado: Recibirás novedades al instante."
+                        : "Recibe alertas de nuevas convocatorias sin entrar a la web."}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={isPushEnabled ? unsubscribeFromPush : subscribeToPush}
+                  disabled={isPushLoading}
+                  className={`relative min-w-[56px] h-7 rounded-full transition-all duration-300 ${
+                    isPushEnabled
+                      ? "bg-blue-600 hover:bg-blue-700"
+                      : "bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500"
+                  } ${isPushLoading ? "opacity-70 cursor-wait" : "cursor-pointer"}`}
+                >
+                  <div
+                    className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
+                      isPushEnabled ? "left-[calc(100%-24px)]" : "left-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {isPushEnabled && (
+                <div className="mt-3 pt-3 border-t border-blue-200/50 dark:border-blue-700/50 flex flex-col gap-2">
+                  <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                    <span className="material-icons !text-sm">check_circle</span>
+                    Dispositivo vinculado correctamente
+                  </p>
+                  <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 ml-5">
+                    Si cambias de dispositivo o navegador, deberás activarlas nuevamente allí.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {(isSuperUserMode || isJefeMode) && (
+          <p className="text-[10px] text-slate-400 mt-2 text-center">
+            (Visible para administradores solo para pruebas. Los alumnos ven esto en su perfil).
+          </p>
+        )}
+      </div>
 
       {/* Notas Internas (Solo Admin) */}
       {(isSuperUserMode || isJefeMode) && (

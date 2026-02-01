@@ -1,31 +1,37 @@
-import React, {
+﻿import React, {
   createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
   ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient";
-import { useAuth } from "./AuthContext";
+import Toast from "../components/ui/Toast";
 import {
-  TABLE_NAME_PPS,
-  TABLE_NAME_FINALIZACION,
-  FIELD_SOLICITUD_NOMBRE_ALUMNO,
   FIELD_EMPRESA_PPS_SOLICITUD,
-  FIELD_NOMBRE_ESTUDIANTES,
-  FIELD_ESTADO_PPS,
+  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
   FIELD_ESTADO_FINALIZACION,
-  TABLE_NAME_LANZAMIENTOS_PPS,
-  FIELD_NOMBRE_PPS_LANZAMIENTOS,
-  TABLE_NAME_CONVOCATORIAS,
   FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
+  FIELD_ESTADO_PPS,
   FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
   FIELD_FECHA_SOLICITUD_FINALIZACION,
-  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
+  FIELD_NOMBRE_ESTUDIANTES,
+  FIELD_NOMBRE_PPS_LANZAMIENTOS,
+  FIELD_SOLICITUD_NOMBRE_ALUMNO,
+  TABLE_NAME_CONVOCATORIAS,
+  TABLE_NAME_FINALIZACION,
+  TABLE_NAME_LANZAMIENTOS_PPS,
+  TABLE_NAME_PPS,
 } from "../constants";
-import Toast from "../components/ui/Toast";
+import {
+  isPushSupported as checkPushSupported,
+  getPushSubscriptionStatus,
+  subscribeToPush as subscribeToPushApi,
+  unsubscribeFromPush as unsubscribeFromPushApi,
+} from "../lib/pushSubscription";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "./AuthContext";
 
 export interface AppNotification {
   id: string;
@@ -44,6 +50,12 @@ interface NotificationContextType {
   markAllAsRead: () => void;
   clearNotifications: () => void;
   showToast: (message: string, type: "success" | "error" | "warning") => void;
+  // Push notification methods
+  isPushSupported: boolean;
+  isPushEnabled: boolean;
+  isPushLoading: boolean;
+  subscribeToPush: () => Promise<void>;
+  unsubscribeFromPush: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -58,6 +70,11 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   // Persistencia Local: Set de IDs leídos
   const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(new Set());
+
+  // Push notification state
+  const [pushSupported] = useState(() => checkPushSupported());
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -81,6 +98,22 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.warn("Error cargando notificaciones leídas del storage", e);
     }
   }, [authenticatedUser, STORAGE_KEY]);
+
+  // 0.5. CHECK PUSH SUBSCRIPTION STATUS
+  useEffect(() => {
+    if (!authenticatedUser || !pushSupported) return;
+
+    const checkPushStatus = async () => {
+      try {
+        const { isSubscribed } = await getPushSubscriptionStatus();
+        setPushEnabled(isSubscribed);
+      } catch (e) {
+        console.warn("Error checking push status", e);
+      }
+    };
+
+    checkPushStatus();
+  }, [authenticatedUser, pushSupported]);
 
   // Helper para guardar en storage
   const persistReadIds = (newSet: Set<string>) => {
@@ -127,9 +160,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             .from(TABLE_NAME_FINALIZACION)
             .select(
               `
-                            id, 
-                            created_at, 
-                            ${FIELD_FECHA_SOLICITUD_FINALIZACION}, 
+                            id,
+                            created_at,
+                            ${FIELD_FECHA_SOLICITUD_FINALIZACION},
                             estudiante:estudiantes!fk_finalizacion_estudiante (
                                 ${FIELD_NOMBRE_ESTUDIANTES}
                             )
@@ -366,6 +399,46 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     setToast({ message, type });
   }, []);
 
+  // Push notification handlers
+  const subscribeToPush = useCallback(async () => {
+    if (!pushSupported) {
+      showToast("Tu navegador no soporta notificaciones push", "warning");
+      return;
+    }
+
+    setPushLoading(true);
+    try {
+      const result = await subscribeToPushApi();
+      if (result.success) {
+        setPushEnabled(true);
+        showToast("¡Notificaciones activadas! Te avisaremos de nuevas convocatorias.", "success");
+      } else {
+        showToast(result.error || "No se pudo activar notificaciones", "error");
+      }
+    } catch (error: any) {
+      showToast(error.message || "Error al activar notificaciones", "error");
+    } finally {
+      setPushLoading(false);
+    }
+  }, [pushSupported, showToast]);
+
+  const unsubscribeFromPush = useCallback(async () => {
+    setPushLoading(true);
+    try {
+      const result = await unsubscribeFromPushApi();
+      if (result.success) {
+        setPushEnabled(false);
+        showToast("Notificaciones desactivadas", "success");
+      } else {
+        showToast(result.error || "No se pudo desactivar notificaciones", "error");
+      }
+    } catch (error: any) {
+      showToast(error.message || "Error al desactivar notificaciones", "error");
+    } finally {
+      setPushLoading(false);
+    }
+  }, [showToast]);
+
   return (
     <NotificationContext.Provider
       value={{
@@ -375,6 +448,12 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         markAllAsRead,
         clearNotifications,
         showToast,
+        // Push notification methods
+        isPushSupported: pushSupported,
+        isPushEnabled: pushEnabled,
+        isPushLoading: pushLoading,
+        subscribeToPush,
+        unsubscribeFromPush,
       }}
     >
       {children}

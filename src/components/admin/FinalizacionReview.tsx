@@ -169,6 +169,12 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           />
         ) : fileType === "pdf" ? (
           <iframe src={displayUrl} className="w-[90vw] h-[85vh] bg-white rounded-lg" title="PDF" />
+        ) : fileType === "office" ? (
+          <iframe
+            src={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(displayUrl)}`}
+            className="w-[90vw] h-[85vh] bg-white rounded-lg"
+            title="Office Document"
+          />
         ) : (
           <div className="text-white text-center">
             <span className="material-icons !text-6xl mb-4 opacity-80">description</span>

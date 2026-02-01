@@ -1,19 +1,19 @@
 import React from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import { AuthProvider } from "./contexts/AuthContext";
 console.log(
   "%c ANTIGRAVITY CONTROL: main.tsx loaded ",
   "background: #222; color: #bada55; font-size: 20px"
 );
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import { AuthProvider } from "./contexts/AuthContext";
 // @ts-ignore
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import "./index.css";
 
 // Initialize Monitoring
-import { initSentry } from "./lib/sentry";
 import { initGA4 } from "./lib/analytics";
+import { initSentry } from "./lib/sentry";
 import { initWebVitals } from "./lib/webVitals";
 
 // --- REACT RESILIENCE PATCH ---
@@ -99,7 +99,7 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     // In dev, sw.js is served from /public
     navigator.serviceWorker
-      .register("./sw.js")
+      .register("./sw.js?v=2")
       .then((registration) => {
         console.log("SW registrado:", registration.scope);
       })
