@@ -30,52 +30,9 @@ try {
   console.error("❌ Error modificando index.html:", err);
 }
 
-// 2. Modify src/constants/configConstants.ts: Replace hardcoded keys
-try {
-  let tsContent = fs.readFileSync(constantsPath, "utf-8");
-
-  const urlRegex = /export const SUPABASE_URL = ".*";/;
-  const keyRegex = /export const SUPABASE_ANON_KEY = ".*";/;
-  const geminiRegex = /export const GEMINI_API_KEY = ".*";/;
-
-  let updated = false;
-
-  if (urlRegex.test(tsContent)) {
-    tsContent = tsContent.replace(
-      urlRegex,
-      'export const SUPABASE_URL = (import.meta as any).env.VITE_SUPABASE_URL || "";'
-    );
-    updated = true;
-  }
-
-  if (keyRegex.test(tsContent)) {
-    tsContent = tsContent.replace(
-      keyRegex,
-      'export const SUPABASE_ANON_KEY = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";'
-    );
-    updated = true;
-  }
-
-  if (geminiRegex.test(tsContent)) {
-    tsContent = tsContent.replace(
-      geminiRegex,
-      'export const GEMINI_API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY || "";'
-    );
-    updated = true;
-  }
-
-  if (updated) {
-    fs.writeFileSync(constantsPath, tsContent);
-    console.log(
-      "✅ src/constants/configConstants.ts: Credenciales reemplazadas por variables de entorno."
-    );
-  } else {
-    console.log(
-      "ℹ️ src/constants/configConstants.ts: No se encontraron credenciales hardcodeadas para reemplazar o ya están actualizadas."
-    );
-  }
-} catch (err) {
-  console.error("❌ Error modificando src/constants/configConstants.ts:", err);
-}
+// 2. Modify src/constants/configConstants.ts: (Removed - now handled by Vite define in vite.config.ts)
+console.log(
+  "ℹ️ src/constants/configConstants.ts: Las variables de entorno ahora las maneja Vite directamente."
+);
 
 console.log("🏁 Preparación completada.");

@@ -1,5 +1,5 @@
-import React, { ReactNode } from "react";
 import { motion } from "framer-motion";
+import React, { ReactNode } from "react";
 
 interface Tab {
   id: string;
@@ -55,12 +55,17 @@ const Tabs: React.FC<TabsProps> = ({
           </div>
 
           {/* Desktop Animated Tabs (Premium Segmented Control Look) */}
-          <div className="hidden md:flex p-1.5 bg-slate-100/80 dark:bg-slate-900/50 rounded-2xl border border-slate-200/60 dark:border-slate-800 mx-auto relative">
+          <div
+            role="tablist"
+            className="hidden md:flex p-1.5 bg-slate-100/80 dark:bg-slate-900/50 rounded-2xl border border-slate-200/60 dark:border-slate-800 mx-auto relative"
+          >
             {tabs.map((tab) => {
               const isActive = activeTabId === tab.id;
               return (
                 <button
                   key={tab.id}
+                  role="tab"
+                  aria-selected={isActive}
                   onClick={() => onTabChange(tab.id)}
                   className={`
                                 relative flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 z-10 outline-none

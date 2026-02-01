@@ -1,5 +1,5 @@
-import React from "react";
 import { motion } from "framer-motion";
+import React from "react";
 
 export interface TabItem {
   id: string;
@@ -36,16 +36,16 @@ const UnifiedTabs: React.FC<UnifiedTabsProps> = ({
   const containerClasses =
     variant === "primary"
       ? `
-            bg-white/80 dark:bg-[#1E293B]/90 
-            backdrop-blur-xl 
+            bg-white/80 dark:bg-[#1E293B]/90
+            backdrop-blur-xl
             border border-slate-200/50 dark:border-slate-700
             shadow-lg shadow-slate-200/20 dark:shadow-xl dark:shadow-black/50
-            p-1.5 rounded-full 
+            p-1.5 rounded-full
             ring-1 ring-slate-900/5 dark:ring-white/5
           `
       : `
-            bg-slate-100/50 dark:bg-slate-800/50 
-            border border-slate-200/50 dark:border-white/5 
+            bg-slate-100/50 dark:bg-slate-800/50
+            border border-slate-200/50 dark:border-white/5
             p-1 rounded-2xl
           `;
 
@@ -59,6 +59,7 @@ const UnifiedTabs: React.FC<UnifiedTabsProps> = ({
 
   return (
     <div
+      role="tablist"
       className={`inline-flex items-center justify-start max-w-full overflow-x-auto no-scrollbar ${containerClasses} ${className}`}
     >
       {tabs.map((tab) => {
@@ -67,6 +68,8 @@ const UnifiedTabs: React.FC<UnifiedTabsProps> = ({
         return (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={isActive}
             onClick={() => onTabChange(tab.id, tab.path)}
             className={`
                             relative flex items-center gap-2 px-5 py-2.5 text-sm font-bold transition-all duration-300 outline-none whitespace-nowrap z-10 flex-shrink-0
@@ -79,8 +82,8 @@ const UnifiedTabs: React.FC<UnifiedTabsProps> = ({
               <motion.div
                 layoutId={`${layoutIdPrefix}-pill`}
                 className={`
-                                    absolute inset-0 
-                                    bg-white dark:bg-slate-600/80 
+                                    absolute inset-0
+                                    bg-white dark:bg-slate-600/80
                                     ${variant === "primary" ? "shadow-[0_2px_10px_rgba(0,0,0,0.1)] dark:shadow-none ring-1 ring-black/5 dark:ring-white/10 rounded-full" : "rounded-xl shadow-sm"}
                                 `}
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
