@@ -43,6 +43,10 @@ jobs:
       # - name: Run tests
       #   run: npm run test
 
+      # Prepare for GitHub Pages (Inject env vars logic replacement)
+      - name: Prepare for deployment
+        run: npm run prep-github
+
       - name: Build application
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
