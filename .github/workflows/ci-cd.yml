@@ -39,9 +39,8 @@ jobs:
       - name: Run type checking
         run: npm run type-check
 
-      # Optional: Run tests if configured
-      # - name: Run tests
-      #   run: npm run test
+      - name: Run tests
+        run: npm run test
 
       # Prepare for GitHub Pages (Inject env vars logic replacement)
       - name: Prepare for deployment

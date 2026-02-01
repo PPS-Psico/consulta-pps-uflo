@@ -1,36 +1,30 @@
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import "@testing-library/jest-dom";
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import React from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 // @ts-ignore
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "@/contexts/AuthContext";
 import App from "@/App";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { db } from "@/lib/db";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // import * as authUtils from '@/utils/auth'; // Removed as it does not exist in current codebase
 import {
+  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
+  FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
+  FIELD_FECHA_INICIO_LANZAMIENTOS,
+  FIELD_FINALES_ADEUDA_CONVOCATORIAS,
+  FIELD_HORARIO_FORMULA_CONVOCATORIAS,
+  FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
+  FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
   FIELD_ORIENTACION_LANZAMIENTOS,
-  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
-  FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
-  FIELD_FECHA_INICIO_LANZAMIENTOS,
-  FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
-  FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
-  FIELD_HORARIO_FORMULA_CONVOCATORIAS,
-  FIELD_TERMINO_CURSAR_CONVOCATORIAS,
-  FIELD_FINALES_ADEUDA_CONVOCATORIAS,
   FIELD_OTRA_SITUACION_CONVOCATORIAS,
+  FIELD_TERMINO_CURSAR_CONVOCATORIAS,
 } from "@/constants";
 
 // Mock the entire db module
 jest.mock("@/lib/db");
 const mockedDb = db as jest.Mocked<typeof db>;
-
-// Mock the auth utils module if needed by creating a dummy object
-const mockedAuthUtils = {
-  verifyPassword: jest.fn(),
-};
 
 // --- Mock Data ---
 const mockStudentDetails = {
@@ -63,8 +57,9 @@ describe("Flujo de Inscripción de Estudiante (Integration Test)", () => {
     // Note: db.estudiantes is a table interface, using any casting for mocks
     (mockedDb.estudiantes.get as any).mockResolvedValue([mockStudentDetails] as any);
 
-    // Mock password verification to always succeed for the test password
-    (mockedAuthUtils.verifyPassword as any).mockResolvedValue(true);
+    // Mock password verification (direct boolean return if using a real utility, or ensure component logic follows this)
+    // Since we removed the auth module import attempt, we assume the component uses a method we can control or is mocked elsewhere.
+    // For this test, we'll ensure the db returns the student which is key for login success in the component logic.
 
     mockedDb.estudiantes.get.mockResolvedValue([mockStudentDetails] as any);
     (mockedDb.lanzamientos.getAll as any).mockResolvedValue([mockLanzamiento] as any);
