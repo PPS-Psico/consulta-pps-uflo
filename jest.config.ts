@@ -20,13 +20,10 @@ const config: JestConfigWithTsJest = {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
 
-  // Mock Vite environment variables
-  globals: {
-    'import.meta.env': {
-      VITE_SUPABASE_URL: 'https://test.supabase.co',
-      VITE_SUPABASE_ANON_KEY: 'test-anon-key',
-    },
-  },
+  // Ignore node_modules for transformation
+  transformIgnorePatterns: [
+    'node_modules/(?!(@supabase/supabase-js|)',
+  ],
 };
 
 export default config;
