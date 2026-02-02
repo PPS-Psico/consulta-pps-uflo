@@ -40,9 +40,8 @@ import {
   FIELD_ACTIVIDADES_LABEL_LANZAMIENTOS,
   FIELD_HORARIOS_FIJOS_LANZAMIENTOS,
   FIELD_INSTITUCION_LINK_PRACTICAS,
-  GEMINI_API_KEY,
 } from "../../constants";
-// Constants re-exports might not include these yet if compilation is strict, but runtime constants.ts has them.
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../../constants/configConstants";
 import Card from "../ui/Card";
 import Toast from "../ui/Toast";
 import { ALL_ORIENTACIONES, Orientacion } from "../../types";
@@ -58,8 +57,6 @@ import Select from "../ui/Select";
 import Button from "../ui/Button";
 import Checkbox from "../ui/Checkbox";
 import { notificationService } from "../../services/notificationService";
-
-import { GoogleGenerativeAI } from "@google/generative-ai"; // Legacy SDK for broader free tier support
 
 const mockInstitutions = [
   { id: "recInstMock1", [FIELD_NOMBRE_INSTITUCIONES]: "Hospital de Juguete" },
@@ -394,9 +391,9 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({
   const runAIExtraction = async () => {
     if (!rawActivityText.trim()) return;
 
-    if (!GEMINI_API_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       setToastInfo({
-        message: "⚠️ API Key de Gemini no detectada. Verifica tu archivo .env",
+        message: "⚠️ Configuración de Supabase no detectada",
         type: "error",
       });
       return;
@@ -406,54 +403,70 @@ const LanzadorConvocatorias: React.FC<LanzadorConvocatoriasProps> = ({
     setToastInfo({ message: "Generando contenido con IA...", type: "success" });
 
     try {
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
       const prompt = `
-                Actúa como un experto en redacción de convocatorias universitarias y diseño UX.
-                Objetivo: Generar contenido para una tarjeta visualmente equilibrada y detectar información clave.
-                
-                Instrucciones de Diseño:
-                1. La tarjeta tiene dos columnas. Izquierda (Descripción) y Derecha (Lista de Items).
-                2. Para mantener la ARMONÍA VISUAL, la columna derecha NO debe ser mucho más larga que la izquierda.
-                3. REGLA DE ORO: Genera MÁXIMO 4 items para la lista de la derecha.
-                4. Si la info original tiene más de 4 objetivos/actividades, INTEGRA los menos críticos dentro de la "descripcion" narrativa de forma fluida.
-                5. La "descripcion" debe ser robusta (aprox 300-450 caracteres) para equilibrar el peso visual de la lista.
-                6. FLEXIBILIDAD: El título de la lista de la derecha ("actividadesLabel") debe ser dinámico. 
-                   - Si la info se centra en tareas -> "Actividades".
-                   - Si se centra en lugares/espacios -> "Espacios de Participación".
-                   - Si se centra en objetivos específicos -> "Objetivos Específicos".
-                   - Elige el más adecuado según el material.
-                7. DETECCIÓN DE HORARIOS: Busca detalladamente información sobre días, horarios y modalidades (presencial/virtual) de cursada.
-                   - No omitas información si hay múltiples turnos o espacios diferentes.
-                   - Si hay varios horarios, júntalos en el campo "horario_seleccionado" separados por PUNTO Y COMA (;).
-                   - Ejemplo formativo: "Turno Mañana: 10:30 a 13:30 hs; Turno Tarde: 14:00 a 17:30 hs; Sábados (Virtual): 10:00 a 12:00 hs".
-                8. NO REDUNDANCIA: La "descripcion" NO DEBE incluir datos que ya figuran en otros campos de la tarjeta:
-                   - NO menciones fechas de inicio o fin.
-                   - NO menciones la cantidad de cupos disponibles.
-                   - NO menciones la cantidad de horas acreditadas.
-                   - NO menciones si es presencial o virtual (ya figura en la ubicación).
-                   - Foco: Céntrate puramente en el propósito pedagógico, la dinámica de trabajo, el rol esperado del estudiante y el impacto de la práctica.
+Actúa como un experto en redacción de convocatorias universitarias y diseño UX.
+Objetivo: Generar contenido para una tarjeta visualmente equilibrada y detectar información clave.
 
-                Información Cruda: "${rawActivityText}"
-                
-                Datos del Contexto:
-                - Título: ${formData.nombrePPS || "Práctica Profesional"}
-                - Orientación: ${formData.orientacion || "General"}
-                
-                Genera un objeto JSON con:
-                1. "descripcion": Narrativa profesional centrada en objetivos y rol. SIN mencionar fechas, cupos o cantidad de horas.
-                2. "actividades": Array de strings. MÁXIMO 4 items. Solo lo más relevante.
-                3. "actividadesLabel": El título sugerido para la lista (ej: "Actividades", "Espacios", etc).
-                4. "horario_seleccionado": Un string con todos los horarios detectados separados por PUNTO Y COMA (;). Si no hay, dejar vacío.
-                5. "requisitoObligatorio": String (o vacío).
-                
-                Responde SOLO con el JSON válido.
-            `;
+Instrucciones de Diseño:
+1. La tarjeta tiene dos columnas. Izquierda (Descripción) y Derecha (Lista de Items).
+2. Para mantener la ARMONÍA VISUAL, la columna derecha NO debe ser mucho más larga que la izquierda.
+3. REGLA DE ORO: Genera MÁXIMO 4 items para la lista de la derecha.
+4. Si la info original tiene más de 4 objetivos/actividades, INTEGRA los menos críticos dentro de la "descripcion" narrativa de forma fluida.
+5. La "descripcion" debe ser robusta (aprox 300-450 caracteres) para equilibrar el peso visual de la lista.
+6. FLEXIBILIDAD: El título de la lista de la derecha ("actividadesLabel") debe ser dinámico. 
+   - Si la info se centra en tareas -> "Actividades".
+   - Si se centra en lugares/espacios -> "Espacios de Participación".
+   - Si se centra en objetivos específicos -> "Objetivos Específicos".
+   - Elige el más adecuado según el material.
+7. DETECCIÓN DE HORARIOS: Busca detalladamente información sobre días, horarios y modalidades (presencial/virtual) de cursada.
+   - No omitas información si hay múltiples turnos o espacios diferentes.
+   - Si hay varios horarios, júntalos en el campo "horario_seleccionado" separados por PUNTO Y COMA (;).
+   - Ejemplo formativo: "Turno Mañana: 10:30 a 13:30 hs; Turno Tarde: 14:00 a 17:30 hs; Sábados (Virtual): 10:00 a 12:00 hs".
+8. NO REDUNDANCIA: La "descripcion" NO DEBE incluir datos que ya figuran en otros campos de la tarjeta:
+   - NO menciones fechas de inicio o fin.
+   - NO menciones la cantidad de cupos disponibles.
+   - NO menciones la cantidad de horas acreditadas.
+   - NO menciones si es presencial o virtual (ya figura en la ubicación).
+   - Foco: Céntrate puramente en el propósito pedagógico, la dinámica de trabajo, el rol esperado del estudiante y el impacto de la práctica.
 
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
+Información Cruda: "${rawActivityText}"
+
+Datos del Contexto:
+- Título: ${formData.nombrePPS || "Práctica Profesional"}
+- Orientación: ${formData.orientacion || "General"}
+
+Genera un objeto JSON con:
+1. "descripcion": Narrativa profesional centrada en objetivos y rol. SIN mencionar fechas, cupos o cantidad de horas.
+2. "actividades": Array de strings. MÁXIMO 4 items. Solo lo más relevante.
+3. "actividadesLabel": El título sugerido para la lista (ej: "Actividades", "Espacios", etc).
+4. "horario_seleccionado": Un string con todos los horarios detectados separados por PUNTO Y COMA (;). Si no hay, dejar vacío.
+5. "requisitoObligatorio": String (o vacío).
+
+Responde SOLO con el JSON válido.
+`;
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-content`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error en la edge function: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      let text = "";
+      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+        const parts = data.candidates[0].content.parts;
+        text = parts.map((p: any) => p.text).join("");
+      } else if (data.error) {
+        throw new Error(data.error.message || "Error desconocido de Gemini");
+      }
 
       const cleanJson = text
         .replace(/```json/g, "")

@@ -27,14 +27,13 @@ testSupabaseConnection().then(async (result) => {
       console.log("2. Endpoint URL:", SUPABASE_URL);
       console.log("3. API Key (first 30 chars):", SUPABASE_ANON_KEY.substring(0, 30));
 
-      // Test with RPC endpoint
-      const rpcResponse = await fetch(`${SUPABASE_URL}/rest/v1/rpc/health_check`, {
-        method: "POST",
+      // Test with edge function
+      const rpcResponse = await fetch(`${SUPABASE_URL}/functions/v1/health-check`, {
+        method: "GET",
         headers: {
           apikey: SUPABASE_ANON_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({}),
       });
 
       console.log("4. RPC Endpoint Health:", rpcResponse.status);
