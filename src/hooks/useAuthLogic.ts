@@ -385,12 +385,18 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
             throw new Error("Por favor completa todos los campos para validar tu identidad.");
           }
 
+          console.log(`[Password Recovery] Verifying identity for legajo: ${legajoTrimmed}`);
+
           const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
             "get_student_details_by_legajo",
             { legajo_input: legajoTrimmed }
           );
 
-          if (rpcError) throw new Error("Error de conexión. Intenta más tarde.");
+          if (rpcError) {
+            console.error("[Password Recovery] RPC Error during verification:", rpcError);
+            throw new Error("Error de conexión. Intenta más tarde.");
+          }
+
           const studentData =
             rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
 
@@ -406,6 +412,17 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
           const inputEmail = verificationData.correo.trim().toLowerCase();
           const inputPhone = normalizePhone(verificationData.telefono);
 
+          console.log(`[Password Recovery] Verification check:`, {
+            legajo: legajoTrimmed,
+            dbDni,
+            inputDni,
+            dbEmail,
+            inputEmail,
+            dbPhone,
+            inputPhone,
+            phoneMatch: !dbPhone || !inputPhone.includes(dbPhone.slice(-6)),
+          });
+
           let mismatch = false;
           if (dbDni !== inputDni) mismatch = true;
           if (dbEmail !== inputEmail) mismatch = true;
@@ -413,9 +430,11 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
           if (!dbPhone || !inputPhone.includes(dbPhone.slice(-6))) mismatch = true;
 
           if (mismatch) {
+            console.warn(`[Password Recovery] Data mismatch for legajo: ${legajoTrimmed}`);
             throw new Error("Los datos ingresados no coinciden con nuestros registros.");
           }
 
+          console.log(`[Password Recovery] Verification successful for legajo: ${legajoTrimmed}`);
           setResetStep("reset_password");
           setIsLoading(false);
           return;
@@ -426,23 +445,73 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
             throw new Error("La contraseña debe tener al menos 6 caracteres.");
           if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
 
+          console.log(`[Password Reset] Attempting to reset password for legajo: ${legajoTrimmed}`);
+
           const { error: rpcResetError } = await (supabase.rpc as any)("admin_reset_password", {
             legajo_input: legajoTrimmed,
             new_password: password,
           });
 
           if (rpcResetError) {
-            console.error("RPC Reset Error", rpcResetError);
-            throw new Error(
-              "Error del servidor. Si el problema persiste, pide al administrador que actualice la base de datos."
-            );
+            console.error("[Password Reset] RPC Error Details:", {
+              message: rpcResetError.message,
+              code: rpcResetError.code,
+              details: rpcResetError.details,
+              hint: rpcResetError.hint,
+              status: rpcResetError.status,
+              fullError: JSON.stringify(rpcResetError),
+              timestamp: new Date().toISOString(),
+            });
+
+            let errorMessage = "Error del servidor al restablecer la contraseña.";
+            let suggestion =
+              " Si el problema persiste, contacta a: blas.rivera@uflouniversidad.edu.ar";
+
+            if (
+              rpcResetError.message.includes("No existe usuario") ||
+              rpcResetError.message.includes("not found")
+            ) {
+              errorMessage = "No se encontró un usuario vinculado a este legajo en el sistema.";
+              suggestion = " Por favor, creá una cuenta nueva o contacta a coordinación.";
+            } else if (
+              rpcResetError.message.includes("constraint") ||
+              rpcResetError.message.includes("duplicate")
+            ) {
+              errorMessage = "Error de validación en la base de datos.";
+              suggestion = " Intenta nuevamente en unos minutos o contacta a soporte.";
+            } else if (rpcResetError.code === "23505") {
+              errorMessage = "Error de restricción única en la base de datos.";
+              suggestion = " Es posible que ya haya una solicitud pendiente.";
+            } else if (rpcResetError.status >= 500) {
+              errorMessage = "El servidor no está respondiendo correctamente (Error 500).";
+              suggestion = " Este es un error temporal. Por favor, intenta en unos minutos.";
+            }
+
+            throw new Error(`${errorMessage}${suggestion}`);
           }
 
+          console.log(`[Password Reset] Successfully reset password for legajo: ${legajoTrimmed}`);
           setResetStep("success");
           setIsLoading(false);
         }
       } catch (err: any) {
-        setError(err.message);
+        console.error("[Password Recovery] Error during recovery process:", {
+          error: err,
+          message: err.message,
+          stack: err.stack,
+          mode,
+          resetStep,
+          legajo: legajoTrimmed,
+          timestamp: new Date().toISOString(),
+        });
+
+        const errorMessage = err.message || "Error desconocido al recuperar contraseña.";
+        const additionalInfo =
+          mode === "recover" && resetStep === "reset_password"
+            ? "\n\n🔧 Detalles técnicos para soporte:\nEste error indica un problema al actualizar la contraseña en el servidor. Por favor, contacta a blas.rivera@uflouniversidad.edu.ar con tu legajo y menciona 'Error al recuperar contraseña'."
+            : "";
+
+        setError(errorMessage + additionalInfo);
         setIsLoading(false);
       }
     } else {

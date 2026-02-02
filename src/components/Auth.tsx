@@ -676,13 +676,40 @@ const Auth: React.FC = () => {
                       <div className="p-2 bg-white dark:bg-rose-950 rounded-full text-rose-500 dark:text-rose-400 shadow-sm border border-rose-100 dark:border-rose-900/50 flex-shrink-0">
                         <span className="material-icons !text-lg">error</span>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-rose-800 dark:text-rose-200">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-rose-800 dark:text-rose-200 mb-1">
                           Atención
                         </h4>
-                        <p className="text-sm text-rose-600 dark:text-rose-300 mt-1 leading-snug font-medium">
-                          {error}
-                        </p>
+                        <div className="space-y-2">
+                          <p className="text-sm text-rose-600 dark:text-rose-300 leading-snug font-medium whitespace-pre-line">
+                            {error}
+                          </p>
+                          {mode === "recover" && resetStep === "reset_password" && (
+                            <details className="group">
+                              <summary className="text-xs font-bold text-rose-700 dark:text-rose-300 cursor-pointer hover:text-rose-900 dark:hover:text-rose-100 transition-colors select-none">
+                                🔧 Ver información técnica
+                              </summary>
+                              <div className="mt-2 p-3 bg-rose-100/50 dark:bg-rose-900/30 rounded-lg border border-rose-200 dark:border-rose-800">
+                                <p className="text-xs text-rose-700 dark:text-rose-300 font-mono leading-relaxed">
+                                  <span className="font-bold">Código de referencia:</span> REC-001
+                                  <br />
+                                  <span className="font-bold">Paso:</span> Restablecer contraseña
+                                  <br />
+                                  <span className="font-bold">Acción recomendada:</span> Si el error
+                                  persiste, contacta a blas.rivera@uflouniversidad.edu.ar con tu
+                                  número de legajo.
+                                  <br />
+                                  <span className="font-bold">Posibles causas:</span>
+                                  <ul className="mt-1 ml-4 list-disc space-y-0.5">
+                                    <li>El servidor no está respondiendo correctamente</li>
+                                    <li>Hay un problema con la base de datos</li>
+                                    <li>La sesión ha expirado (vuelve a validar)</li>
+                                  </ul>
+                                </p>
+                              </div>
+                            </details>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
