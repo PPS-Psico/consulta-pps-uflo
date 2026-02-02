@@ -1,28 +1,13 @@
-// --- Environment Configuration ---
-// TEMPORAL: Hardcodeo las credenciales para producción
-// TODO: Resolver problema con variables de entorno en GitHub Actions
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-const SUPABASE_URL_VALUE = "https://qxnxtnhtbpsgzprqtrjl.supabase.co";
-const SUPABASE_ANON_KEY_VALUE =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4bnh0bmh0YnBzZ3pwcnF0cmpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NjIzNDEsImV4cCI6MjA3OTAzODM0MX0.Lwj2kZPjYaM6M7VbUX48hSnCh3N2YB6iMJtdhFP9brU";
-
-// Debug logging
-console.log("=== SUPABASE CREDENTIALS DEBUG ===");
-console.log("Full SUPABASE_ANON_KEY:", SUPABASE_ANON_KEY_VALUE);
-console.log("First 50 chars:", SUPABASE_ANON_KEY_VALUE.substring(0, 50));
-console.log("================================");
-
-export const SUPABASE_URL = SUPABASE_URL_VALUE;
-export const SUPABASE_ANON_KEY = SUPABASE_ANON_KEY_VALUE;
-
-// Test function to verify Supabase connection
 export const testSupabaseConnection = async () => {
   console.log("=== TESTING SUPABASE CONNECTION ===");
   try {
-    const response = await fetch(`${SUPABASE_URL_VALUE}/rest/v1/`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
       method: "GET",
       headers: {
-        apikey: SUPABASE_ANON_KEY_VALUE,
+        apikey: SUPABASE_ANON_KEY,
         "Content-Type": "application/json",
       },
     });
