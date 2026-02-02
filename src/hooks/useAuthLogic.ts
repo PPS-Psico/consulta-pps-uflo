@@ -34,6 +34,16 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const addLog = (type: "error" | "info" | "success", message: string, data?: any) => {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}${data ? ` | Data: ${JSON.stringify(data)}` : ""}`;
+    setDebugLogs((prev) => [...prev, logEntry]);
+    console.log(logEntry);
+  };
+
+  const clearLogs = () => setDebugLogs([]);
 
   const [foundStudent, setFoundStudent] = useState<AirtableRecord<EstudianteFields> | null>(null);
   const [verificationData, setVerificationData] = useState({ dni: "", correo: "", telefono: "" });
@@ -375,7 +385,12 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
       }
     } else if (mode === "recover") {
       try {
+        clearLogs();
+        addLog("info", `Iniciando recuperación de contraseña para legajo: ${legajoTrimmed}`);
+
         if (resetStep === "verify") {
+          addLog("info", "Validando datos de identidad");
+
           if (
             !legajoTrimmed ||
             !verificationData.dni ||
@@ -385,15 +400,13 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
             throw new Error("Por favor completa todos los campos para validar tu identidad.");
           }
 
-          console.log(`[Password Recovery] Verifying identity for legajo: ${legajoTrimmed}`);
-
           const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
             "get_student_details_by_legajo",
             { legajo_input: legajoTrimmed }
           );
 
           if (rpcError) {
-            console.error("[Password Recovery] RPC Error during verification:", rpcError);
+            addLog("error", "RPC Error durante verificación", { rpcError });
             throw new Error("Error de conexión. Intenta más tarde.");
           }
 
@@ -401,6 +414,8 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
             rpcData && (rpcData as any[]).length > 0 ? (rpcData as any[])[0] : null;
 
           if (!studentData) throw new Error("No encontramos un estudiante con ese legajo.");
+
+          addLog("success", "Estudiante encontrado en base de datos");
 
           const dbDni = String(studentData[FIELD_DNI_ESTUDIANTES] || "").replace(/\D/g, "");
           const dbEmail = String(studentData[FIELD_CORREO_ESTUDIANTES] || "")
@@ -412,7 +427,7 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
           const inputEmail = verificationData.correo.trim().toLowerCase();
           const inputPhone = normalizePhone(verificationData.telefono);
 
-          console.log(`[Password Recovery] Verification check:`, {
+          addLog("info", "Verificando coincidencia de datos", {
             legajo: legajoTrimmed,
             dbDni,
             inputDni,
@@ -426,26 +441,30 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
           let mismatch = false;
           if (dbDni !== inputDni) mismatch = true;
           if (dbEmail !== inputEmail) mismatch = true;
-          // Phone validation is loose (check last 6 digits)
           if (!dbPhone || !inputPhone.includes(dbPhone.slice(-6))) mismatch = true;
 
           if (mismatch) {
-            console.warn(`[Password Recovery] Data mismatch for legajo: ${legajoTrimmed}`);
+            addLog("error", "Datos no coinciden", {
+              dbDni,
+              inputDni,
+              dbEmail,
+              inputEmail,
+            });
             throw new Error("Los datos ingresados no coinciden con nuestros registros.");
           }
 
-          console.log(`[Password Recovery] Verification successful for legajo: ${legajoTrimmed}`);
+          addLog("success", "Verificación exitosa");
           setResetStep("reset_password");
           setIsLoading(false);
           return;
         }
 
         if (resetStep === "reset_password") {
+          addLog("info", "Restableciendo contraseña");
+
           if (password.length < 6)
             throw new Error("La contraseña debe tener al menos 6 caracteres.");
           if (password !== confirmPassword) throw new Error("Las contraseñas no coinciden.");
-
-          console.log(`[Password Reset] Attempting to reset password for legajo: ${legajoTrimmed}`);
 
           const { error: rpcResetError } = await (supabase.rpc as any)("admin_reset_password", {
             legajo_input: legajoTrimmed,
@@ -453,14 +472,12 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
           });
 
           if (rpcResetError) {
-            console.error("[Password Reset] RPC Error Details:", {
+            addLog("error", "RPC Error al restablecer contraseña", {
               message: rpcResetError.message,
               code: rpcResetError.code,
               details: rpcResetError.details,
               hint: rpcResetError.hint,
               status: rpcResetError.status,
-              fullError: JSON.stringify(rpcResetError),
-              timestamp: new Date().toISOString(),
             });
 
             let errorMessage = "Error del servidor al restablecer la contraseña.";
@@ -490,19 +507,17 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
             throw new Error(`${errorMessage}${suggestion}`);
           }
 
-          console.log(`[Password Reset] Successfully reset password for legajo: ${legajoTrimmed}`);
+          addLog("success", "Contraseña restablecida exitosamente");
           setResetStep("success");
           setIsLoading(false);
         }
       } catch (err: any) {
-        console.error("[Password Recovery] Error during recovery process:", {
-          error: err,
-          message: err.message,
+        addLog("error", "Error durante recuperación", {
+          error: err.message,
           stack: err.stack,
           mode,
           resetStep,
           legajo: legajoTrimmed,
-          timestamp: new Date().toISOString(),
         });
 
         const errorMessage = err.message || "Error desconocido al recuperar contraseña.";
@@ -540,6 +555,8 @@ export const useAuthLogic = ({ login, showModal: _showModal }: UseAuthLogicProps
     fieldError,
     foundStudent,
     verificationData,
+    debugLogs,
+    clearLogs,
     handleVerificationDataChange,
     handleFormSubmit,
     handleForgotLegajoSubmit: (e: any) => e.preventDefault(),

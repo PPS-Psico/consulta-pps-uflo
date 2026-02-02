@@ -38,12 +38,21 @@ const Auth: React.FC = () => {
     error,
     fieldError,
     verificationData,
+    debugLogs,
+    clearLogs,
     handleVerificationDataChange,
     handleFormSubmit,
     foundStudent,
   } = useAuthLogic({ login, showModal });
 
   const [showPassword, setShowPassword] = useState(false);
+
+  const copyLogsToClipboard = () => {
+    const logsText = debugLogs.join("\n");
+    navigator.clipboard.writeText(logsText).then(() => {
+      showModal("Copiado", "Los logs técnicos han sido copiados al portapapeles.");
+    });
+  };
 
   const getDisplayName = () => {
     if (!foundStudent) return "";
@@ -714,6 +723,55 @@ const Auth: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Debug Logs Area - Only visible when there are logs */}
+                {debugLogs.length > 0 && (
+                  <div className="mt-4">
+                    <details className="group">
+                      <summary className="flex items-center gap-2 cursor-pointer select-none">
+                        <span className="material-icons text-amber-500 !text-lg">bug_report</span>
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                          Ver Logs de Diagnóstico ({debugLogs.length})
+                        </span>
+                      </summary>
+                      <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-200 dark:border-slate-700">
+                          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            Log del sistema
+                          </span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={copyLogsToClipboard}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            >
+                              <span className="material-icons !text-sm">content_copy</span>
+                              Copiar
+                            </button>
+                            <button
+                              onClick={clearLogs}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
+                            >
+                              <span className="material-icons !text-sm">delete</span>
+                              Borrar
+                            </button>
+                          </div>
+                        </div>
+                        <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                          <pre className="text-xs font-mono text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap break-all">
+                            {debugLogs.map((log, index) => (
+                              <div
+                                key={index}
+                                className={`mb-1 ${log.includes("[ERROR]") ? "text-red-600 dark:text-red-400" : log.includes("[SUCCESS]") ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+                              >
+                                {log}
+                              </div>
+                            ))}
+                          </pre>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                )}
               </div>
 
               {/* Mobile Footer Branding */}
