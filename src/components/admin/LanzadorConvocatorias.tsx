@@ -1082,7 +1082,7 @@ Responde SOLO con el JSON válido.
   };
 
   const renderLaunchItem = useCallback(
-    (launch: LanzamientoPPS) => {
+    (launch: LanzamientoPPS, showCopyButton?: boolean = false) => {
       const statusRaw = normalizeStringForComparison(
         launch[FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS]
       );
@@ -1090,6 +1090,7 @@ Responde SOLO con el JSON válido.
       const isOculta = statusRaw === "oculto";
       const isProgramada = statusRaw === "programada" || statusRaw === "programado";
       const pubDate = launch[FIELD_FECHA_PUBLICACION_LANZAMIENTOS] as string;
+      const mensajeWhatsApp = launch[FIELD_MENSAJE_WHATSAPP_LANZAMIENTOS] as string;
 
       return (
         <div
@@ -1152,13 +1153,19 @@ Responde SOLO con el JSON válido.
                 <span className="material-icons !text-xl">lock_open</span>
               </button>
             )}
-            {!isOculta && (
+            {!isOculta && showCopyButton && (
               <button
-                onClick={() => handleStatusAction(launch.id, "ocultar")}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                title="Ocultar"
+                onClick={() => copyToClipboard(mensajeWhatsApp || "")}
+                className={`hover-lift flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+                  isCopied
+                    ? "bg-emerald-500 text-white shadow-emerald-500/20"
+                    : "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:border-emerald-400"
+                }`}
               >
-                <span className="material-icons !text-xl">visibility_off</span>
+                <span className="material-icons !text-lg">
+                  {isCopied ? "done_all" : "content_copy"}
+                </span>
+                {isCopied ? "Copiado!" : "Copiar mensaje"}
               </button>
             )}
             <button
@@ -1873,11 +1880,15 @@ Responde SOLO con el JSON válido.
         <div className="mt-8 space-y-8">
           {scheduledHistory.length > 0 && (
             <div className="animate-fade-in">
-              <h3 className="text-sm font-bold text-indigo-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <span className="material-icons !text-sm">schedule_send</span>
-                Lanzamientos Programados
+              <h3 className="text-sm font-bold text-indigo-500 uppercase tracking-wider mb-4 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <span className="material-icons !text-sm">schedule_send</span>
+                  Lanzamientos Programados
+                </span>
               </h3>
-              <div className="space-y-4">{scheduledHistory.map(renderLaunchItem)}</div>
+              <div className="space-y-4">
+                {scheduledHistory.map((launch) => renderLaunchItem(launch, true))}
+              </div>
             </div>
           )}
 
