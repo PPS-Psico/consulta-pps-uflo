@@ -558,31 +558,48 @@ Responde SOLO con el JSON válido.
       }
     }
 
+    // Get filtered schedules
+    const validSchedules = schedules.filter(Boolean);
+    const hasMultipleSchedules = validSchedules.length > 1;
+
     const msg = `📢 *¡Nueva Convocatoria PPS: ${formData.nombrePPS || "Práctica Profesional"}!* 📢
+ 
+ ✨ *Institución:* ${formData.nombrePPS || "A confirmar"}
+ 
+ 📍 *Lugar:* ${formData.direccion || "A confirmar"}
+ 
+ 🎯 *Objetivo:* ${formData.descripcion || "Describir el objetivo de la práctica."}
+ 
+ ⏱️ *Acredita:* ${formData.horasAcreditadas || 0} hs totales (${formData.orientacion || "Orientación"})
+ 
+ ⏳ *Duración:* ${durationText}
+ 
+ 👥 *Cupo:* ${formData.cuposDisponibles || 0} estudiantes
+ ${formData.reqCertificadoTrabajo ? "✅ *Certificado de trabajo:* Sí" : "❌ *Certificado de trabajo:* No"}
+ ${formData.reqCv ? "✅ *CV:* Sí" : "❌ *CV:* No"}
+ 
+ 📍 *Modalidad:* ${formData.direccion === "Modalidad Virtual" ? "Virtual" : "Presencial"}
+ 
+ ${validSchedules.length > 0 ? `📅 *${hasMultipleSchedules ? "Horarios y Dedicación:" : "Horario:"}*` : ""}
+ ${
+   hasMultipleSchedules
+     ? `🗓️ *Cursada:* ${validSchedules.join("; ")}`
+     : validSchedules.length > 0
+       ? `🗓️ *Cursada:* ${validSchedules[0]}`
+       : "A confirmar"
+ }
+ 
+ 📋 *Inscripción:*
+ ‼️ *Desde:* ${formData.fechaInicioInscripcion ? formatDate(formData.fechaInicioInscripcion) : "A confirmar"}
+ ‼️ *Hasta:* ${formData.fechaFinInscripcion ? formatDate(formData.fechaFinInscripcion) : "A confirmar"}
+ 
+ 🚀 *Inicio de Prácticas:* ${formData.fechaInicio ? formatDate(formData.fechaInicio) : "A confirmar"}
+ 
+ 🔚 *Fin de Prácticas:* ${formData.fechaFin ? formatDate(formData.fechaFin) : "A confirmar"}
+ 
+ ${formData.requisitoObligatorio ? `⚠️ *Requisito:* ${formData.requisitoObligatorio}` : ""}
 
-✨ *Institución:* ${formData.nombrePPS || "A confirmar"}.
-📍 *Lugar:* ${formData.direccion || "A confirmar"}.
-
-🎯 *Objetivo:* ${formData.descripcion || "Describir el objetivo de la práctica."}
-
-*Detalles de la Práctica:*
-⏱️ *Acredita:* ${formData.horasAcreditadas || 0} hs totales (${formData.orientacion || "Orientación"}).
-⏳ *Duración:* ${durationText}.
-👥 *Cupo:* ${formData.cuposDisponibles || 0} estudiantes.
-📍 *Modalidad:* ${formData.direccion === "Modalidad Virtual" ? "Virtual" : "Presencial"}.
-
-*Horarios y Dedicación:*
-🗓️ *Cursada:* ${schedules.filter(Boolean).join("; ") || "A confirmar"}.
-
-*Fechas Clave:*
-‼️ *INSCRIPCIÓN:* ${inscripInfo}. ‼️
-🚀 *Inicio de Prácticas:* ${formData.fechaInicio ? formatDate(formData.fechaInicio) : "A confirmar"}.
-
-*Requisito Obligatorio:*
-📄 ${formData.reqCv ? "Subir CV actualizado al momento de inscribirse." : formData.requisitoObligatorio || "Sin requisitos adicionales."}
-
-🔗 *Inscripción en Mi Panel.*`;
-
+💡 *Para inscribirte, completa el formulario en la web.*`;
     setFormData((prev) => ({ ...prev, mensajeWhatsApp: msg }));
     setShowPreviewModal(true);
   };
