@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { differenceInDays } from "date-fns";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { FIELD_NOMBRE_PPS_LANZAMIENTOS, GEMINI_API_KEY } from "../constants";
+import { FIELD_NOMBRE_PPS_LANZAMIENTOS } from "../constants";
 import { parseToUTCDate } from "../utils/formatters";
+import { generateWithGemini } from "../services/geminiService";
 
 interface DashboardData {
   endingLaunches: any[];
@@ -147,59 +147,39 @@ export const useSmartAnalysis = (data: DashboardData | undefined, isLoading: boo
   }, [data, isLoading]);
 
   useEffect(() => {
-    // AI Integration using Legacy SDK
+    // AI Integration using Edge Function
     const fetchAiInsight = async () => {
-      if (!algorithmicAnalysis.rawData || !GEMINI_API_KEY) return;
+      if (!algorithmicAnalysis.rawData) return;
 
       setIsAiLoading(true);
       try {
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
         // Prompt de Ingeniería Inversa: Enfocado en acción y estrategia.
         const prompt = `
-                    Actúa como un Coordinador de Vinculación Institucional. 
+                    Actúa como un Coordinador de Vinculación Institucional.
                     Analiza métricas: ${JSON.stringify(algorithmicAnalysis.rawData)}
-                    
+
                     OBJETIVO: Recomendación estratégica de una sola frase (max 25 palabras).
-                    
+
                     PRIORIDADES (En orden):
                     1. 'porVencerCount' > 0 (URGENTE): Hay convenios que caen en <7 días. Sugiere contactar YA para renovar y evitar baches ("Ciclo Continuo").
                     2. 'vencidasCount' > 0: Sugiere regularizar administrativamente (Cerrar o Relanzar).
                     3. 'estancadasCount' > 0: Foco en experiencia alumno (desbloquear trámites).
                     4. 'acreditacionesCount' > 0: Foco en eficiencia de egreso.
-                    
+
                     Si todo es 0: "Todo al día. Sugiere buscar nuevas alianzas o revisar planificaciones futuras."
-                    
+
                     Contexto: Estamos en ${algorithmicAnalysis.rawData.mesActual}.
                     Tono: Profesional, directo, proactivo.
                 `;
 
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        const text = response.text();
+        const text = await generateWithGemini(prompt);
 
         if (text) {
           setAiSummary(text.trim());
         }
       } catch (error: any) {
         console.error("AI Generation Error", error);
-
-        let extraMsg = "";
-        try {
-          const listResp = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`
-          );
-          const listData = await listResp.json();
-          if (listData.models) {
-            const names = listData.models.map((m: any) => m.name.replace("models/", ""));
-            extraMsg = ` | DISPONIBLES: ${names.join(", ")}`;
-          }
-        } catch (e) {
-          extraMsg = " | Diagnóstico falló.";
-        }
-
-        setAiSummary(`Error generando feedback: ${error.message}${extraMsg}`);
+        setAiSummary(`Error generando feedback: ${error.message}`);
       } finally {
         setIsAiLoading(false);
       }

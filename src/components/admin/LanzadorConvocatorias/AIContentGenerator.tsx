@@ -1,6 +1,5 @@
 import React from "react";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GEMINI_API_KEY } from "../../../constants";
+import { generateWithGemini } from "../../../services/geminiService";
 import Button from "../../ui/Button";
 
 interface AIContentGeneratorProps {
@@ -21,21 +20,14 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   onStartGenerate,
 }) => {
   const handleGenerate = async () => {
-    if (!rawText.trim() || !GEMINI_API_KEY) {
-      onError(
-        !GEMINI_API_KEY
-          ? "API key de Gemini no configurada"
-          : "Por favor, pega el texto del convenio primero"
-      );
+    if (!rawText.trim()) {
+      onError("Por favor, pega el texto del convenio primero");
       return;
     }
 
     onStartGenerate();
 
     try {
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
       const prompt = `
         Eres un asistente académico experto en el área de la Psicología.
         Tu tarea es procesar el siguiente texto crudo (convenio, programa, o descripción) para crear:
@@ -60,9 +52,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
         """${rawText}"""
       `;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const text = await generateWithGemini(prompt);
 
       try {
         const cleanedText = text
