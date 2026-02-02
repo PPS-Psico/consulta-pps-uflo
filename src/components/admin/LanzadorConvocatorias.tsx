@@ -562,58 +562,45 @@ Responde SOLO con el JSON válido.
     const validSchedules = schedules.filter(Boolean);
     const hasMultipleSchedules = validSchedules.length > 1;
 
+    // Summarize description - take first sentence or first 150 chars
+    let descripcionResumida = formData.descripcion || "";
+    if (descripcionResumida.length > 150) {
+      const firstSentence = descripcionResumida.split(".")[0];
+      descripcionResumida =
+        firstSentence.length > 150 ? firstSentence.substring(0, 150) + "..." : firstSentence + ".";
+    }
+
     // Build WhatsApp message
-    let message = "";
+    let message = `📢 *¡Nueva Convocatoria PPS: ${formData.nombrePPS || formData.nombreInstitucion || "Nueva Convocatoria"}!* 📢
 
-    if (validSchedules.length > 0) {
-      const schedulesSection = validSchedules
-        .map((s, index) => `* Grupo ${index + 1}:* ${s.trim()}`)
-        .join("\n");
-      message += schedulesSection;
-    }
+✨ *Institución:* ${formData.nombrePPS || formData.nombreInstitucion || ""}
+📍 *Lugar:* ${formData.direccion || "A confirmar"}
 
-    message += "📅 *Horarios:* " + validSchedules.map((s) => s.trim()).join("; ");
+🎯 *Objetivo:* ${descripcionResumida}
 
-    message += `
-📋 *Período de Prácticas:* ${formatDate(formData.fechaInicio)} al ${formData.fechaFin ? `al ${formatDate(formData.fechaFin)}` : ""}
-`;
+    📅 *Horarios*: ${validSchedules.map((s) => s.trim()).join("; ") || "A confirmar"}
 
-    if (formData.fechaInicioInscripcion && formData.fechaFinInscripcion) {
-      message += `📋 *Inscripción:* Desde ${formatDate(formData.fechaInicioInscripcion)} hasta ${formatDate(formData.fechaFinInscripcion)}`;
-    }
+📋 *Período de Prácticas:* ${formatDate(formData.fechaInicio)}${formData.fechaFin ? ` al ${formatDate(formData.fechaFin)}` : ""} (aprox.)
+📋 *Inscripción:* ${formData.fechaInicioInscripcion && formData.fechaFinInscripcion ? `Desde ${formatDate(formData.fechaInicioInscripcion)} hasta ${formatDate(formData.fechaFinInscripcion)}` : "Consultar en Campus"}
 
-    message += `📝 *Modalidad:* ${formData.direccion === "Modalidad Virtual" ? "Virtual" : "Presencial"}`;
+👥 *Cupos:* ${formData.cuposDisponibles}
 
-    message += `👥 *Cupos:* ${formData.cuposDisponibles}`;
-    message += `⏱️ *Acreditación:* ${formData.horasAcreditadas} hs`;
+⏱️ *Acredita:* ${formData.horasAcreditadas} horas de ${formData.orientacion || ""}`;
 
     if (formData.reqCertificadoTrabajo || formData.reqCv) {
       const reqList = [];
       if (formData.reqCertificadoTrabajo) reqList.push("Certificado de trabajo");
       if (formData.reqCv) reqList.push("CV");
-      message += "📎 *Requisitos:* " + reqList.join(" • ");
+      message += "\n📎 *Requisitos:* " + reqList.join(" • ");
     }
 
     if (formData.requisitoObligatorio) {
-      message += `📜 *Requisito:* ${formData.requisitoObligatorio}`;
-    }
-
-    message += `🎯 *Objetivo:* ${formData.descripcion}`;
-
-    if (formData.descripcion && formData.descripcion.length > 200) {
-      message += `
-📝 *Detalles de la Práctica:*`;
-      message += formData.descripcion.substring(0, 200);
-    }
-
-    if (formData.direccion) {
-      message += `📍 *Lugar:* ${formData.direccion}`;
+      message += `\n📜 *Requisito:* ${formData.requisitoObligatorio}`;
     }
 
     message += `
-───────
-💡 *Para inscribirte:* Completa el formulario en *Mi Panel*
-`;
+
+💡 *Para inscribirte, completa el formulario en Mi Panel:*`;
 
     const whatsappMessage = message;
     setFormData((prev) => ({ ...prev, mensajeWhatsApp: whatsappMessage }));
