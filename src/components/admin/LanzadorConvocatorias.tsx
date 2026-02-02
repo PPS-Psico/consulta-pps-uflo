@@ -562,45 +562,28 @@ Responde SOLO con el JSON válido.
     const validSchedules = schedules.filter(Boolean);
     const hasMultipleSchedules = validSchedules.length > 1;
 
-    const msg = `📢 *¡Nueva Convocatoria PPS: ${formData.nombrePPS || "Práctica Profesional"}!* 📢
- 
- ✨ *Institución:* ${formData.nombrePPS || "A confirmar"}
- 
- 📍 *Lugar:* ${formData.direccion || "A confirmar"}
- 
- 🎯 *Objetivo:* ${formData.descripcion || "Describir el objetivo de la práctica."}
- 
- ⏱️ *Acredita:* ${formData.horasAcreditadas || 0} hs totales (${formData.orientacion || "Orientación"})
- 
- ⏳ *Duración:* ${durationText}
- 
- 👥 *Cupo:* ${formData.cuposDisponibles || 0} estudiantes
- ${formData.reqCertificadoTrabajo ? "✅ *Certificado de trabajo:* Sí" : "❌ *Certificado de trabajo:* No"}
- ${formData.reqCv ? "✅ *CV:* Sí" : "❌ *CV:* No"}
- 
- 📍 *Modalidad:* ${formData.direccion === "Modalidad Virtual" ? "Virtual" : "Presencial"}
- 
- ${validSchedules.length > 0 ? `📅 *${hasMultipleSchedules ? "Horarios y Dedicación:" : "Horario:"}*` : ""}
- ${
-   hasMultipleSchedules
-     ? `🗓️ *Cursada:* ${validSchedules.join("; ")}`
-     : validSchedules.length > 0
-       ? `🗓️ *Cursada:* ${validSchedules[0]}`
-       : "A confirmar"
- }
- 
- 📋 *Inscripción:*
- ‼️ *Desde:* ${formData.fechaInicioInscripcion ? formatDate(formData.fechaInicioInscripcion) : "A confirmar"}
- ‼️ *Hasta:* ${formData.fechaFinInscripcion ? formatDate(formData.fechaFinInscripcion) : "A confirmar"}
- 
- 🚀 *Inicio de Prácticas:* ${formData.fechaInicio ? formatDate(formData.fechaInicio) : "A confirmar"}
- 
- 🔚 *Fin de Prácticas:* ${formData.fechaFin ? formatDate(formData.fechaFin) : "A confirmar"}
- 
- ${formData.requisitoObligatorio ? `⚠️ *Requisito:* ${formData.requisitoObligatorio}` : ""}
+    // Build WhatsApp message
+    let whatsappMessage = `📢 *¡Nueva Convocatoria PPS: ${formData.nombrePPS || "Práctica Profesional"}!* 📢
 
-💡 *Para inscribirte, completa el formulario en la web.*`;
-    setFormData((prev) => ({ ...prev, mensajeWhatsApp: msg }));
+✨ *Institución:* ${formData.nombrePPS || "A confirmar"}
+📍 *Lugar:* ${formData.direccion || "A confirmar"}
+🎯 *Objetivo:* ${formData.descripcion || "Describir el objetivo de la práctica."}
+
+${validSchedules.length > 0 ? `📅 *Horarios:*${validSchedules.join("; ")}` : ""}
+
+${formData.fechaInicio || formData.fechaFin ? `📋 *Período de Prácticas:* ${formData.fechaInicio ? formatDate(formData.fechaInicio) : ""} ${formData.fechaFin ? `al ${formatDate(formData.fechaFin)}` : ""}` : ""}
+${formData.fechaInicioInscripcion && formData.fechaFinInscripcion ? `📋 *Inscripción:* Desde ${formatDate(formData.fechaInicioInscripcion)} hasta ${formatDate(formData.fechaFinInscripcion)}` : ""}
+
+${formData.cuposDisponibles ? `👥 *Cupos:* ${formData.cuposDisponibles}` : ""}
+
+${formData.horasAcreditadas ? `⏱️ *Duración:* ${formData.horasAcreditadas} hs` : ""}
+
+${formData.reqCertificadoTrabajo ? "✅ *Certificado de trabajo:* Sí" : ""}
+${formData.reqCv ? "✅ *CV:* Sí" : ""}
+
+💡 *Para inscribirte, completa el formulario en Mi Panel:*`;
+
+    setFormData((prev) => ({ ...prev, mensajeWhatsApp: whatsappMessage }));
     setShowPreviewModal(true);
   };
 
