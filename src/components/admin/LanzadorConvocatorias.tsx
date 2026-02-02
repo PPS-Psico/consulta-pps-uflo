@@ -562,21 +562,13 @@ Responde SOLO con el JSON válido.
     const validSchedules = schedules.filter(Boolean);
     const hasMultipleSchedules = validSchedules.length > 1;
 
-    // Summarize description - take first sentence or first 150 chars
-    let descripcionResumida = formData.descripcion || "";
-    if (descripcionResumida.length > 150) {
-      const firstSentence = descripcionResumida.split(".")[0];
-      descripcionResumida =
-        firstSentence.length > 150 ? firstSentence.substring(0, 150) + "..." : firstSentence + ".";
-    }
-
     // Build WhatsApp message
     let message = `📢 *¡Nueva Convocatoria PPS: ${formData.nombrePPS || formData.nombreInstitucion || "Nueva Convocatoria"}!* 📢
 
 ✨ *Institución:* ${formData.nombrePPS || formData.nombreInstitucion || ""}
 📍 *Lugar:* ${formData.direccion || "A confirmar"}
 
-🎯 *Objetivo:* ${descripcionResumida}
+🎯 *Objetivo:* ${formData.descripcion || ""}
 
 📅 *Horarios*:`;
 
