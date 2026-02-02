@@ -19,11 +19,6 @@ const config: JestConfigWithTsJest = {
   transform: {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
-
-  // Ignore node_modules for transformation
-  transformIgnorePatterns: [
-    'node_modules/(?!(@supabase/supabase-js|)',
-  ],
 };
 
 export default config;
