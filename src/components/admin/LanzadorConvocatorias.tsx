@@ -578,7 +578,21 @@ Responde SOLO con el JSON válido.
 
 🎯 *Objetivo:* ${descripcionResumida}
 
-    📅 *Horarios*: ${validSchedules.map((s) => s.trim()).join("; ") || "A confirmar"}
+📅 *Horarios*:`;
+
+    if (validSchedules.length > 0) {
+      if (validSchedules.length > 1) {
+        message += validSchedules
+          .map((s, index) => `• *Grupo ${index + 1}:* ${s.trim()}`)
+          .join("\n");
+      } else {
+        message += ` ${validSchedules[0].trim()}`;
+      }
+    } else {
+      message += " A confirmar";
+    }
+
+    message += `
 
 📋 *Período de Prácticas:* ${formatDate(formData.fechaInicio)}${formData.fechaFin ? ` al ${formatDate(formData.fechaFin)}` : ""} (aprox.)
 📋 *Inscripción:* ${formData.fechaInicioInscripcion && formData.fechaFinInscripcion ? `Desde ${formatDate(formData.fechaInicioInscripcion)} hasta ${formatDate(formData.fechaFinInscripcion)}` : "Consultar en Campus"}
@@ -589,8 +603,9 @@ Responde SOLO con el JSON válido.
 
     if (formData.reqCertificadoTrabajo || formData.reqCv) {
       const reqList = [];
-      if (formData.reqCertificadoTrabajo) reqList.push("Certificado de trabajo");
-      if (formData.reqCv) reqList.push("CV");
+      if (formData.reqCertificadoTrabajo)
+        reqList.push("Se va a priorizar a estudiantes que trabajen");
+      if (formData.reqCv) reqList.push("Requisito cargar CV actualizado");
       message += "\n📎 *Requisitos:* " + reqList.join(" • ");
     }
 
