@@ -10,13 +10,54 @@ console.log(
 );
 
 // Run Supabase connection test on load
-testSupabaseConnection().then((result) => {
+testSupabaseConnection().then(async (result) => {
   const message = result.success
     ? `%c✅ Supabase Connection: OK (Status ${result.status}) - background: #1a7f37; color: white; padding: 10px;`
     : `%c❌ Supabase Connection: FAILED (Status ${result.status}) - background: #d32f2f; color: white; padding: 10px;`;
 
   console.log(message);
+
+  // Detailed diagnostics
+  console.log("=== DETAILED SUPABASE DIAGNOSTICS ===");
+  console.log("1. Checking Supabase endpoint health...");
+
+  if (result.success) {
+    try {
+      const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import("./constants/configConstants");
+      console.log("2. Endpoint URL:", SUPABASE_URL);
+      console.log("3. API Key (first 30 chars):", SUPABASE_ANON_KEY.substring(0, 30));
+
+      // Test with RPC endpoint
+      const rpcResponse = await fetch(`${SUPABASE_URL}/rest/v1/rpc/health_check`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+
+      console.log("4. RPC Endpoint Health:", rpcResponse.status);
+
+      // Test with public table (should be accessible with anon key)
+      const tableResponse = await fetch(`${SUPABASE_URL}/rest/v1/app_config?select=*`, {
+        method: "GET",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("5. Public Table Access:", tableResponse.status);
+      console.log("6. If this is 401, it may be RLS policies blocking access");
+    } catch (e: any) {
+      console.error("7. Diagnostic error:", e);
+    }
+  }
+
+  console.log("===========================================");
 });
+
 // @ts-ignore
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -71,15 +112,7 @@ if (!container) {
   throw new Error("No se encontró el elemento root");
 }
 
-// --- SINGLETON PATTERN ---
-// @ts-ignore
-if (window.__REACT_ROOT_INSTANCE__) {
-  console.log("Desmontando instancia previa (src/main)...");
-  // @ts-ignore
-  window.__REACT_ROOT_INSTANCE__.unmount();
-}
-
-// Limpieza visual extra por seguridad
+// Limpiando visual extra por seguridad
 if (container.hasChildNodes()) {
   container.innerHTML = "";
 }
