@@ -9,24 +9,6 @@ process.env.VITE_SUPABASE_URL = "https://test.supabase.co";
 process.env.VITE_SUPABASE_ANON_KEY = "test-anon-key";
 process.env.VITE_VAPID_PUBLIC_KEY = "test-vapid-key";
 
-// Polyfill import.meta.env for Jest using process.env
-Object.defineProperty(global, "import", {
-  value: {
-    meta: {
-      env: {
-        VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || "https://test.supabase.co",
-        VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || "test-anon-key",
-        VITE_GEMINI_API_KEY: process.env.VITE_GEMINI_API_KEY || "test-gemini-key",
-        VITE_VAPID_PUBLIC_KEY: process.env.VITE_VAPID_PUBLIC_KEY || "test-vapid-key",
-        VITE_AIRTABLE_PAT: process.env.VITE_AIRTABLE_PAT || "test-pat",
-        VITE_AIRTABLE_BASE_ID: process.env.VITE_AIRTABLE_BASE_ID || "test-base-id",
-      },
-    },
-  },
-  writable: false,
-  configurable: false,
-});
-
 // Polyfills for JSDOM
 Object.defineProperty(window, "matchMedia", {
   writable: true,
