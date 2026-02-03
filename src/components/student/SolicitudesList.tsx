@@ -255,13 +255,14 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         </details>
       )}
 
-      {/* Empty State */}
+      {/* Empty State - Premium con ilustración */}
       {activeRequests.length === 0 && historyRequests.length === 0 && !finalizacionRequest && (
         <EmptyState
-          icon="list_alt"
+          type="no-solicitudes"
           title="Sin Solicitudes"
           message="No tienes trámites de PPS registrados actualmente."
-          className="bg-transparent border-none shadow-none p-0 mt-8"
+          className="mt-8"
+          size="md"
         />
       )}
     </div>

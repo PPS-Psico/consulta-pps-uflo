@@ -281,10 +281,11 @@ const PracticasTable: React.FC<PracticasTableProps> = ({
   if (practicas.length === 0) {
     return (
       <EmptyState
-        icon="work_off"
+        type="no-practicas"
         title="Sin Prácticas"
-        message="Aún no tienes historial de prácticas registradas."
-        className="bg-transparent border-none shadow-none p-0"
+        message="Aún no tienes historial de prácticas registradas. Completa tu primera PPS desde el panel de convocatorias."
+        className="py-8"
+        size="md"
       />
     );
   }

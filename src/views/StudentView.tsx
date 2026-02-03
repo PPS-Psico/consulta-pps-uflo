@@ -7,6 +7,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { StudentPanelProvider, useStudentPanel } from "../contexts/StudentPanelContext";
 import type { TabId } from "../types";
 import StudentDashboard from "./StudentDashboard";
+import { PullToRefresh, TabTransitionWrapper } from "../components/layout/MobileTransitions";
+import { useTabSwipe } from "../hooks/useSwipe";
 
 // Inner component to consume Context
 const StudentLayout: React.FC = () => {
@@ -22,6 +24,11 @@ const StudentLayout: React.FC = () => {
   else if (location.pathname.includes("/perfil")) activeTab = "profile";
 
   const handleTabChange = (tabId: TabId) => {
+    // Scroll to top on mobile when changing tabs
+    if (window.innerWidth < 768) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
     if (tabId === "inicio") navigate("/student");
     else if (tabId === "profile") navigate("/student/perfil");
     else navigate(`/student/${tabId}`);
@@ -44,14 +51,43 @@ const StudentLayout: React.FC = () => {
     { id: "profile" as TabId, label: "Perfil", icon: "person", path: "/student/perfil" },
   ];
 
+  // Swipe gesture handling for mobile tab navigation
+  const tabIds = mobileNavTabs.map((tab) => tab.id);
+  const { swipeHandlers, style } = useTabSwipe({
+    tabs: tabIds,
+    activeTab: activeTab,
+    onTabChange: handleTabChange,
+    enabled: typeof window !== "undefined" && window.innerWidth < 768,
+  });
+
   return (
-    <div className="pb-24 md:pb-8 min-h-screen flex flex-col">
-      <main className="flex-grow">
-        <StudentDashboard
-          user={authenticatedUser as any}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-        />
+    <div className="pb-28 md:pb-8 min-h-screen flex flex-col">
+      <main className="flex-grow md:block">
+        {/* Desktop: sin transiciones */}
+        <div className="hidden md:block">
+          <StudentDashboard
+            user={authenticatedUser as any}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
+        </div>
+
+        {/* Mobile: solo pull-to-refresh y swipe, sin transiciones de página */}
+        <div className="md:hidden touch-pan-y animate-fade-in" {...swipeHandlers} style={style}>
+          <PullToRefresh
+            onRefresh={async () => {
+              // Aquí puedes agregar lógica de refresh
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              window.location.reload();
+            }}
+          >
+            <StudentDashboard
+              user={authenticatedUser as any}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+            />
+          </PullToRefresh>
+        </div>
       </main>
 
       {/* Hide Footer if Finalization Request is active, as tabs/info are irrelevant */}

@@ -12,9 +12,10 @@ const InformesList: React.FC<InformesListProps> = ({ tasks, onConfirmar }) => {
   if (tasks.length === 0) {
     return (
       <EmptyState
-        icon="task_alt"
+        type="success"
         title="Sin informes pendientes"
-        message="No tienes informes para subir o que estén en corrección en este momento."
+        message="No tienes informes para subir o que estén en corrección en este momento. ¡Todo al día!"
+        size="md"
       />
     );
   }

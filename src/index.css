@@ -208,6 +208,20 @@ html.dark body {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
+/* 7. Shimmer effect for skeletons */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
 /* 4. Glass Card Hover Effect */
 .glass-card-hover {
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);

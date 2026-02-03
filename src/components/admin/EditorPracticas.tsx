@@ -37,6 +37,12 @@ import Button from "../ui/Button";
 import PaginationControls from "../PaginationControls";
 import ConfirmModal from "../ConfirmModal";
 import SearchableSelect from "../SearchableSelect";
+import {
+  MOCK_PRACTICAS,
+  MOCK_ESTUDIANTES,
+  MOCK_LANZAMIENTOS,
+  MOCK_INSTITUCIONES,
+} from "../../data/mockData";
 
 const TABLE_CONFIG = {
   label: "Prácticas",
@@ -86,14 +92,36 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
 
   const queryClient = useQueryClient();
 
-  const { data: institutions = [] } = useQuery({
-    queryKey: ["institutions-filter"],
-    queryFn: () => db.instituciones.getAll({ fields: [FIELD_NOMBRE_INSTITUCIONES] }),
+  const { data: institutions = [] as any[] } = useQuery({
+    queryKey: ["institutions-filter", isTestingMode],
+    queryFn: async () => {
+      if (isTestingMode) return [...MOCK_INSTITUCIONES];
+      const allInstituciones = await db.instituciones.getAll({
+        fields: [FIELD_NOMBRE_INSTITUCIONES],
+      });
+      return allInstituciones.map((i) => ({
+        ...i,
+        orientaciones: i.orientaciones || "",
+        codigo_tarjeta_campus: i.codigo_tarjeta_campus || "",
+      }));
+    },
   });
 
-  const { data: launches = [] } = useQuery({
-    queryKey: ["launches-filter", selectedInstId],
+  const { data: launches = [] as any[] } = useQuery({
+    queryKey: ["launches-filter", selectedInstId, isTestingMode],
     queryFn: async () => {
+      if (isTestingMode) {
+        const inst = institutions.find((i) => i.id === selectedInstId);
+        if (!inst) return [];
+        const rawName = cleanInstitutionName(inst[FIELD_NOMBRE_INSTITUCIONES]);
+        const searchName = rawName
+          .split(/ [-–—] /)[0]
+          .split("(")[0]
+          .trim();
+        return MOCK_LANZAMIENTOS.filter((l) =>
+          l[FIELD_NOMBRE_PPS_LANZAMIENTOS]?.includes(searchName)
+        ) as any[];
+      }
       const inst = institutions.find((i) => i.id === selectedInstId);
       if (!inst) return [];
       const rawName = cleanInstitutionName(inst[FIELD_NOMBRE_INSTITUCIONES]);
@@ -101,10 +129,14 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
         .split(/ [-–—] /)[0]
         .split("(")[0]
         .trim();
-      return db.lanzamientos.getAll({
+      const lanzamientosData = await db.lanzamientos.getAll({
         filters: { [FIELD_NOMBRE_PPS_LANZAMIENTOS]: `%${searchName}%` },
         fields: [FIELD_NOMBRE_PPS_LANZAMIENTOS, FIELD_FECHA_INICIO_LANZAMIENTOS],
       });
+      return lanzamientosData.map((l) => ({
+        ...l,
+        institucion_id: selectedInstId,
+      })) as any[];
     },
     enabled: !!selectedInstId,
   });
@@ -117,8 +149,65 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
       filterStudentId,
       selectedInstId,
       selectedLaunchId,
+      isTestingMode,
     ],
     queryFn: async () => {
+      // TESTING MODE: Usar datos mock
+      if (isTestingMode) {
+        let filteredRecords = [...MOCK_PRACTICAS];
+
+        if (filterStudentId) {
+          filteredRecords = filteredRecords.filter(
+            (p) => p[FIELD_ESTUDIANTE_LINK_PRACTICAS] === filterStudentId
+          );
+        }
+
+        if (selectedInstId) {
+          const inst = institutions.find((i) => i.id === selectedInstId);
+          if (inst) {
+            const searchName = cleanInstitutionName(inst[FIELD_NOMBRE_INSTITUCIONES])
+              .split(" - ")[0]
+              .trim();
+            filteredRecords = filteredRecords.filter((p) =>
+              p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]?.includes(searchName)
+            );
+          }
+        }
+
+        if (selectedLaunchId) {
+          const launch = launches.find((l) => l.id === selectedLaunchId);
+          if (launch && launch[FIELD_FECHA_INICIO_LANZAMIENTOS]) {
+            filteredRecords = filteredRecords.filter(
+              (p) => p[FIELD_FECHA_INICIO_PRACTICAS] === launch[FIELD_FECHA_INICIO_LANZAMIENTOS]
+            );
+          } else {
+            filteredRecords = filteredRecords.filter(
+              (p) => p[FIELD_LANZAMIENTO_VINCULADO_PRACTICAS] === selectedLaunchId
+            );
+          }
+        }
+
+        const studentMap = new Map(MOCK_ESTUDIANTES.map((s) => [s.id, s]));
+        const enriched = filteredRecords.map((p) => ({
+          ...p,
+          [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: cleanInstitutionName(
+            p[FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]
+          ),
+          __student: studentMap.get(safeGetId(p[FIELD_ESTUDIANTE_LINK_PRACTICAS]) || "") || {
+            nombre: "Desconocido",
+            legajo: "---",
+          },
+        }));
+
+        const from = (currentPage - 1) * itemsPerPage;
+        const to = from + itemsPerPage;
+        return {
+          records: enriched.slice(from, to),
+          total: enriched.length,
+        };
+      }
+
+      // MODO REAL: Consultar base de datos
       const filters: any = {};
 
       // Filtro por Estudiante (Exacto UUID)

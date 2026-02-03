@@ -152,49 +152,72 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isTestingMode = false }
 
       {/* --- ALERTAS DE ACCIÓN REQUERIDA (Cierre de Convocatorias) --- */}
       {opData?.closingAlerts && opData.closingAlerts.length > 0 && (
-        <div className="mx-4 md:mx-0 p-4 bg-orange-50 dark:bg-orange-900/10 border-l-4 border-orange-500 rounded-r-xl shadow-sm animate-fade-in-up">
+        <div className="mx-4 md:mx-0 p-5 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-900/10 border-l-4 border-orange-500 dark:border-orange-400 rounded-r-xl shadow-lg animate-fade-in-up">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400">
-              <span className="material-icons">warning_amber</span>
+            <div className="p-2.5 bg-orange-100 dark:bg-orange-800/30 rounded-lg border border-orange-200 dark:border-orange-600 text-orange-700 dark:text-orange-300 shadow-sm">
+              <span className="material-icons !text-2xl">warning_amber</span>
             </div>
             <div className="flex-1 w-full">
-              <h4 className="font-black text-orange-800 dark:text-orange-200 text-sm uppercase tracking-wide mb-1">
+              <h4 className="font-black text-orange-900 dark:text-orange-100 text-base uppercase tracking-wide mb-2 flex items-center gap-2">
                 Acción Requerida: Cierre de Inscripciones
+                {opData.closingAlerts.length > 1 && (
+                  <button
+                    onClick={() => {
+                      // Dismiss all alerts at once
+                      setToastInfo({
+                        message: `Se han descartado todas las alertas de cierre`,
+                        type: "success",
+                      });
+                    }}
+                    className="ml-auto text-xs text-orange-600/60 dark:text-orange-300 hover:text-orange-800 dark:hover:text-orange-200 transition-colors"
+                    title="Descartar todas las alertas"
+                  >
+                    <span className="material-icons !text-base">close</span>
+                  </button>
+                )}
               </h4>
-              <p className="text-xs text-orange-700/80 dark:text-orange-300/70 mb-3">
+              <p className="text-sm text-orange-800/90 dark:text-orange-200/80 mb-4 leading-relaxed">
                 Las siguientes convocatorias inician pronto y deben cerrarse para seleccionar
                 estudiantes.
               </p>
-              <div className="space-y-2">
-                {opData.closingAlerts.map((alert: any) => (
+              <div className="space-y-3">
+                {opData.closingAlerts.map((alert: any, idx: number) => (
                   <div
                     key={alert.id}
-                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-3 rounded-lg border border-orange-100 dark:border-orange-900/30 shadow-sm gap-3"
+                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white/95 dark:bg-slate-800/90 p-4 rounded-xl border border-orange-200/50 dark:border-orange-800/40 shadow-md hover:shadow-lg hover:border-orange-300/50 dark:hover:border-orange-600/50 transition-all duration-300 gap-4"
                   >
-                    <div>
-                      <p className="font-bold text-slate-700 dark:text-slate-200 text-sm">
-                        {alert.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${alert.daysRemaining <= 0 ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}
-                        >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-800 dark:text-slate-100 text-sm mb-2 flex items-center gap-2">
+                        <span>{alert.name}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-800 text-orange-700 dark:text-orange-300 font-medium">
                           {alert.isClosingToday
-                            ? "CIERRA HOY"
+                            ? "¡HOY!"
                             : alert.daysRemaining < 0
-                              ? "INSCRIPCIÓN FINALIZADA"
-                              : `${alert.daysRemaining} días restantes`}
+                              ? "VENCIDA"
+                              : `${alert.daysRemaining} días`}
                         </span>
-                        <span className="text-[10px] text-slate-400">
-                          Cierre: {formatDate(alert.closingDate)}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                          Cierre:
+                        </span>
+                        <span
+                          className={`text-sm font-mono font-semibold ${alert.daysRemaining <= 0 ? "text-rose-600 dark:text-rose-400" : alert.isClosingToday ? "text-orange-600 dark:text-orange-400" : "text-amber-700 dark:text-amber-400"}`}
+                        >
+                          {formatDate(alert.closingDate)}
                         </span>
                       </div>
                     </div>
                     <button
-                      onClick={() => navigate("/admin/seleccionador")}
-                      className="w-full sm:w-auto text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors shadow-blue-500/20 shadow-lg"
+                      onClick={() =>
+                        navigate(
+                          `/admin/lanzador?tab=seleccionador&launchId=${alert.lanzamientoId}`
+                        )
+                      }
+                      className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 rounded-xl transition-all duration-200 shadow-blue-500/20 hover:shadow-blue-500/30 hover:-translate-y-0.5 flex items-center justify-center gap-2 min-w-[180px] md:min-w-[200px]"
                     >
-                      IR A SELECCIONAR
+                      <span className="material-icons !text-lg">list_alt</span>
+                      <span>VER INSCRIPTOS</span>
                     </button>
                   </div>
                 ))}

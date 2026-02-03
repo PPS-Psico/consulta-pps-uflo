@@ -26,6 +26,7 @@ import {
   toTitleCase,
 } from "../../utils/formatters";
 import ConfirmModal from "../ConfirmModal";
+import { MOCK_INSTITUCIONES } from "../../data/mockData";
 
 const TABLE_CONFIG = {
   label: "Instituciones",
@@ -91,8 +92,32 @@ const EditorInstituciones: React.FC<{ isTestingMode?: boolean }> = ({ isTestingM
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["editor-instituciones", currentPage, itemsPerPage, searchTerm],
+    queryKey: ["editor-instituciones", currentPage, itemsPerPage, searchTerm, isTestingMode],
     queryFn: async () => {
+      // TESTING MODE: Usar datos mock
+      if (isTestingMode) {
+        let filteredRecords = [...MOCK_INSTITUCIONES];
+
+        // Filtro de búsqueda
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase();
+          filteredRecords = filteredRecords.filter(
+            (i) =>
+              (i[FIELD_NOMBRE_INSTITUCIONES] || "").toLowerCase().includes(searchLower) ||
+              (i[FIELD_DIRECCION_INSTITUCIONES] || "").toLowerCase().includes(searchLower)
+          );
+        }
+
+        // Paginar
+        const from = (currentPage - 1) * itemsPerPage;
+        const to = from + itemsPerPage;
+        return {
+          records: filteredRecords.slice(from, to),
+          total: filteredRecords.length,
+        };
+      }
+
+      // MODO REAL: Consultar base de datos
       const result = await db.instituciones.getPage(currentPage, itemsPerPage, {
         searchTerm,
         searchFields: TABLE_CONFIG.searchFields,

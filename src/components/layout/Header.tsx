@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import MiPanelLogo from "../MiPanelLogo";
 import UfloLogo from "../UfloLogo";
 import { useAuth } from "../../contexts/AuthContext";
@@ -134,9 +135,12 @@ const AppHeader: React.FC = () => {
   const { canInstall, triggerInstall } = usePwaInstall();
   const isLoggedIn = !!authenticatedUser;
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const location = useLocation();
   const { unreadCount } = useNotifications();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const lastScrollY = useRef(0);
+  const ticking = useRef(false);
 
   // Rutas que deben ocupar todo el ancho de la pantalla
   const fullWidthRoutes = ["/admin", "/jefe", "/directivo", "/reportero", "/testing"];
@@ -147,7 +151,31 @@ const AppHeader: React.FC = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setHasScrolled(window.scrollY > 10);
+      if (!ticking.current) {
+        requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+
+          // Border effect (always)
+          setHasScrolled(currentScrollY > 10);
+
+          // Smart header visibility (mobile only - hide when scrolling down, show when up)
+          if (window.innerWidth < 768) {
+            if (currentScrollY < 50) {
+              setIsHeaderVisible(true);
+            } else if (currentScrollY > lastScrollY.current) {
+              // Scrolling down
+              setIsHeaderVisible(false);
+            } else {
+              // Scrolling up
+              setIsHeaderVisible(true);
+            }
+          }
+
+          lastScrollY.current = currentScrollY;
+          ticking.current = false;
+        });
+        ticking.current = true;
+      }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -159,8 +187,11 @@ const AppHeader: React.FC = () => {
   }, []);
 
   return (
-    <header
-      className={`no-print sticky top-0 z-50 bg-white dark:bg-gray-950/80 backdrop-blur-xl transition-all duration-300 ${hasScrolled ? "border-b border-slate-200/70 dark:border-white/10 shadow-sm" : "border-b border-transparent"}`}
+    <motion.header
+      initial={{ y: 0 }}
+      animate={{ y: isHeaderVisible ? 0 : -80 }}
+      transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={`no-print fixed md:sticky top-0 left-0 right-0 z-50 bg-white dark:bg-gray-950/80 backdrop-blur-xl transition-all duration-300 ${hasScrolled ? "border-b border-slate-200/70 dark:border-white/10 shadow-sm" : "border-b border-transparent"}`}
     >
       <div className={`px-4 sm:px-6 lg:px-8 ${isFullWidth ? "w-full" : "max-w-7xl mx-auto"}`}>
         <div className="flex justify-between items-center h-16 md:h-20">
@@ -240,7 +271,7 @@ const AppHeader: React.FC = () => {
           </div>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 };
 

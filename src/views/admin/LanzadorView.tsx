@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import SubTabs from "../../components/SubTabs";
 import LanzadorConvocatorias from "../../components/admin/LanzadorConvocatorias";
 import SeleccionadorConvocatorias from "../../components/admin/SeleccionadorConvocatorias";
@@ -12,8 +12,13 @@ interface LanzadorViewProps {
 
 const LanzadorView: React.FC<LanzadorViewProps> = ({ isTestingMode = false }) => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [activeTabId, setActiveTabId] = useState("nuevo");
-  const [preSelectedLanzamientoId, setPreSelectedLanzamientoId] = useState<string | null>(null);
+  const [preSelectedLanzamientoId, setPreSelectedLanzamientoId] = useState<string | null>(() => {
+    // Check for launchId from AdminDashboard navigation state
+    const stateLaunchId = (location.state as any)?.launchId || searchParams.get("launchId");
+    return stateLaunchId || null;
+  });
   const { showModal } = useModal();
 
   const tabs = [
@@ -46,7 +51,13 @@ const LanzadorView: React.FC<LanzadorViewProps> = ({ isTestingMode = false }) =>
           <SeleccionadorConvocatorias
             isTestingMode={isTestingMode}
             onNavigateToInsurance={handleNavigateToInsurance}
-            preSelectedLaunchId={searchParams.get("launchId")}
+            preSelectedLaunchId={(() => {
+              // Check for launchId from AdminDashboard navigation state
+              const stateLaunchId = (location.state as any)?.launchId;
+              // Otherwise check URL search params
+              const urlLaunchId = searchParams.get("launchId");
+              return stateLaunchId || urlLaunchId || null;
+            })()}
           />
         )}
         {activeTabId === "seguro" && (

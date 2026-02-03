@@ -1,5 +1,12 @@
 import React from "react";
-import { CriteriosPanelSkeleton, SkeletonBox } from "../Skeletons";
+import {
+  CriteriosPanelSkeleton,
+  SkeletonBox,
+  SkeletonText,
+  SkeletonCircle,
+  ConvocatoriaCardSkeleton,
+  ListSkeleton,
+} from "../Skeletons";
 import WelcomeBanner from "./WelcomeBanner";
 
 const DashboardLoadingSkeleton: React.FC = () => (
@@ -30,41 +37,27 @@ const DashboardLoadingSkeleton: React.FC = () => (
       </div>
 
       {/* CONTENT MIMIC (Home View) */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Left Column: Enrollment Cards */}
-        <div className="xl:col-span-2 space-y-6">
-          <div className="flex items-center justify-between mb-2">
-            <SkeletonBox className="h-7 w-48" />
-          </div>
-          {/* Enrollment Card Skeleton */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-full">
-                <SkeletonBox className="h-6 w-3/4 mb-3" />
-                <SkeletonBox className="h-4 w-1/3" />
-              </div>
-              <SkeletonBox className="h-8 w-24 rounded-full" />
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-8">
-              <SkeletonBox className="h-12 rounded-xl" />
-              <SkeletonBox className="h-12 rounded-xl" />
-            </div>
+      <div className="space-y-12">
+        {/* Convocatorias Section */}
+        <div>
+          <SkeletonBox className="h-4 w-48 mb-6" />
+          <div className="grid grid-cols-1 gap-6">
+            <ConvocatoriaCardSkeleton />
+            <ConvocatoriaCardSkeleton />
           </div>
         </div>
 
-        {/* Right Column: Opportunities / Upcoming */}
-        <div className="space-y-6">
-          <SkeletonBox className="h-7 w-40 mb-2" />
-          <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-4 py-2">
-                <SkeletonBox className="h-12 w-12 rounded-lg flex-shrink-0" />
-                <div className="space-y-2 w-full">
-                  <SkeletonBox className="h-4 w-3/4" />
-                  <SkeletonBox className="h-3 w-1/2" />
-                </div>
-              </div>
-            ))}
+        {/* Secondary Content */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="xl:col-span-2">
+            <SkeletonBox className="h-6 w-40 mb-4" />
+            <ListSkeleton items={3} />
+          </div>
+          <div>
+            <SkeletonBox className="h-6 w-32 mb-4" />
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700">
+              <ListSkeleton items={3} />
+            </div>
           </div>
         </div>
       </div>

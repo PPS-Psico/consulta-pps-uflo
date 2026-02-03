@@ -75,9 +75,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       )}
       <AppHeader />
-      {/* Removed pt-4/pt-8 to remove gap between header and content cards */}
+      {/* pt-16 for mobile (fixed header spacing), md:pt-0 for desktop (sticky header) */}
       <main
-        className={`flex-grow w-full px-4 sm:px-6 lg:px-8 pb-8 ${
+        className={`flex-grow w-full px-4 sm:px-6 lg:px-8 pb-8 pt-16 md:pt-0 ${
           isFullWidth ? "" : "max-w-7xl mx-auto"
         }`}
       >

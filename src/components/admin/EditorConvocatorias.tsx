@@ -23,6 +23,7 @@ import ContextMenu from "./ContextMenu";
 import AdminSearch from "./AdminSearch";
 import Button from "../ui/Button";
 import ConfirmModal from "../ConfirmModal";
+import { MOCK_CONVOCATORIAS, MOCK_ESTUDIANTES, MOCK_LANZAMIENTOS } from "../../data/mockData";
 
 const TABLE_CONFIG = {
   label: "Inscripciones",
@@ -104,8 +105,55 @@ const EditorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isTestingM
       itemsPerPage,
       filterStudentId,
       filterLanzamientoId,
+      isTestingMode,
     ],
     queryFn: async () => {
+      // TESTING MODE: Usar datos mock
+      if (isTestingMode) {
+        let filteredRecords = [...MOCK_CONVOCATORIAS];
+
+        // Filtros
+        if (filterStudentId) {
+          filteredRecords = filteredRecords.filter(
+            (c) => c[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] === filterStudentId
+          );
+        }
+        if (filterLanzamientoId) {
+          filteredRecords = filteredRecords.filter(
+            (c) => c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] === filterLanzamientoId
+          );
+        }
+
+        // Enriquecer datos (Nombre estudiante y Nombre PPS)
+        const studentMap = new Map(MOCK_ESTUDIANTES.map((s) => [s.id, s]));
+        const launchMap = new Map(MOCK_LANZAMIENTOS.map((l) => [l.id, l]));
+
+        const enriched = filteredRecords.map((c) => {
+          const sId = c[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] as string;
+          const lId = c[FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS] as string;
+
+          const s = sId ? studentMap.get(sId) : null;
+          const l = lId ? launchMap.get(lId) : null;
+
+          return {
+            ...c,
+            __studentName: s ? s[FIELD_NOMBRE_ESTUDIANTES] : "Desconocido",
+            __ppsName: l
+              ? l[FIELD_NOMBRE_PPS_LANZAMIENTOS]
+              : c[FIELD_NOMBRE_PPS_CONVOCATORIAS] || "N/A",
+          };
+        });
+
+        // Paginar
+        const from = (currentPage - 1) * itemsPerPage;
+        const to = from + itemsPerPage;
+        return {
+          records: enriched.slice(from, to),
+          total: enriched.length,
+        };
+      }
+
+      // MODO REAL: Consultar base de datos
       const filters: any = {};
       if (filterStudentId) filters[FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS] = filterStudentId;
       if (filterLanzamientoId)

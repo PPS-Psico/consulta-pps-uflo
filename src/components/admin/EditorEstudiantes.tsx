@@ -27,6 +27,7 @@ import ContextMenu from "./ContextMenu";
 import Button from "../ui/Button";
 import ConfirmModal from "../ConfirmModal";
 import EmptyState from "../EmptyState";
+import { MOCK_ESTUDIANTES, MOCK_PRACTICAS } from "../../data/mockData";
 
 const TABLE_CONFIG = {
   label: "Estudiantes",
@@ -93,6 +94,51 @@ const EditorEstudiantes: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMod
       isTestingMode,
     ],
     queryFn: async () => {
+      // TESTING MODE: Usar datos mock
+      if (isTestingMode) {
+        let filteredRecords = [...MOCK_ESTUDIANTES];
+
+        // Filtro de búsqueda
+        if (debouncedSearch) {
+          const searchLower = debouncedSearch.toLowerCase();
+          filteredRecords = filteredRecords.filter(
+            (s) =>
+              (s[FIELD_NOMBRE_ESTUDIANTES] || "").toLowerCase().includes(searchLower) ||
+              (s[FIELD_LEGAJO_ESTUDIANTES] || "").toLowerCase().includes(searchLower)
+          );
+        }
+
+        // Filtro de estado
+        if (filterEstado) {
+          filteredRecords = filteredRecords.filter(
+            (s) => s[FIELD_ESTADO_ESTUDIANTES] === filterEstado
+          );
+        }
+
+        // Enriquecer con horas totales desde mock data
+        const enriched = filteredRecords.map((s) => {
+          const sPracticas = MOCK_PRACTICAS.filter(
+            (p) => String(p[FIELD_ESTUDIANTE_LINK_PRACTICAS]) === String(s.id)
+          );
+          return {
+            ...s,
+            __totalHours: sPracticas.reduce(
+              (sum, p) => sum + (Number(p[FIELD_HORAS_PRACTICAS]) || 0),
+              0
+            ),
+          };
+        });
+
+        // Paginar
+        const from = (currentPage - 1) * itemsPerPage;
+        const to = from + itemsPerPage;
+        return {
+          records: enriched.slice(from, to),
+          total: enriched.length,
+        };
+      }
+
+      // MODO REAL: Consultar base de datos
       const filters: any = {};
       if (filterEstado) filters[FIELD_ESTADO_ESTUDIANTES] = filterEstado;
 

@@ -35,6 +35,7 @@ import {
   FIELD_ESPECIALIDAD_PRACTICAS,
   FIELD_FECHA_INICIO_PRACTICAS,
   FIELD_FECHA_FIN_PRACTICAS,
+  FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS,
   FIELD_ESTUDIANTE_FINALIZACION,
   FIELD_FECHA_SOLICITUD_FINALIZACION,
   FIELD_ESTADO_FINALIZACION,
@@ -66,8 +67,10 @@ export const MOCK_INSTITUCIONES = [
     [FIELD_NOMBRE_INSTITUCIONES]: "Hospital Garrahan",
     [FIELD_DIRECCION_INSTITUCIONES]: "Pichincha 1890",
     [FIELD_TELEFONO_INSTITUCIONES]: "4122-6000",
-    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true,
+    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: "2026",
     [FIELD_TUTOR_INSTITUCIONES]: "Lic. Peralta",
+    orientaciones: "Clinica",
+    codigo_tarjeta_campus: "GARRAHAN",
   },
   {
     id: "inst_2",
@@ -75,8 +78,10 @@ export const MOCK_INSTITUCIONES = [
     [FIELD_NOMBRE_INSTITUCIONES]: "Clínica San Jorge",
     [FIELD_DIRECCION_INSTITUCIONES]: "Av. Maipú 1234",
     [FIELD_TELEFONO_INSTITUCIONES]: "4790-1000",
-    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: false,
+    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: "2026",
     [FIELD_TUTOR_INSTITUCIONES]: "Lic. Fernandez",
+    orientaciones: "Clinica",
+    codigo_tarjeta_campus: "SANJORGE",
   },
   {
     id: "inst_3",
@@ -84,8 +89,10 @@ export const MOCK_INSTITUCIONES = [
     [FIELD_NOMBRE_INSTITUCIONES]: "Fundación Sí",
     [FIELD_DIRECCION_INSTITUCIONES]: "Ángel Carranza 1962",
     [FIELD_TELEFONO_INSTITUCIONES]: "4775-6900",
-    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true,
+    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: "2026",
     [FIELD_TUTOR_INSTITUCIONES]: "Lic. Gomez",
+    orientaciones: "Comunitaria",
+    codigo_tarjeta_campus: "FUNDACIONSI",
   },
   {
     id: "inst_4",
@@ -93,8 +100,10 @@ export const MOCK_INSTITUCIONES = [
     [FIELD_NOMBRE_INSTITUCIONES]: "ManpowerGroup",
     [FIELD_DIRECCION_INSTITUCIONES]: "F. Alcorta 3351",
     [FIELD_TELEFONO_INSTITUCIONES]: "4809-5100",
-    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true,
+    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: "2026",
     [FIELD_TUTOR_INSTITUCIONES]: "Lic. Martinez",
+    orientaciones: "Laboral",
+    codigo_tarjeta_campus: "MANPOWER",
   },
   {
     id: "inst_5",
@@ -102,8 +111,10 @@ export const MOCK_INSTITUCIONES = [
     [FIELD_NOMBRE_INSTITUCIONES]: "Centro de Salud Mental N°1",
     [FIELD_DIRECCION_INSTITUCIONES]: "Manuela Pedraza 1558",
     [FIELD_TELEFONO_INSTITUCIONES]: "4702-7489",
-    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: true,
+    [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: "2026",
     [FIELD_TUTOR_INSTITUCIONES]: "Lic. Lopez",
+    orientaciones: "Clinica, Comunitaria",
+    codigo_tarjeta_campus: "CSM1",
   },
 ];
 
@@ -195,6 +206,7 @@ export const MOCK_LANZAMIENTOS = [
     [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: "Lunes 8 a 12hs; Miércoles 8 a 12hs",
     [FIELD_DIRECCION_LANZAMIENTOS]: "Pichincha 1890",
     [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: 80,
+    institucion_id: "inst_1",
   },
   // Abril
   {
@@ -210,6 +222,7 @@ export const MOCK_LANZAMIENTOS = [
     [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: "Martes 14 a 18hs",
     [FIELD_DIRECCION_LANZAMIENTOS]: "Av. Maipú 1234",
     [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: 60,
+    institucion_id: "inst_2",
   },
   // Mayo
   {
@@ -225,6 +238,7 @@ export const MOCK_LANZAMIENTOS = [
     [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: "Sábados 10 a 14hs",
     [FIELD_DIRECCION_LANZAMIENTOS]: "Ángel Carranza 1962",
     [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: 40,
+    institucion_id: "inst_3",
   },
   // Agosto (Próxima)
   {
@@ -240,6 +254,7 @@ export const MOCK_LANZAMIENTOS = [
     [FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS]: "Full time",
     [FIELD_DIRECCION_LANZAMIENTOS]: "Remoto",
     [FIELD_HORAS_ACREDITADAS_LANZAMIENTOS]: 120,
+    institucion_id: "inst_4",
   },
 ];
 
@@ -306,6 +321,7 @@ export const MOCK_PRACTICAS = [
     [FIELD_ESPECIALIDAD_PRACTICAS]: "Clinica",
     [FIELD_FECHA_INICIO_PRACTICAS]: getYearDate(2),
     [FIELD_FECHA_FIN_PRACTICAS]: getYearDate(6),
+    [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: "Hospital Garrahan",
   },
   // Práctica Finalizada (Otro Alumno)
   {
@@ -319,6 +335,21 @@ export const MOCK_PRACTICAS = [
     [FIELD_ESPECIALIDAD_PRACTICAS]: "Clinica",
     [FIELD_FECHA_INICIO_PRACTICAS]: getYearDate(3),
     [FIELD_FECHA_FIN_PRACTICAS]: getYearDate(7),
+    [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: "Clínica San Jorge",
+  },
+  // Práctica Finalizada (Otro Alumno)
+  {
+    id: "prac_3",
+    created_at: getDate(-8),
+    [FIELD_ESTUDIANTE_LINK_PRACTICAS]: "st_5",
+    [FIELD_LANZAMIENTO_VINCULADO_PRACTICAS]: "lanz_2",
+    [FIELD_HORAS_PRACTICAS]: 70,
+    [FIELD_ESTADO_PRACTICA]: "Finalizada",
+    [FIELD_NOTA_PRACTICAS]: "8",
+    [FIELD_ESPECIALIDAD_PRACTICAS]: "Clinica",
+    [FIELD_FECHA_INICIO_PRACTICAS]: getYearDate(3),
+    [FIELD_FECHA_FIN_PRACTICAS]: getYearDate(7),
+    [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: "Clínica San Jorge",
   },
 ];
 

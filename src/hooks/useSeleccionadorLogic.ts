@@ -67,8 +67,12 @@ const calculateScore = (
 export const useSeleccionadorLogic = (
   isTestingMode = false,
   onNavigateToInsurance?: (id: string) => void,
-  initialLaunchId?: string | null
+  initialLaunchId?: string | null,
+  preSelectedLaunchId?: string | null
 ) => {
+  // preSelectedLaunchId has priority over initialLaunchId
+  const priorityLaunchId = preSelectedLaunchId || initialLaunchId;
+
   const [selectedLanzamiento, setSelectedLanzamiento] = useState<LanzamientoPPS | null>(null);
   const [viewMode, setViewMode] = useState<"selection" | "review">("selection");
   const [toastInfo, setToastInfo] = useState<{ message: string; type: "success" | "error" } | null>(
@@ -111,6 +115,32 @@ export const useSeleccionadorLogic = (
       }
     }
   }, [initialLaunchId, openLaunches, selectedLanzamiento]);
+
+  // Auto-select launch when navigating from AdminDashboard with priorityLaunchId
+  useEffect(() => {
+    if (priorityLaunchId && openLaunches.length > 0 && !selectedLanzamiento) {
+      const target = openLaunches.find((l) => l.id === priorityLaunchId);
+      if (target) {
+        setSelectedLanzamiento(target);
+        // Automatically switch to review mode to show enrolled students
+        setViewMode("review");
+        console.log(
+          "[useSeleccionadorLogic] Auto-selected launch and switched to review mode:",
+          target.id
+        );
+      }
+    }
+  }, [priorityLaunchId, openLaunches, selectedLanzamiento]);
+
+  // Re-run selection when preSelectedLaunchId changes (e.g., when navigating from AdminDashboard)
+  useEffect(() => {
+    if (initialLaunchId && openLaunches.length > 0) {
+      const target = openLaunches.find((l) => l.id === initialLaunchId);
+      if (target && (!selectedLanzamiento || selectedLanzamiento.id !== target.id)) {
+        setSelectedLanzamiento(target);
+      }
+    }
+  }, [initialLaunchId, openLaunches]);
 
   const candidatesQueryKey = ["candidatesForLaunch", selectedLanzamiento?.id, isTestingMode];
 

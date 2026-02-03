@@ -32,7 +32,6 @@ const StudentHome = lazy(() =>
 );
 import PracticasView from "./views/student/PracticasView";
 const SolicitudesView = lazy(() => import("./views/student/SolicitudesView"));
-const InformesView = lazy(() => import("./views/student/InformesView"));
 const StudentProfileView = lazy(() => import("./views/student/StudentProfileView"));
 
 const AdminView = lazy(() => import("./views/AdminView"));
@@ -97,7 +96,6 @@ const AppRoutes = () => {
         <Route index element={<StudentHome />} />
         <Route path="practicas" element={<PracticasView />} />
         <Route path="solicitudes" element={<SolicitudesView />} />
-        <Route path="informes" element={<InformesView />} />
         <Route path="perfil" element={<StudentProfileView />} />
       </Route>
 

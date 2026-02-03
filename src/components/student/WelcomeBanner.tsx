@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { EstudianteFields } from "../../types";
 
 interface WelcomeBannerProps {
@@ -30,13 +31,34 @@ const WelcomeBanner: React.FC<WelcomeBannerProps> = ({ studentName, isLoading })
 
   if (isLoading)
     return (
-      <div className="h-24 w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl animate-pulse mb-8" />
+      <div className="mb-8 pt-4 px-2">
+        <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4">
+          <div className="flex-1 space-y-4">
+            <div className="h-12 sm:h-16 md:h-20 w-3/4 bg-slate-200 dark:bg-slate-700 rounded-xl animate-shimmer relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-shimmer" />
+            </div>
+            <div className="h-8 sm:h-10 w-1/2 bg-slate-200 dark:bg-slate-700 rounded-xl animate-shimmer relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-shimmer" />
+            </div>
+          </div>
+          <div className="hidden md:block">
+            <div className="h-12 w-48 bg-slate-200 dark:bg-slate-700 rounded-full animate-shimmer relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-shimmer" />
+            </div>
+          </div>
+        </div>
+      </div>
     );
 
   const firstName = studentName?.split(" ")[0] || "Estudiante";
 
   return (
-    <div className="relative mb-8 pt-4 px-2">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="relative mb-8 pt-4 px-2"
+    >
       <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4">
         {/* Saludo Principal - Línea fluida en PC */}
         <div className="flex-1">
@@ -63,7 +85,7 @@ const WelcomeBanner: React.FC<WelcomeBannerProps> = ({ studentName, isLoading })
 
       {/* Separador sutil para delimitar el header del contenido */}
       <div className="hidden md:block mt-6 h-px w-full bg-gradient-to-r from-slate-200 via-slate-100 to-transparent dark:from-slate-800 dark:via-slate-900"></div>
-    </div>
+    </motion.div>
   );
 };
 

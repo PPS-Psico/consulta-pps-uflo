@@ -1,5 +1,5 @@
-import { motion } from "framer-motion";
-import React, { ReactNode } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import React, { ReactNode, useRef, useEffect, useState } from "react";
 
 interface Tab {
   id: string;
@@ -24,6 +24,59 @@ const Tabs: React.FC<TabsProps> = ({
   onTabClose,
   className = "",
 }) => {
+  // Track previous tab for slide direction
+  const previousTabRef = useRef(activeTabId);
+  const [slideDirection, setSlideDirection] = useState<"left" | "right">("right");
+
+  // Track button measurements for accurate positioning
+  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({
+    left: 0,
+    width: 0,
+  });
+  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+
+  useEffect(() => {
+    const currentIndex = tabs.findIndex((t) => t.id === activeTabId);
+    const previousIndex = tabs.findIndex((t) => t.id === previousTabRef.current);
+
+    if (currentIndex > previousIndex) {
+      setSlideDirection("right");
+    } else if (currentIndex < previousIndex) {
+      setSlideDirection("left");
+    }
+
+    previousTabRef.current = activeTabId;
+  }, [activeTabId, tabs]);
+
+  // Update indicator position based on actual button measurements
+  useEffect(() => {
+    const activeButton = buttonRefs.current[activeTabId];
+    if (!activeButton) return;
+
+    const updateIndicator = () => {
+      const container = activeButton.parentElement;
+      if (!container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const buttonRect = activeButton.getBoundingClientRect();
+
+      setIndicatorStyle({
+        left: buttonRect.left - containerRect.left,
+        width: buttonRect.width,
+      });
+    };
+
+    updateIndicator();
+
+    // Also update on resize
+    const handleResize = () => {
+      requestAnimationFrame(updateIndicator);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [activeTabId]);
+
   return (
     <div
       className={`flex flex-col w-full glass-panel rounded-[2rem] shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden relative transition-all duration-300 ${className}`}
@@ -57,29 +110,49 @@ const Tabs: React.FC<TabsProps> = ({
           {/* Desktop Animated Tabs (Premium Segmented Control Look) */}
           <div
             role="tablist"
+            ref={(el) => {
+              if (el) {
+                // Force a measurement on mount
+                setTimeout(() => {
+                  const activeButton = buttonRefs.current[activeTabId];
+                  if (activeButton && activeButton.parentElement) {
+                    const containerRect = activeButton.parentElement.getBoundingClientRect();
+                    const buttonRect = activeButton.getBoundingClientRect();
+                    setIndicatorStyle({
+                      left: buttonRect.left - containerRect.left,
+                      width: buttonRect.width,
+                    });
+                  }
+                }, 0);
+              }
+            }}
             className="hidden md:flex p-1.5 bg-slate-100/80 dark:bg-slate-900/50 rounded-2xl border border-slate-200/60 dark:border-slate-800 mx-auto relative"
           >
+            {/* Active Tab Background - Positioned based on actual measurements */}
+            <div
+              className="absolute inset-y-1.5 bg-white dark:bg-slate-700/80 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-none ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300 ease-out"
+              style={{
+                left: `${indicatorStyle.left}px`,
+                width: `${indicatorStyle.width}px`,
+              }}
+            />
+
             {tabs.map((tab) => {
               const isActive = activeTabId === tab.id;
               return (
                 <button
                   key={tab.id}
+                  ref={(el) => {
+                    buttonRefs.current[tab.id] = el;
+                  }}
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => onTabChange(tab.id)}
                   className={`
-                                relative flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 z-10 outline-none
+                                relative flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-colors duration-200 z-10 outline-none whitespace-nowrap
                                 ${isActive ? "text-slate-800 dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}
                             `}
                 >
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTabBackground"
-                      className="absolute inset-0 bg-white dark:bg-slate-700/80 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-none ring-1 ring-black/5 dark:ring-white/10"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-
                   <span
                     className={`material-icons !text-lg relative z-10 transition-colors duration-200 ${isActive ? "text-blue-600 dark:text-blue-400" : ""}`}
                   >
@@ -87,13 +160,6 @@ const Tabs: React.FC<TabsProps> = ({
                   </span>
                   <span className="relative z-10">{tab.label}</span>
 
-                  {tab.badge !== undefined && tab.badge > 0 && (
-                    <span
-                      className={`ml-2 flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full text-[10px] shadow-sm relative z-10 transition-colors duration-200 ${isActive ? "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"}`}
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
                   {onTabClose && (tab as any).isClosable && (
                     <span
                       onClick={(e) => {
@@ -114,24 +180,32 @@ const Tabs: React.FC<TabsProps> = ({
 
       {/* --- BODY: CONTENT AREA --- */}
       {/* Reduced min-h from 600px to 300px to fix excessive whitespace on desktop */}
-      <div className="flex-grow bg-slate-50/50 dark:bg-[#0B1120]/50 min-h-[300px] w-full relative">
-        {/* Render active content with subtle animation */}
+      <div className="flex-grow bg-slate-50/50 dark:bg-[#0B1120]/50 min-h-[300px] w-full relative overflow-hidden">
+        {/* Render active content with horizontal slide animation */}
         <div className="w-full h-full p-4 sm:p-8">
-          {tabs.map((tab) => {
-            if (activeTabId !== tab.id) return null;
-            return (
-              <motion.div
-                key={tab.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="w-full max-w-7xl mx-auto"
-              >
-                {tab.content}
-              </motion.div>
-            );
-          })}
+          <AnimatePresence mode="wait" initial={false}>
+            {tabs.map((tab) => {
+              if (activeTabId !== tab.id) return null;
+
+              const xOffset = slideDirection === "right" ? 50 : -50;
+
+              return (
+                <motion.div
+                  key={tab.id}
+                  initial={{ opacity: 0, x: xOffset }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -xOffset }}
+                  transition={{
+                    duration: 0.3,
+                    ease: [0.25, 0.46, 0.45, 0.94],
+                  }}
+                  className="w-full max-w-7xl mx-auto"
+                >
+                  {tab.content}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       </div>
     </div>

@@ -207,9 +207,10 @@ const HomeView: React.FC<HomeViewProps> = ({
 
       {openLanzamientos.length === 0 && closedLanzamientos.length === 0 && (
         <EmptyState
-          icon="upcoming"
+          type="no-convocatorias"
           title="No hay convocatorias abiertas"
           message="Por el momento, no hay procesos de inscripción disponibles. ¡Vuelve a consultar pronto!"
+          size="lg"
         />
       )}
     </div>
