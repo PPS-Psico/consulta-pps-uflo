@@ -184,28 +184,58 @@ const EditorEstudiantes: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMod
     return <EmptyState icon="error" title="Error de Carga" message={(error as Error).message} />;
 
   const updateMutation = useMutation({
-    mutationFn: (vars: any) => db.estudiantes.update(vars.id, vars.fields),
+    mutationFn: (vars: any) => {
+      if (isTestingMode) {
+        // MODO TESTING: Simular actualización (no afecta DB real)
+        return Promise.resolve({
+          ...MOCK_ESTUDIANTES.find((s) => s.id === vars.id),
+          ...vars.fields,
+        } as any);
+      }
+      return db.estudiantes.update(vars.id, vars.fields);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-students"] });
-      setToastInfo({ message: "Estudiante actualizado", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Estudiante actualizado" : "Estudiante actualizado",
+        type: "success",
+      });
       setEditingRecord(null);
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: (fields: any) => db.estudiantes.create(fields),
+    mutationFn: (fields: any) => {
+      if (isTestingMode) {
+        // MODO TESTING: Simular creación (no afecta DB real)
+        return Promise.resolve({ id: `st_${Date.now()}`, ...fields } as any);
+      }
+      return db.estudiantes.create(fields);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-students"] });
-      setToastInfo({ message: "Estudiante creado", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Estudiante creado" : "Estudiante creado",
+        type: "success",
+      });
       setEditingRecord(null);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => db.estudiantes.delete(id),
+    mutationFn: (id: string) => {
+      if (isTestingMode) {
+        // MODO TESTING: Simular eliminación (no afecta DB real)
+        return Promise.resolve(true);
+      }
+      return db.estudiantes.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-students"] });
-      setToastInfo({ message: "Estudiante eliminado", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Estudiante eliminado" : "Estudiante eliminado",
+        type: "success",
+      });
       setIdToDelete(null);
       setSelectedRowId(null);
     },

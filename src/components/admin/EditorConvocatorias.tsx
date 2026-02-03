@@ -206,28 +206,55 @@ const EditorConvocatorias: React.FC<{ isTestingMode?: boolean }> = ({ isTestingM
 
   // --- MUTACIONES ---
   const updateMutation = useMutation({
-    mutationFn: (vars: any) => db.convocatorias.update(vars.id, vars.fields),
+    mutationFn: (vars: any) => {
+      if (isTestingMode) {
+        return Promise.resolve({
+          ...MOCK_CONVOCATORIAS.find((c) => c.id === vars.id),
+          ...vars.fields,
+        } as any);
+      }
+      return db.convocatorias.update(vars.id, vars.fields);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-convocatorias"] });
-      setToastInfo({ message: "Inscripción actualizada", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Inscripción actualizada" : "Inscripción actualizada",
+        type: "success",
+      });
       setEditingRecord(null);
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: (fields: any) => db.convocatorias.create(fields),
+    mutationFn: (fields: any) => {
+      if (isTestingMode) {
+        return Promise.resolve({ id: `conv_${Date.now()}`, ...fields } as any);
+      }
+      return db.convocatorias.create(fields);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-convocatorias"] });
-      setToastInfo({ message: "Inscripción creada", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Inscripción creada" : "Inscripción creada",
+        type: "success",
+      });
       setEditingRecord(null);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => db.convocatorias.delete(id),
+    mutationFn: (id: string) => {
+      if (isTestingMode) {
+        return Promise.resolve(true);
+      }
+      return db.convocatorias.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-convocatorias"] });
-      setToastInfo({ message: "Inscripción eliminada", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Inscripción eliminada" : "Inscripción eliminada",
+        type: "success",
+      });
       setIdToDelete(null);
       setSelectedRowId(null);
     },

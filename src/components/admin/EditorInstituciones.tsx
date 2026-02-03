@@ -152,31 +152,59 @@ const EditorInstituciones: React.FC<{ isTestingMode?: boolean }> = ({ isTestingM
         ...vars.fields,
         [FIELD_CONVENIO_NUEVO_INSTITUCIONES]: val,
       };
+      if (isTestingMode) {
+        // MODO TESTING: Simular actualización (no afecta DB real)
+        return Promise.resolve({
+          ...MOCK_INSTITUCIONES.find((i) => i.id === vars.id),
+          ...cleanFields,
+        } as any);
+      }
       return db.instituciones.update(vars.id, cleanFields);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-instituciones"] });
-      setToastInfo({ message: "Institución actualizada", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Institución actualizada" : "Institución actualizada",
+        type: "success",
+      });
       setEditingRecord(null);
     },
     onError: handleError,
   });
 
   const createMutation = useMutation({
-    mutationFn: (fields: any) => db.instituciones.create(fields),
+    mutationFn: (fields: any) => {
+      if (isTestingMode) {
+        // MODO TESTING: Simular creación (no afecta DB real)
+        return Promise.resolve({ id: `inst_${Date.now()}`, ...fields } as any);
+      }
+      return db.instituciones.create(fields);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-instituciones"] });
-      setToastInfo({ message: "Institución creada", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Institución creada" : "Institución creada",
+        type: "success",
+      });
       setEditingRecord(null);
     },
     onError: handleError,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => db.instituciones.delete(id),
+    mutationFn: (id: string) => {
+      if (isTestingMode) {
+        // MODO TESTING: Simular eliminación (no afecta DB real)
+        return Promise.resolve(true);
+      }
+      return db.instituciones.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-instituciones"] });
-      setToastInfo({ message: "Institución eliminada", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Institución eliminada" : "Institución eliminada",
+        type: "success",
+      });
       setIdToDelete(null);
     },
     onError: (err) => {

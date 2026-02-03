@@ -286,25 +286,51 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
   };
 
   const updateMutation = useMutation({
-    mutationFn: (vars: any) => db.practicas.update(vars.id, sanitizeFields(vars.fields)),
+    mutationFn: (vars: any) => {
+      if (isTestingMode) {
+        return Promise.resolve({
+          ...MOCK_PRACTICAS.find((p) => p.id === vars.id),
+          ...vars.fields,
+        } as any);
+      }
+      return db.practicas.update(vars.id, sanitizeFields(vars.fields));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-practicas"] });
-      setToastInfo({ message: "Registro actualizado", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Registro actualizado" : "Registro actualizado",
+        type: "success",
+      });
       setEditingRecord(null);
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: (fields: any) => db.practicas.create(sanitizeFields(fields)),
+    mutationFn: (fields: any) => {
+      if (isTestingMode) {
+        return Promise.resolve({ id: `prac_${Date.now()}`, ...fields } as any);
+      }
+      return db.practicas.create(sanitizeFields(fields));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-practicas"] });
-      setToastInfo({ message: "Registro creado", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Registro creado" : "Registro creado",
+        type: "success",
+      });
       setEditingRecord(null);
     },
   });
 
   const duplicateMutation = useMutation({
     mutationFn: async ({ record, targetStudentId }: { record: any; targetStudentId: string }) => {
+      if (isTestingMode) {
+        return Promise.resolve({
+          id: `prac_${Date.now()}`,
+          ...record,
+          [FIELD_ESTUDIANTE_LINK_PRACTICAS]: targetStudentId,
+        } as any);
+      }
       const { id, created_at, createdTime, ...fields } = record;
       const cleanFields = sanitizeFields(fields);
       cleanFields[FIELD_ESTUDIANTE_LINK_PRACTICAS] = targetStudentId;
@@ -314,16 +340,27 @@ const EditorPracticas: React.FC<{ isTestingMode?: boolean }> = ({ isTestingMode 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-practicas"] });
-      setToastInfo({ message: "Práctica duplicada", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Práctica duplicada" : "Práctica duplicada",
+        type: "success",
+      });
       setDuplicatingRecord(null);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => db.practicas.delete(id),
+    mutationFn: (id: string) => {
+      if (isTestingMode) {
+        return Promise.resolve(true);
+      }
+      return db.practicas.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["editor-practicas"] });
-      setToastInfo({ message: "Registro eliminado", type: "success" });
+      setToastInfo({
+        message: isTestingMode ? "Simulación: Registro eliminado" : "Registro eliminado",
+        type: "success",
+      });
       setIdToDelete(null);
       setSelectedRowId(null);
     },
