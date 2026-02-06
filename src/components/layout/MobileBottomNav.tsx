@@ -79,11 +79,11 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ tabs, activeTabId }) 
                   {/* Active indicator pill - More visible in light mode */}
                   {isActive && (
                     <>
-                      {/* Glow effect */}
-                      <div className="absolute -top-1 w-12 h-1 bg-gradient-to-r from-blue-400 to-indigo-400 dark:from-blue-500 dark:to-indigo-500 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.5)] dark:shadow-[0_0_12px_rgba(59,130,246,0.4)] animate-pulse" />
+                      {/* Glow effect - positioned higher with z-index */}
+                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-14 h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400 dark:from-blue-500 dark:to-indigo-500 rounded-full shadow-[0_0_20px_rgba(59,130,246,0.6)] dark:shadow-[0_0_15px_rgba(59,130,246,0.5)] animate-pulse z-20" />
                       {/* Main indicator */}
                       <div
-                        className="absolute -top-1 w-12 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-lg shadow-blue-500/30"
+                        className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-14 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full shadow-lg shadow-blue-500/50 z-20"
                         style={{
                           animation: "slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
                         }}
