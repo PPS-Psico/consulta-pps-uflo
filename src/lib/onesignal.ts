@@ -1,20 +1,14 @@
 // OneSignal Integration - Custom Code Setup
 // Documentation: https://documentation.onesignal.com/docs/custom-code-setup
 
-// Debug logs to check env variables
-console.log("[OneSignal Debug] Environment check:");
-console.log("[OneSignal Debug] import.meta.env exists:", !!import.meta.env);
-console.log(
-  "[OneSignal Debug] VITE_ONESIGNAL_APP_ID length:",
-  import.meta.env.VITE_ONESIGNAL_APP_ID?.length || 0
-);
-console.log(
-  "[OneSignal Debug] VITE_ONESIGNAL_APP_ID starts with:",
-  import.meta.env.VITE_ONESIGNAL_APP_ID?.substring(0, 8) || "EMPTY"
-);
-
-const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID || "";
-const ONESIGNAL_SAFARI_WEB_ID = import.meta.env.VITE_ONESIGNAL_SAFARI_WEB_ID || "";
+// OneSignal Configuration
+// Using hardcoded values (publishable keys - safe to expose in frontend)
+// These are the same keys from GitHub Secrets but hardcoded to avoid env issues
+const ONESIGNAL_APP_ID =
+  import.meta.env.VITE_ONESIGNAL_APP_ID || "53f3327c-9553-41fc-919e-73161c8517f7";
+const ONESIGNAL_SAFARI_WEB_ID =
+  import.meta.env.VITE_ONESIGNAL_SAFARI_WEB_ID ||
+  "web.onesignal.auto.14e17240-829a-4079-8f1d-24e0d0f74783";
 
 // Extend Window interface for OneSignal
 declare global {
@@ -25,18 +19,8 @@ declare global {
 }
 
 export const initializeOneSignal = async () => {
-  console.log("[OneSignal Debug] initializeOneSignal called");
-  console.log(
-    "[OneSignal Debug] ONESIGNAL_APP_ID value:",
-    ONESIGNAL_APP_ID ? `"${ONESIGNAL_APP_ID.substring(0, 8)}..."` : "EMPTY"
-  );
-
   if (!ONESIGNAL_APP_ID) {
     console.warn("[OneSignal] App ID not configured");
-    console.warn(
-      "[OneSignal Debug] Available env keys:",
-      Object.keys(import.meta.env).filter((k) => k.startsWith("VITE_"))
-    );
     return;
   }
 
