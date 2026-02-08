@@ -11,9 +11,12 @@ import {
 } from "../../constants";
 import { useAuth } from "../../contexts/AuthContext";
 import { useModal } from "../../contexts/ModalContext";
-import { useNotifications } from "../../contexts/NotificationContext";
 import { db } from "../../lib/db";
-import { testPushNotification } from "../../lib/pushSubscription";
+import {
+  subscribeToOneSignal,
+  unsubscribeFromOneSignal,
+  isOneSignalSubscribed,
+} from "../../lib/onesignal";
 import type { EstudianteFields } from "../../types";
 import { SkeletonBox } from "../Skeletons";
 
@@ -132,10 +135,13 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   updateInternalNotes,
 }) => {
   const { isSuperUserMode, isJefeMode } = useAuth();
-  const { isPushSupported, isPushEnabled, isPushLoading, subscribeToPush, unsubscribeFromPush } =
-    useNotifications();
   const { showModal } = useModal();
   const queryClient = useQueryClient();
+
+  // OneSignal state
+  const [isPushEnabled, setIsPushEnabled] = useState(false);
+  const [isPushLoading, setIsPushLoading] = useState(false);
+  const isPushSupported = "Notification" in window && "serviceWorker" in navigator;
 
   const [internalNotes, setInternalNotes] = useState("");
   const [isNotesChanged, setIsNotesChanged] = useState(false);
@@ -144,6 +150,39 @@ const ProfileView: React.FC<ProfileViewProps> = ({
     correo: "",
     telefono: "",
   });
+
+  // Check OneSignal subscription status
+  useEffect(() => {
+    const checkStatus = async () => {
+      const subscribed = await isOneSignalSubscribed();
+      setIsPushEnabled(subscribed);
+    };
+    checkStatus();
+  }, []);
+
+  const handleSubscribe = async () => {
+    setIsPushLoading(true);
+    const result = await subscribeToOneSignal();
+    if (result.success) {
+      setIsPushEnabled(true);
+      showModal("Éxito", "¡Notificaciones activadas correctamente!");
+    } else {
+      showModal("Error", result.error || "No se pudieron activar las notificaciones");
+    }
+    setIsPushLoading(false);
+  };
+
+  const handleUnsubscribe = async () => {
+    setIsPushLoading(true);
+    const result = await unsubscribeFromOneSignal();
+    if (result.success) {
+      setIsPushEnabled(false);
+      showModal("Éxito", "Notificaciones desactivadas");
+    } else {
+      showModal("Error", result.error || "No se pudieron desactivar las notificaciones");
+    }
+    setIsPushLoading(false);
+  };
 
   useEffect(() => {
     if (studentDetails) {
@@ -403,7 +442,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
 
                 <button
-                  onClick={isPushEnabled ? unsubscribeFromPush : subscribeToPush}
+                  onClick={isPushEnabled ? handleUnsubscribe : handleSubscribe}
                   disabled={isPushLoading}
                   className={`relative min-w-[56px] h-8 rounded-full transition-all duration-300 ${
                     isPushEnabled
@@ -432,28 +471,16 @@ const ProfileView: React.FC<ProfileViewProps> = ({
                     Dispositivo vinculado correctamente
                   </p>
 
-                  {/* Botón de prueba */}
-                  <button
-                    onClick={async () => {
-                      try {
-                        const result = await testPushNotification();
-                        if (result.success) {
-                          showModal(
-                            "Éxito",
-                            `Notificación enviada. Revisá si te llegó. Enviadas: ${result.details?.sent || 0}`
-                          );
-                        } else {
-                          showModal("Error", result.error || "No se pudo enviar");
-                        }
-                      } catch (e: any) {
-                        showModal("Error", e.message);
-                      }
-                    }}
-                    className="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
-                    <span className="material-icons !text-sm">send</span>
-                    Enviarme notificación de prueba
-                  </button>
+                  {/* Mensaje informativo */}
+                  <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <p className="text-xs text-green-700 dark:text-green-400">
+                      <span className="material-icons !text-sm align-middle mr-1">
+                        check_circle
+                      </span>
+                      <strong>¡Listo!</strong> Las notificaciones están activadas. Recibirás alertas
+                      cuando haya nuevas convocatorias.
+                    </p>
+                  </div>
 
                   {/* Botón de prueba local */}
                   <button
@@ -490,12 +517,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({
                     Probar notificación local
                   </button>
 
-                  <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                    <p className="text-[10px] text-amber-700 dark:text-amber-400">
-                      <strong>⚠️ Nota:</strong> Las notificaciones push remotas (desde el servidor)
-                      pueden tener problemas de entrega en algunos dispositivos debido a
-                      limitaciones de Firebase Cloud Messaging (FCM). Si no recibís notificaciones
-                      de nuevas convocatorias, revisá la app manualmente.
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-[10px] text-blue-700 dark:text-blue-400">
+                      <strong>✨ OneSignal:</strong> Usamos OneSignal para enviar notificaciones de
+                      forma confiable. Recibirás alertas instantáneas cuando haya nuevas
+                      convocatorias disponibles.
                     </p>
                   </div>
 

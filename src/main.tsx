@@ -3,11 +3,22 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { AuthProvider } from "./contexts/AuthContext";
 import { testSupabaseConnection } from "./constants";
+import { initializeOneSignal, loadOneSignalSDK } from "./lib/onesignal";
 
 console.log(
   "%c ANTIGRAVITY CONTROL: main.tsx loaded ",
   "background: #222; color: #bada55; font-size: 20px"
 );
+
+// Load OneSignal SDK before React renders
+loadOneSignalSDK()
+  .then(() => {
+    console.log("[OneSignal] SDK loaded successfully");
+    return initializeOneSignal();
+  })
+  .catch((error) => {
+    console.error("[OneSignal] Failed to load:", error);
+  });
 
 // Run Supabase connection test on load
 testSupabaseConnection().then(async (result) => {
