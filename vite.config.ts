@@ -26,13 +26,8 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['react', 'react-dom', 'react-ga4']
     },
-    define: {
-      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
-      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || ''),
-      'import.meta.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify(env.VITE_VAPID_PUBLIC_KEY || ''),
-      'import.meta.env.VITE_ONESIGNAL_APP_ID': JSON.stringify(env.VITE_ONESIGNAL_APP_ID || ''),
-      'import.meta.env.VITE_ONESIGNAL_SAFARI_WEB_ID': JSON.stringify(env.VITE_ONESIGNAL_SAFARI_WEB_ID || ''),
-    },
+    // Environment variables are automatically loaded from .env file by Vite
+    // No need for manual define - Vite handles import.meta.env.* automatically
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
