@@ -40,18 +40,20 @@ async function sendOneSignalNotification(
   title: string,
   message: string,
   url: string
-): Promise<Response> {
+): Promise<{ response: Response; data: any }> {
   const payload = {
     app_id: ONESIGNAL_APP_ID,
     include_player_ids: playerIds,
     headings: { en: title },
     contents: { en: message },
-    url: url || "/",
+    url: url || "https://pps-psico.github.io/consulta-pps-uflo/",
     // Optional: add web push specific options
     web_buttons: [],
     chrome_web_icon: "https://pps-psico.github.io/consulta-pps-uflo/icon-192x192.png",
     firefox_icon: "https://pps-psico.github.io/consulta-pps-uflo/icon-192x192.png",
   };
+
+  console.log("[OneSignal] Sending payload:", JSON.stringify(payload, null, 2));
 
   const response = await fetch("https://onesignal.com/api/v1/notifications", {
     method: "POST",
@@ -62,7 +64,8 @@ async function sendOneSignalNotification(
     body: JSON.stringify(payload),
   });
 
-  return response;
+  const data = await response.json();
+  return { response, data };
 }
 
 // Get OneSignal player IDs from database
@@ -89,8 +92,26 @@ async function getPlayerIds(userId?: string): Promise<string[]> {
       ?.map((sub) => sub.onesignal_player_id)
       .filter((id): id is string => id !== null && id !== undefined) ?? [];
 
-  console.log(`[OneSignal] Found ${playerIds.length} player IDs`);
+  console.log(`[OneSignal] Found ${playerIds.length} player IDs:`, playerIds);
   return playerIds;
+}
+
+// Clean up invalid player IDs from database
+async function cleanupInvalidPlayerIds(invalidIds: string[]) {
+  if (invalidIds.length === 0) return;
+
+  console.log(`[OneSignal] Cleaning up ${invalidIds.length} invalid player IDs:`, invalidIds);
+
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .delete()
+    .in("onesignal_player_id", invalidIds);
+
+  if (error) {
+    console.error("[OneSignal] Error cleaning up invalid player IDs:", error);
+  } else {
+    console.log(`[OneSignal] ✅ Cleaned up ${invalidIds.length} invalid subscriptions`);
+  }
 }
 
 // ============================================================================
@@ -138,18 +159,33 @@ Deno.serve(async (req) => {
     // Send notification via OneSignal API
     console.log(`[OneSignal Push] Sending to ${playerIds.length} subscribers`);
 
-    const response = await sendOneSignalNotification(playerIds, title, message, url);
+    const { response, data: responseData } = await sendOneSignalNotification(
+      playerIds,
+      title,
+      message,
+      url
+    );
 
-    const responseData = await response.json();
+    console.log("[OneSignal] Response:", JSON.stringify(responseData, null, 2));
 
-    if (response.ok) {
+    // Check for errors in response
+    const invalidPlayerIds = responseData.errors?.invalid_player_ids || [];
+    const hasInvalidIds = invalidPlayerIds.length > 0;
+
+    if (hasInvalidIds) {
+      console.warn(`[OneSignal] Found ${invalidPlayerIds.length} invalid player IDs`);
+      // Clean up invalid IDs from database
+      await cleanupInvalidPlayerIds(invalidPlayerIds);
+    }
+
+    if (response.ok && !hasInvalidIds) {
       console.log(`[OneSignal Push] ✅ Success:`, responseData);
 
       // Log the notification
       await supabase.from("notifications_log").insert({
         title,
         message,
-        url: url || "/",
+        url: url || "https://pps-psico.github.io/consulta-pps-uflo/",
         user_id: user_id || null,
         recipients_count: playerIds.length,
         onesignal_response: responseData,
@@ -165,6 +201,24 @@ Deno.serve(async (req) => {
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } else if (response.ok && hasInvalidIds) {
+      // Partial success - some IDs were invalid
+      const validIds = playerIds.filter((id) => !invalidPlayerIds.includes(id));
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Algunas suscripciones son inválidas (${invalidPlayerIds.length} de ${playerIds.length}). Los usuarios deben volver a suscribirse.`,
+          sent: 0,
+          total: playerIds.length,
+          invalid_count: invalidPlayerIds.length,
+          onesignal_response: responseData,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
         }
       );
     } else {

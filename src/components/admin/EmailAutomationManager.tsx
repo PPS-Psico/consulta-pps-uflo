@@ -138,8 +138,10 @@ const EmailAutomationManager: React.FC = () => {
   // Push test state
   const [customPushTitle, setCustomPushTitle] = useState("");
   const [customPushMessage, setCustomPushMessage] = useState("");
-  const [customPushUrl, setCustomPushUrl] = useState("/");
   const [isSendingCustomPush, setIsSendingCustomPush] = useState(false);
+
+  // URL base de la aplicación
+  const APP_URL = "https://pps-psico.github.io/consulta-pps-uflo/";
 
   // Fetch Templates from DB
   const { data: dbTemplates = [], isLoading } = useQuery({
@@ -276,7 +278,7 @@ const EmailAutomationManager: React.FC = () => {
         body: {
           title: customPushTitle,
           message: customPushMessage,
-          url: customPushUrl || "/",
+          url: APP_URL,
         },
       });
 
@@ -288,7 +290,6 @@ const EmailAutomationManager: React.FC = () => {
       });
       setCustomPushTitle("");
       setCustomPushMessage("");
-      setCustomPushUrl("/");
     } catch (error: any) {
       console.error("Error sending push:", error);
       setToastInfo({
@@ -631,17 +632,6 @@ const EmailAutomationManager: React.FC = () => {
                     placeholder="Escribe tu mensaje..."
                     rows={3}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                    URL al hacer clic (opcional)
-                  </label>
-                  <Input
-                    value={customPushUrl}
-                    onChange={(e) => setCustomPushUrl(e.target.value)}
-                    placeholder="/student/practicas"
-                    className="text-sm"
                   />
                 </div>
                 <div className="flex justify-end">
