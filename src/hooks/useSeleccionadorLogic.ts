@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "../lib/db";
 import { mockDb } from "../services/mockDb";
 import { toggleStudentSelection } from "../services/dataService";
+import { supabase } from "../lib/supabaseClient";
 import {
   FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
   FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
@@ -430,6 +431,44 @@ export const useSeleccionadorLogic = (
             });
           });
           await Promise.all(emailPromises);
+
+          // Push notification for each selected student
+          try {
+            const { data: pushTemplate } = await supabase
+              .from("email_templates")
+              .select("subject, body, is_active")
+              .eq("id", "seleccion_push")
+              .single();
+
+            if (pushTemplate?.is_active !== false) {
+              const pushPromises = selectedCandidates.map(async (student) => {
+                const title = (pushTemplate?.subject || "¡Fuiste seleccionado! 🎉")
+                  .replace("{{nombre_alumno}}", student.nombre)
+                  .replace("{{nombre_pps}}", selectedLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
+
+                const message = (
+                  pushTemplate?.body ||
+                  "Hola {{nombre_alumno}}, has sido seleccionado para la PPS: {{nombre_pps}}. Revisá tu correo para más detalles."
+                )
+                  .replace("{{nombre_alumno}}", student.nombre)
+                  .replace("{{nombre_pps}}", selectedLanzamiento[FIELD_NOMBRE_PPS_LANZAMIENTOS]);
+
+                return supabase.functions.invoke("send-push", {
+                  body: {
+                    title,
+                    message,
+                    url: "/student/practicas",
+                    user_id: student.studentId,
+                  },
+                });
+              });
+              await Promise.all(pushPromises);
+              console.log("[Seleccionador] Push notifications sent successfully");
+            }
+          } catch (pushError) {
+            console.error("[Seleccionador] Error sending push notifications:", pushError);
+            // Don't fail the whole operation if push fails
+          }
 
           // Close Launch solo si no estaba cerrada
           await db.lanzamientos.update(selectedLanzamiento.id, {
