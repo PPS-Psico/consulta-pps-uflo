@@ -278,46 +278,100 @@ export async function testPushNotification(): Promise<{
   details?: any;
 }> {
   try {
-    console.log("[Push Test] Iniciando envío de notificación de prueba...");
+    console.log(
+      "%c[Push Test] === INICIO DE DEBUG ===",
+      "background: #2196F3; color: white; font-size: 14px; padding: 5px;"
+    );
+    console.log("[Push Test] Timestamp:", new Date().toISOString());
+    console.log("[Push Test] User Agent:", navigator.userAgent);
+    console.log("[Push Test] URL actual:", window.location.href);
+
     console.log(
       "[Push Test] VAPID_PUBLIC_KEY:",
       VAPID_PUBLIC_KEY ? "Configurada" : "NO CONFIGURADA"
     );
+    if (!VAPID_PUBLIC_KEY) {
+      console.error(
+        "%c[Push Test] ERROR: VAPID_PUBLIC_KEY no está configurada",
+        "background: #f44336; color: white;"
+      );
+    }
 
-    // Verificar suscripción antes de enviar
+    // Verificar Service Worker
+    console.log("[Push Test] Verificando Service Worker...");
     const registration = await navigator.serviceWorker.ready;
+    console.log("[Push Test] Service Worker scope:", registration.scope);
+    console.log("[Push Test] Service Worker state:", registration.active?.state);
+
+    // Verificar suscripción
+    console.log("[Push Test] Obteniendo suscripción...");
     const subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) {
+      console.error(
+        "%c[Push Test] ERROR: No hay suscripción activa",
+        "background: #f44336; color: white;"
+      );
       return {
         success: false,
         error: "No hay suscripción activa. Desactivá y volvé a activar las notificaciones.",
       };
     }
 
-    console.log("[Push Test] Suscripción encontrada:", {
-      endpoint: subscription.endpoint.substring(0, 50) + "...",
+    console.log("%c[Push Test] Suscripción encontrada:", "background: #4CAF50; color: white;", {
+      endpoint: subscription.endpoint,
+      endpointLength: subscription.endpoint.length,
       expirationTime: subscription.expirationTime,
+      keys: subscription.toJSON().keys,
     });
+
+    // Extraer keys
+    const keys = subscription.toJSON().keys;
+    console.log("[Push Test] p256dh:", keys?.p256dh ? "Presente" : "AUSENTE");
+    console.log("[Push Test] auth:", keys?.auth ? "Presente" : "AUSENTE");
+
+    // Preparar datos para enviar
+    const requestBody = {
+      title: "🔔 Prueba de Notificación",
+      message: "¡Las notificaciones están funcionando correctamente!",
+      url: "/student",
+    };
+
+    console.log("[Push Test] Enviando request a Edge Function:", requestBody);
+    console.log("[Push Test] Timestamp de envío:", new Date().toISOString());
 
     const { data, error } = await supabase.functions.invoke("send-push", {
-      body: {
-        title: "🔔 Prueba de Notificación",
-        message: "¡Las notificaciones están funcionando correctamente!",
-        url: "/student",
-      },
+      body: requestBody,
     });
 
-    console.log("[Push Test] Respuesta:", { data, error });
+    console.log("[Push Test] Timestamp de respuesta:", new Date().toISOString());
+    console.log("[Push Test] Respuesta COMPLETA:", JSON.stringify({ data, error }, null, 2));
 
     if (error) {
-      console.error("[Push Test] Error de Supabase:", error);
+      console.error(
+        "%c[Push Test] ERROR de Supabase:",
+        "background: #f44336; color: white;",
+        error
+      );
       throw error;
     }
 
+    console.log(
+      "%c[Push Test] Respuesta exitosa del servidor",
+      "background: #4CAF50; color: white;"
+    );
+
+    // Verificar si el Service Worker recibió el evento push
+    console.log("[Push Test] Esperando 3 segundos para verificar recepción...");
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    console.log("[Push Test] === FIN DE DEBUG ===");
     return { success: true, details: data };
   } catch (error: any) {
-    console.error("[Push Test] Error completo:", error);
+    console.error("%c[Push Test] ERROR COMPLETO:", "background: #f44336; color: white;", error);
+    console.error("[Push Test] Error name:", error.name);
+    console.error("[Push Test] Error message:", error.message);
+    console.error("[Push Test] Error stack:", error.stack);
     return {
       success: false,
       error: error.message,
