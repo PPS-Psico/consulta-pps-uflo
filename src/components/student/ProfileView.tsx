@@ -162,10 +162,16 @@ const ProfileView: React.FC<ProfileViewProps> = ({
 
   const handleSubscribe = async () => {
     setIsPushLoading(true);
+    console.log("[ProfileView] Subscribing with userId:", authenticatedUser?.id);
     const result = await subscribeToOneSignal(authenticatedUser?.id);
+    console.log("[ProfileView] Subscription result:", result);
     if (result.success) {
       setIsPushEnabled(true);
-      showModal("Éxito", "¡Notificaciones activadas correctamente!");
+      if (result.playerId) {
+        showModal("Éxito", `¡Notificaciones activadas! ID: ${result.playerId.substring(0, 8)}...`);
+      } else {
+        showModal("Éxito", "¡Notificaciones activadas correctamente!");
+      }
     } else {
       showModal("Error", result.error || "No se pudieron activar las notificaciones");
     }

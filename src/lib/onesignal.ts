@@ -85,12 +85,14 @@ export const subscribeToOneSignal = async (
     }
 
     console.log("[OneSignal] Subscription successful, player ID:", playerId);
+    console.log("[OneSignal] User ID provided:", userId);
 
     // Save to database if we have a user ID
     if (userId) {
       try {
+        console.log("[OneSignal] Attempting to save to database...");
         // Use raw query to avoid type checking issues
-        const { error } = await supabase.from("push_subscriptions").upsert(
+        const { data, error } = await supabase.from("push_subscriptions").upsert(
           {
             user_id: userId,
             onesignal_player_id: playerId,
@@ -106,12 +108,17 @@ export const subscribeToOneSignal = async (
 
         if (error) {
           console.error("[OneSignal] Error saving to database:", error);
+          console.error("[OneSignal] Error details:", JSON.stringify(error));
         } else {
-          console.log("[OneSignal] Player ID saved to database");
+          console.log("[OneSignal] Player ID saved to database successfully");
+          console.log("[OneSignal] Upsert result:", data);
         }
       } catch (dbError) {
         console.error("[OneSignal] Database error:", dbError);
+        console.error("[OneSignal] Database error details:", JSON.stringify(dbError));
       }
+    } else {
+      console.warn("[OneSignal] No userId provided, skipping database save");
     }
 
     return { success: true, playerId };
