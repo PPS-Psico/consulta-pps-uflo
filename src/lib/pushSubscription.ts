@@ -240,8 +240,18 @@ export async function unsubscribeFromPush(): Promise<{ success: boolean; error?:
 /**
  * Test push notification (for debugging)
  */
-export async function testPushNotification(): Promise<{ success: boolean; error?: string }> {
+export async function testPushNotification(): Promise<{
+  success: boolean;
+  error?: string;
+  details?: any;
+}> {
   try {
+    console.log("[Push Test] Iniciando envío de notificación de prueba...");
+    console.log(
+      "[Push Test] VAPID_PUBLIC_KEY:",
+      VAPID_PUBLIC_KEY ? "Configurada" : "NO CONFIGURADA"
+    );
+
     const { data, error } = await supabase.functions.invoke("send-push", {
       body: {
         title: "🔔 Prueba de Notificación",
@@ -250,10 +260,20 @@ export async function testPushNotification(): Promise<{ success: boolean; error?
       },
     });
 
-    if (error) throw error;
-    return { success: true };
+    console.log("[Push Test] Respuesta:", { data, error });
+
+    if (error) {
+      console.error("[Push Test] Error de Supabase:", error);
+      throw error;
+    }
+
+    return { success: true, details: data };
   } catch (error: any) {
-    console.error("[Push] Test error:", error);
-    return { success: false, error: error.message };
+    console.error("[Push Test] Error completo:", error);
+    return {
+      success: false,
+      error: error.message,
+      details: error,
+    };
   }
 }

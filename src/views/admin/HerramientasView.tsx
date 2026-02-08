@@ -58,6 +58,8 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({
   const [toastInfo, setToastInfo] = useState<{ message: string; type: "success" | "error" } | null>(
     null
   );
+  const [testResult, setTestResult] = useState<any>(null);
+  const [isTestingPush, setIsTestingPush] = useState(false);
   const queryClient = useQueryClient();
 
   const createStudentMutation = useMutation({
@@ -104,18 +106,32 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({
   }, [preferences]);
 
   const handleTestNotification = async () => {
+    setIsTestingPush(true);
+    setTestResult(null);
     try {
+      console.log("[UI] Iniciando test de notificación...");
       const result = await testPushNotification();
+      console.log("[UI] Resultado del test:", result);
+
+      setTestResult(result);
+
       if (result.success) {
         setToastInfo({
-          message: "Notificación de prueba enviada a todos los suscriptores",
+          message: `✅ Notificación enviada. Éxito: ${result.details?.sent || "?"}/${result.details?.total || "?"}`,
           type: "success",
         });
       } else {
-        setToastInfo({ message: `Error: ${result.error}`, type: "error" });
+        setToastInfo({
+          message: `❌ Error: ${result.error}`,
+          type: "error",
+        });
       }
     } catch (e: any) {
-      setToastInfo({ message: `Error: ${e.message}`, type: "error" });
+      console.error("[UI] Error capturado:", e);
+      setToastInfo({ message: `❌ Error inesperado: ${e.message}`, type: "error" });
+      setTestResult({ success: false, error: e.message, details: e });
+    } finally {
+      setIsTestingPush(false);
     }
   };
 
@@ -131,7 +147,7 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({
 
       {/* Botón temporal de prueba de notificaciones */}
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-bold text-amber-800">🧪 Prueba de Notificaciones Push</h3>
             <p className="text-sm text-amber-600">
@@ -140,10 +156,68 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({
           </div>
           <button
             onClick={handleTestNotification}
-            className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors"
+            disabled={isTestingPush}
+            className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors flex items-center gap-2"
           >
-            Enviar Notificación de Prueba
+            {isTestingPush ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Enviando...
+              </>
+            ) : (
+              "Enviar Notificación de Prueba"
+            )}
           </button>
+        </div>
+
+        {/* Resultados detallados */}
+        {testResult && (
+          <div
+            className={`mt-4 p-4 rounded-lg ${testResult.success ? "bg-green-100 border border-green-300" : "bg-red-100 border border-red-300"}`}
+          >
+            <h4 className={`font-bold ${testResult.success ? "text-green-800" : "text-red-800"}`}>
+              {testResult.success ? "✅ Resultado del envío" : "❌ Error detectado"}
+            </h4>
+
+            <div className="mt-2 space-y-2 text-sm">
+              <p>
+                <strong>Estado:</strong> {testResult.success ? "Éxito" : "Fallido"}
+              </p>
+
+              {testResult.success && testResult.details && (
+                <>
+                  <p>
+                    <strong>Enviadas:</strong> {testResult.details.sent} de{" "}
+                    {testResult.details.total}
+                  </p>
+                  <p>
+                    <strong>Mensaje:</strong> {testResult.details.message || "N/A"}
+                  </p>
+                </>
+              )}
+
+              {testResult.error && (
+                <p>
+                  <strong>Error:</strong> {testResult.error}
+                </p>
+              )}
+
+              {testResult.details && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer font-semibold text-amber-700 hover:text-amber-900">
+                    Ver detalles completos (para debug)
+                  </summary>
+                  <pre className="mt-2 p-2 bg-white rounded text-xs overflow-auto max-h-48">
+                    {JSON.stringify(testResult.details, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 text-xs text-amber-500">
+          💡 Tip: Abrí la consola del navegador (F12) para ver logs detallados
         </div>
       </div>
 
