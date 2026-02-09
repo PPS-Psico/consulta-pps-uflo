@@ -580,21 +580,35 @@ const EmailAutomationManager: React.FC = () => {
                   onClick={async () => {
                     setIsSendingCustomPush(true);
                     try {
-                      const { error } = await supabase.functions.invoke("send-push", {
+                      const { data, error } = await supabase.functions.invoke("send-push", {
                         body: {
                           title: "🧪 Prueba de Notificación",
                           message:
                             "Esta es una notificación de prueba para verificar que todo funciona correctamente.",
                         },
                       });
+
+                      // Check if response has error message
+                      if (data?.error) {
+                        throw new Error(data.error);
+                      }
                       if (error) throw error;
-                      setToastInfo({
-                        message: "Notificación de prueba enviada",
-                        type: "success",
-                      });
+
+                      if (data?.sent === 0) {
+                        setToastInfo({
+                          message:
+                            "No hay suscriptores activos. Los usuarios deben activar las notificaciones primero.",
+                          type: "warning",
+                        });
+                      } else {
+                        setToastInfo({
+                          message: `Notificación enviada a ${data?.sent || 0} suscriptor(es)`,
+                          type: "success",
+                        });
+                      }
                     } catch (error: any) {
                       setToastInfo({
-                        message: `Error: ${error.message}`,
+                        message: error.message || "Error al enviar notificación",
                         type: "error",
                       });
                     } finally {

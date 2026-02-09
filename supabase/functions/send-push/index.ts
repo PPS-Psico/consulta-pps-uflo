@@ -171,14 +171,17 @@ Deno.serve(async (req) => {
     // Check for errors in response
     const invalidPlayerIds = responseData.errors?.invalid_player_ids || [];
     const hasInvalidIds = invalidPlayerIds.length > 0;
+    const allNotSubscribed = responseData.errors?.includes(
+      "All included players are not subscribed"
+    );
 
-    if (hasInvalidIds) {
-      console.warn(`[OneSignal] Found ${invalidPlayerIds.length} invalid player IDs`);
-      // Clean up invalid IDs from database
-      await cleanupInvalidPlayerIds(invalidPlayerIds);
+    if (hasInvalidIds || allNotSubscribed) {
+      console.warn(`[OneSignal] Invalid subscriptions found:`, responseData.errors);
+      // NO limpiar automáticamente - puede ser un error temporal
+      // Solo loguear para diagnóstico
     }
 
-    if (response.ok && !hasInvalidIds) {
+    if (response.ok && !hasInvalidIds && !allNotSubscribed) {
       console.log(`[OneSignal Push] ✅ Success:`, responseData);
 
       // Log the notification
@@ -203,17 +206,17 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
-    } else if (response.ok && hasInvalidIds) {
-      // Partial success - some IDs were invalid
-      const validIds = playerIds.filter((id) => !invalidPlayerIds.includes(id));
-
+    } else if ((response.ok || !response.ok) && (hasInvalidIds || allNotSubscribed)) {
+      // Error - suscripciones inválidas
       return new Response(
         JSON.stringify({
           success: false,
-          error: `Algunas suscripciones son inválidas (${invalidPlayerIds.length} de ${playerIds.length}). Los usuarios deben volver a suscribirse.`,
+          error: allNotSubscribed
+            ? "Las suscripciones expiraron. Los usuarios deben volver a activar las notificaciones en su perfil."
+            : `Algunas suscripciones son inválidas (${invalidPlayerIds.length}). Los usuarios deben volver a suscribirse.`,
           sent: 0,
           total: playerIds.length,
-          invalid_count: invalidPlayerIds.length,
+          invalid_count: invalidPlayerIds.length || playerIds.length,
           onesignal_response: responseData,
         }),
         {
