@@ -165,11 +165,6 @@ async function sendToToken(
             },
           },
           webpush: {
-            notification: {
-              icon: "https://pps-psico.github.io/icons/icon-192x192.png",
-              badge: "https://pps-psico.github.io/icons/icon-192x192.png",
-              tag: `pps-notification-${Date.now()}`,
-            },
             fcm_options: {
               link: "https://pps-psico.github.io/",
             },
