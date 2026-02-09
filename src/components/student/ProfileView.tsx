@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   FIELD_CORREO_ESTUDIANTES,
@@ -147,12 +147,20 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   const [isPushEnabled, setIsPushEnabled] = useState(false);
   const [isPushLoading, setIsPushLoading] = useState(false);
   const isPushSupported = "Notification" in window && "serviceWorker" in navigator;
+  const isCheckingStatus = useRef(false);
 
   // Check FCM subscription status
   useEffect(() => {
+    if (isCheckingStatus.current) return;
+    isCheckingStatus.current = true;
+
     const checkStatus = async () => {
-      const subscribed = await isFCMSubscribed();
-      setIsPushEnabled(subscribed);
+      try {
+        const subscribed = await isFCMSubscribed();
+        setIsPushEnabled(subscribed);
+      } finally {
+        isCheckingStatus.current = false;
+      }
     };
     checkStatus();
   }, []);
@@ -177,12 +185,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({
     const result = await unsubscribeFromFCM();
     if (result.success) {
       setIsPushEnabled(false);
-      // Also delete from database (ignore errors)
+      // Also delete from database (ignore errors - token may not exist)
       if (authenticatedUser?.id) {
         try {
-          await (supabase as any).from("fcm_tokens").delete().eq("user_id", authenticatedUser.id);
+          const { error } = await (supabase as any)
+            .from("fcm_tokens")
+            .delete()
+            .eq("user_id", authenticatedUser.id);
+          if (error) {
+            console.log("[ProfileView] Note: Token not in DB or already deleted");
+          }
         } catch (e) {
-          console.log("[ProfileView] Note: Could not delete from DB (token may not exist)");
+          console.log("[ProfileView] Note: Could not delete from DB");
         }
       }
       showModal("Éxito", "Notificaciones desactivadas");

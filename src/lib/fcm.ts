@@ -11,6 +11,9 @@ import { supabase } from "./supabaseClient";
 // Initialize Firebase app
 let app: any = null;
 let messaging: any = null;
+let cachedToken: string | null = null;
+let isGettingToken = false;
+let tokenPromise: Promise<string | null> | null = null;
 
 export const initializeFCM = async () => {
   try {
@@ -27,33 +30,52 @@ export const initializeFCM = async () => {
 };
 
 /**
- * Get FCM token for the current user
+ * Get FCM token for the current user (with caching)
  */
 export const getFCMToken = async (): Promise<string | null> => {
-  try {
-    const { messaging } = await initializeFCM();
-
-    // Request notification permission first
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      console.warn("[FCM] Notification permission not granted");
-      return null;
-    }
-
-    // Get FCM token
-    const token = await getToken(messaging, { vapidKey });
-
-    if (token) {
-      console.log("[FCM] Token obtained:", token.substring(0, 20) + "...");
-      return token;
-    } else {
-      console.warn("[FCM] No token available");
-      return null;
-    }
-  } catch (error: any) {
-    console.error("[FCM] Error getting token:", error);
-    return null;
+  // Return cached token if available
+  if (cachedToken) {
+    return cachedToken;
   }
+
+  // If already getting token, return the existing promise
+  if (isGettingToken && tokenPromise) {
+    return tokenPromise;
+  }
+
+  isGettingToken = true;
+  tokenPromise = (async () => {
+    try {
+      const { messaging } = await initializeFCM();
+
+      // Request notification permission first
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        console.warn("[FCM] Notification permission not granted");
+        return null;
+      }
+
+      // Get FCM token
+      const token = await getToken(messaging, { vapidKey });
+
+      if (token) {
+        console.log("[FCM] Token obtained:", token.substring(0, 20) + "...");
+        cachedToken = token;
+        return token;
+      } else {
+        console.warn("[FCM] No token available");
+        return null;
+      }
+    } catch (error: any) {
+      console.error("[FCM] Error getting token:", error);
+      return null;
+    } finally {
+      isGettingToken = false;
+      tokenPromise = null;
+    }
+  })();
+
+  return tokenPromise;
 };
 
 /**
@@ -157,6 +179,9 @@ export const unsubscribeFromFCM = async (): Promise<{
     // Delete token
     await deleteToken(messaging);
     console.log("[FCM] Token deleted");
+
+    // Clear cache
+    cachedToken = null;
 
     return { success: true };
   } catch (error: any) {
