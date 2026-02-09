@@ -98,7 +98,7 @@ export const subscribeToFCM = async (
 
     // Save to database if userId provided
     if (userId) {
-      const { error } = await supabase.from("fcm_tokens").upsert(
+      const { error } = await (supabase as any).from("fcm_tokens").upsert(
         {
           user_id: userId,
           fcm_token: token,

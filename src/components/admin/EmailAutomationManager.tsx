@@ -8,7 +8,6 @@ import { supabase } from "../../lib/supabaseClient";
 import Loader from "../Loader";
 import { generateHtmlTemplate, stripGreeting } from "../../utils/emailService";
 import Select from "../ui/Select";
-import { OneSignalDiagnosticsPanel } from "../OneSignalDiagnosticsPanel";
 
 interface AutomationScenario {
   id: string;

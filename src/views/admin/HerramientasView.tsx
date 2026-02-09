@@ -15,7 +15,6 @@ import {
   FIELD_NOTAS_INTERNAS_ESTUDIANTES,
 } from "../../constants";
 import { useAdminPreferences } from "../../contexts/AdminPreferencesContext";
-import { testPushNotification } from "../../lib/pushSubscription";
 
 // Lazy load heavy components
 const DatabaseEditor = lazy(() => import("../../components/admin/DatabaseEditor"));

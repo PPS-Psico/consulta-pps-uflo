@@ -179,7 +179,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
       setIsPushEnabled(false);
       // Also delete from database
       if (authenticatedUser?.id) {
-        await supabase.from("fcm_tokens").delete().eq("user_id", authenticatedUser.id);
+        await (supabase as any).from("fcm_tokens").delete().eq("user_id", authenticatedUser.id);
       }
       showModal("Éxito", "Notificaciones desactivadas");
     } else {

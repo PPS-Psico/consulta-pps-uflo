@@ -25,12 +25,7 @@ import {
   TABLE_NAME_PPS,
 } from "../constants";
 import ReminderService, { Reminder } from "../services/reminderService";
-import {
-  isPushSupported as checkPushSupported,
-  getPushSubscriptionStatus,
-  subscribeToPush as subscribeToPushApi,
-  unsubscribeFromPush as unsubscribeFromPushApi,
-} from "../lib/pushSubscription";
+import { subscribeToFCM, unsubscribeFromFCM, isFCMSubscribed } from "../lib/fcm";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 
@@ -73,7 +68,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(new Set());
 
   // Push notification state
-  const [pushSupported] = useState(() => checkPushSupported());
+  const pushSupported = "Notification" in window && "serviceWorker" in navigator;
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
 
@@ -106,8 +101,8 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     const checkPushStatus = async () => {
       try {
-        const { isSubscribed } = await getPushSubscriptionStatus();
-        setPushEnabled(isSubscribed);
+        const subscribed = await isFCMSubscribed();
+        setPushEnabled(subscribed);
       } catch (e) {
         console.warn("Error checking push status", e);
       }
@@ -428,10 +423,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     setPushLoading(true);
     try {
-      const result = await subscribeToPushApi();
+      const result = await subscribeToFCM(authenticatedUser?.id);
       if (result.success) {
         setPushEnabled(true);
-        showToast("�Notificaciones activadas! Te avisaremos de nuevas convocatorias.", "success");
+        showToast("Notificaciones activadas! Te avisaremos de nuevas convocatorias.", "success");
       } else {
         showToast(result.error || "No se pudo activar notificaciones", "error");
       }
@@ -440,12 +435,12 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     } finally {
       setPushLoading(false);
     }
-  }, [pushSupported, showToast]);
+  }, [pushSupported, showToast, authenticatedUser?.id]);
 
   const unsubscribeFromPush = useCallback(async () => {
     setPushLoading(true);
     try {
-      const result = await unsubscribeFromPushApi();
+      const result = await unsubscribeFromFCM();
       if (result.success) {
         setPushEnabled(false);
         showToast("Notificaciones desactivadas", "success");
