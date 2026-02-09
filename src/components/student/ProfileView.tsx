@@ -147,29 +147,34 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   const [isPushEnabled, setIsPushEnabled] = useState(false);
   const [isPushLoading, setIsPushLoading] = useState(false);
   const isPushSupported = "Notification" in window && "serviceWorker" in navigator;
-  const isCheckingStatus = useRef(false);
+  const hasCheckedStatus = useRef(false);
 
-  // Check FCM subscription status (FCM + Database)
+  // Check FCM subscription status (FCM + Database) - solo una vez al montar
   useEffect(() => {
-    if (isCheckingStatus.current) return;
-    isCheckingStatus.current = true;
+    if (hasCheckedStatus.current || !authenticatedUser?.id) return;
+    hasCheckedStatus.current = true;
 
     const checkStatus = async () => {
       try {
         // Verificar FCM
         const fcmSubscribed = await isFCMSubscribed();
 
-        // Verificar base de datos
+        // Verificar base de datos solo si FCM está suscrito
         let dbHasToken = false;
-        if (authenticatedUser?.id && fcmSubscribed) {
-          const { data, error } = await (supabase as any)
-            .from("fcm_tokens")
-            .select("id")
-            .eq("user_id", authenticatedUser.id)
-            .single();
+        if (fcmSubscribed) {
+          try {
+            const { data, error } = await (supabase as any)
+              .from("fcm_tokens")
+              .select("id")
+              .eq("user_id", authenticatedUser.id)
+              .maybeSingle();
 
-          if (!error && data) {
-            dbHasToken = true;
+            if (!error && data) {
+              dbHasToken = true;
+            }
+          } catch (e) {
+            // Ignorar errores de permisos
+            console.log("[ProfileView] Could not check DB status");
           }
         }
 
@@ -181,8 +186,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({
           fullySubscribed,
         });
         setIsPushEnabled(fullySubscribed);
-      } finally {
-        isCheckingStatus.current = false;
+      } catch (e) {
+        console.error("[ProfileView] Error checking status:", e);
       }
     };
     checkStatus();

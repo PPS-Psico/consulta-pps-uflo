@@ -119,31 +119,37 @@ export const subscribeToFCM = async (
     // Save to database if userId provided
     if (userId) {
       console.log("[FCM] Saving token to database for user:", userId);
-      console.log("[FCM] Token value:", token.substring(0, 20) + "...");
 
-      const { data, error } = await (supabase as any)
-        .from("fcm_tokens")
-        .upsert(
-          {
-            user_id: userId,
-            fcm_token: token,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "user_id",
-            ignoreDuplicates: false,
+      try {
+        // First try to insert
+        const { error: insertError } = await (supabase as any).from("fcm_tokens").insert({
+          user_id: userId,
+          fcm_token: token,
+        });
+
+        if (insertError && insertError.code === "23505") {
+          // Duplicate key - update instead
+          console.log("[FCM] Token already exists, updating...");
+          const { error: updateError } = await (supabase as any)
+            .from("fcm_tokens")
+            .update({
+              fcm_token: token,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", userId);
+
+          if (updateError) {
+            console.error("[FCM] Error updating token:", updateError);
+          } else {
+            console.log("[FCM] Token updated in database");
           }
-        )
-        .select();
-
-      if (error) {
-        console.error("[FCM] Error saving to database:", error);
-        console.error("[FCM] Error details:", JSON.stringify(error));
-        // Don't fail if DB save fails - token is still valid for notifications
-        console.log("[FCM] Continuing despite DB error - token is still active");
-      } else {
-        console.log("[FCM] Token saved to database for user:", userId);
-        console.log("[FCM] DB response:", data);
+        } else if (insertError) {
+          console.error("[FCM] Error inserting token:", insertError);
+        } else {
+          console.log("[FCM] Token saved to database");
+        }
+      } catch (e) {
+        console.error("[FCM] Exception saving token:", e);
       }
     } else {
       console.log("[FCM] No userId provided, skipping database save");
