@@ -7,9 +7,8 @@ class Logger {
   private isDev: boolean;
 
   constructor() {
-    // Safe check for process.env
-    const meta = { env: process.env } as any;
-    this.isDev = meta && meta.env ? meta.env.DEV : false;
+    // Safe check for import.meta.env (Vite) or process.env (Node)
+    this.isDev = import.meta.env?.DEV ?? false;
   }
 
   info(message: string, data?: any) {

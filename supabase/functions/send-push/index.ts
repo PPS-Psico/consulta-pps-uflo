@@ -175,10 +175,29 @@ Deno.serve(async (req) => {
       "All included players are not subscribed"
     );
 
+    // Log detailed error information for debugging
+    console.log("[OneSignal] Full response:", JSON.stringify(responseData, null, 2));
+
+    if (responseData.errors) {
+      console.warn(`[OneSignal] Errors in response:`, responseData.errors);
+
+      // Check for specific error patterns
+      if (responseData.errors.includes("Subscriber Opted Out")) {
+        console.error("[OneSignal] CRITICAL: Subscribers opted out automatically");
+        console.error("This usually happens when:");
+        console.error("1. Service Worker scope is misconfigured");
+        console.error("2. The subscription token was invalidated");
+        console.error("3. The browser blocked the Service Worker");
+      }
+    }
+
     if (hasInvalidIds || allNotSubscribed) {
       console.warn(`[OneSignal] Invalid subscriptions found:`, responseData.errors);
-      // NO limpiar automáticamente - puede ser un error temporal
-      // Solo loguear para diagnóstico
+
+      // Verificar cuáles son los IDs inválidos y por qué
+      for (const invalidId of invalidPlayerIds) {
+        console.warn(`[OneSignal] Invalid player ID: ${invalidId}`);
+      }
     }
 
     if (response.ok && !hasInvalidIds && !allNotSubscribed) {

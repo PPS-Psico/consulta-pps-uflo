@@ -149,7 +149,7 @@ root.render(
 );
 
 // Service Worker
-const meta = { env: process.env } as any;
+const meta = { env: import.meta.env } as any;
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     // In dev, sw.js is served from /public

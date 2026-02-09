@@ -58,7 +58,7 @@ export class AdminErrorBoundary extends Component<Props, State> {
               Ha ocurrido un error inesperado. Por favor, intenta recargar la página.
             </p>
 
-            {process.env.NODE_ENV === "development" && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <div className="mb-6 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg text-left overflow-auto">
                 <p className="text-sm font-mono text-red-600 dark:text-red-400 mb-2">
                   {this.state.error.toString()}

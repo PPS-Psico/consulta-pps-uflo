@@ -48,11 +48,17 @@ export const initializeOneSignal = async () => {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
 
     window.OneSignalDeferred.push((OneSignal: any) => {
+      // Detectar si estamos en GitHub Pages
+      const isGitHubPages =
+        window.location.hostname === "pps-psico.github.io" ||
+        window.location.hostname.includes("github.io");
+
       const initConfig: any = {
         appId: ONESIGNAL_APP_ID,
         allowLocalhostAsSecureOrigin: true,
+        // Para GitHub Pages, el service worker debe estar en la raíz del subpath
         serviceWorkerParam: { scope: "/consulta-pps-uflo/" },
-        serviceWorkerPath: "consulta-pps-uflo/OneSignalSDKWorker.js",
+        serviceWorkerPath: "/consulta-pps-uflo/OneSignalSDKWorker.js",
         notifyButton: { enable: false },
         autoRegister: false,
         // DESACTIVAR TODOS LOS PROMPTS automáticos
@@ -60,8 +66,16 @@ export const initializeOneSignal = async () => {
           slidedown: { enabled: false, autoPrompt: false },
           native: { enabled: false, autoPrompt: false },
         },
-        subscription: { autoResubscribe: false },
+        subscription: { autoResubscribe: true }, // CAMBIADO: activar auto-resubscribe para prevenir opt-out
+        // Agregar configuración adicional para debug
+        welcomeNotification: {
+          disable: true, // Desactivar welcome notification automático
+        },
       };
+
+      if (isGitHubPages) {
+        logDebug(`GitHub Pages detected - Service Worker scope: /consulta-pps-uflo/`);
+      }
 
       if (ONESIGNAL_SAFARI_WEB_ID) {
         initConfig.safari_web_id = ONESIGNAL_SAFARI_WEB_ID;
@@ -337,3 +351,174 @@ export const getOneSignalPlayerId = async () => {
 };
 
 export const getOneSignalUserId = getOneSignalPlayerId;
+
+// ============================================================================
+// DIAGNÓSTICO PROFUNDO - Para debuggear problemas de suscripción
+// ============================================================================
+
+export interface OneSignalDiagnostics {
+  playerId: string | null;
+  optedIn: boolean;
+  token: string | null;
+  subscriptionState: any;
+  serviceWorkerInfo: any;
+  browserInfo: {
+    userAgent: string;
+    url: string;
+    protocol: string;
+    hostname: string;
+  };
+  notificationPermission: NotificationPermission | "unsupported";
+  errors: string[];
+  timestamp: string;
+}
+
+export const runOneSignalDiagnostics = async (): Promise<OneSignalDiagnostics> => {
+  const errors: string[] = [];
+  const diagnostics: OneSignalDiagnostics = {
+    playerId: null,
+    optedIn: false,
+    token: null,
+    subscriptionState: null,
+    serviceWorkerInfo: null,
+    browserInfo: {
+      userAgent: navigator.userAgent,
+      url: window.location.href,
+      protocol: window.location.protocol,
+      hostname: window.location.hostname,
+    },
+    notificationPermission: "default",
+    errors,
+    timestamp: new Date().toISOString(),
+  };
+
+  logDebug("Running OneSignal diagnostics...");
+
+  // 1. Verificar permisos del navegador
+  try {
+    if ("Notification" in window) {
+      diagnostics.notificationPermission = Notification.permission;
+      logDebug(`Notification permission: ${diagnostics.notificationPermission}`);
+    } else {
+      diagnostics.notificationPermission = "unsupported";
+      errors.push("Notifications not supported in this browser");
+    }
+  } catch (e: any) {
+    errors.push(`Notification permission check failed: ${e.message}`);
+  }
+
+  // 2. Verificar Service Worker
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      diagnostics.serviceWorkerInfo = {
+        count: registrations.length,
+        registrations: registrations.map((r) => ({
+          scope: r.scope,
+          state: r.active?.state || "inactive",
+          scriptURL: r.active?.scriptURL,
+        })),
+      };
+      logDebug(`Service Worker registrations: ${registrations.length}`);
+    } else {
+      errors.push("Service Workers not supported");
+    }
+  } catch (e: any) {
+    errors.push(`Service Worker check failed: ${e.message}`);
+  }
+
+  // 3. Verificar estado de OneSignal
+  if (!window.OneSignal) {
+    errors.push("OneSignal SDK not loaded");
+    return diagnostics;
+  }
+
+  try {
+    const subscription = await window.OneSignal.User.PushSubscription;
+    diagnostics.subscriptionState = subscription;
+    diagnostics.playerId = subscription?.id || null;
+    diagnostics.optedIn = subscription?.optedIn || false;
+    diagnostics.token = subscription?.token || null;
+
+    logDebug(
+      `OneSignal state - ID: ${diagnostics.playerId}, optedIn: ${diagnostics.optedIn}, hasToken: ${!!diagnostics.token}`
+    );
+  } catch (e: any) {
+    errors.push(`Failed to get OneSignal subscription: ${e.message}`);
+  }
+
+  // 4. Verificar configuración de OneSignal
+  try {
+    const onesignalConfig = await window.OneSignal?.config;
+    logDebug(`OneSignal config: ${JSON.stringify(onesignalConfig)}`);
+  } catch (e: any) {
+    errors.push(`Failed to get OneSignal config: ${e.message}`);
+  }
+
+  // 5. Verificar si hay un OneSignal Player ID en localStorage
+  try {
+    const localPlayerId = localStorage.getItem("onesignal_player_id");
+    if (localPlayerId) {
+      logDebug(`LocalStorage player ID: ${localPlayerId}`);
+      if (diagnostics.playerId && diagnostics.playerId !== localPlayerId) {
+        errors.push(`Player ID mismatch: local=${localPlayerId}, current=${diagnostics.playerId}`);
+      }
+    }
+  } catch (e: any) {
+    errors.push(`Failed to check localStorage: ${e.message}`);
+  }
+
+  // Guardar diagnósticos en localStorage para referencia
+  try {
+    localStorage.setItem("onesignal_diagnostics", JSON.stringify(diagnostics));
+  } catch (e) {}
+
+  return diagnostics;
+};
+
+export const getStoredDiagnostics = (): OneSignalDiagnostics | null => {
+  try {
+    const stored = localStorage.getItem("onesignal_diagnostics");
+    return stored ? JSON.parse(stored) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+// Función para verificar si una suscripción está realmente activa en OneSignal
+export const verifyOneSignalSubscription = async (
+  playerId: string
+): Promise<{
+  valid: boolean;
+  reason?: string;
+  apiResponse?: any;
+}> => {
+  try {
+    // Llamar al backend para verificar el estado real del player ID
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/onesignal-verify`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ player_id: playerId }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      return { valid: false, reason: `API error: ${error}` };
+    }
+
+    const data = await response.json();
+    return {
+      valid: data.valid || false,
+      reason: data.reason,
+      apiResponse: data,
+    };
+  } catch (e: any) {
+    return { valid: false, reason: `Network error: ${e.message}` };
+  }
+};

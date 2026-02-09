@@ -8,6 +8,7 @@ import { supabase } from "../../lib/supabaseClient";
 import Loader from "../Loader";
 import { generateHtmlTemplate, stripGreeting } from "../../utils/emailService";
 import Select from "../ui/Select";
+import { OneSignalDiagnosticsPanel } from "../OneSignalDiagnosticsPanel";
 
 interface AutomationScenario {
   id: string;
@@ -753,6 +754,11 @@ const EmailAutomationManager: React.FC = () => {
                 );
               })}
             </div>
+          </div>
+
+          {/* Diagnóstico OneSignal */}
+          <div className="mt-8">
+            <OneSignalDiagnosticsPanel />
           </div>
         </>
       )}
