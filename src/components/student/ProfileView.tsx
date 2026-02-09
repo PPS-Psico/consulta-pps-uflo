@@ -177,11 +177,23 @@ const ProfileView: React.FC<ProfileViewProps> = ({
       }
     } else {
       // Mostrar error más detallado
-      const errorMessage = result.error || "No se pudieron activar las notificaciones";
+      let errorMessage = result.error || "No se pudieron activar las notificaciones";
+
+      // Si hay logs, ofrecer copiarlos
+      if (result.logs && result.logs.length > 0) {
+        const logsText = result.logs.join("\n");
+        const copyLogs = () => {
+          navigator.clipboard.writeText(logsText).then(() => {
+            showModal("Info", "Logs copiados. Pegalos donde sea necesario.");
+          });
+        };
+        errorMessage += "\n\n¿Problemas? Copiá los logs técnicos para diagnóstico.";
+      }
+
       showModal("Atención", errorMessage);
 
       // Si requiere acción del usuario, mantener el toggle apagado
-      if (result.requiresUserAction) {
+      if (result.requiresUserAction || result.blocked) {
         setIsPushEnabled(false);
       }
     }
