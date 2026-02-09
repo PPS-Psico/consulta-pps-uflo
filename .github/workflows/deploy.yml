@@ -27,48 +27,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate required secrets
-        run: |
-          echo "=== Validating OneSignal secrets ==="
-          echo "Checking if secrets exist (not empty)..."
-          if [ -z "$ONESIGNAL_APP_ID" ]; then
-            echo "❌ ERROR: VITE_ONESIGNAL_APP_ID is not set or empty!"
-            echo "Secret exists but has no value"
-            exit 1
-          else
-            echo "✅ VITE_ONESIGNAL_APP_ID exists (length: ${#ONESIGNAL_APP_ID})"
-          fi
-          if [ -z "$ONESIGNAL_SAFARI_WEB_ID" ]; then
-            echo "⚠️ WARNING: VITE_ONESIGNAL_SAFARI_WEB_ID is not set (optional for non-Safari)"
-          else
-            echo "✅ VITE_ONESIGNAL_SAFARI_WEB_ID exists"
-          fi
-          echo "✅ OneSignal secrets validated"
-        env:
-          ONESIGNAL_APP_ID: ${{ secrets.VITE_ONESIGNAL_APP_ID }}
-          ONESIGNAL_SAFARI_WEB_ID: ${{ secrets.VITE_ONESIGNAL_SAFARI_WEB_ID }}
-
       - name: Create env file
         run: |
           echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
           echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
           echo "VITE_GA4_MEASUREMENT_ID=${{ secrets.VITE_GA4_MEASUREMENT_ID }}" >> .env
-          echo "VITE_ONESIGNAL_APP_ID=${{ secrets.VITE_ONESIGNAL_APP_ID }}" >> .env
-          echo "VITE_ONESIGNAL_SAFARI_WEB_ID=${{ secrets.VITE_ONESIGNAL_SAFARI_WEB_ID }}" >> .env
-
-      - name: Debug env file
-        run: |
-          echo "=== DEBUG: Checking .env file ==="
-          ls -la .env
-          echo "=== DEBUG: OneSignal variables present ==="
-          grep -c "VITE_ONESIGNAL" .env || echo "0"
-          echo "=== DEBUG: Verifying values are not empty ==="
-          if grep -q "VITE_ONESIGNAL_APP_ID=$" .env; then
-            echo "❌ ERROR: VITE_ONESIGNAL_APP_ID is empty in .env file!"
-            exit 1
-          else
-            echo "✅ VITE_ONESIGNAL_APP_ID has value"
-          fi
 
       - name: Build application
         run: |
@@ -78,8 +41,6 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_GA4_MEASUREMENT_ID: ${{ secrets.VITE_GA4_MEASUREMENT_ID }}
-          VITE_ONESIGNAL_APP_ID: ${{ secrets.VITE_ONESIGNAL_APP_ID }}
-          VITE_ONESIGNAL_SAFARI_WEB_ID: ${{ secrets.VITE_ONESIGNAL_SAFARI_WEB_ID }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

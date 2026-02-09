@@ -3,21 +3,11 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { AuthProvider } from "./contexts/AuthContext";
 import { testSupabaseConnection } from "./constants";
-import { initializeOneSignal } from "./lib/onesignal";
 
 console.log(
   "%c ANTIGRAVITY CONTROL: main.tsx loaded ",
   "background: #222; color: #bada55; font-size: 20px"
 );
-
-// Initialize OneSignal (SDK is loaded in index.html)
-initializeOneSignal()
-  .then(() => {
-    console.log("[OneSignal] Initialized successfully");
-  })
-  .catch((error) => {
-    console.error("[OneSignal] Failed to initialize:", error);
-  });
 
 // Run Supabase connection test on load
 testSupabaseConnection().then(async (result) => {
@@ -148,24 +138,20 @@ root.render(
   </React.StrictMode>
 );
 
-// Service Worker de PWA DESACTIVADO temporalmente
-// OneSignal requiere control exclusivo del Service Worker para notificaciones push
-// El SW de la PWA compite con OneSignal y causa conflictos
-// Para reactivar la PWA (funcionalidad offline), se necesitaría:
-// 1. Un dominio propio sin subdirectorio, o
-// 2. Integrar el código de OneSignal dentro del SW de la PWA existente
+// Service Worker de PWA - Desactivado temporalmente
+// Se reactivará cuando implementemos FCM para notificaciones push
+// TODO: Implementar firebase-messaging-sw.js para FCM
 /*
 const meta = { env: import.meta.env } as any;
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    // In dev, sw.js is served from /public
     navigator.serviceWorker
-      .register("./sw.js?v=3")
+      .register("./firebase-messaging-sw.js")
       .then((registration) => {
-        console.log("SW registrado:", registration.scope);
+        console.log("FCM SW registrado:", registration.scope);
       })
       .catch((error) => {
-        console.log("SW falló:", error);
+        console.log("FCM SW falló:", error);
       });
   });
 }
