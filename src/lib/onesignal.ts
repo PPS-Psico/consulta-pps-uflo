@@ -40,20 +40,14 @@ export const initializeOneSignal = async () => {
         },
         // NO registrar automáticamente - esperar a que el usuario haga clic
         autoRegister: false,
-        // Configurar Slidedown Prompt en español
+        // Usar Native Prompt directamente (más confiable en móvil)
         promptOptions: {
           slidedown: {
-            enabled: true,
+            enabled: false,
             autoPrompt: false,
-            pageViews: 999,
-            timeDelay: 999,
-            actionMessage: "📬 ¿Querés recibir notificaciones?",
-            acceptButtonText: "Sí, activar",
-            cancelButtonText: "No, gracias",
-            confirmMessage: "Te avisaremos cuando haya nuevas convocatorias PPS disponibles.",
           },
           native: {
-            enabled: false,
+            enabled: true,
             autoPrompt: false,
           },
         },
@@ -87,55 +81,48 @@ export const subscribeToOneSignal = async (
       return { success: false, error: "OneSignal not loaded" };
     }
 
-    // Request permission using OneSignal's slidedown prompt
-    await window.OneSignal.Slidedown.promptPush();
+    // Check if already subscribed
+    const currentPermission = await window.OneSignal.Notifications.permission;
+    console.log("[OneSignal] Current permission status:", currentPermission);
 
-    // Wait a moment for the subscription to be created
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (currentPermission) {
+      console.log("[OneSignal] Already has permission, getting player ID...");
+      const existingPlayerId = await getOneSignalPlayerId();
+      if (existingPlayerId) {
+        console.log("[OneSignal] Already subscribed with ID:", existingPlayerId);
+        // Save to database even if already subscribed (in case it wasn't saved)
+        if (userId) {
+          await savePlayerIdToDatabase(userId, existingPlayerId);
+        }
+        return { success: true, playerId: existingPlayerId };
+      }
+    }
 
-    // Get the player ID
-    const playerId = await getOneSignalPlayerId();
+    // Request permission - use native prompt for better mobile compatibility
+    console.log("[OneSignal] Requesting permission...");
+    await window.OneSignal.Notifications.requestPermission();
+
+    // Wait for subscription to be created (max 5 seconds)
+    let playerId = null;
+    for (let i = 0; i < 50; i++) {
+      playerId = await getOneSignalPlayerId();
+      if (playerId) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
 
     if (!playerId) {
-      console.warn("[OneSignal] No player ID obtained after subscription");
-      return { success: true }; // Still success, but no player ID
+      console.warn("[OneSignal] No player ID obtained after requesting permission");
+      return {
+        success: false,
+        error: "No se pudo obtener el ID de suscripción. Por favor, intentá de nuevo.",
+      };
     }
 
     console.log("[OneSignal] Subscription successful, player ID:", playerId);
-    console.log("[OneSignal] User ID provided:", userId);
 
     // Save to database if we have a user ID
     if (userId) {
-      try {
-        console.log("[OneSignal] Attempting to save to database...");
-        // Use raw query to avoid type checking issues
-        const { data, error } = await supabase.from("push_subscriptions").upsert(
-          {
-            user_id: userId,
-            onesignal_player_id: playerId,
-            endpoint: `onesignal:${playerId}`, // Placeholder to satisfy NOT NULL
-            p256dh: "onesignal", // Placeholder
-            auth: "onesignal", // Placeholder
-            updated_at: new Date().toISOString(),
-          } as any,
-          {
-            onConflict: "user_id",
-          }
-        );
-
-        if (error) {
-          console.error("[OneSignal] Error saving to database:", error);
-          console.error("[OneSignal] Error details:", JSON.stringify(error));
-        } else {
-          console.log("[OneSignal] Player ID saved to database successfully");
-          console.log("[OneSignal] Upsert result:", data);
-        }
-      } catch (dbError) {
-        console.error("[OneSignal] Database error:", dbError);
-        console.error("[OneSignal] Database error details:", JSON.stringify(dbError));
-      }
-    } else {
-      console.warn("[OneSignal] No userId provided, skipping database save");
+      await savePlayerIdToDatabase(userId, playerId);
     }
 
     return { success: true, playerId };
@@ -144,6 +131,34 @@ export const subscribeToOneSignal = async (
     return { success: false, error: error.message };
   }
 };
+
+// Helper function to save player ID to database
+async function savePlayerIdToDatabase(userId: string, playerId: string) {
+  try {
+    console.log("[OneSignal] Saving to database - userId:", userId, "playerId:", playerId);
+    const { data, error } = await supabase.from("push_subscriptions").upsert(
+      {
+        user_id: userId,
+        onesignal_player_id: playerId,
+        endpoint: `onesignal:${playerId}`,
+        p256dh: "onesignal",
+        auth: "onesignal",
+        updated_at: new Date().toISOString(),
+      } as any,
+      {
+        onConflict: "user_id",
+      }
+    );
+
+    if (error) {
+      console.error("[OneSignal] Error saving to database:", error);
+    } else {
+      console.log("[OneSignal] Player ID saved successfully");
+    }
+  } catch (dbError) {
+    console.error("[OneSignal] Database error:", dbError);
+  }
+}
 
 export const unsubscribeFromOneSignal = async (): Promise<{ success: boolean; error?: string }> => {
   try {
