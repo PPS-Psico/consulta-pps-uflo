@@ -125,8 +125,8 @@ export const subscribeToFCM = async (
       try {
         // Use RPC function to save token (bypasses RLS and FK issues)
         const { data, error } = await (supabase as any).rpc("save_fcm_token", {
-          p_user_id: userId,
-          p_fcm_token: token,
+          p_uid: userId,
+          p_token: token,
         });
 
         if (error) {
