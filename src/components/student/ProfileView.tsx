@@ -467,74 +467,13 @@ const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
 
               {isPushEnabled && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  className="mt-4 pt-4 border-t border-blue-200/50 dark:border-blue-700/50 flex flex-col gap-3"
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-3 text-xs text-blue-600 dark:text-blue-400"
                 >
-                  <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
-                    <span className="material-icons !text-sm">check_circle</span>
-                    Dispositivo vinculado correctamente
-                  </p>
-
-                  {/* Mensaje informativo */}
-                  <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <p className="text-xs text-green-700 dark:text-green-400">
-                      <span className="material-icons !text-sm align-middle mr-1">
-                        check_circle
-                      </span>
-                      <strong>¡Listo!</strong> Las notificaciones están activadas. Recibirás alertas
-                      cuando haya nuevas convocatorias.
-                    </p>
-                  </div>
-
-                  {/* Botón de prueba local */}
-                  <button
-                    onClick={async () => {
-                      try {
-                        if (!("serviceWorker" in navigator)) {
-                          showModal("Error", "Service Worker no soportado");
-                          return;
-                        }
-                        const registration = await navigator.serviceWorker.ready;
-                        const subscription = await registration.pushManager.getSubscription();
-
-                        // Intentar mostrar notificación local de prueba
-                        if (Notification.permission === "granted") {
-                          await registration.showNotification("🧪 Prueba Local", {
-                            body: "Si ves esto, las notificaciones funcionan!",
-                            icon: "./icons/icon-192x192.png",
-                            requireInteraction: true,
-                          });
-                          showModal(
-                            "Info",
-                            `Service Worker activo. Suscripción: ${subscription ? "Sí" : "No"}. Notificación local enviada.`
-                          );
-                        } else {
-                          showModal("Error", "Permiso de notificaciones no concedido");
-                        }
-                      } catch (e: any) {
-                        showModal("Error", `Error: ${e.message}`);
-                      }
-                    }}
-                    className="mt-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
-                    <span className="material-icons !text-sm">check_circle</span>
-                    Probar notificación local
-                  </button>
-
-                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-[10px] text-blue-700 dark:text-blue-400">
-                      <strong>✨ OneSignal:</strong> Usamos OneSignal para enviar notificaciones de
-                      forma confiable. Recibirás alertas instantáneas cuando haya nuevas
-                      convocatorias disponibles.
-                    </p>
-                  </div>
-
-                  <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 ml-5 mt-2">
-                    Si cambias de dispositivo o navegador, deberás activarlas nuevamente allí.
-                  </p>
-                </motion.div>
+                  Notificaciones activas
+                </motion.p>
               )}
             </div>
           )}

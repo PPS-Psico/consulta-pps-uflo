@@ -136,12 +136,7 @@ const EmailAutomationManager: React.FC = () => {
   const [currentBody, setCurrentBody] = useState("");
 
   // Push test state
-  const [customPushTitle, setCustomPushTitle] = useState("");
-  const [customPushMessage, setCustomPushMessage] = useState("");
   const [isSendingCustomPush, setIsSendingCustomPush] = useState(false);
-
-  // URL base de la aplicación
-  const APP_URL = "https://pps-psico.github.io/consulta-pps-uflo/";
 
   // Fetch Templates from DB
   const { data: dbTemplates = [], isLoading } = useQuery({
@@ -263,41 +258,6 @@ const EmailAutomationManager: React.FC = () => {
       });
     } finally {
       setIsSendingTest(false);
-    }
-  };
-
-  const handleSendCustomPush = async () => {
-    if (!customPushTitle || !customPushMessage) {
-      setToastInfo({ message: "Título y mensaje son requeridos.", type: "error" });
-      return;
-    }
-
-    setIsSendingCustomPush(true);
-    try {
-      const { error } = await supabase.functions.invoke("send-push", {
-        body: {
-          title: customPushTitle,
-          message: customPushMessage,
-          url: APP_URL,
-        },
-      });
-
-      if (error) throw error;
-
-      setToastInfo({
-        message: "Notificación push enviada a todos los suscriptores.",
-        type: "success",
-      });
-      setCustomPushTitle("");
-      setCustomPushMessage("");
-    } catch (error: any) {
-      console.error("Error sending push:", error);
-      setToastInfo({
-        message: `Fallo el envío: ${error.message || "Error desconocido"}`,
-        type: "error",
-      });
-    } finally {
-      setIsSendingCustomPush(false);
     }
   };
 
@@ -605,46 +565,49 @@ const EmailAutomationManager: React.FC = () => {
               </div>
             </div>
 
-            {/* Custom Push Form */}
+            {/* Botón de Prueba */}
             <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-              <h4 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-3">
-                Enviar Notificación Personalizada
-              </h4>
-              <div className="space-y-3">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                    Título
-                  </label>
-                  <Input
-                    value={customPushTitle}
-                    onChange={(e) => setCustomPushTitle(e.target.value)}
-                    placeholder="Ej: ¡Novedades importantes!"
-                    className="text-sm"
-                  />
+                  <h4 className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-1">
+                    🧪 Mensaje de Prueba
+                  </h4>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    Enviar notificación de prueba a todos los suscriptores
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                    Mensaje
-                  </label>
-                  <textarea
-                    value={customPushMessage}
-                    onChange={(e) => setCustomPushMessage(e.target.value)}
-                    placeholder="Escribe tu mensaje..."
-                    rows={3}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleSendCustomPush}
-                    disabled={isSendingCustomPush}
-                    isLoading={isSendingCustomPush}
-                    icon="send"
-                    variant="primary"
-                  >
-                    Enviar a Todos
-                  </Button>
-                </div>
+                <Button
+                  onClick={async () => {
+                    setIsSendingCustomPush(true);
+                    try {
+                      const { error } = await supabase.functions.invoke("send-push", {
+                        body: {
+                          title: "🧪 Prueba de Notificación",
+                          message:
+                            "Esta es una notificación de prueba para verificar que todo funciona correctamente.",
+                        },
+                      });
+                      if (error) throw error;
+                      setToastInfo({
+                        message: "Notificación de prueba enviada",
+                        type: "success",
+                      });
+                    } catch (error: any) {
+                      setToastInfo({
+                        message: `Error: ${error.message}`,
+                        type: "error",
+                      });
+                    } finally {
+                      setIsSendingCustomPush(false);
+                    }
+                  }}
+                  disabled={isSendingCustomPush}
+                  isLoading={isSendingCustomPush}
+                  icon="send"
+                  variant="primary"
+                >
+                  Enviar Prueba
+                </Button>
               </div>
             </div>
           </div>
