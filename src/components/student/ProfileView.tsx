@@ -12,6 +12,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useModal } from "../../contexts/ModalContext";
 import { db } from "../../lib/db";
+import { supabase } from "../../lib/supabaseClient";
 import {
   subscribeToOneSignal,
   unsubscribeFromOneSignal,
@@ -151,14 +152,34 @@ const ProfileView: React.FC<ProfileViewProps> = ({
     telefono: "",
   });
 
-  // Check OneSignal subscription status
+  // Check subscription status (OneSignal + Supabase)
   useEffect(() => {
     const checkStatus = async () => {
-      const subscribed = await isOneSignalSubscribed();
-      setIsPushEnabled(subscribed);
+      // Verificar OneSignal local
+      const oneSignalSubscribed = await isOneSignalSubscribed();
+
+      // Verificar base de datos
+      let dbSubscribed = false;
+      if (authenticatedUser?.id) {
+        const { data } = await supabase
+          .from("push_subscriptions")
+          .select("onesignal_player_id")
+          .eq("user_id", authenticatedUser.id)
+          .single();
+        dbSubscribed = !!data?.onesignal_player_id;
+      }
+
+      // El botón está activado solo si AMBAS condiciones se cumplen
+      const fullySubscribed = oneSignalSubscribed && dbSubscribed;
+      console.log("[ProfileView] Subscription status:", {
+        oneSignalSubscribed,
+        dbSubscribed,
+        fullySubscribed,
+      });
+      setIsPushEnabled(fullySubscribed);
     };
     checkStatus();
-  }, []);
+  }, [authenticatedUser?.id]);
 
   const handleSubscribe = async () => {
     setIsPushLoading(true);
@@ -202,7 +223,15 @@ const ProfileView: React.FC<ProfileViewProps> = ({
 
   const handleUnsubscribe = async () => {
     setIsPushLoading(true);
+
+    // Desuscribir de OneSignal
     const result = await unsubscribeFromOneSignal();
+
+    // También borrar de la base de datos
+    if (authenticatedUser?.id) {
+      await supabase.from("push_subscriptions").delete().eq("user_id", authenticatedUser.id);
+    }
+
     if (result.success) {
       setIsPushEnabled(false);
       showModal("Éxito", "Notificaciones desactivadas");
