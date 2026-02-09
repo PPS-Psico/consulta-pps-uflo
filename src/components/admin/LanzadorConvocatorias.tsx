@@ -63,6 +63,47 @@ import Checkbox from "../ui/Checkbox";
 import { notificationService } from "../../services/notificationService";
 import { useNavigate } from "react-router-dom";
 
+// Componente para mostrar cuenta regresiva - definido fuera del componente principal para evitar re-renders
+const LaunchCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) => {
+  const [timeLeft, setTimeLeft] = React.useState<string>("");
+
+  React.useEffect(() => {
+    const calculateTime = () => {
+      const now = new Date().getTime();
+      const target = new Date(targetDate).getTime();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft("Procesando...");
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+      const parts = [];
+      if (days > 0) parts.push(`${days}d`);
+      if (hours > 0) parts.push(`${hours}h`);
+      if (minutes > 0) parts.push(`${minutes}m`);
+      if (parts.length === 0) parts.push("< 1m");
+
+      setTimeLeft(parts.join(" "));
+    };
+
+    calculateTime();
+    const timer = setInterval(calculateTime, 60000);
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-800/50">
+      <span className="material-icons !text-xs animate-pulse">timer</span>
+      <span className="text-[10px] font-black tracking-tight">{timeLeft}</span>
+    </div>
+  );
+};
+
 const mockInstitutions = [
   { id: "recInstMock1", [FIELD_NOMBRE_INSTITUCIONES]: "Hospital de Juguete" },
   { id: "recInstMock2", [FIELD_NOMBRE_INSTITUCIONES]: "Escuela de Pruebas" },
@@ -1152,46 +1193,6 @@ Responde SOLO con el JSON válido.
   };
 
   const selectedLaunch = editingLaunch;
-
-  const LaunchCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) => {
-    const [timeLeft, setTimeLeft] = useState<string>("");
-
-    useEffect(() => {
-      const calculateTime = () => {
-        const now = new Date().getTime();
-        const target = new Date(targetDate).getTime();
-        const diff = target - now;
-
-        if (diff <= 0) {
-          setTimeLeft("Procesando...");
-          return;
-        }
-
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-        const parts = [];
-        if (days > 0) parts.push(`${days}d`);
-        if (hours > 0) parts.push(`${hours}h`);
-        if (minutes > 0) parts.push(`${minutes}m`);
-        if (parts.length === 0) parts.push("< 1m");
-
-        setTimeLeft(parts.join(" "));
-      };
-
-      calculateTime();
-      const timer = setInterval(calculateTime, 60000);
-      return () => clearInterval(timer);
-    }, [targetDate]);
-
-    return (
-      <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-800/50">
-        <span className="material-icons !text-xs animate-pulse">timer</span>
-        <span className="text-[10px] font-black tracking-tight">{timeLeft}</span>
-      </div>
-    );
-  };
 
   const renderLaunchItem = useCallback(
     (launch: LanzamientoPPS) => {

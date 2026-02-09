@@ -36,6 +36,8 @@ import {
   FIELD_PENALIZACION_PUNTAJE,
   FIELD_TRABAJA_ESTUDIANTES,
   FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES,
+  FIELD_HORARIOS_FIJOS_LANZAMIENTOS,
+  FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
   TABLE_NAME_CONVOCATORIAS,
   TABLE_NAME_ESTUDIANTES,
   TABLE_NAME_PRACTICAS,
@@ -556,6 +558,36 @@ export const useSeleccionadorLogic = (
     },
   });
 
+  // Determinar si se debe mostrar el selector de horarios
+  const scheduleInfo = useMemo(() => {
+    if (!selectedLanzamiento) {
+      return { showScheduleSelector: false, horariosFijos: false, singleSchedule: false };
+    }
+
+    const horariosFijos = !!selectedLanzamiento[FIELD_HORARIOS_FIJOS_LANZAMIENTOS];
+    const horarioSeleccionado = selectedLanzamiento[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS];
+
+    // Si los horarios son fijos, no mostrar selector
+    if (horariosFijos) {
+      return { showScheduleSelector: false, horariosFijos: true, singleSchedule: false };
+    }
+
+    // Si hay un solo horario (no contiene punto y coma), no mostrar selector
+    const horariosList = horarioSeleccionado
+      ? String(horarioSeleccionado)
+          .split(";")
+          .filter((h) => h.trim())
+      : [];
+    const singleSchedule = horariosList.length === 1;
+
+    return {
+      showScheduleSelector: !singleSchedule,
+      horariosFijos: false,
+      singleSchedule,
+      horariosDisponibles: horariosList,
+    };
+  }, [selectedLanzamiento]);
+
   return {
     selectedLanzamiento,
     setSelectedLanzamiento,
@@ -571,6 +603,7 @@ export const useSeleccionadorLogic = (
     isLoadingCandidates,
     selectedCandidates,
     displayedCandidates,
+    scheduleInfo,
     handleToggle,
     handleUpdateSchedule,
     handleConfirmAndCloseTable,

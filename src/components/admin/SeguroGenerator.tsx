@@ -377,17 +377,40 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({
         const baseSheetName = institucion.replace(/[\\/?*[\]]/g, "").substring(0, 25) || "PPS";
         const worksheet = workbook.addWorksheet(baseSheetName);
 
-        worksheet.columns = [
+        // Verificar si todos los estudiantes del grupo tienen el mismo horario
+        const uniqueHorarios = new Set(group.map((s) => s.horario).filter(Boolean));
+        const hasSingleSchedule = uniqueHorarios.size <= 1;
+
+        // Definir columnas según si hay un solo horario o varios
+        const columns = [
           { header: "APELLIDO", key: "apellido", width: 25 },
           { header: "NOMBRE", key: "nombre", width: 25 },
           { header: "DNI", key: "dni", width: 15 },
           { header: "LEGAJO", key: "legajo", width: 15 },
           { header: "CORREO", key: "correo", width: 30 },
           { header: "TELEFONO", key: "telefono", width: 20 },
-          { header: "HORARIO", key: "horario", width: 30 },
         ];
 
-        worksheet.addRows(group);
+        // Solo agregar columna de horario si hay varios horarios diferentes
+        if (!hasSingleSchedule) {
+          columns.push({ header: "HORARIO", key: "horario", width: 30 });
+        }
+
+        worksheet.columns = columns;
+
+        // Preparar datos según las columnas (excluyendo horario si es único)
+        const rows = hasSingleSchedule
+          ? group.map((s) => ({
+              apellido: s.apellido,
+              nombre: s.nombre,
+              dni: s.dni,
+              legajo: s.legajo,
+              correo: s.correo,
+              telefono: s.telefono,
+            }))
+          : group;
+
+        worksheet.addRows(rows);
 
         worksheet.getRow(1).font = { bold: true };
         worksheet.getRow(1).fill = {
@@ -403,7 +426,28 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({
       });
 
       const fileSaver = await import("file-saver");
-      fileSaver.saveAs(blob, `Listado_Alumnos_${new Date().toISOString().split("T")[0]}.xlsx`);
+      const fechaHoy = new Date().toISOString().split("T")[0];
+
+      // Generar nombre de archivo según la cantidad de instituciones
+      const instituciones = Object.keys(studentsByInstitution);
+      let nombreArchivo: string;
+
+      if (instituciones.length === 1) {
+        // Si hay una sola institución, usar su nombre
+        const nombreInstitucion = instituciones[0].replace(/[\\/?*[\]]/g, "").substring(0, 50);
+        nombreArchivo = `Listado_${nombreInstitucion}_${fechaHoy}.xlsx`;
+      } else if (instituciones.length <= 3) {
+        // Si hay 2-3 instituciones, incluir los nombres truncados
+        const nombresInstituciones = instituciones
+          .map((inst) => inst.replace(/[\\/?*[\]]/g, "").substring(0, 15))
+          .join("_");
+        nombreArchivo = `Listado_${nombresInstituciones}_${fechaHoy}.xlsx`;
+      } else {
+        // Si hay más de 3, usar "General" o "Multiple"
+        nombreArchivo = `Listado_General_${fechaHoy}.xlsx`;
+      }
+
+      fileSaver.saveAs(blob, nombreArchivo);
 
       setToastInfo({ message: "Excel generado correctamente.", type: "success" });
     } catch (e: any) {
@@ -422,6 +466,8 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({
         .from("documentos_seguros")
         .download("Seguro (2).xlsx");
 
+      const fechaHoy = new Date().toISOString().split("T")[0];
+
       if (error) {
         console.warn("Error downloading specific file, trying alternative...", error);
         // Fallback attempt if name is slightly different
@@ -434,12 +480,12 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({
 
         const fileSaver = await import("file-saver");
         const cleanName = institutionName.replace(/[\\/?*[\]]/g, "").substring(0, 50);
-        fileSaver.saveAs(altData, `Seguro - ${cleanName}.xlsx`);
+        fileSaver.saveAs(altData, `Seguro - ${cleanName} - ${fechaHoy}.xlsx`);
       } else {
         if (!data) throw new Error("El archivo descargado está vacío.");
         const fileSaver = await import("file-saver");
         const cleanName = institutionName.replace(/[\\/?*[\]]/g, "").substring(0, 50);
-        fileSaver.saveAs(data, `Seguro - ${cleanName}.xlsx`);
+        fileSaver.saveAs(data, `Seguro - ${cleanName} - ${fechaHoy}.xlsx`);
       }
 
       setToastInfo({ message: "Plantilla descargada. Ahora copia los datos.", type: "success" });

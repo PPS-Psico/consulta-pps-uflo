@@ -27,7 +27,15 @@ const StudentRow: React.FC<{
   onUpdateSchedule: (id: string, newSchedule: string) => void;
   isUpdating: boolean;
   isReviewMode?: boolean;
-}> = ({ student, onToggleSelection, onUpdateSchedule, isUpdating, isReviewMode = false }) => {
+  showScheduleSelector?: boolean;
+}> = ({
+  student,
+  onToggleSelection,
+  onUpdateSchedule,
+  isUpdating,
+  isReviewMode = false,
+  showScheduleSelector = true,
+}) => {
   const [localSchedule, setLocalSchedule] = React.useState(student.horarioSeleccionado);
   const [isScheduleDirty, setIsScheduleDirty] = React.useState(false);
   const isSelected = normalizeStringForComparison(student.status) === "seleccionado";
@@ -182,19 +190,25 @@ const StudentRow: React.FC<{
         </div>
 
         <div className="flex items-center gap-2 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
-          <div className="flex-grow lg:w-40">
-            <input
-              type="text"
-              value={localSchedule}
-              onChange={(e) => {
-                setLocalSchedule(e.target.value);
-                setIsScheduleDirty(true);
-              }}
-              onBlur={handleScheduleBlur}
-              className="w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-black/30 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400 dark:text-white"
-              placeholder="Asignar horario..."
-            />
-          </div>
+          {showScheduleSelector ? (
+            <div className="flex-grow lg:w-40">
+              <input
+                type="text"
+                value={localSchedule}
+                onChange={(e) => {
+                  setLocalSchedule(e.target.value);
+                  setIsScheduleDirty(true);
+                }}
+                onBlur={handleScheduleBlur}
+                className="w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-black/30 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400 dark:text-white"
+                placeholder="Asignar horario..."
+              />
+            </div>
+          ) : (
+            <div className="flex-grow lg:w-40 px-2.5 py-2 text-xs text-slate-500 dark:text-slate-400">
+              {student.horarioSeleccionado || "Horario predefinido"}
+            </div>
+          )}
 
           <button
             onClick={() => onToggleSelection(student)}
@@ -244,6 +258,7 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({
     isLoadingCandidates,
     selectedCandidates,
     displayedCandidates,
+    scheduleInfo,
     handleToggle,
     handleUpdateSchedule,
     handleConfirmAndCloseTable,
@@ -529,6 +544,7 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({
               onUpdateSchedule={handleUpdateSchedule}
               isUpdating={updatingId === student.enrollmentId}
               isReviewMode={viewMode === "review"}
+              showScheduleSelector={scheduleInfo?.showScheduleSelector ?? true}
             />
           ))}
           {displayedCandidates.length === 0 && (
