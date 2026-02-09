@@ -145,17 +145,14 @@ export const subscribeToFCM = async (
     }
 
     // Setup foreground message handler
+    // Note: Service Worker handles background notifications automatically
+    // Foreground messages can be used for in-app UI updates if needed
     const { messaging } = await initializeFCM();
     onMessage(messaging, (payload) => {
       console.log("[FCM] Message received in foreground:", payload);
-      // Show notification manually in foreground
-      if (payload.notification) {
-        new Notification(payload.notification.title || "Notificación", {
-          body: payload.notification.body || "",
-          icon: payload.notification.icon || "/icon-192x192.png",
-          badge: "/icon-192x192.png",
-        });
-      }
+      // In foreground, FCM doesn't show notifications automatically
+      // You can add custom in-app UI here if needed
+      // The Service Worker will handle notifications when app is in background
     });
 
     return { success: true, token, dbSaved };
