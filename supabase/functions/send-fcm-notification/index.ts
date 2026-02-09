@@ -64,13 +64,19 @@ async function getAccessToken(): Promise<string> {
 
     // Create signature
     const signingInput = `${encodedHeader}.${encodedPayload}`;
-    const privateKey = serviceAccount.private_key.replace(/\\n/g, "\n");
-
-    // Import private key
-    const keyData = new TextEncoder().encode(privateKey);
+    
+    // Import private key - convert PEM to binary
+    const privateKeyPem = serviceAccount.private_key
+      .replace(/\\n/g, "\n")
+      .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+      .replace(/-----END PRIVATE KEY-----/g, "")
+      .replace(/\s/g, "");
+    
+    const binaryKey = Uint8Array.from(atob(privateKeyPem), c => c.charCodeAt(0));
+    
     const cryptoKey = await crypto.subtle.importKey(
       "pkcs8",
-      await crypto.subtle.digest("SHA-256", keyData),
+      binaryKey,
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
       false,
       ["sign"]
