@@ -131,7 +131,7 @@ messaging.onBackgroundMessage((payload) => {
   const options = {
     body: body,
     icon: icon, // Dynamic context icon
-    badge: "/icons/icon-bell-outline.png", // Specific status bar icon (must be small & white)
+    badge: "/icons/icon-badge-v2.png", // New badge filename to break cache (official white material bell)
     data: { url: data.url || "https://pps-psico.github.io/" },
     tag: "pps-notification",
     renotify: true,
