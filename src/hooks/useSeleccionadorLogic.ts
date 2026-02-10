@@ -1,55 +1,40 @@
-import { useState, useMemo, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { db } from "../lib/db";
-import { mockDb } from "../services/mockDb";
-import { toggleStudentSelection } from "../services/dataService";
-import { supabase } from "../lib/supabaseClient";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import {
+  FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS,
+  FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES,
+  FIELD_CORREO_ESTUDIANTES,
+  FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS,
+  FIELD_CV_CONVOCATORIAS,
+  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
   FIELD_ESTADO_INSCRIPCION_CONVOCATORIAS,
   FIELD_ESTUDIANTE_INSCRIPTO_CONVOCATORIAS,
-  FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
-  FIELD_LEGAJO_CONVOCATORIAS,
-  FIELD_NOMBRE_PPS_CONVOCATORIAS,
-  FIELD_FECHA_INICIO_CONVOCATORIAS,
-  FIELD_FECHA_FIN_CONVOCATORIAS,
-  FIELD_DIRECCION_CONVOCATORIAS,
-  FIELD_ORIENTACION_CONVOCATORIAS,
-  FIELD_HORAS_ACREDITADAS_CONVOCATORIAS,
-  FIELD_CUPOS_DISPONIBLES_CONVOCATORIAS,
-  FIELD_TERMINO_CURSAR_CONVOCATORIAS,
-  FIELD_CURSANDO_ELECTIVAS_CONVOCATORIAS,
-  FIELD_FINALES_ADEUDA_CONVOCATORIAS,
-  FIELD_OTRA_SITUACION_CONVOCATORIAS,
-  FIELD_HORARIO_FORMULA_CONVOCATORIAS,
-  FIELD_TRABAJA_CONVOCATORIAS,
-  FIELD_CERTIFICADO_TRABAJO_CONVOCATORIAS,
-  FIELD_CV_CONVOCATORIAS,
+  FIELD_ESTUDIANTE_LINK_PRACTICAS,
   FIELD_FECHA_ENCUENTRO_INICIAL_LANZAMIENTOS,
+  FIELD_FINALES_ADEUDA_CONVOCATORIAS,
+  FIELD_HORARIOS_FIJOS_LANZAMIENTOS,
+  FIELD_HORARIO_FORMULA_CONVOCATORIAS,
+  FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
+  FIELD_HORAS_PRACTICAS,
+  FIELD_LANZAMIENTO_VINCULADO_CONVOCATORIAS,
   FIELD_LEGAJO_ESTUDIANTES,
   FIELD_NOMBRE_ESTUDIANTES,
-  FIELD_CORREO_ESTUDIANTES,
-  FIELD_TELEFONO_ESTUDIANTES,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
-  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
-  FIELD_ESTUDIANTE_LINK_PRACTICAS,
-  FIELD_HORAS_PRACTICAS,
-  FIELD_PENALIZACION_PUNTAJE,
-  FIELD_TRABAJA_ESTUDIANTES,
-  FIELD_CERTIFICADO_TRABAJO_ESTUDIANTES,
-  FIELD_HORARIOS_FIJOS_LANZAMIENTOS,
-  FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
-  TABLE_NAME_CONVOCATORIAS,
-  TABLE_NAME_ESTUDIANTES,
-  TABLE_NAME_PRACTICAS,
-  TABLE_NAME_LANZAMIENTOS_PPS,
-  TABLE_NAME_PENALIZACIONES,
-  FIELD_LANZAMIENTO_VINCULADO_PRACTICAS,
-  FIELD_ESTADO_PRACTICA,
+  FIELD_OTRA_SITUACION_CONVOCATORIAS,
   FIELD_PENALIZACION_ESTUDIANTE_LINK,
+  FIELD_PENALIZACION_PUNTAJE,
+  FIELD_TELEFONO_ESTUDIANTES,
+  FIELD_TERMINO_CURSAR_CONVOCATORIAS,
+  FIELD_TRABAJA_CONVOCATORIAS,
+  FIELD_TRABAJA_ESTUDIANTES,
 } from "../constants";
-import { normalizeStringForComparison, cleanDbValue } from "../utils/formatters";
-import type { LanzamientoPPS, AirtableRecord, EnrichedStudent, ConvocatoriaFields } from "../types";
+import { db } from "../lib/db";
+import { supabase } from "../lib/supabaseClient";
+import { toggleStudentSelection } from "../services/dataService";
+import { mockDb } from "../services/mockDb";
+import type { AirtableRecord, ConvocatoriaFields, EnrichedStudent, LanzamientoPPS } from "../types";
 import { sendSmartEmail } from "../utils/emailService";
+import { cleanDbValue, normalizeStringForComparison } from "../utils/formatters";
 
 const SCORE_WEIGHTS = {
   TERMINO_CURSAR: 100,
@@ -467,6 +452,7 @@ export const useSeleccionadorLogic = (
                   body: {
                     title,
                     body: message,
+                    type: "selection", // Icon type
                     user_ids: [student.studentId],
                   },
                 });

@@ -1,65 +1,65 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../lib/supabaseClient";
-import { db } from "../../lib/db";
-import type {
-  InstitucionFields,
-  LanzamientoPPSFields,
-  AirtableRecord,
-  LanzamientoPPS,
-} from "../../types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  FIELD_ACTIVIDADES_LABEL_LANZAMIENTOS,
+  FIELD_ACTIVIDADES_LANZAMIENTOS,
+  FIELD_CODIGO_CAMPUS_INSTITUCIONES,
+  FIELD_CODIGO_CAMPUS_LANZAMIENTOS,
+  FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
+  FIELD_DESCRIPCION_LANZAMIENTOS,
+  FIELD_DIRECCION_INSTITUCIONES,
+  FIELD_DIRECCION_LANZAMIENTOS,
+  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
+  FIELD_ESTADO_GESTION_LANZAMIENTOS,
+  FIELD_FECHA_ENCUENTRO_INICIAL_LANZAMIENTOS,
+  FIELD_FECHA_FIN_INSCRIPCION_LANZAMIENTOS,
+  FIELD_FECHA_FIN_LANZAMIENTOS,
+  FIELD_FECHA_INICIO_INSCRIPCION_LANZAMIENTOS,
+  FIELD_FECHA_INICIO_LANZAMIENTOS,
+  FIELD_FECHA_PUBLICACION_LANZAMIENTOS,
+  FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
+  FIELD_HORARIOS_FIJOS_LANZAMIENTOS,
+  FIELD_HORAS_ACREDITADAS_LANZAMIENTOS,
+  FIELD_INSTITUCION_LINK_PRACTICAS,
+  FIELD_LOGO_INVERT_DARK_INSTITUCIONES,
+  FIELD_LOGO_URL_INSTITUCIONES,
+  FIELD_MENSAJE_WHATSAPP_LANZAMIENTOS,
   FIELD_NOMBRE_INSTITUCIONES,
   FIELD_NOMBRE_PPS_LANZAMIENTOS,
   FIELD_ORIENTACION_LANZAMIENTOS,
-  FIELD_HORAS_ACREDITADAS_LANZAMIENTOS,
-  FIELD_CUPOS_DISPONIBLES_LANZAMIENTOS,
-  FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS,
-  FIELD_FECHA_INICIO_LANZAMIENTOS,
-  FIELD_FECHA_FIN_LANZAMIENTOS,
-  FIELD_ESTADO_CONVOCATORIA_LANZAMIENTOS,
-  FIELD_ESTADO_GESTION_LANZAMIENTOS,
-  FIELD_ACTIVIDADES_LANZAMIENTOS,
-  FIELD_REQUISITO_OBLIGATORIO_LANZAMIENTOS,
-  FIELD_FECHA_INICIO_INSCRIPCION_LANZAMIENTOS,
-  FIELD_FECHA_FIN_INSCRIPCION_LANZAMIENTOS,
-  FIELD_FECHA_PUBLICACION_LANZAMIENTOS,
-  FIELD_LOGO_URL_INSTITUCIONES,
-  FIELD_LOGO_INVERT_DARK_INSTITUCIONES,
-  FIELD_DIRECCION_INSTITUCIONES,
-  FIELD_TELEFONO_INSTITUCIONES,
-  FIELD_TUTOR_INSTITUCIONES,
   FIELD_REQ_CERTIFICADO_TRABAJO_LANZAMIENTOS,
   FIELD_REQ_CV_LANZAMIENTOS,
-  FIELD_CODIGO_CAMPUS_INSTITUCIONES,
-  FIELD_CODIGO_CAMPUS_LANZAMIENTOS,
-  FIELD_DIRECCION_LANZAMIENTOS,
-  FIELD_DESCRIPCION_LANZAMIENTOS,
-  FIELD_MENSAJE_WHATSAPP_LANZAMIENTOS,
-  FIELD_ACTIVIDADES_LABEL_LANZAMIENTOS,
-  FIELD_HORARIOS_FIJOS_LANZAMIENTOS,
-  FIELD_FECHA_ENCUENTRO_INICIAL_LANZAMIENTOS,
-  FIELD_INSTITUCION_LINK_PRACTICAS,
+  FIELD_REQUISITO_OBLIGATORIO_LANZAMIENTOS,
+  FIELD_TELEFONO_INSTITUCIONES,
+  FIELD_TUTOR_INSTITUCIONES,
 } from "../../constants";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../../constants/configConstants";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "../../constants/configConstants";
+import { db } from "../../lib/db";
+import { supabase } from "../../lib/supabaseClient";
+import type {
+  AirtableRecord,
+  InstitucionFields,
+  LanzamientoPPS,
+  LanzamientoPPSFields,
+} from "../../types";
 // TODO: Re-enable when launcher components are created
 // import { LaunchForm } from "../launcher/LaunchForm";
 // import { LaunchHistory } from "../launcher/LaunchHistory";
 // import { LaunchInscriptosModal } from "../launcher/LaunchInscriptosModal";
-import Card from "../ui/Card";
-import Toast from "../ui/Toast";
-import { ALL_ORIENTACIONES, Orientacion } from "../../types";
-import { normalizeStringForComparison, formatDate } from "../../utils/formatters";
-import { uploadInstitutionLogo } from "../../services/dataService";
-import SubTabs from "../SubTabs";
-import EmptyState from "../EmptyState";
-import RecordEditModal from "./RecordEditModal";
 import { schema } from "../../lib/dbSchema";
+import { uploadInstitutionLogo } from "../../services/dataService";
+import { ALL_ORIENTACIONES, Orientacion } from "../../types";
+import { formatDate, normalizeStringForComparison } from "../../utils/formatters";
 import CollapsibleSection from "../CollapsibleSection";
+import EmptyState from "../EmptyState";
+import SubTabs from "../SubTabs";
+import Button from "../ui/Button";
+import Card from "../ui/Card";
+import Checkbox from "../ui/Checkbox";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
-import Button from "../ui/Button";
-import Checkbox from "../ui/Checkbox";
+import Toast from "../ui/Toast";
+import RecordEditModal from "./RecordEditModal";
 
 import { useNavigate } from "react-router-dom";
 
@@ -467,7 +467,7 @@ Instrucciones de Diseño:
 3. REGLA DE ORO: Genera MÁXIMO 4 items para la lista de la derecha.
 4. Si la info original tiene más de 4 objetivos/actividades, INTEGRA los menos críticos dentro de la "descripcion" narrativa de forma fluida.
 5. La "descripcion" debe ser robusta (aprox 300-450 caracteres) para equilibrar el peso visual de la lista.
-6. FLEXIBILIDAD: El título de la lista de la derecha ("actividadesLabel") debe ser dinámico. 
+6. FLEXIBILIDAD: El título de la lista de la derecha ("actividadesLabel") debe ser dinámico.
    - Si la info se centra en tareas -> "Actividades".
    - Si se centra en lugares/espacios -> "Espacios de Participación".
    - Si se centra en objetivos específicos -> "Objetivos Específicos".
@@ -891,6 +891,7 @@ Responde SOLO con el JSON válido.
             body: {
               title: "🎉 Nueva Convocatoria PPS",
               body: `Se abrió la convocatoria: ${variables[FIELD_NOMBRE_PPS_LANZAMIENTOS]}`,
+              type: "announcement",
               send_to_all: true,
             },
           })

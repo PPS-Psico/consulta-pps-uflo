@@ -117,11 +117,21 @@ messaging.onBackgroundMessage((payload) => {
   // Support multiple key names to avoid conflicts and ensure backward compatibility
   const title = data.content_title || data.title || "Mi Panel Academico";
   const body = data.content_body || data.body || data.message || "Nueva notificación";
+  const type = data.content_type || data.type || "message";
+
+  // Select icon based on type
+  let icon = "/icons/icon-192x192.png"; // Default fallback
+
+  // Try to use specific icons if available (user must upload them)
+  // Otherwise fall back to generic app icon, but user requested specific icons.
+  if (type === "selection") icon = "/icons/icon-celebration.png";
+  else if (type === "announcement") icon = "/icons/icon-megaphone.png";
+  else if (type === "message" || type === "test") icon = "/icons/icon-email.png";
 
   const options = {
     body: body,
-    icon: "/icons/icon-192x192.png", // Absolute path
-    badge: "/icons/icon-notification.png", // Absolute path
+    icon: icon, // Dynamic context icon
+    badge: "/icons/icon-bell-outline.png", // Specific status bar icon (must be small & white)
     data: { url: data.url || "https://pps-psico.github.io/" },
     tag: "pps-notification",
     renotify: true,

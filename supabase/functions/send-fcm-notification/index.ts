@@ -152,9 +152,14 @@ async function sendToToken(
           // over notification display (icon, badge, tag). Using a 'notification'
           // payload causes Firebase to auto-display a notification AND trigger
           // onBackgroundMessage, resulting in duplicates.
+          // Use data-only payload so the service worker has full control
+          // over notification display (icon, badge, tag). Using a 'notification'
+          // payload causes Firebase to auto-display a notification AND trigger
+          // onBackgroundMessage, resulting in duplicates.
           data: {
             content_title: title, // Use specific keys to avoid conflicts
             content_body: body, // Use specific keys to avoid conflicts
+            content_type: data.type || "message", // Dynamic type for icons
             title: title,
             body: body,
             url: "https://pps-psico.github.io/",

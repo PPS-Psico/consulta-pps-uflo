@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Card from "../ui/Card";
-import Input from "../ui/Input";
-import Toast from "../ui/Toast";
-import Button from "../ui/Button";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import Loader from "../Loader";
 import { generateHtmlTemplate, stripGreeting } from "../../utils/emailService";
+import Loader from "../Loader";
+import Button from "../ui/Button";
+import Input from "../ui/Input";
 import Select from "../ui/Select";
+import Toast from "../ui/Toast";
 
 interface AutomationScenario {
   id: string;
@@ -589,6 +588,7 @@ const EmailAutomationManager: React.FC = () => {
                           body: {
                             title: "🧪 Prueba de Notificación",
                             body: "Esta es una notificación de prueba para verificar que todo funciona correctamente.",
+                            type: "message",
                             send_to_all: true,
                           },
                         }
