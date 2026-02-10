@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { title, body: messageBody, user_ids, send_to_all } = body;
+    const { title, body: messageBody, user_ids, send_to_all, type: notificationType } = body;
 
     if (!title || !messageBody) {
       return new Response(JSON.stringify({ error: "Title and body are required" }), {
@@ -279,7 +279,7 @@ Deno.serve(async (req) => {
     for (const token of tokens) {
       const result = await sendToToken(token, title, messageBody, {
         ...(body.data || {}),
-        type: body.type,
+        type: notificationType || body.type,
       });
       if (result.success) {
         sent++;
