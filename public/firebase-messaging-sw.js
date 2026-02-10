@@ -17,23 +17,9 @@ firebase.initializeApp({
 // Retrieve an instance of Firebase Messaging
 const messaging = firebase.messaging();
 
-// Handle background messages
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  
-  const notificationTitle = payload.notification?.title || 'Nueva Notificación';
-  const notificationOptions = {
-    body: payload.notification?.body || '',
-    icon: payload.notification?.icon || '/icons/icon-notification.png',
-    badge: '/icons/icon-192x192.png',
-    tag: payload.data?.tag || 'default',
-    data: payload.data || {},
-    requireInteraction: true,
-    actions: payload.notification?.actions || []
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
-});
+// Note: We're not using onBackgroundMessage handler here
+// Firebase handles notifications automatically when using 'notification' payload
+// This prevents duplicate notifications in mobile browsers
 
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
