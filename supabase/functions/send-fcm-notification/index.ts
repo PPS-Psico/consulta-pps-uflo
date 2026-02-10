@@ -154,7 +154,7 @@ async function sendToToken(
           // onBackgroundMessage, resulting in duplicates.
           data: {
             title: title,
-            message: body,
+            body: body, // Renamed from 'message' to 'body' for consistency
             url: "https://pps-psico.github.io/",
             ...data,
           },

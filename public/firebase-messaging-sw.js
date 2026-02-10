@@ -115,12 +115,12 @@ messaging.onBackgroundMessage((payload) => {
   const data = payload.data || {};
 
   const title = data.title || "Mi Panel Academico";
-  const body = data.message || "Tienes una nueva notificacion.";
+  const body = data.body || data.message || "Nueva notificación";
 
   const options = {
     body: body,
     icon: "./icons/icon-192x192.png",
-    badge: "./icons/icon-192x192.png",
+    badge: "./icons/icon-notification.png", // Status bar icon (should be monochrome/transparent)
     data: { url: data.url || "https://pps-psico.github.io/" },
     tag: "pps-notification",
     renotify: true,
