@@ -48,9 +48,11 @@ interface StudentPanelContextType {
     { practicaId: string; nota: string; convocatoriaId?: string },
     unknown
   >;
+  updateFechaFin: UseMutationResult<any, Error, { practicaId: string; fecha: string }, unknown>;
   enrollStudent: { mutate: (lanzamiento: LanzamientoPPS) => void; isPending: boolean };
   confirmInforme: UseMutationResult<any, Error, InformeTask, any>;
   refetchAll: () => void;
+  refetchPracticas: () => void;
 }
 
 const StudentPanelContext = createContext<StudentPanelContextType | undefined>(undefined);
@@ -76,7 +78,7 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
     updateInternalNotes,
     refetchStudent,
   } = useStudentData(legajo);
-  const { practicas, isPracticasLoading, practicasError, updateNota, refetchPracticas } =
+  const { practicas, isPracticasLoading, practicasError, updateNota, updateFechaFin, refetchPracticas } =
     useStudentPracticas(legajo);
   const { solicitudes, isSolicitudesLoading, solicitudesError, refetchSolicitudes } =
     useStudentSolicitudes(legajo, studentAirtableId);
@@ -142,9 +144,11 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
     updateOrientation,
     updateInternalNotes,
     updateNota,
+    updateFechaFin,
     enrollStudent,
     confirmInforme,
     refetchAll,
+    refetchPracticas,
     criterios,
     enrollmentMap,
     completedLanzamientoIds,

@@ -27,6 +27,8 @@ interface PracticasTableProps {
   handleNotaChange: (practicaId: string, nota: string, convocatoriaId?: string) => void;
   handleFechaFinChange?: (practicaId: string, fecha: string) => void;
   isLoading?: boolean;
+  onRequestModificacion?: (practica: Practica) => void;
+  onRequestNuevaPPS?: () => void;
 }
 
 // Animated Grade Display with Slot Machine Effect
@@ -227,10 +229,11 @@ const PracticaRow: React.FC<{
   practica: Practica;
   onNotaChange: (id: string, nota: string) => void;
   onFechaFinChange?: (id: string, fecha: string) => void;
+  onRequestModificacion?: (practica: Practica) => void;
   isSaving: boolean;
   isSuccess: boolean;
   index: number;
-}> = ({ practica, onNotaChange, onFechaFinChange, isSaving, isSuccess, index }) => {
+}> = ({ practica, onNotaChange, onFechaFinChange, onRequestModificacion, isSaving, isSuccess, index }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [triggerRect, setTriggerRect] = useState<DOMRect>(new DOMRect(0, 0, 0, 0));
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -357,6 +360,22 @@ const PracticaRow: React.FC<{
               Nota
             </p>
 
+            {/* Botón de editar PPS */}
+            {onRequestModificacion && (
+              <motion.button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRequestModificacion(practica);
+                }}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                className="mt-2 p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                title="Solicitar modificación"
+              >
+                <span className="material-icons text-lg">edit</span>
+              </motion.button>
+            )}
+
             {isMenuOpen && (
               <>
                 <div
@@ -387,6 +406,8 @@ const PracticasTable: React.FC<PracticasTableProps> = ({
   handleNotaChange,
   handleFechaFinChange,
   isLoading = false,
+  onRequestModificacion,
+  onRequestNuevaPPS,
 }) => {
   if (import.meta.env.DEV) {
     console.log("[DEBUG] PracticasTable Props:", {
@@ -449,11 +470,27 @@ const PracticasTable: React.FC<PracticasTableProps> = ({
           practica={practica}
           onNotaChange={onLocalNoteChange}
           onFechaFinChange={handleFechaFinChange}
+          onRequestModificacion={onRequestModificacion}
           isSaving={savingNotaId === practica.id}
           isSuccess={justUpdatedPracticaId === practica.id}
           index={index}
         />
       ))}
+
+      {/* Botón para agregar nueva PPS */}
+      {onRequestNuevaPPS && (
+        <motion.button
+          onClick={onRequestNuevaPPS}
+          whileHover={{ scale: 1.02, y: -2 }}
+          whileTap={{ scale: 0.98 }}
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all group"
+        >
+          <div className="flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+            <span className="material-icons">add_circle</span>
+            <span className="font-medium">Agregar PPS manualmente</span>
+          </div>
+        </motion.button>
+      )}
     </div>
   );
 };

@@ -22,6 +22,8 @@ export type Institucion = Tables["instituciones"]["Row"] & {
 };
 export type FinalizacionPPS = Tables["finalizacion_pps"]["Row"];
 export type Penalizacion = Tables["penalizaciones"]["Row"];
+export type SolicitudModificacionPPS = Tables["solicitudes_modificacion_pps"]["Row"];
+export type SolicitudNuevaPPS = Tables["solicitudes_nueva_pps"]["Row"];
 
 // Helper aliases for components that expect "Fields" suffix
 export type EstudianteFields = Estudiante;
@@ -32,6 +34,8 @@ export type ConvocatoriaFields = Convocatoria;
 export type InstitucionFields = Institucion;
 export type FinalizacionPPSFields = FinalizacionPPS;
 export type PenalizacionFields = Penalizacion;
+export type SolicitudModificacionPPSFields = SolicitudModificacionPPS;
+export type SolicitudNuevaPPSFields = SolicitudNuevaPPS;
 
 // --- Strict Joined Types for Services ---
 export type PracticaWithLanzamiento = Practica & {

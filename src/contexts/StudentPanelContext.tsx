@@ -62,6 +62,7 @@ interface StudentPanelContextType {
   enrollStudent: { mutate: (lanzamiento: LanzamientoPPS) => void; isPending: boolean };
   confirmInforme: UseMutationResult<any, Error, InformeTask, any>;
   refetchAll: () => void;
+  refetchPracticas: () => void;
 }
 
 const StudentPanelContext = createContext<StudentPanelContextType | undefined>(undefined);
@@ -187,6 +188,7 @@ export const StudentPanelProvider: React.FC<{ legajo: string; children: ReactNod
     enrollStudent,
     confirmInforme,
     refetchAll,
+    refetchPracticas,
     criterios,
     enrollmentMap,
     completedLanzamientoIds,

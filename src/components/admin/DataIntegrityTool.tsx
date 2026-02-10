@@ -190,7 +190,7 @@ const DataIntegrityTool: React.FC = () => {
         if (newName && newName !== oldNameStr) {
           await supabase
             .from(TABLE_NAME_PRACTICAS)
-            .update({ [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: [newName] })
+            .update({ [FIELD_NOMBRE_INSTITUCION_LOOKUP_PRACTICAS]: newName })
             .eq("id", p.id);
           fixedCount++;
         }
