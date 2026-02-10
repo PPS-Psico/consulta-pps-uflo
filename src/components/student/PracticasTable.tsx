@@ -421,6 +421,8 @@ const PracticasTable: React.FC<PracticasTableProps> = ({
     console.log("[DEBUG] PracticasTable Props:", {
       practicasCount: practicas.length,
       hasDateHandler: !!handleFechaFinChange,
+      hasModificacionHandler: !!onRequestModificacion,
+      hasNuevaPPSHandler: !!onRequestNuevaPPS,
     });
   }
 
@@ -485,18 +487,22 @@ const PracticasTable: React.FC<PracticasTableProps> = ({
         />
       ))}
 
-      {/* Botón para agregar nueva PPS */}
+      {/* Tarjeta para agregar nueva PPS */}
       {onRequestNuevaPPS && (
         <motion.button
           onClick={onRequestNuevaPPS}
           whileHover={{ scale: 1.02, y: -2 }}
           whileTap={{ scale: 0.98 }}
-          className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all group"
+          className="w-full rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all group min-h-[200px] flex flex-col items-center justify-center gap-3"
         >
-          <div className="flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-            <span className="material-icons">add_circle</span>
-            <span className="font-medium">Agregar PPS manualmente</span>
+          <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+            <span className="material-icons text-3xl text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+              add
+            </span>
           </div>
+          <span className="font-medium text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+            Agregar PPS manualmente
+          </span>
         </motion.button>
       )}
     </div>

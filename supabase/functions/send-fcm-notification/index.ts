@@ -3,8 +3,8 @@
  * Sends push notifications via Firebase Cloud Messaging HTTP v1 API using OAuth2
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,16 +64,16 @@ async function getAccessToken(): Promise<string> {
 
     // Create signature
     const signingInput = `${encodedHeader}.${encodedPayload}`;
-    
+
     // Import private key - convert PEM to binary
     const privateKeyPem = serviceAccount.private_key
       .replace(/\\n/g, "\n")
       .replace(/-----BEGIN PRIVATE KEY-----/g, "")
       .replace(/-----END PRIVATE KEY-----/g, "")
       .replace(/\s/g, "");
-    
-    const binaryKey = Uint8Array.from(atob(privateKeyPem), c => c.charCodeAt(0));
-    
+
+    const binaryKey = Uint8Array.from(atob(privateKeyPem), (c) => c.charCodeAt(0));
+
     const cryptoKey = await crypto.subtle.importKey(
       "pkcs8",
       binaryKey,
@@ -148,30 +148,21 @@ async function sendToToken(
       body: JSON.stringify({
         message: {
           token: token,
-          notification: {
+          // Use data-only payload so the service worker has full control
+          // over notification display (icon, badge, tag). Using a 'notification'
+          // payload causes Firebase to auto-display a notification AND trigger
+          // onBackgroundMessage, resulting in duplicates.
+          data: {
             title: title,
-            body: body,
+            message: body,
+            url: "https://pps-psico.github.io/",
+            ...data,
           },
-          android: {
-            notification: {
-              tag: `pps-notification-${Date.now()}`,
-            },
-          },
-          apns: {
-            payload: {
-              aps: {
-                'thread-id': `pps-notification-${Date.now()}`,
-              },
-            },
-          },
+          // Web push specific options
           webpush: {
             fcm_options: {
               link: "https://pps-psico.github.io/",
             },
-          },
-          data: {
-            ...data,
-            url: "https://pps-psico.github.io/",
           },
         },
       }),
@@ -228,7 +219,7 @@ Deno.serve(async (req) => {
       // Get all tokens using RPC function (bypasses RLS)
       console.log("[FCM] Querying fcm_tokens via RPC...");
       const { data, error } = await supabase.rpc("get_all_fcm_tokens");
-      
+
       console.log("[FCM] RPC result:", { data, error, count: data?.length });
 
       if (error) {

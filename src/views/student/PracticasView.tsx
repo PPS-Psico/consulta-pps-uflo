@@ -17,13 +17,21 @@ const PracticasView: React.FC = () => {
   const [selectedPractica, setSelectedPractica] = useState<Practica | null>(null);
 
   const handleRequestModificacion = (practica: Practica) => {
+    console.log("[DEBUG] Solicitar modificación para:", practica);
     setSelectedPractica(practica);
     setShowModificacionModal(true);
   };
 
   const handleRequestNuevaPPS = () => {
+    console.log("[DEBUG] Abrir modal nueva PPS");
     setShowNuevaPPSModal(true);
   };
+
+  console.log("[DEBUG] PracticasView render - handlers definidos:", {
+    onRequestModificacion: !!handleRequestModificacion,
+    onRequestNuevaPPS: !!handleRequestNuevaPPS,
+    practicasCount: practicas.length,
+  });
 
   const handleSuccess = () => {
     refetchPracticas();

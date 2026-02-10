@@ -1,8 +1,8 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { AuthProvider } from "./contexts/AuthContext";
 import { testSupabaseConnection } from "./constants";
+import { AuthProvider } from "./contexts/AuthContext";
 
 console.log(
   "%c ANTIGRAVITY CONTROL: main.tsx loaded ",
@@ -138,16 +138,25 @@ root.render(
   </React.StrictMode>
 );
 
-// Register Firebase Cloud Messaging Service Worker
+// Register the unified Service Worker (handles both PWA caching and FCM push)
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("./firebase-messaging-sw.js")
-      .then((registration) => {
-        console.log("✅ FCM Service Worker registered:", registration.scope);
-      })
-      .catch((error) => {
-        console.error("❌ FCM Service Worker registration failed:", error);
-      });
+  window.addEventListener("load", async () => {
+    try {
+      // Unregister any legacy sw.js service workers to prevent duplicate notifications
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        // If there's a registration that is NOT for firebase-messaging-sw.js, unregister it
+        if (reg.active && !reg.active.scriptURL.includes("firebase-messaging-sw.js")) {
+          console.log("🧹 Unregistering legacy service worker:", reg.active.scriptURL);
+          await reg.unregister();
+        }
+      }
+
+      // Register the unified service worker
+      const registration = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+      console.log("✅ Unified Service Worker registered:", registration.scope);
+    } catch (error) {
+      console.error("❌ Service Worker registration failed:", error);
+    }
   });
 }

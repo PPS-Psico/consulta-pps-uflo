@@ -24,9 +24,9 @@ import {
   TABLE_NAME_LANZAMIENTOS_PPS,
   TABLE_NAME_PPS,
 } from "../constants";
-import ReminderService, { Reminder } from "../services/reminderService";
-import { subscribeToFCM, unsubscribeFromFCM, isFCMSubscribed } from "../lib/fcm";
+import { isFCMSubscribed, subscribeToFCM, unsubscribeFromFCM } from "../lib/fcm";
 import { supabase } from "../lib/supabaseClient";
+import ReminderService, { Reminder } from "../services/reminderService";
 import { useAuth } from "./AuthContext";
 
 export interface AppNotification {
@@ -374,11 +374,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const addNotification = (notif: AppNotification) => {
     setNotifications((prev) => [notif, ...prev]);
     setToast({ message: notif.title, type: "success" });
-
-    // Simple Native Notification Fallback
-    if (Notification.permission === "granted" && document.hidden) {
-      new Notification(notif.title, { body: notif.message, icon: "/icons/icon-192x192.png" });
-    }
+    // Note: Push notifications when the page is hidden are handled by the
+    // service worker. Do NOT use the native Notification API here as it
+    // creates duplicate notifications.
 
     try {
       new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3")
