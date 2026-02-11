@@ -1,18 +1,10 @@
 import { supabase } from "../lib/supabaseClient";
 
-const TODOIST_API_BASE = "https://api.todoist.com/rest/v2";
+const TODOIST_API_BASE = "https://api.todoist.com/api/v1";
 const TODOIST_TOKEN = "7b9437532f7ed754fd70ee3c6e2c1b47e4732e40";
-
-interface TodoistResponse {
-  success: boolean;
-  id?: number;
-  item_id?: number;
-}
 
 interface TaskData {
   todoist_task_id?: number;
-  id?: number;
-  item_id?: number;
   ppsName: string;
   content: string;
   due_date?: string;
@@ -21,45 +13,56 @@ interface TaskData {
   institutionPhone?: string;
 }
 
+interface SyncCommand {
+  type: string;
+  temp_id?: string;
+  uuid: string;
+  args: any;
+}
+
 /**
- * Servicio de integración directa con la API REST v2 de Todoist
- * No depende del servidor MCP, usa fetch directo a la API
+ * Servicio de integración directa con la API v1 (Sync API) de Todoist
+ * https://developer.todoist.com/api/v1/
+ *
+ * La API v1 usa el endpoint /sync con comandos en formato x-www-form-urlencoded
  */
 class TodoistService {
-  private async post<T = any>(endpoint: string, data: any): Promise<T> {
-    const response = await fetch(`${TODOIST_API_BASE}${endpoint}`, {
+  private async sync(commands: SyncCommand[]): Promise<any> {
+    const formData = new URLSearchParams();
+    formData.append("sync_token", "*");
+    formData.append("resource_types", '["all"]');
+    formData.append("commands", JSON.stringify(commands));
+
+    const response = await fetch(`${TODOIST_API_BASE}/sync`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${TODOIST_TOKEN}`,
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify(data),
+      body: formData.toString(),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[TodoistService] Error en ${endpoint}:`, errorText);
+      console.error(`[TodoistService] Error en sync:`, errorText);
       throw new Error(`Error ${response.status}: ${errorText}`);
     }
 
     return response.json();
   }
 
+  private generateUUID(): string {
+    return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+  }
+
   /**
-   * Busca o crea un proyecto específico por nombre
+   * Obtiene o crea un proyecto específico por nombre
    */
-  private async getOrCreateProject(name: string): Promise<number> {
-    // Buscar proyectos existentes
-    const projectsResponse = await this.post<any>("projects", {
-      sync_token: "*",
-    });
+  private async getOrCreateProject(name: string): Promise<string> {
+    // Primero hacemos un sync para obtener los proyectos existentes
+    const syncData = await this.sync([]);
 
-    if (!projectsResponse.success || !projectsResponse.projects) {
-      throw new Error("Error al obtener proyectos");
-    }
-
-    // Buscar si ya existe el proyecto "Convocatorias 2026"
-    const existingProject = projectsResponse.projects.find(
+    const existingProject = syncData.projects?.find(
       (p: any) => p.name.toLowerCase() === name.toLowerCase()
     );
 
@@ -69,38 +72,39 @@ class TodoistService {
     }
 
     // Crear proyecto si no existe
-    const projectData = {
-      type: "project_add",
-      temp_id: "convocatorias-project",
-      args: {
-        name: name,
-        color: "#ff3e00", // Rojo suave para Convocatorias
-        inbox: true,
+    const commands: SyncCommand[] = [
+      {
+        type: "project_add",
+        temp_id: `project-${Date.now()}`,
+        uuid: this.generateUUID(),
+        args: {
+          name: name,
+          color: "berry_red", // Rojo para Convocatorias
+        },
       },
-    };
+    ];
 
-    const response = await this.post<TodoistResponse>("projects", projectData);
+    const response = await this.sync(commands);
 
-    if (!response.success) {
-      throw new Error("Error al crear proyecto");
+    if (response.sync_status && Object.values(response.sync_status).some((s: any) => s !== "ok")) {
+      console.error("[TodoistService] Error al crear proyecto:", response.sync_status);
+      throw new Error("Error al crear proyecto en Todoist");
     }
 
-    return response.id!;
+    // El ID real está en temp_id_mapping
+    const projectId = response.temp_id_mapping?.[commands[0].temp_id!];
+    console.log(`[TodoistService] Proyecto "${name}" creado con ID: ${projectId}`);
+
+    return projectId;
   }
 
   /**
-   * Busca o crea una etiqueta específica
+   * Obtiene o crea una etiqueta específica
    */
-  private async getOrCreateLabel(name: string): Promise<number> {
-    const labelsResponse = await this.post<any>("labels", {
-      sync_token: "*",
-    });
+  private async getOrCreateLabel(name: string): Promise<string> {
+    const syncData = await this.sync([]);
 
-    if (!labelsResponse.success || !labelsResponse.labels) {
-      throw new Error("Error al obtener etiquetas");
-    }
-
-    const existingLabel = labelsResponse.labels.find(
+    const existingLabel = syncData.labels?.find(
       (l: any) => l.name.toLowerCase() === name.toLowerCase()
     );
 
@@ -109,24 +113,30 @@ class TodoistService {
       return existingLabel.id;
     }
 
-    const labelData = {
-      type: "label_add",
-      temp_id: `${name}-label`,
-      args: {
-        name: name,
-        color: this.getLabelColor(name),
-        is_favorite: true,
-        item_order: 0,
+    const commands: SyncCommand[] = [
+      {
+        type: "label_add",
+        temp_id: `label-${name}-${Date.now()}`,
+        uuid: this.generateUUID(),
+        args: {
+          name: name,
+          color: this.getLabelColor(name),
+          is_favorite: true,
+        },
       },
-    };
+    ];
 
-    const response = await this.post<TodoistResponse>("labels", labelData);
+    const response = await this.sync(commands);
 
-    if (!response.success) {
-      throw new Error("Error al crear etiqueta");
+    if (response.sync_status && Object.values(response.sync_status).some((s: any) => s !== "ok")) {
+      console.error("[TodoistService] Error al crear etiqueta:", response.sync_status);
+      throw new Error("Error al crear etiqueta en Todoist");
     }
 
-    return response.id!;
+    const labelId = response.temp_id_mapping?.[commands[0].temp_id!];
+    console.log(`[TodoistService] Etiqueta "${name}" creada con ID: ${labelId}`);
+
+    return labelId;
   }
 
   /**
@@ -134,13 +144,13 @@ class TodoistService {
    */
   private getLabelColor(name: string): string {
     const colors: Record<string, string> = {
-      Convocatoria: "#ff4d4d", // Rojo suave
-      Gestión: "#ffcc00", // Naranja/ámbar
-      Lanzamiento: "#3b82f6", // Azul
-      Urgente: "#cf3333", // Rojo oscuro
+      Convocatoria: "red",
+      Gestión: "yellow",
+      Lanzamiento: "blue",
+      Urgente: "berry_red",
     };
 
-    return colors[name] || "#888888"; // Gris por defecto
+    return colors[name] || "grey";
   }
 
   /**
@@ -152,13 +162,12 @@ class TodoistService {
     description?: string,
     priority: number = 2,
     institutionPhone?: string
-  ): Promise<TodoistResponse> {
+  ): Promise<{ success: boolean; item_id?: string; error?: string }> {
     try {
-      // Obtener o crear el proyecto de convocatorias
-      const projectId = await this.getOrCreateProject("Convocatorias 2026");
+      console.log("[TodoistService] Iniciando creación de tarea...", { ppsName, launchDate });
 
-      // Obtener o crear etiquetas necesarias
-      const labelIds: number[] = await Promise.all([
+      // Obtener o crear etiquetas (no necesitamos el proyecto para tareas en inbox)
+      const labelIds = await Promise.all([
         this.getOrCreateLabel("Convocatoria"),
         this.getOrCreateLabel("Lanzamiento"),
       ]);
@@ -169,46 +178,50 @@ class TodoistService {
       if (description) {
         fullDescription = description;
       } else {
-        // Generar descripción automáticamente si no se proporciona
         fullDescription = `🎓 Orientación: ${this.extractOrientation(ppsName)}`;
-
         if (institutionPhone) {
           fullDescription += `\n📱 WhatsApp: ${institutionPhone}`;
         }
       }
 
-      // Datos de la tarea
-      const taskData = {
-        type: "item_add",
-        temp_id: `launch-task-${ppsName.replace(/\s+/g, "-").slice(0, 50)}`,
-        args: {
-          content: `Lanzar ${ppsName}`,
-          description: fullDescription,
-          due_string: launchDate,
-          due_lang: "es", // Idioma español
-          priority: priority,
-          labels: labelIds.map(String), // Convertir a strings
-          auto_reminder: true, // Recordatorio automático
+      // Crear el comando para agregar la tarea
+      const tempId = `task-${Date.now()}`;
+      const commands: SyncCommand[] = [
+        {
+          type: "item_add",
+          temp_id: tempId,
+          uuid: this.generateUUID(),
+          args: {
+            content: `Lanzar ${ppsName}`,
+            description: fullDescription,
+            due: launchDate ? { string: launchDate, lang: "es" } : undefined,
+            priority: priority,
+            labels: labelIds,
+          },
         },
-      };
+      ];
 
-      console.log("[TodoistService] Creando tarea:", {
-        content: `Lanzar ${ppsName}`,
-        due_string: launchDate,
-        labels: ["Convocatoria", "Lanzamiento"],
-      });
+      console.log("[TodoistService] Enviando comando:", JSON.stringify(commands, null, 2));
 
-      const response = await this.post<TodoistResponse>("items", taskData);
+      const response = await this.sync(commands);
 
-      if (!response.success) {
-        throw new Error("Error al crear tarea");
+      console.log("[TodoistService] Respuesta:", JSON.stringify(response, null, 2));
+
+      // Verificar si hubo errores
+      const syncStatus = response.sync_status?.[commands[0].uuid];
+      if (syncStatus && syncStatus !== "ok") {
+        console.error("[TodoistService] Error en sync:", syncStatus);
+        throw new Error(`Error de Todoist: ${JSON.stringify(syncStatus)}`);
       }
 
-      console.log("[TodoistService] Tarea creada con ID:", response.item_id);
+      // Obtener el ID real de la tarea
+      const itemId = response.temp_id_mapping?.[tempId];
 
-      // Guardar en Supabase para seguimiento (si la tabla existe)
+      console.log("[TodoistService] Tarea creada exitosamente con ID:", itemId);
+
+      // Guardar en Supabase para seguimiento
       await this.saveTaskToSupabase({
-        item_id: response.item_id,
+        todoist_task_id: parseInt(itemId),
         ppsName,
         content: `Lanzar ${ppsName}`,
         due_date: launchDate,
@@ -217,10 +230,10 @@ class TodoistService {
         institutionPhone,
       });
 
-      return response;
-    } catch (error) {
+      return { success: true, item_id: itemId };
+    } catch (error: any) {
       console.error("[TodoistService] Error en createLanzamientoTask:", error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
@@ -244,9 +257,8 @@ class TodoistService {
    */
   private async saveTaskToSupabase(data: TaskData): Promise<void> {
     try {
-      // Intentar guardar en Supabase (puede fallar si la tabla no existe)
       const { error } = await supabase.from("todoist_tasks" as any).insert({
-        todoist_task_id: data.item_id || data.id,
+        todoist_task_id: data.todoist_task_id,
         pps_name: data.ppsName,
         content: data.content,
         due_date: data.due_date,
@@ -256,13 +268,24 @@ class TodoistService {
       } as any);
 
       if (error) {
-        console.warn(
-          "[TodoistService] No se pudo guardar en Supabase (tabla puede no existir):",
-          error.message
-        );
+        console.warn("[TodoistService] No se pudo guardar en Supabase:", error.message);
       }
     } catch (error) {
       console.warn("[TodoistService] Error en saveTaskToSupabase:", error);
+    }
+  }
+
+  /**
+   * Prueba la conexión con Todoist
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await this.sync([]);
+      console.log("[TodoistService] Conexión exitosa. Usuario:", response.user?.full_name);
+      return true;
+    } catch (error) {
+      console.error("[TodoistService] Error de conexión:", error);
+      return false;
     }
   }
 }

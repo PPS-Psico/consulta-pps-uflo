@@ -757,6 +757,8 @@ Responde SOLO con el JSON válido.
   });
 
   // Efecto automático para archivar convocatorias que ya comenzaron
+  // COMENTADO: Ya no se archivan automáticamente las convocatorias que ya comenzaron
+  /*
   useEffect(() => {
     if (!launchHistory || launchHistory.length === 0 || isTestingMode) return;
 
@@ -790,6 +792,7 @@ Responde SOLO con el JSON válido.
       });
     }
   }, [launchHistory, isTestingMode]);
+  */
 
   // SORTING AND GROUPING LOGIC FOR HISTORY TAB
   const { visibleHistory, hiddenHistory, scheduledHistory } = useMemo(() => {
