@@ -83,9 +83,17 @@ Deno.serve(async (req: Request) => {
     const action = url.searchParams.get("action") || "list";
 
     // Obtener configuración de backup
-    const { data: config } = await supabase.from("backup_config").select("*").single();
+    const { data: config, error: configError } = await supabase
+      .from("backup_config")
+      .select("*")
+      .maybeSingle();
+
+    if (configError) {
+      console.error("Config query error:", configError);
+    }
 
     const bucketName = config?.storage_bucket || "backups";
+    console.log("Using bucket:", bucketName);
 
     switch (action) {
       case "list": {
@@ -93,21 +101,35 @@ Deno.serve(async (req: Request) => {
         const { data: files, error: filesError } = await supabase.storage.from(bucketName).list();
 
         if (filesError) {
+          console.error("Storage list error:", filesError);
           throw new Error(`Failed to list backups: ${filesError.message}`);
         }
 
+        console.log("Files found:", files?.length || 0);
+
         // Obtener historial de backups
-        const { data: history } = await supabase
-          .from("backup_history")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(50);
+        let history = [];
+        try {
+          const { data: historyData, error: historyError } = await supabase
+            .from("backup_history")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(50);
+
+          if (historyError) {
+            console.error("History query error:", historyError);
+          } else {
+            history = historyData || [];
+          }
+        } catch (e) {
+          console.error("History fetch error:", e);
+        }
 
         // Combinar información
         const backups = (files || [])
           .filter((f) => f.name.startsWith("backup_"))
           .map((file) => {
-            const historyEntry = history?.find((h) => h.storage_path === file.name);
+            const historyEntry = history.find((h) => h.storage_path === file.name);
             return {
               file_name: file.name,
               created_at: file.created_at,
@@ -175,20 +197,32 @@ Deno.serve(async (req: Request) => {
 
       case "history": {
         // Obtener historial completo
-        const { data: history, error: historyError } = await supabase
-          .from("backup_history")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(100);
+        try {
+          const { data: history, error: historyError } = await supabase
+            .from("backup_history")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(100);
 
-        if (historyError) {
-          throw new Error(`Failed to get history: ${historyError.message}`);
+          if (historyError) {
+            console.error("History query error:", historyError);
+            return new Response(JSON.stringify({ history: [] }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          return new Response(JSON.stringify({ history: history || [] }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (e) {
+          console.error("History fetch error:", e);
+          return new Response(JSON.stringify({ history: [] }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
-
-        return new Response(JSON.stringify({ history: history || [] }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
       }
 
       default:
