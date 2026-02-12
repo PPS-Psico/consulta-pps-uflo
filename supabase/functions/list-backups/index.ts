@@ -113,7 +113,7 @@ Deno.serve(async (req: Request) => {
           const { data: historyData, error: historyError } = await supabase
             .from("backup_history")
             .select("*")
-            .order("created_at", { ascending: false })
+            .order("started_at", { ascending: false })
             .limit(50);
 
           if (historyError) {
@@ -201,7 +201,7 @@ Deno.serve(async (req: Request) => {
           const { data: history, error: historyError } = await supabase
             .from("backup_history")
             .select("*")
-            .order("created_at", { ascending: false })
+            .order("started_at", { ascending: false })
             .limit(100);
 
           if (historyError) {
