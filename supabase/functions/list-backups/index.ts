@@ -20,30 +20,62 @@ Deno.serve(async (req: Request) => {
   }
   // Verificar autenticación (solo admin)
   const authHeader = req.headers.get("Authorization");
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(authHeader?.replace("Bearer ", "") || "");
+  const token = authHeader?.replace("Bearer ", "");
 
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+  if (!token) {
+    return new Response(JSON.stringify({ error: "No authorization token provided" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  // Verificar que sea admin
-  const { data: userData } = await supabase
-    .from("estudiantes")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser(token);
 
-  if (userData?.role !== "admin") {
-    return new Response(JSON.stringify({ error: "Admin access required" }), {
-      status: 403,
+  if (authError || !user) {
+    console.error("Auth error:", authError);
+    return new Response(JSON.stringify({ error: "Unauthorized", details: authError?.message }), {
+      status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  console.log("Authenticated user:", user.id, user.email);
+
+  // Verificar que sea admin - buscar en tabla estudiantes
+  const { data: userData, error: roleError } = await supabase
+    .from("estudiantes")
+    .select("role, legajo, nombre")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (roleError) {
+    console.error("Role query error:", roleError);
+  }
+
+  console.log("User data from estudiantes:", userData);
+
+  // Verificar rol admin o Jefe
+  const isAdmin =
+    userData?.role === "admin" ||
+    userData?.role === "Jefe" ||
+    userData?.role === "SuperUser" ||
+    userData?.role === "Directivo";
+
+  if (!isAdmin) {
+    return new Response(
+      JSON.stringify({
+        error: "Admin access required",
+        userId: user.id,
+        role: userData?.role || "not found",
+      }),
+      {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 
   try {

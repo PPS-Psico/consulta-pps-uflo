@@ -28,30 +28,58 @@ Deno.serve(async (req: Request) => {
 
   // Verificar autenticación (solo admin)
   const authHeader = req.headers.get("Authorization");
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(authHeader?.replace("Bearer ", "") || "");
+  const token = authHeader?.replace("Bearer ", "");
 
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+  if (!token) {
+    return new Response(JSON.stringify({ error: "No authorization token provided" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+
+  if (authError || !user) {
+    console.error("Auth error:", authError);
+    return new Response(JSON.stringify({ error: "Unauthorized", details: authError?.message }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  console.log("Restore - Authenticated user:", user.id, user.email);
+
   // Verificar que sea admin
-  const { data: userData } = await supabase
+  const { data: userData, error: roleError } = await supabase
     .from("estudiantes")
     .select("role")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (userData?.role !== "admin") {
-    return new Response(JSON.stringify({ error: "Admin access required" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  if (roleError) {
+    console.error("Role query error:", roleError);
+  }
+
+  const isAdmin =
+    userData?.role === "admin" ||
+    userData?.role === "Jefe" ||
+    userData?.role === "SuperUser" ||
+    userData?.role === "Directivo";
+
+  if (!isAdmin) {
+    return new Response(
+      JSON.stringify({
+        error: "Admin access required",
+        role: userData?.role || "not found",
+      }),
+      {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 
   try {
