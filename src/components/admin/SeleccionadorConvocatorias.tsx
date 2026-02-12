@@ -21,7 +21,7 @@ import EmptyState from "../EmptyState";
 import Toast from "../ui/Toast";
 import ConfirmModal from "../ConfirmModal";
 
-// Componente Premium para selección de horarios
+// Componente Premium para selección de horarios - Solo eliminar, no agregar
 interface ScheduleSelectorProps {
   currentSchedule: string;
   availableSchedules: string[];
@@ -31,13 +31,10 @@ interface ScheduleSelectorProps {
 
 const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   currentSchedule,
-  availableSchedules,
   onScheduleChange,
   disabled = false,
 }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
   const [selectedSchedules, setSelectedSchedules] = React.useState<string[]>([]);
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Parsear horarios actuales (separados por punto y coma)
   React.useEffect(() => {
@@ -52,136 +49,114 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
     }
   }, [currentSchedule]);
 
-  // Cerrar dropdown al hacer clic fuera
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const handleRemoveSchedule = (scheduleToRemove: string) => {
     const newSchedules = selectedSchedules.filter((s) => s !== scheduleToRemove);
     setSelectedSchedules(newSchedules);
     onScheduleChange(newSchedules.join("; "));
   };
 
-  const handleAddSchedule = (scheduleToAdd: string) => {
-    if (!selectedSchedules.includes(scheduleToAdd)) {
-      const newSchedules = [...selectedSchedules, scheduleToAdd];
-      setSelectedSchedules(newSchedules);
-      onScheduleChange(newSchedules.join("; "));
-    }
-  };
-
-  const unselectedSchedules = availableSchedules.filter(
-    (schedule) => !selectedSchedules.includes(schedule)
-  );
-
   if (disabled) {
     return (
-      <div className="flex-grow lg:w-56 px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+      <div className="flex-grow lg:w-auto min-w-[200px] px-3 py-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
         {currentSchedule || "Horario predefinido"}
       </div>
     );
   }
 
-  return (
-    <div className="flex-grow lg:w-56 relative" ref={dropdownRef}>
-      {/* Área principal con horarios seleccionados */}
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className={`min-h-[42px] px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 ${
-          isOpen
-            ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50 dark:bg-blue-900/20"
-            : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600"
-        }`}
-      >
-        {selectedSchedules.length === 0 ? (
-          <div className="flex items-center justify-between h-[26px]">
-            <span className="text-xs text-slate-400 dark:text-slate-500 italic">
-              Seleccionar horario...
-            </span>
-            <span className="material-icons text-slate-400 text-lg">expand_more</span>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {selectedSchedules.map((schedule, index) => (
-              <div
-                key={index}
-                className="group inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[11px] font-medium rounded-md shadow-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 animate-fade-in"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span className="material-icons text-[10px]">schedule</span>
-                <span className="max-w-[120px] truncate">{schedule}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveSchedule(schedule);
-                  }}
-                  className="ml-0.5 p-0.5 hover:bg-white/20 rounded transition-colors"
-                  title="Eliminar horario"
-                >
-                  <span className="material-icons text-[10px]">close</span>
-                </button>
-              </div>
-            ))}
-            {unselectedSchedules.length > 0 && (
-              <div className="inline-flex items-center px-2 py-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-                <span className="material-icons text-xs mr-1">add</span>
-                Agregar
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+  const [activeTooltip, setActiveTooltip] = React.useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = React.useState({ left: false });
+  const tooltipRef = React.useRef<HTMLDivElement>(null);
 
-      {/* Dropdown con horarios disponibles */}
-      {isOpen && unselectedSchedules.length > 0 && (
-        <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-slide-down">
-          <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Horarios disponibles
-            </span>
-          </div>
-          <div className="max-h-48 overflow-y-auto py-1">
-            {unselectedSchedules.map((schedule, index) => (
+  const handleScheduleClick = (index: number, event: React.MouseEvent) => {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    // Si está muy a la derecha, mostrar tooltip a la izquierda
+    const shouldShowLeft = rect.right + 250 > viewportWidth;
+
+    setTooltipPos({ left: shouldShowLeft });
+    setActiveTooltip(activeTooltip === index ? null : index);
+
+    // Cerrar automáticamente después de 4 segundos
+    setTimeout(() => {
+      setActiveTooltip(null);
+    }, 4000);
+  };
+
+  // Cerrar tooltip al hacer clic fuera
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setActiveTooltip(null);
+      }
+    };
+
+    if (activeTooltip !== null) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [activeTooltip]);
+
+  return (
+    <div className="flex-grow lg:w-auto min-w-[200px] max-w-[320px]">
+      {selectedSchedules.length === 0 ? (
+        <div className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+          Sin horario asignado
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {selectedSchedules.map((schedule, index) => (
+            <div
+              key={index}
+              ref={activeTooltip === index ? tooltipRef : null}
+              onClick={(e) => handleScheduleClick(index, e)}
+              className="group relative flex items-center gap-2 pl-3 pr-2 py-2.5 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-900 dark:text-blue-200 text-[11px] font-semibold rounded-lg border border-blue-200 dark:border-blue-700/50 shadow-sm hover:shadow-md hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/40 dark:hover:to-blue-700/40 transition-all duration-200 cursor-pointer"
+            >
+              {/* Icono */}
+              <span className="material-icons text-[13px] text-blue-600 dark:text-blue-400 flex-shrink-0">
+                schedule
+              </span>
+
+              {/* Texto truncado - más espacio ahora */}
+              <span className="flex-1 truncate max-w-[200px]" title="Clic para ver completo">
+                {schedule}
+              </span>
+
+              {/* Botón eliminar */}
               <button
-                key={index}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleAddSchedule(schedule);
-                  if (selectedSchedules.length === 0) {
-                    setIsOpen(false);
-                  }
+                  handleRemoveSchedule(schedule);
                 }}
-                className="w-full px-3 py-2.5 text-left text-xs text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-2 group"
+                className="flex-shrink-0 ml-1 p-1 text-blue-500 dark:text-blue-400 hover:text-white hover:bg-red-500 dark:hover:bg-red-600 rounded-md transition-all duration-150"
+                title="Eliminar horario"
               >
-                <span className="material-icons text-slate-400 group-hover:text-blue-500 text-sm transition-colors">
-                  add_circle_outline
-                </span>
-                <span className="flex-1">{schedule}</span>
-                <span className="material-icons text-blue-500 opacity-0 group-hover:opacity-100 text-sm transition-opacity">
-                  add
-                </span>
+                <span className="material-icons text-[13px]">close</span>
               </button>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Mensaje cuando no hay más horarios */}
-      {isOpen && unselectedSchedules.length === 0 && selectedSchedules.length > 0 && (
-        <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-slide-down">
-          <div className="px-3 py-4 text-center">
-            <span className="material-icons text-slate-300 text-2xl mb-1">check_circle</span>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Todos los horarios seleccionados
-            </p>
-          </div>
+              {/* Tooltip que aparece al hacer clic - posicionado inteligentemente */}
+              {activeTooltip === index && (
+                <div
+                  className={`absolute bottom-full mb-2 z-50 ${
+                    tooltipPos.left ? "right-0" : "left-0"
+                  }`}
+                >
+                  <div
+                    className="px-4 py-3 bg-slate-800 dark:bg-slate-700 text-white dark:text-slate-100 text-xs rounded-lg shadow-2xl border border-slate-700 dark:border-slate-600 animate-fade-in"
+                    style={{ maxWidth: "350px", minWidth: "200px" }}
+                  >
+                    <div className="font-semibold text-blue-300 dark:text-blue-300 mb-1 flex items-center gap-1">
+                      <span className="material-icons text-[12px]">info</span>
+                      Horario completo:
+                    </div>
+                    <div className="leading-relaxed break-words whitespace-normal">{schedule}</div>
+                    <div
+                      className={`absolute top-full ${tooltipPos.left ? "right-4" : "left-4"} border-4 border-transparent border-t-slate-800 dark:border-t-slate-700`}
+                    ></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
