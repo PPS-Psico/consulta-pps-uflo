@@ -8,6 +8,13 @@ Este proyecto requiere los siguientes GitHub Secrets para funcionar correctament
 
 - `VITE_SUPABASE_URL` - URL de tu proyecto Supabase (ej: https://xxxxxxxxx.supabase.co)
 - `VITE_SUPABASE_ANON_KEY` - Clave anónima pública de Supabase (obtenida desde Settings > API)
+- `SUPABASE_PROJECT_REF` - Referencia del proyecto Supabase (ej: qxnxtnhtbpsgzprqtrjl)
+
+### Backup System
+
+- `CRON_SECRET` - Secret para autorizar ejecución automática de backups (puede ser cualquier string seguro)
+  - Se usa en el GitHub Action para ejecutar backups automáticos
+  - Debe coincidir con la variable de entorno CRON_SECRET en Supabase Edge Functions
 
 ### External Services
 
@@ -43,18 +50,32 @@ Para las edge functions en Supabase, necesitas configurar variables de entorno a
 
 El proyecto incluye las siguientes edge functions:
 
+### Core Functions
+
 - `health-check` - Verifica el estado de los servicios
 - `generate-content` - Genera contenido con Gemini AI
 - `send-push` - Envía notificaciones push
 - `launch-scheduler` - Programador de lanzamientos
 
+### Backup System
+
+- `automated-backup` - Crea backups automáticos de la base de datos
+- `restore-backup` - Restaura la base de datos desde un backup
+- `list-backups` - Lista backups disponibles y gestiona configuración
+
 Para deployar edge functions:
 
 ```bash
+# Core functions
 supabase functions deploy health-check
 supabase functions deploy generate-content
 supabase functions deploy send-push
 supabase functions deploy launch-scheduler
+
+# Backup functions
+supabase functions deploy automated-backup
+supabase functions deploy restore-backup
+supabase functions deploy list-backups
 ```
 
 ## Security Notes

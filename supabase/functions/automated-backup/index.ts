@@ -1,0 +1,216 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+interface BackupData {
+  [tableName: string]: any[];
+}
+
+Deno.serve(async (req: Request) => {
+  // Verificar método y autorización
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Verificar autenticación (solo admin o cron job)
+  const authHeader = req.headers.get("Authorization");
+  const isCronJob = authHeader === `Bearer ${Deno.env.get("CRON_SECRET")}`;
+
+  if (!isCronJob) {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(authHeader?.replace("Bearer ", "") || "");
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  try {
+    // 1. Obtener configuración de backup
+    const { data: config, error: configError } = await supabase
+      .from("backup_config")
+      .select("*")
+      .single();
+
+    if (configError || !config) {
+      throw new Error("Backup configuration not found");
+    }
+
+    if (!config.enabled) {
+      return new Response(JSON.stringify({ message: "Backup is disabled" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // 2. Crear registro en historial
+    const { data: historyRecord, error: historyError } = await supabase
+      .from("backup_history")
+      .insert({
+        backup_type: isCronJob ? "automatic" : "manual",
+        status: "running",
+        tables_backed_up: config.include_tables,
+      })
+      .select()
+      .single();
+
+    if (historyError) {
+      throw new Error(`Failed to create history record: ${historyError.message}`);
+    }
+
+    // 3. Realizar backup de cada tabla
+    const backupData: BackupData = {};
+    let totalRecords = 0;
+    const backedUpTables: string[] = [];
+
+    for (const tableName of config.include_tables) {
+      try {
+        const { data: tableData, error: tableError } = await supabase.from(tableName).select("*");
+
+        if (tableError) {
+          console.error(`Error backing up ${tableName}:`, tableError);
+          continue;
+        }
+
+        backupData[tableName] = tableData || [];
+        totalRecords += tableData?.length || 0;
+        backedUpTables.push(tableName);
+
+        console.log(`✅ Backed up ${tableName}: ${tableData?.length || 0} records`);
+      } catch (err) {
+        console.error(`Failed to backup ${tableName}:`, err);
+      }
+    }
+
+    // 4. Preparar archivo de backup
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const fileName = `backup_${timestamp}.json`;
+    const backupContent = JSON.stringify(
+      {
+        metadata: {
+          created_at: new Date().toISOString(),
+          tables: backedUpTables,
+          record_count: totalRecords,
+          version: "1.0",
+        },
+        data: backupData,
+      },
+      null,
+      2
+    );
+
+    // 5. Verificar/crear bucket de backups
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const backupBucketExists = buckets?.some((b) => b.name === config.storage_bucket);
+
+    if (!backupBucketExists) {
+      await supabase.storage.createBucket(config.storage_bucket, {
+        public: false,
+        fileSizeLimit: 104857600, // 100MB
+      });
+    }
+
+    // 6. Subir backup a Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(config.storage_bucket)
+      .upload(fileName, backupContent, {
+        contentType: "application/json",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(`Failed to upload backup: ${uploadError.message}`);
+    }
+
+    // 7. Actualizar historial
+    await supabase
+      .from("backup_history")
+      .update({
+        status: "completed",
+        tables_backed_up: backedUpTables,
+        storage_path: uploadData?.path || fileName,
+        file_size_bytes: new Blob([backupContent]).size,
+        record_count: totalRecords,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", historyRecord.id);
+
+    // 8. Actualizar último backup en configuración
+    await supabase
+      .from("backup_config")
+      .update({ last_backup_at: new Date().toISOString() })
+      .eq("id", config.id);
+
+    // 9. Limpiar backups antiguos (mantener solo los últimos N)
+    await cleanupOldBackups(config.storage_bucket, config.retain_count);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Backup completed successfully",
+        backup_id: historyRecord.id,
+        file_name: fileName,
+        tables_backed_up: backedUpTables,
+        record_count: totalRecords,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("Backup error:", error);
+
+    // Actualizar historial con error
+    await supabase
+      .from("backup_history")
+      .update({
+        status: "failed",
+        error_message: error instanceof Error ? error.message : "Unknown error",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("status", "running");
+
+    return new Response(
+      JSON.stringify({
+        error: "Backup failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
+
+async function cleanupOldBackups(bucketName: string, retainCount: number) {
+  try {
+    const { data: files, error } = await supabase.storage.from(bucketName).list();
+
+    if (error || !files || files.length <= retainCount) return;
+
+    // Ordenar por fecha de creación (más reciente primero)
+    const sortedFiles = files
+      .filter((f) => f.name.startsWith("backup_"))
+      .sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+
+    // Eliminar archivos antiguos
+    const filesToDelete = sortedFiles.slice(retainCount);
+
+    for (const file of filesToDelete) {
+      await supabase.storage.from(bucketName).remove([file.name]);
+      console.log(`🗑️ Deleted old backup: ${file.name}`);
+    }
+  } catch (err) {
+    console.error("Error cleaning up old backups:", err);
+  }
+}

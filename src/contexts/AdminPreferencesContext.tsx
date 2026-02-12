@@ -9,7 +9,7 @@ export interface AdminModuleConfig {
   showAutomation: boolean; // Herramienta Automatización
   showNewAgreements: boolean; // Herramienta Nuevos Convenios
   showReports: boolean; // Herramienta Reportes
-  showIntegrity: boolean; // Herramienta Integridad de Datos
+  showBackups: boolean; // Herramienta Backups
   showMonitoring: boolean; // Herramienta Monitoreo
 }
 
@@ -21,7 +21,7 @@ const DEFAULT_PREFERENCES: AdminModuleConfig = {
   showAutomation: true,
   showNewAgreements: true,
   showReports: true,
-  showIntegrity: true,
+  showBackups: true,
   showMonitoring: true,
 };
 

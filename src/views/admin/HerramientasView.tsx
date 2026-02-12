@@ -28,7 +28,7 @@ const ActiveInstitutionsReport = lazy(
   () => import("../../components/admin/ActiveInstitutionsReport")
 );
 const PersonalizationPanel = lazy(() => import("../../components/PersonalizationPanel"));
-const DataIntegrityTool = lazy(() => import("../../components/admin/DataIntegrityTool"));
+const BackupManager = lazy(() => import("../../components/admin/BackupManager"));
 const MonitoringTest = lazy(() => import("../../components/MonitoringTest"));
 
 const QUICK_STUDENT_CONFIG = {
@@ -87,9 +87,9 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({
     if (preferences.showReports)
       availableTabs.push({ id: "reportes", label: "Reportes", icon: "summarize" });
 
-    // Mantenimiento (Integridad)
-    if (preferences.showIntegrity)
-      availableTabs.push({ id: "integrity", label: "Integridad", icon: "health_and_safety" });
+    // Backups
+    if (preferences.showBackups)
+      availableTabs.push({ id: "backups", label: "Backups", icon: "backup" });
 
     // Monitoring (siempre visible para admin si está activo en prefs)
     if (preferences.showMonitoring) {
@@ -145,9 +145,9 @@ const HerramientasView: React.FC<HerramientasViewProps> = ({
             </ErrorBoundary>
           )}
 
-          {activeTabId === "integrity" && preferences.showIntegrity && (
+          {activeTabId === "backups" && preferences.showBackups && (
             <ErrorBoundary>
-              <DataIntegrityTool />
+              <BackupManager />
             </ErrorBoundary>
           )}
 

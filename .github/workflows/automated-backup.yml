@@ -1,0 +1,64 @@
+name: Automated Database Backup
+
+on:
+  schedule:
+    # Ejecutar todos los días a las 2:00 AM UTC
+    # Puedes modificar esto según necesites:
+    # - Cada hora: '0 * * * *'
+    # - Cada 6 horas: '0 */6 * * *'
+    # - Semanal (domingos 2AM): '0 2 * * 0'
+    # - Mensual (1ro de cada mes 2AM): '0 2 1 * *'
+    - cron: '0 2 * * *'
+  
+  # Permite ejecución manual desde la pestaña Actions
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Create Database Backup
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger Backup Function
+        id: backup
+        run: |
+          echo "🚀 Iniciando backup automático..."
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co/functions/v1/automated-backup" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Status Code: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Backup completado exitosamente"
+            echo "result=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Error en el backup"
+            echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Notify Success
+        if: steps.backup.outputs.result == 'success'
+        run: |
+          echo "✅ Backup completado exitosamente"
+          echo "📅 Fecha: $(date)"
+          echo "🔧 Configuración: ${{ github.workflow }}"
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "❌ El backup ha fallado"
+          echo "📅 Fecha: $(date)"
+          echo "🔍 Revisar logs para más detalles"
+          
+          # Aquí puedes agregar notificaciones adicionales:
+          # - Enviar email
+          # - Notificar en Slack
+          # - Crear issue en GitHub

@@ -94,11 +94,11 @@ const PersonalizationPanel: React.FC = () => {
             />
 
             <SwitchRow
-              label="Herramientas de Integridad"
-              description="Limpieza de base de datos y reparación de registros."
-              icon="health_and_safety"
-              checked={preferences.showIntegrity}
-              onChange={() => toggleModule("showIntegrity")}
+              label="Backups"
+              description="Gestión de respaldos automáticos y manuales de la base de datos."
+              icon="backup"
+              checked={preferences.showBackups}
+              onChange={() => toggleModule("showBackups")}
             />
             <SwitchRow
               label="Monitoreo de Sistema"
