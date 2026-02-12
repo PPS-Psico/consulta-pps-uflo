@@ -21,6 +21,173 @@ import EmptyState from "../EmptyState";
 import Toast from "../ui/Toast";
 import ConfirmModal from "../ConfirmModal";
 
+// Componente Premium para selección de horarios
+interface ScheduleSelectorProps {
+  currentSchedule: string;
+  availableSchedules: string[];
+  onScheduleChange: (newSchedule: string) => void;
+  disabled?: boolean;
+}
+
+const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
+  currentSchedule,
+  availableSchedules,
+  onScheduleChange,
+  disabled = false,
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [selectedSchedules, setSelectedSchedules] = React.useState<string[]>([]);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Parsear horarios actuales (separados por punto y coma)
+  React.useEffect(() => {
+    if (currentSchedule) {
+      const schedules = currentSchedule
+        .split(";")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      setSelectedSchedules(schedules);
+    } else {
+      setSelectedSchedules([]);
+    }
+  }, [currentSchedule]);
+
+  // Cerrar dropdown al hacer clic fuera
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleRemoveSchedule = (scheduleToRemove: string) => {
+    const newSchedules = selectedSchedules.filter((s) => s !== scheduleToRemove);
+    setSelectedSchedules(newSchedules);
+    onScheduleChange(newSchedules.join("; "));
+  };
+
+  const handleAddSchedule = (scheduleToAdd: string) => {
+    if (!selectedSchedules.includes(scheduleToAdd)) {
+      const newSchedules = [...selectedSchedules, scheduleToAdd];
+      setSelectedSchedules(newSchedules);
+      onScheduleChange(newSchedules.join("; "));
+    }
+  };
+
+  const unselectedSchedules = availableSchedules.filter(
+    (schedule) => !selectedSchedules.includes(schedule)
+  );
+
+  if (disabled) {
+    return (
+      <div className="flex-grow lg:w-56 px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+        {currentSchedule || "Horario predefinido"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-grow lg:w-56 relative" ref={dropdownRef}>
+      {/* Área principal con horarios seleccionados */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`min-h-[42px] px-3 py-2 rounded-lg border cursor-pointer transition-all duration-200 ${
+          isOpen
+            ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50 dark:bg-blue-900/20"
+            : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600"
+        }`}
+      >
+        {selectedSchedules.length === 0 ? (
+          <div className="flex items-center justify-between h-[26px]">
+            <span className="text-xs text-slate-400 dark:text-slate-500 italic">
+              Seleccionar horario...
+            </span>
+            <span className="material-icons text-slate-400 text-lg">expand_more</span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {selectedSchedules.map((schedule, index) => (
+              <div
+                key={index}
+                className="group inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[11px] font-medium rounded-md shadow-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 animate-fade-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="material-icons text-[10px]">schedule</span>
+                <span className="max-w-[120px] truncate">{schedule}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveSchedule(schedule);
+                  }}
+                  className="ml-0.5 p-0.5 hover:bg-white/20 rounded transition-colors"
+                  title="Eliminar horario"
+                >
+                  <span className="material-icons text-[10px]">close</span>
+                </button>
+              </div>
+            ))}
+            {unselectedSchedules.length > 0 && (
+              <div className="inline-flex items-center px-2 py-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                <span className="material-icons text-xs mr-1">add</span>
+                Agregar
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Dropdown con horarios disponibles */}
+      {isOpen && unselectedSchedules.length > 0 && (
+        <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-slide-down">
+          <div className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Horarios disponibles
+            </span>
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            {unselectedSchedules.map((schedule, index) => (
+              <button
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddSchedule(schedule);
+                  if (selectedSchedules.length === 0) {
+                    setIsOpen(false);
+                  }
+                }}
+                className="w-full px-3 py-2.5 text-left text-xs text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-2 group"
+              >
+                <span className="material-icons text-slate-400 group-hover:text-blue-500 text-sm transition-colors">
+                  add_circle_outline
+                </span>
+                <span className="flex-1">{schedule}</span>
+                <span className="material-icons text-blue-500 opacity-0 group-hover:opacity-100 text-sm transition-opacity">
+                  add
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje cuando no hay más horarios */}
+      {isOpen && unselectedSchedules.length === 0 && selectedSchedules.length > 0 && (
+        <div className="absolute z-50 mt-2 w-full bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-slide-down">
+          <div className="px-3 py-4 text-center">
+            <span className="material-icons text-slate-300 text-2xl mb-1">check_circle</span>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Todos los horarios seleccionados
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const StudentRow: React.FC<{
   student: EnrichedStudent;
   onToggleSelection: (student: EnrichedStudent) => void;
@@ -28,6 +195,7 @@ const StudentRow: React.FC<{
   isUpdating: boolean;
   isReviewMode?: boolean;
   showScheduleSelector?: boolean;
+  availableSchedules?: string[];
 }> = ({
   student,
   onToggleSelection,
@@ -35,17 +203,9 @@ const StudentRow: React.FC<{
   isUpdating,
   isReviewMode = false,
   showScheduleSelector = true,
+  availableSchedules = [],
 }) => {
-  const [localSchedule, setLocalSchedule] = React.useState(student.horarioSeleccionado);
-  const [isScheduleDirty, setIsScheduleDirty] = React.useState(false);
   const isSelected = normalizeStringForComparison(student.status) === "seleccionado";
-
-  const handleScheduleBlur = () => {
-    if (isScheduleDirty && localSchedule !== student.horarioSeleccionado) {
-      onUpdateSchedule(student.enrollmentId, localSchedule);
-      setIsScheduleDirty(false);
-    }
-  };
 
   return (
     <div
@@ -190,25 +350,12 @@ const StudentRow: React.FC<{
         </div>
 
         <div className="flex items-center gap-2 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
-          {showScheduleSelector ? (
-            <div className="flex-grow lg:w-40">
-              <input
-                type="text"
-                value={localSchedule}
-                onChange={(e) => {
-                  setLocalSchedule(e.target.value);
-                  setIsScheduleDirty(true);
-                }}
-                onBlur={handleScheduleBlur}
-                className="w-full text-xs px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-black/30 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400 dark:text-white"
-                placeholder="Asignar horario..."
-              />
-            </div>
-          ) : (
-            <div className="flex-grow lg:w-40 px-2.5 py-2 text-xs text-slate-500 dark:text-slate-400">
-              {student.horarioSeleccionado || "Horario predefinido"}
-            </div>
-          )}
+          <ScheduleSelector
+            currentSchedule={student.horarioSeleccionado || ""}
+            availableSchedules={availableSchedules}
+            onScheduleChange={(newSchedule) => onUpdateSchedule(student.enrollmentId, newSchedule)}
+            disabled={!showScheduleSelector}
+          />
 
           <button
             onClick={() => onToggleSelection(student)}
@@ -545,6 +692,7 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({
               isUpdating={updatingId === student.enrollmentId}
               isReviewMode={viewMode === "review"}
               showScheduleSelector={scheduleInfo?.showScheduleSelector ?? true}
+              availableSchedules={scheduleInfo?.horariosDisponibles || []}
             />
           ))}
           {displayedCandidates.length === 0 && (
