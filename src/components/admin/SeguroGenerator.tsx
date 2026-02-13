@@ -31,6 +31,7 @@ import {
   FIELD_ORIENTACION_LANZAMIENTOS,
   FIELD_DIRECCION_CONVOCATORIAS,
   FIELD_HORARIO_FORMULA_CONVOCATORIAS,
+  FIELD_HORARIO_ASIGNADO_CONVOCATORIAS,
   FIELD_ORIENTACION_CONVOCATORIAS,
   FIELD_HORARIOS_FIJOS_LANZAMIENTOS,
 } from "../../constants";
@@ -284,14 +285,23 @@ const SeguroGenerator: React.FC<SeguroGeneratorProps> = ({
           const fechaFin =
             ppsData?.[FIELD_FECHA_FIN_LANZAMIENTOS] || group[FIELD_FECHA_FIN_CONVOCATORIAS];
 
-          // Logic for schedules: If fixed (all mandatory), use lanzamiento schedules.
-          // Otherwise, use student's specific choice or fallback to lanzamiento's default.
+          // Logic for schedules: Priority order:
+          // 1. horario_asignado (el horario final asignado por el admin)
+          // 2. Si es fixed: usar horario del lanzamiento
+          // 3. Si no es fixed: usar horario_seleccionado del estudiante
+          // 4. Fallback a horario del lanzamiento o "A definir"
           const isFixed = !!ppsData?.[FIELD_HORARIOS_FIJOS_LANZAMIENTOS];
-          const horario = isFixed
-            ? ppsData?.[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS] || "A definir"
-            : specificConv?.[FIELD_HORARIO_FORMULA_CONVOCATORIAS] ||
-              ppsData?.[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS] ||
-              "A definir";
+          const horarioAsignado = specificConv?.[FIELD_HORARIO_ASIGNADO_CONVOCATORIAS];
+          const horarioSolicitado = specificConv?.[FIELD_HORARIO_FORMULA_CONVOCATORIAS];
+          const horarioLanzamiento = ppsData?.[FIELD_HORARIO_SELECCIONADO_LANZAMIENTOS];
+
+          // Si hay horario_asignado, usarlo primero (es el horario final)
+          // Sino, usar la lógica anterior
+          const horario =
+            horarioAsignado ||
+            (isFixed
+              ? horarioLanzamiento || "A definir"
+              : horarioSolicitado || horarioLanzamiento || "A definir");
 
           const orientacion =
             ppsData?.[FIELD_ORIENTACION_LANZAMIENTOS] ||

@@ -107,7 +107,7 @@ export const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
         </h2>
         <div className="flex items-center gap-3">
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-            {[2024, 2025].map((year) => (
+            {[2024, 2025, 2026].map((year) => (
               <button
                 key={year}
                 onClick={() => {

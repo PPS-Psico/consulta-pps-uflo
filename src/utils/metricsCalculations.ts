@@ -159,15 +159,16 @@ export const calculateDashboardMetrics = (allData: any, targetYear: number) => {
   });
 
   // Alumnos Activos HOY (Snapshot) o al final del año objetivo
+  // Incluye a quienes se fueron durante el año (para matrícula generada del año)
   const activosList = allData.estudiantes.filter((s: any) => {
     const timeline = studentTimelineMap.get(s.id);
-    if (!timeline) return false; // Sin actividad no cuenta
+    if (!timeline) return false;
 
     const startedBeforeOrDuring = timeline.firstActivity.getUTCFullYear() <= targetYear;
-    const notGraduatedOrGraduatedAfter =
-      !timeline.graduation || timeline.graduation.getUTCFullYear() > targetYear;
+    const notGraduatedBeforeYear =
+      !timeline.graduation || timeline.graduation.getUTCFullYear() >= targetYear;
 
-    return startedBeforeOrDuring && notGraduatedOrGraduatedAfter;
+    return startedBeforeOrDuring && notGraduatedBeforeYear;
   });
 
   const totalMatriculaGenerada = activosList.length + acreditadosList.length;
@@ -190,13 +191,15 @@ export const calculateDashboardMetrics = (allData: any, targetYear: number) => {
     }
   });
 
-  const sinNingunaPpsList = activosList.filter((s: any) => !studentTimelineMap.has(s.id)); // Estricto: sin actividad registrada
+  const sinNingunaPpsList = allData.estudiantes.filter((s: any) => {
+    const estado = normalizeStringForComparison(s[FIELD_ESTADO_ESTUDIANTES]);
+    if (estado !== "activo") return false;
+    return !studentHoursMap.has(s.id);
+  });
 
   const proximosAFinalizarList = activosList.filter((s: any) => {
     const totalHours = studentHoursMap.get(s.id) || 0;
-    const hasActive = studentActivePracticesMap.get(s.id);
-    if (totalHours >= 230 && totalHours < 250) return true;
-    if (totalHours >= 250 && hasActive) return true;
+    if (totalHours >= 230) return true;
     return false;
   });
 
@@ -318,13 +321,18 @@ export const calculateDashboardMetrics = (allData: any, targetYear: number) => {
     return count;
   };
 
-  // Nota: 2024 y 2025 se calculan dinámicamente según la lógica de "Primera Actividad"
+  // Calcular dinámicamente para años con datos, agregar 2026 como proyección si es el año actual
   const enrollmentEvolution = [
-    { year: "2022", value: 19, label: "Nuevos Inscriptos" },
-    { year: "2023", value: 87, label: "Nuevos Inscriptos" },
+    { year: "2022", value: getIngresantesCount(2022) || 19, label: "Nuevos Inscriptos" },
+    { year: "2023", value: getIngresantesCount(2023) || 87, label: "Nuevos Inscriptos" },
     { year: "2024", value: getIngresantesCount(2024), label: "Nuevos Inscriptos" },
     { year: "2025", value: getIngresantesCount(2025), label: "Nuevos Inscriptos" },
-    { year: "2026", value: 116, label: "Proyeccion Ingresantes", isProjection: true },
+    {
+      year: "2026",
+      value: getIngresantesCount(2026),
+      label: "Proyeccion Ingresantes",
+      isProjection: targetYear >= 2026,
+    },
   ];
 
   return {
