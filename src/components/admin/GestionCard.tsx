@@ -297,16 +297,18 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
           onClick={() => !isEditingPhone && setIsExpanded(!isExpanded)}
         >
           {/* Header Content */}
-          <div className="p-4 pl-5 cursor-pointer">
-            <div className="flex justify-between items-start gap-3">
+          <div className="p-3 sm:p-4 pl-3 sm:pl-5 cursor-pointer">
+            <div className="flex justify-between items-start gap-2">
               <div className="flex-grow min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className={`${especialidadVisuals.tag} text-[10px] py-0.5 px-2 font-bold`}>
+                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                  <span
+                    className={`${especialidadVisuals.tag} text-[9px] sm:text-[10px] py-0.5 px-1.5 sm:px-2 font-bold`}
+                  >
                     {pps[FIELD_ORIENTACION_LANZAMIENTOS]}
                   </span>
                   {isEffectivelyConfirmed && relaunchDate && (
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800">
-                      <span className="material-icons !text-[10px]">event</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 sm:px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800">
+                      <span className="material-icons !text-[9px] sm:!text-[10px]">event</span>
                       {displayRelaunchDate()}
                     </span>
                   )}
@@ -314,33 +316,32 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
                   <DaysWaitingBadge />
                 </div>
                 <h4
-                  className="font-bold text-slate-800 dark:text-slate-100 leading-tight truncate pr-4"
+                  className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100 leading-tight truncate pr-2"
                   title={pps[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
                 >
                   {pps[FIELD_NOMBRE_PPS_LANZAMIENTOS]}
                 </h4>
               </div>
 
-              <div className="flex-shrink-0 flex items-center gap-2">
-                {/* Botón de Contacto Rápido */}
+              <div className="flex-shrink-0 flex items-center gap-1 sm:gap-2">
                 {status === "Pendiente de Gestión" && cardType === "porContactar" && (
                   <button
                     onClick={handleQuickContact}
-                    className="px-3 py-1.5 text-xs font-bold bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-1"
+                    className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-0.5 sm:gap-1"
                     title="Contactar para relanzamiento"
                   >
-                    <span className="material-icons !text-sm">send</span>
-                    <span>Contactar</span>
+                    <span className="material-icons !text-[12px] sm:!text-sm">send</span>
+                    <span className="hidden xs:inline">Contactar</span>
                   </button>
                 )}
 
                 {institution?.phone ? (
                   <button
                     onClick={handleWhatsAppClick}
-                    className="p-2 rounded-full bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 transition-colors"
+                    className="p-1.5 sm:p-2 rounded-full bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 transition-colors"
                     title="WhatsApp"
                   >
-                    <span className="material-icons !text-lg">chat</span>
+                    <span className="material-icons !text-base sm:!text-lg">chat</span>
                   </button>
                 ) : (
                   <button
@@ -348,16 +349,16 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
                       e.stopPropagation();
                       setIsEditingPhone(true);
                     }}
-                    className="p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="p-1.5 sm:p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     title="Agregar Teléfono"
                   >
-                    <span className="material-icons !text-lg">add_call</span>
+                    <span className="material-icons !text-base sm:!text-lg">add_call</span>
                   </button>
                 )}
                 <div
-                  className={`transform transition-transform duration-300 text-slate-400 ${isExpanded ? "rotate-180" : ""}`}
+                  className={`transform transition-transform duration-300 text-slate-400 p-1 ${isExpanded ? "rotate-180" : ""}`}
                 >
-                  <span className="material-icons">expand_more</span>
+                  <span className="material-icons text-xl">expand_more</span>
                 </div>
               </div>
             </div>
@@ -369,9 +370,9 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
             onClick={(e) => e.stopPropagation()}
           >
             <div className="overflow-hidden bg-slate-50/50 dark:bg-slate-800/20 cursor-default">
-              <div className="p-4 space-y-4">
-                <div className="flex gap-4 items-start">
-                  <div className="flex-1">
+              <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                <div className="flex flex-col sm:gap-4 sm:flex-row items-start">
+                  <div className="w-full sm:flex-1">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
                       Estado
                     </label>
@@ -388,11 +389,10 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
                     </select>
                   </div>
 
-                  {/* Smart Action Button for 2026 Relaunch */}
                   {status !== "Relanzamiento Confirmado" &&
                     status !== "No se Relanza" &&
                     status !== "Archivado" && (
-                      <div className="mt-6">
+                      <div className="mt-2 sm:mt-6">
                         <button
                           onClick={() => {
                             setStatus("Relanzamiento Confirmado");
@@ -444,9 +444,9 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
                 )}
 
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1 sm:gap-2">
                     <span className="material-icons !text-xs">edit_note</span>
-                    Bitácora de Gestión
+                    Bitácora
                   </label>
                   <div className="relative">
                     <textarea
@@ -454,7 +454,7 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
                       onChange={(e) => setNotes(e.target.value)}
                       rows={3}
                       className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 pl-4 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none leading-relaxed"
-                      placeholder="Escribe aquí los avances..."
+                      placeholder="Escribe aquí..."
                     />
                     <div className="absolute left-0 top-3 bottom-3 w-1 bg-blue-400 rounded-r opacity-50"></div>
                   </div>
@@ -464,7 +464,7 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
                   <button
                     onClick={handleSave}
                     disabled={isUpdating || !hasChanges || isJustSaved}
-                    className={`flex items-center gap-2 py-2 px-6 rounded-lg text-sm font-bold shadow-sm transition-all transform active:scale-95
+                    className={`flex items-center gap-2 py-2 px-4 sm:px-6 rounded-lg text-sm font-bold shadow-sm transition-all transform active:scale-95 w-full sm:w-auto justify-center
                                   ${
                                     isJustSaved
                                       ? "bg-emerald-500 text-white cursor-default"
@@ -481,7 +481,7 @@ const GestionCard: React.FC<GestionCardProps> = React.memo(
                         {isJustSaved ? "check" : "save"}
                       </span>
                     )}
-                    <span>{isJustSaved ? "Guardado" : "Guardar Cambios"}</span>
+                    <span>{isJustSaved ? "Guardado" : "Guardar"}</span>
                   </button>
                 </div>
               </div>

@@ -1,13 +1,14 @@
 {
-  "name": "Mi Panel Académico",
-  "short_name": "Mi Panel",
-  "id": "/",
-  "description": "Una aplicación para que los estudiantes consulten de forma segura el estado de sus Prácticas Profesionales Supervisadas (PPS) y prácticas realizadas.",
-  "start_url": "./",
+  "name": "Gestión PPS UFLO",
+  "short_name": "Gestión PPS",
+  "id": "/admin-movil",
+  "description": "Panel de gestión de PPS para seguimiento de instituciones y relanzamientos 2026",
+  "start_url": "./#/admin-movil",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#2563eb",
+  "orientation": "portrait",
   "gcm_sender_id": "103953800507",
   "icons": [
     {
@@ -22,5 +23,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["business", "productivity"]
 }

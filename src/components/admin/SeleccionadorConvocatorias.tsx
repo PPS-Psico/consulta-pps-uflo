@@ -21,65 +21,43 @@ import EmptyState from "../EmptyState";
 import Toast from "../ui/Toast";
 import ConfirmModal from "../ConfirmModal";
 
-// Componente Premium para selección de horarios - Solo eliminar, no agregar
+// Componente Premium para selección de horarios
 interface ScheduleSelectorProps {
-  currentSchedule: string;
-  availableSchedules: string[];
+  horariosSolicitados: string; // Horarios originales que solicitó el estudiante
+  horarioAsignado?: string; // Horario final asignado por el admin
+  isEditMode?: boolean; // true cuando se edita desde historial
   onScheduleChange: (newSchedule: string) => void;
   disabled?: boolean;
 }
 
 const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
-  currentSchedule,
+  horariosSolicitados,
+  horarioAsignado,
+  isEditMode = false,
   onScheduleChange,
   disabled = false,
 }) => {
-  const [selectedSchedules, setSelectedSchedules] = React.useState<string[]>([]);
+  const [activeTooltip, setActiveTooltip] = React.useState<number | null>(null);
+  const tooltipRef = React.useRef<HTMLDivElement>(null);
 
-  // Parsear horarios actuales (separados por punto y coma)
-  React.useEffect(() => {
-    if (currentSchedule) {
-      const schedules = currentSchedule
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      setSelectedSchedules(schedules);
-    } else {
-      setSelectedSchedules([]);
-    }
-  }, [currentSchedule]);
+  // Parsear horarios solicitados (los originales)
+  const allSolicitados = React.useMemo(() => {
+    if (!horariosSolicitados) return [];
+    return horariosSolicitados
+      .split(";")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [horariosSolicitados]);
 
   const handleRemoveSchedule = (scheduleToRemove: string) => {
-    const newSchedules = selectedSchedules.filter((s) => s !== scheduleToRemove);
-    setSelectedSchedules(newSchedules);
+    const newSchedules = allSolicitados.filter((s) => s !== scheduleToRemove);
     onScheduleChange(newSchedules.join("; "));
   };
 
-  if (disabled) {
-    return (
-      <div className="flex-grow lg:w-auto min-w-[200px] px-3 py-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-        {currentSchedule || "Horario predefinido"}
-      </div>
-    );
-  }
-
-  const [activeTooltip, setActiveTooltip] = React.useState<number | null>(null);
-  const [tooltipPos, setTooltipPos] = React.useState({ left: false });
-  const tooltipRef = React.useRef<HTMLDivElement>(null);
-
   const handleScheduleClick = (index: number, event: React.MouseEvent) => {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    // Si está muy a la derecha, mostrar tooltip a la izquierda
-    const shouldShowLeft = rect.right + 250 > viewportWidth;
-
-    setTooltipPos({ left: shouldShowLeft });
+    event.stopPropagation();
     setActiveTooltip(activeTooltip === index ? null : index);
-
-    // Cerrar automáticamente después de 4 segundos
-    setTimeout(() => {
-      setActiveTooltip(null);
-    }, 4000);
+    setTimeout(() => setActiveTooltip(null), 4000);
   };
 
   // Cerrar tooltip al hacer clic fuera
@@ -89,76 +67,107 @@ const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
         setActiveTooltip(null);
       }
     };
-
     if (activeTooltip !== null) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [activeTooltip]);
 
+  if (disabled) {
+    const displaySchedule = isEditMode
+      ? horarioAsignado || allSolicitados[0] || ""
+      : horarioAsignado || horariosSolicitados;
+    return (
+      <div className="flex-grow lg:w-auto min-w-[200px] px-3 py-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+        {displaySchedule || "Horario predefinido"}
+      </div>
+    );
+  }
+
+  if (allSolicitados.length === 0) {
+    return (
+      <div className="flex-grow lg:w-auto min-w-[200px] max-w-[320px] px-3 py-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+        Sin horarios solicitados
+      </div>
+    );
+  }
+
   return (
     <div className="flex-grow lg:w-auto min-w-[200px] max-w-[320px]">
-      {selectedSchedules.length === 0 ? (
-        <div className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-          Sin horario asignado
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {selectedSchedules.map((schedule, index) => (
+      <div className="flex flex-col gap-2">
+        {allSolicitados.map((schedule, index) => {
+          const isAsignado = isEditMode && horarioAsignado === schedule;
+
+          return (
             <div
               key={index}
               ref={activeTooltip === index ? tooltipRef : null}
               onClick={(e) => handleScheduleClick(index, e)}
-              className="group relative flex items-center gap-2 pl-3 pr-2 py-2.5 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-900 dark:text-blue-200 text-[11px] font-semibold rounded-lg border border-blue-200 dark:border-blue-700/50 shadow-sm hover:shadow-md hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/40 dark:hover:to-blue-700/40 transition-all duration-200 cursor-pointer"
+              className={`group relative flex items-center gap-2 pl-3 pr-2 py-2.5 rounded-lg border shadow-sm transition-all duration-200 cursor-pointer ${
+                isAsignado
+                  ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700"
+                  : "bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-700/50 hover:shadow-md hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/40 dark:hover:to-blue-700/40"
+              }`}
             >
               {/* Icono */}
-              <span className="material-icons text-[13px] text-blue-600 dark:text-blue-400 flex-shrink-0">
-                schedule
+              <span
+                className={`material-icons text-[13px] flex-shrink-0 ${
+                  isAsignado
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-blue-600 dark:text-blue-400"
+                }`}
+              >
+                {isAsignado ? "check_circle" : "schedule"}
               </span>
 
-              {/* Texto truncado - más espacio ahora */}
+              {/* Texto truncado */}
               <span className="flex-1 truncate max-w-[200px]" title="Clic para ver completo">
                 {schedule}
               </span>
 
-              {/* Botón eliminar */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRemoveSchedule(schedule);
-                }}
-                className="flex-shrink-0 ml-1 p-1 text-blue-500 dark:text-blue-400 hover:text-white hover:bg-red-500 dark:hover:bg-red-600 rounded-md transition-all duration-150"
-                title="Eliminar horario"
-              >
-                <span className="material-icons text-[13px]">close</span>
-              </button>
+              {/* Botón eliminar (solo en modo normal) */}
+              {!isEditMode && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveSchedule(schedule);
+                  }}
+                  className="flex-shrink-0 ml-1 p-1 text-blue-500 dark:text-blue-400 hover:text-white hover:bg-red-500 dark:hover:bg-red-600 rounded-md transition-all duration-150"
+                  title="Eliminar horario"
+                >
+                  <span className="material-icons text-[13px]">close</span>
+                </button>
+              )}
 
-              {/* Tooltip que aparece al hacer clic - posicionado inteligentemente */}
+              {/* Tooltip */}
               {activeTooltip === index && (
                 <div
-                  className={`absolute bottom-full mb-2 z-50 ${
-                    tooltipPos.left ? "right-0" : "left-0"
-                  }`}
+                  className="absolute bottom-full mb-2 z-50"
+                  style={{ left: "50%", transform: "translateX(-50%)" }}
                 >
                   <div
-                    className="px-4 py-3 bg-slate-800 dark:bg-slate-700 text-white dark:text-slate-100 text-xs rounded-lg shadow-2xl border border-slate-700 dark:border-slate-600 animate-fade-in"
+                    className="px-4 py-3 bg-slate-800 dark:bg-slate-700 text-white dark:text-slate-100 text-xs rounded-lg shadow-2xl border border-slate-700 dark:border-slate-600"
                     style={{ maxWidth: "350px", minWidth: "200px" }}
                   >
-                    <div className="font-semibold text-blue-300 dark:text-blue-300 mb-1 flex items-center gap-1">
+                    <div
+                      className={`font-semibold mb-1 flex items-center gap-1 ${
+                        isAsignado
+                          ? "text-emerald-300 dark:text-emerald-300"
+                          : "text-blue-300 dark:text-blue-300"
+                      }`}
+                    >
                       <span className="material-icons text-[12px]">info</span>
-                      Horario completo:
+                      {isAsignado ? "Horario asignado:" : "Horario completo:"}
                     </div>
                     <div className="leading-relaxed break-words whitespace-normal">{schedule}</div>
-                    <div
-                      className={`absolute top-full ${tooltipPos.left ? "right-4" : "left-4"} border-4 border-transparent border-t-slate-800 dark:border-t-slate-700`}
-                    ></div>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-slate-700"></div>
                   </div>
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -169,16 +178,16 @@ const StudentRow: React.FC<{
   onUpdateSchedule: (id: string, newSchedule: string) => void;
   isUpdating: boolean;
   isReviewMode?: boolean;
+  isEditMode?: boolean;
   showScheduleSelector?: boolean;
-  availableSchedules?: string[];
 }> = ({
   student,
   onToggleSelection,
   onUpdateSchedule,
   isUpdating,
   isReviewMode = false,
+  isEditMode = false,
   showScheduleSelector = true,
-  availableSchedules = [],
 }) => {
   const isSelected = normalizeStringForComparison(student.status) === "seleccionado";
 
@@ -326,8 +335,9 @@ const StudentRow: React.FC<{
 
         <div className="flex items-center gap-2 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
           <ScheduleSelector
-            currentSchedule={student.horarioSeleccionado || ""}
-            availableSchedules={availableSchedules}
+            horariosSolicitados={student.horarioSeleccionado || ""}
+            horarioAsignado={student.horarioAsignado}
+            isEditMode={false}
             onScheduleChange={(newSchedule) => onUpdateSchedule(student.enrollmentId, newSchedule)}
             disabled={!showScheduleSelector}
           />
@@ -666,8 +676,8 @@ const SeleccionadorConvocatorias: React.FC<SeleccionadorProps> = ({
               onUpdateSchedule={handleUpdateSchedule}
               isUpdating={updatingId === student.enrollmentId}
               isReviewMode={viewMode === "review"}
+              isEditMode={false}
               showScheduleSelector={scheduleInfo?.showScheduleSelector ?? true}
-              availableSchedules={scheduleInfo?.horariosDisponibles || []}
             />
           ))}
           {displayedCandidates.length === 0 && (
