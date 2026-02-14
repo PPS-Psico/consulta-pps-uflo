@@ -32,20 +32,41 @@ Deno.serve(async (req: Request) => {
 
   // Verificar autenticación (solo admin o cron job)
   const authHeader = req.headers.get("Authorization");
-  const isCronJob = authHeader === `Bearer ${Deno.env.get("CRON_SECRET")}`;
+  const expectedCronHeader = `Bearer ${Deno.env.get("CRON_SECRET")}`;
+  const isCronJob = authHeader === expectedCronHeader;
+
+  console.log("Auth header received:", authHeader);
+  console.log("Expected CRON header:", expectedCronHeader);
+  console.log("Is cron job:", isCronJob);
 
   if (!isCronJob) {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(authHeader?.replace("Bearer ", "") || "");
+    console.log("Not a cron job, validating as user token...");
+    const token = authHeader?.replace("Bearer ", "");
 
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    if (!token || token === authHeader) {
+      console.log("No valid token provided");
+      return new Response(JSON.stringify({ error: "Unauthorized - No valid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      console.error("Auth validation error:", authError);
+      return new Response(JSON.stringify({ error: "Unauthorized", details: authError?.message }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("User authenticated:", user.id);
+  } else {
+    console.log("Cron job authenticated successfully");
   }
 
   try {
