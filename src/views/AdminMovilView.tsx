@@ -6,6 +6,7 @@ import { normalizeStringForComparison } from "../utils/formatters";
 import Loader from "../components/Loader";
 import GestionCard from "../components/admin/GestionCard";
 import CollapsibleSection from "../components/CollapsibleSection";
+import InstallAdminPWA from "../components/InstallAdminPWA";
 
 const AdminMovilView: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -366,6 +367,8 @@ const AdminMovilView: React.FC = () => {
           <span className="text-xs font-medium">Urgentes</span>
         </button>
       </nav>
+
+      <InstallAdminPWA />
     </div>
   );
 };
